@@ -61,6 +61,7 @@ public sealed class ProviderCatalogTests
             Assert.Contains(catalog.Providers, provider => provider.ProviderId == "csv-warehouse-import");
             Assert.Contains(catalog.Providers, provider => provider.Schema.ResourceName == "gps-position-event");
             Assert.Contains(catalog.Providers, provider => provider.SupportedReadModels.Contains("RouteSummaryReadModel"));
+            Assert.Contains(catalog.Providers, provider => provider.SupportedReadModels.Contains("RouteDetailReadModel"));
             Assert.Contains(catalog.Providers, provider => provider.Configuration.Readiness == "Configured");
             Assert.Contains(catalog.Providers, provider => provider.Configuration.ConfiguredFields.Contains("baseUrl"));
             Assert.Contains(catalog.Providers, provider => provider.Configuration.Settings.Any(setting => setting.Key == "sourcePath" && setting.Value.Contains("warehouse-demo")));

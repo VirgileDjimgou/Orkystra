@@ -53,6 +53,7 @@ public sealed class ProviderCatalogService
         return provider switch
         {
             IWarehouseProviderAdapter => ["WarehouseSummaryReadModel"],
+            ITransportProjectionProviderAdapter => ["RouteSummaryReadModel", "RouteDetailReadModel"],
             ITransportProviderAdapter => ["RouteSummaryReadModel"],
             IGpsProviderAdapter => ["GpsPositionSnapshot"],
             _ => []

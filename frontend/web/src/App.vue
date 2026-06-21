@@ -3,17 +3,27 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import WarehouseTwinScene from './components/WarehouseTwinScene.vue'
 import {
   buildFallbackOverview,
+  buildFallbackRouteDetail,
+  buildFallbackRouteOptimization,
   buildFallbackWarehouseDetail,
   buildFallbackProviderCatalog,
   simulationSpeeds,
   type ControlTowerOverviewView,
+  type RouteDetailView,
+  type RouteOptimizationView,
   type WarehouseDetailView,
   type ProviderCatalogView,
   type ProviderCatalogItemView,
 } from './data/controlTower'
+import {
+  loadAiRecommendation,
+  type AiRecommendationEnvelopeView,
+} from './services/aiApi'
 import { loadControlTowerOverview } from './services/controlTowerApi'
+import { loadRouteOptimization } from './services/optimizationApi'
 import { loadProviderCatalog, updateProviderConfiguration } from './services/providerCatalogApi'
 import { loadWarehouseProjection } from './services/warehouseApi'
+import { loadTransportProjection } from './services/transportApi'
 
 type DataConnectionState = 'loading' | 'api' | 'fallback' | 'stale'
 
@@ -27,21 +37,34 @@ const navigationItems = [
 const fallbackOverview = buildFallbackOverview()
 const overview = ref<ControlTowerOverviewView>(fallbackOverview)
 const warehouseDetail = ref<WarehouseDetailView>(buildFallbackWarehouseDetail(fallbackOverview.warehouses[0].warehouseId))
+const routeDetail = ref<RouteDetailView>(buildFallbackRouteDetail(fallbackOverview.routes[0].routeId))
 const isApiConnected = ref(false)
 const isRefreshingWorkspace = ref(false)
 const loadErrorMessage = ref<string | null>(null)
 const overviewConnectionState = ref<DataConnectionState>('loading')
 const warehouseDetailErrorMessage = ref<string | null>(null)
 const warehouseConnectionState = ref<DataConnectionState>('loading')
+const routeDetailErrorMessage = ref<string | null>(null)
+const routeConnectionState = ref<DataConnectionState>('loading')
 const providerCatalog = ref<ProviderCatalogView>(buildFallbackProviderCatalog())
 const isProviderCatalogConnected = ref(false)
 const providerCatalogErrorMessage = ref<string | null>(null)
 const providerCatalogConnectionState = ref<DataConnectionState>('loading')
+const aiRecommendation = ref<AiRecommendationEnvelopeView | null>(null)
+const aiQuestion = ref('Which route should the dispatcher review first?')
+const aiRecommendationErrorMessage = ref<string | null>(null)
+const aiConnectionState = ref<DataConnectionState>('loading')
+const isRequestingAi = ref(false)
+const routeOptimization = ref<RouteOptimizationView>(buildFallbackRouteOptimization(routeDetail.value))
+const routeOptimizationErrorMessage = ref<string | null>(null)
+const routeOptimizationConnectionState = ref<DataConnectionState>('loading')
+const isOptimizingRoute = ref(false)
 const savingProviderId = ref<string | null>(null)
 const providerConfigurationNotice = ref<Record<string, string>>({})
 const providerConfigurationDrafts = ref<Record<string, { enabled: boolean; environment: string; settings: Record<string, string> }>>({})
 const selectedScenarioId = ref(fallbackOverview.scenarios[0].scenarioId)
 const selectedWarehouseId = ref(fallbackOverview.warehouses[0].warehouseId)
+const selectedRouteId = ref(fallbackOverview.routes[0].routeId)
 const simulationState = ref<'Running' | 'Paused'>('Running')
 const selectedSpeed = ref(simulationSpeeds[1])
 let connectionRecoveryHandle = 0
@@ -52,6 +75,10 @@ const currentScenario = computed(
 
 const currentWarehouse = computed(
   () => overview.value.warehouses.find((warehouse) => warehouse.warehouseId === selectedWarehouseId.value) ?? overview.value.warehouses[0],
+)
+
+const currentRoute = computed(
+  () => overview.value.routes.find((route) => route.routeId === selectedRouteId.value) ?? overview.value.routes[0],
 )
 
 const currentRiskCount = computed(() => overview.value.alerts.filter((alert) => alert.severity !== 'Info').length)
@@ -98,9 +125,31 @@ const scenarioStatusTone = computed(() => (simulationState.value === 'Running' ?
 const providerEditorTone = computed(() => toneForConnectionState(providerCatalogConnectionState.value))
 const dataConnectionTone = computed(() => toneForConnectionState(overviewConnectionState.value))
 const warehouseProjectionTone = computed(() => toneForConnectionState(warehouseConnectionState.value))
+const transportProjectionTone = computed(() => toneForConnectionState(routeConnectionState.value))
 const overviewConnectionLabel = computed(() => labelForConnectionState(overviewConnectionState.value, 'API live', 'Fallback active'))
 const warehouseProjectionLabel = computed(() => labelForConnectionState(warehouseConnectionState.value, 'Warehouse API live', 'Warehouse fallback'))
+const transportProjectionLabel = computed(() => labelForConnectionState(routeConnectionState.value, 'Transport API live', 'Transport fallback'))
 const catalogConnectionLabel = computed(() => labelForConnectionState(providerCatalogConnectionState.value, 'Editable local API', 'Read-only fallback'))
+const aiWorkflowTone = computed(() => toneForConnectionState(aiConnectionState.value))
+const aiWorkflowLabel = computed(() => labelForConnectionState(aiConnectionState.value, 'AI workflow live', 'AI fallback'))
+const optimizationWorkflowTone = computed(() => toneForConnectionState(routeOptimizationConnectionState.value))
+const optimizationWorkflowLabel = computed(() => labelForConnectionState(routeOptimizationConnectionState.value, 'Optimization live', 'Optimization fallback'))
+const aiRecommendationView = computed(() => aiRecommendation.value?.recommendation ?? null)
+const currentRemainingRouteOrder = computed(() => {
+  const pendingStopSequences = new Set(
+    routeDetail.value.deliveries
+      .filter((delivery) => delivery.status !== 'Completed')
+      .map((delivery) => delivery.stopSequence),
+  )
+
+  const pendingStops = routeDetail.value.stops
+    .filter((stop) => pendingStopSequences.has(stop.sequence))
+    .map((stop) => stop.name)
+
+  return pendingStops.length > 0
+    ? pendingStops
+    : routeDetail.value.stops.map((stop) => stop.name)
+})
 const tenantSummary = computed(() => {
   if (overviewConnectionState.value === 'api') {
     return 'API-backed control tower'
@@ -117,8 +166,20 @@ const tenantSummary = computed(() => {
   return 'Fallback demo data active'
 })
 const connectionMessage = computed(() => {
-  return loadErrorMessage.value ?? warehouseDetailErrorMessage.value ?? providerCatalogErrorMessage.value ?? 'All local data surfaces are ready.'
+  return loadErrorMessage.value ??
+    warehouseDetailErrorMessage.value ??
+    routeDetailErrorMessage.value ??
+    providerCatalogErrorMessage.value ??
+    aiRecommendationErrorMessage.value ??
+    routeOptimizationErrorMessage.value ??
+    'All local data surfaces are ready.'
 })
+
+const aiQuickPrompts = [
+  'Which warehouse needs attention right now?',
+  'Which route should the dispatcher review first?',
+  'What data is still missing before we can be confident?',
+]
 
 function toggleSimulation(): void {
   simulationState.value = simulationState.value === 'Running' ? 'Paused' : 'Running'
@@ -157,6 +218,11 @@ function providerDraft(providerId: string): { enabled: boolean; environment: str
   return providerConfigurationDrafts.value[providerId]
 }
 
+async function runAiPrompt(question: string): Promise<void> {
+  aiQuestion.value = question
+  await refreshAiRecommendation(false)
+}
+
 function applyOverviewResult(result: Awaited<ReturnType<typeof loadControlTowerOverview>>, preserveExisting: boolean): void {
   const keepCurrentSnapshot = preserveExisting &&
     result.source === 'fallback' &&
@@ -170,6 +236,9 @@ function applyOverviewResult(result: Awaited<ReturnType<typeof loadControlTowerO
     selectedWarehouseId.value = result.overview.warehouses.some((warehouse) => warehouse.warehouseId === selectedWarehouseId.value)
       ? selectedWarehouseId.value
       : (result.overview.warehouses[0]?.warehouseId ?? fallbackOverview.warehouses[0].warehouseId)
+    selectedRouteId.value = result.overview.routes.some((route) => route.routeId === selectedRouteId.value)
+      ? selectedRouteId.value
+      : (result.overview.routes[0]?.routeId ?? fallbackOverview.routes[0].routeId)
   }
 
   overviewConnectionState.value = keepCurrentSnapshot
@@ -228,6 +297,69 @@ function applyWarehouseProjectionResult(
     : result.errorMessage
 }
 
+function applyTransportProjectionResult(
+  result: Awaited<ReturnType<typeof loadTransportProjection>>,
+  preserveExisting: boolean,
+  requestedRouteId: string,
+): void {
+  const keepCurrentSnapshot = preserveExisting &&
+    result.source === 'fallback' &&
+    routeDetail.value.routeId === requestedRouteId &&
+    (routeConnectionState.value === 'api' || routeConnectionState.value === 'stale')
+
+  if (!keepCurrentSnapshot) {
+    routeDetail.value = result.route
+  }
+
+  routeConnectionState.value = keepCurrentSnapshot
+    ? 'stale'
+    : result.source === 'api'
+      ? 'api'
+      : 'fallback'
+  routeDetailErrorMessage.value = keepCurrentSnapshot && result.errorMessage
+    ? `${result.errorMessage} Keeping the last successful transport projection.`
+    : result.errorMessage
+}
+
+function applyAiRecommendationResult(result: Awaited<ReturnType<typeof loadAiRecommendation>>, preserveExisting: boolean): void {
+  const keepCurrentSnapshot = preserveExisting &&
+    result.source === 'fallback' &&
+    (aiConnectionState.value === 'api' || aiConnectionState.value === 'stale')
+
+  if (!keepCurrentSnapshot) {
+    aiRecommendation.value = result.workflow
+  }
+
+  aiConnectionState.value = keepCurrentSnapshot
+    ? 'stale'
+    : result.source === 'api'
+      ? 'api'
+      : 'fallback'
+  aiRecommendationErrorMessage.value = keepCurrentSnapshot && result.errorMessage
+    ? `${result.errorMessage} Keeping the last successful AI recommendation.`
+    : result.errorMessage
+}
+
+function applyRouteOptimizationResult(result: Awaited<ReturnType<typeof loadRouteOptimization>>, preserveExisting: boolean, requestedRouteId: string): void {
+  const keepCurrentSnapshot = preserveExisting &&
+    result.source === 'fallback' &&
+    routeOptimization.value.routeId === requestedRouteId &&
+    (routeOptimizationConnectionState.value === 'api' || routeOptimizationConnectionState.value === 'stale')
+
+  if (!keepCurrentSnapshot) {
+    routeOptimization.value = result.optimization
+  }
+
+  routeOptimizationConnectionState.value = keepCurrentSnapshot
+    ? 'stale'
+    : result.source === 'api'
+      ? 'api'
+      : 'fallback'
+  routeOptimizationErrorMessage.value = keepCurrentSnapshot && result.errorMessage
+    ? `${result.errorMessage} Keeping the last successful optimization review.`
+    : result.errorMessage
+}
+
 async function refreshWarehouseProjection(warehouseId: string, preserveExisting = true): Promise<void> {
   if (!preserveExisting) {
     warehouseConnectionState.value = 'loading'
@@ -237,24 +369,72 @@ async function refreshWarehouseProjection(warehouseId: string, preserveExisting 
   applyWarehouseProjectionResult(result, preserveExisting, warehouseId)
 }
 
+async function refreshTransportProjection(routeId: string, preserveExisting = true): Promise<void> {
+  if (!preserveExisting) {
+    routeConnectionState.value = 'loading'
+  }
+
+  const result = await loadTransportProjection(routeId)
+  applyTransportProjectionResult(result, preserveExisting, routeId)
+}
+
+async function refreshAiRecommendation(preserveExisting = true): Promise<void> {
+  isRequestingAi.value = true
+
+  if (!preserveExisting) {
+    aiConnectionState.value = 'loading'
+  }
+
+  try {
+    const result = await loadAiRecommendation({
+      question: aiQuestion.value,
+      scenarioId: selectedScenarioId.value,
+    })
+    applyAiRecommendationResult(result, preserveExisting)
+  } finally {
+    isRequestingAi.value = false
+  }
+}
+
+async function refreshRouteOptimization(preserveExisting = true): Promise<void> {
+  isOptimizingRoute.value = true
+
+  if (!preserveExisting) {
+    routeOptimizationConnectionState.value = 'loading'
+  }
+
+  try {
+    const result = await loadRouteOptimization(routeDetail.value, selectedScenarioId.value)
+    applyRouteOptimizationResult(result, preserveExisting, routeDetail.value.routeId)
+  } finally {
+    isOptimizingRoute.value = false
+  }
+}
+
 async function refreshWorkspace(preserveExisting = true): Promise<void> {
   isRefreshingWorkspace.value = true
 
   if (!preserveExisting) {
     overviewConnectionState.value = 'loading'
     warehouseConnectionState.value = 'loading'
+    routeConnectionState.value = 'loading'
     providerCatalogConnectionState.value = 'loading'
+    aiConnectionState.value = 'loading'
+    routeOptimizationConnectionState.value = 'loading'
   }
 
   const [overviewResult, catalogResult] = await Promise.all([loadControlTowerOverview(), loadProviderCatalog()])
   applyOverviewResult(overviewResult, preserveExisting)
   applyCatalogResult(catalogResult, preserveExisting)
   await refreshWarehouseProjection(selectedWarehouseId.value, preserveExisting)
+  await refreshTransportProjection(selectedRouteId.value, preserveExisting)
+  await refreshRouteOptimization(preserveExisting)
+  await refreshAiRecommendation(preserveExisting)
   isRefreshingWorkspace.value = false
 
   const hasPartialFallback =
-    [overviewConnectionState.value, warehouseConnectionState.value, providerCatalogConnectionState.value].some((state) => state === 'fallback') &&
-    [overviewConnectionState.value, warehouseConnectionState.value, providerCatalogConnectionState.value].some((state) => state === 'api' || state === 'stale')
+    [overviewConnectionState.value, warehouseConnectionState.value, routeConnectionState.value, providerCatalogConnectionState.value, aiConnectionState.value, routeOptimizationConnectionState.value].some((state) => state === 'fallback') &&
+    [overviewConnectionState.value, warehouseConnectionState.value, routeConnectionState.value, providerCatalogConnectionState.value, aiConnectionState.value, routeOptimizationConnectionState.value].some((state) => state === 'api' || state === 'stale')
 
   if (hasPartialFallback) {
     window.clearTimeout(connectionRecoveryHandle)
@@ -315,6 +495,28 @@ watch(selectedWarehouseId, (nextWarehouseId, previousWarehouseId) => {
   }
 
   void refreshWarehouseProjection(nextWarehouseId, false)
+})
+
+watch(selectedRouteId, (nextRouteId, previousRouteId) => {
+  if (nextRouteId === previousRouteId || isRefreshingWorkspace.value) {
+    return
+  }
+
+  void (async () => {
+    await refreshTransportProjection(nextRouteId, false)
+    await refreshRouteOptimization(false)
+  })()
+})
+
+watch(selectedScenarioId, (nextScenarioId, previousScenarioId) => {
+  if (nextScenarioId === previousScenarioId || isRefreshingWorkspace.value) {
+    return
+  }
+
+  void (async () => {
+    await refreshRouteOptimization(false)
+    await refreshAiRecommendation(false)
+  })()
 })
 
 onBeforeUnmount(() => {
@@ -474,12 +676,34 @@ onBeforeUnmount(() => {
           <article class="connection-card">
             <div class="connection-card-head">
               <div>
+                <strong>Transport projection</strong>
+                <p>Route detail, shipment posture, and delivery progress.</p>
+              </div>
+              <span class="status-pill" :class="transportProjectionTone">{{ transportProjectionLabel }}</span>
+            </div>
+            <p>{{ routeDetailErrorMessage ?? `Detailed transport projection updated ${routeDetail.updatedAtLabel}.` }}</p>
+          </article>
+
+          <article class="connection-card">
+            <div class="connection-card-head">
+              <div>
                 <strong>Provider catalog</strong>
                 <p>Connector inventory, runtime posture, and local editing flow.</p>
               </div>
               <span class="status-pill" :class="providerEditorTone">{{ catalogConnectionLabel }}</span>
             </div>
             <p>{{ providerCatalogErrorMessage ?? 'Provider catalog is available for local inspection and editing.' }}</p>
+          </article>
+
+          <article class="connection-card">
+            <div class="connection-card-head">
+              <div>
+                <strong>Route optimization</strong>
+                <p>Dispatcher resequencing workflow and solver-backed recovery plans.</p>
+              </div>
+              <span class="status-pill" :class="optimizationWorkflowTone">{{ optimizationWorkflowLabel }}</span>
+            </div>
+            <p>{{ routeOptimizationErrorMessage ?? `Optimization review ready for ${routeOptimization.routeReference}.` }}</p>
           </article>
         </div>
 
@@ -555,7 +779,7 @@ onBeforeUnmount(() => {
               <span class="panel-label">Transport board</span>
               <h2>Route network</h2>
             </div>
-            <span class="mini-badge">{{ isApiConnected ? 'API projection' : 'Fallback projection' }}</span>
+            <span class="mini-badge">{{ transportProjectionLabel }}</span>
           </div>
 
           <div class="map-stage" aria-label="Transport map placeholder">
@@ -578,7 +802,14 @@ onBeforeUnmount(() => {
           </div>
 
           <div class="route-table">
-            <article v-for="route in overview.routes" :key="route.routeId" class="route-row">
+            <button
+              v-for="route in overview.routes"
+              :key="route.routeId"
+              type="button"
+              class="route-row"
+              :class="{ 'is-selected': selectedRouteId === route.routeId }"
+              @click="selectedRouteId = route.routeId"
+            >
               <div>
                 <strong>{{ route.reference }}</strong>
                 <p>{{ route.truckReference }} - {{ route.stopCount }} stops - {{ route.shipmentCount }} shipments</p>
@@ -586,6 +817,59 @@ onBeforeUnmount(() => {
               <div class="route-meta">
                 <span class="route-status">{{ route.status }}</span>
                 <span>{{ route.nextEtaLabel }}</span>
+              </div>
+            </button>
+          </div>
+
+          <div class="transport-detail-grid">
+            <article class="route-detail-card">
+              <div class="route-detail-head">
+                <div>
+                  <span class="panel-label">Selected route</span>
+                  <h3>{{ currentRoute.reference }}</h3>
+                  <p>{{ routeDetail.driverName }} - {{ routeDetail.truckReference }} - {{ routeDetail.truckStatus }}</p>
+                </div>
+                <span class="status-pill" :class="transportProjectionTone">{{ transportProjectionLabel }}</span>
+              </div>
+
+              <div class="route-detail-meta">
+                <span>{{ routeDetail.status }}</span>
+                <span>{{ routeDetail.updatedAtLabel }}</span>
+                <span>{{ routeDetail.totalLoadKilograms }} / {{ routeDetail.truckCapacityKilograms }} kg</span>
+                <span>{{ routeDetail.completedDeliveryCount }} completed deliveries</span>
+              </div>
+
+              <div class="transport-detail-columns">
+                <section class="transport-detail-block">
+                  <span class="panel-label">Stops</span>
+                  <ul class="detail-list">
+                    <li v-for="stop in routeDetail.stops" :key="`${routeDetail.routeId}-stop-${stop.sequence}`">
+                      <strong>{{ stop.sequence }}. {{ stop.name }}</strong>
+                      <span>{{ stop.coordinateLabel }} - {{ stop.timeWindowLabel }}</span>
+                    </li>
+                  </ul>
+                </section>
+
+                <section class="transport-detail-block">
+                  <span class="panel-label">Shipments</span>
+                  <ul class="detail-list">
+                    <li v-for="shipment in routeDetail.shipments" :key="`${routeDetail.routeId}-shipment-${shipment.reference}`">
+                      <strong>{{ shipment.reference }}</strong>
+                      <span>{{ shipment.status }} - {{ shipment.loadWeightKilograms }} kg - {{ shipment.orderReference }}</span>
+                    </li>
+                  </ul>
+                </section>
+
+                <section class="transport-detail-block">
+                  <span class="panel-label">Deliveries</span>
+                  <ul class="detail-list">
+                    <li v-for="delivery in routeDetail.deliveries" :key="`${routeDetail.routeId}-delivery-${delivery.reference}`">
+                      <strong>{{ delivery.reference }}</strong>
+                      <span>Stop {{ delivery.stopSequence }} - {{ delivery.stopName }} - {{ delivery.shipmentReference }}</span>
+                      <span>{{ delivery.status }}</span>
+                    </li>
+                  </ul>
+                </section>
               </div>
             </article>
           </div>
@@ -691,6 +975,288 @@ onBeforeUnmount(() => {
             </div>
           </div>
         </section>
+      </section>
+
+      <section class="surface ai-surface">
+        <div class="surface-heading">
+          <div>
+            <span class="panel-label">AI workflow</span>
+            <h2>Bounded recommendations</h2>
+          </div>
+          <div class="catalog-heading-meta">
+            <span class="status-pill" :class="aiWorkflowTone">
+              {{ aiWorkflowLabel }}
+            </span>
+            <span class="mini-badge">
+              {{ aiConnectionState === 'loading' ? 'Waiting for answer' : aiRecommendation?.source === 'api' ? 'Python service' : 'Local fallback' }}
+            </span>
+          </div>
+        </div>
+
+        <div class="ai-workflow-grid">
+          <article class="ai-query-panel">
+            <div class="catalog-editor-heading">
+              <div>
+                <span class="panel-label">Ask the workflow</span>
+                <p class="catalog-summary">The current overview snapshot is the grounding context for every answer.</p>
+              </div>
+            </div>
+
+            <label class="catalog-field ai-question-field">
+              <span>Question</span>
+              <textarea v-model="aiQuestion" rows="3" placeholder="Which route should the dispatcher review first?"></textarea>
+            </label>
+
+            <div class="chip-row">
+              <button
+                v-for="prompt in aiQuickPrompts"
+                :key="prompt"
+                type="button"
+                class="catalog-chip is-muted ai-prompt-chip"
+                @click="runAiPrompt(prompt)"
+              >
+                {{ prompt }}
+              </button>
+            </div>
+
+            <div class="catalog-editor-actions">
+              <button
+                type="button"
+                class="catalog-save-button"
+                :disabled="isRequestingAi"
+                @click="refreshAiRecommendation(false)"
+              >
+                {{ isRequestingAi ? 'Analyzing...' : 'Ask AI' }}
+              </button>
+              <span class="catalog-editor-note">
+                {{ aiRecommendationErrorMessage ?? 'The workflow stays projection-first and never invents missing state.' }}
+              </span>
+            </div>
+
+            <div class="catalog-meta ai-context-meta">
+              <span>Tenant {{ overview.tenantId }}</span>
+              <span>Scenario {{ currentScenario.name }}</span>
+              <span>Routes {{ overview.routes.length }}</span>
+              <span>Warehouses {{ overview.warehouses.length }}</span>
+            </div>
+          </article>
+
+          <article class="ai-answer-panel">
+            <div class="connection-banner">
+              <div>
+                <span class="panel-label">Recommendation</span>
+                <p>{{ aiRecommendationView?.directAnswer || 'Run a question to see a grounded answer.' }}</p>
+              </div>
+              <span :class="['severity-chip', aiRecommendationView?.confidenceLevel === 'high' ? 'severity-healthy' : aiRecommendationView?.confidenceLevel === 'medium' ? 'severity-warning' : 'severity-unhealthy']">
+                {{ aiRecommendationView?.confidenceLevel ? aiRecommendationView.confidenceLevel.toUpperCase() : 'LOW' }}
+              </span>
+            </div>
+
+            <div v-if="aiRecommendationView" class="ai-answer-body">
+              <div class="route-detail-meta">
+                <span>Intent: {{ aiRecommendationView.intent }}</span>
+                <span>Source: {{ aiRecommendation?.source }}</span>
+                <span>Agents: {{ aiRecommendationView.specialistAgents.join(', ') }}</span>
+              </div>
+
+              <div class="transport-detail-columns">
+                <section class="transport-detail-block">
+                  <span class="panel-label">Evidence</span>
+                  <ul class="detail-list">
+                    <li v-for="item in aiRecommendationView.evidence" :key="`${item.source}-${item.detail}`">
+                      <strong>{{ item.source }}</strong>
+                      <span>{{ item.detail }}</span>
+                    </li>
+                  </ul>
+                </section>
+
+                <section class="transport-detail-block">
+                  <span class="panel-label">Assumptions</span>
+                  <ul class="detail-list">
+                    <li v-if="aiRecommendationView.assumptions.length === 0">
+                      <strong>None</strong>
+                      <span>The recommendation is grounded entirely in the live projections.</span>
+                    </li>
+                    <li v-for="assumption in aiRecommendationView.assumptions" :key="assumption">
+                      <strong>Assumption</strong>
+                      <span>{{ assumption }}</span>
+                    </li>
+                  </ul>
+                </section>
+
+                <section class="transport-detail-block">
+                  <span class="panel-label">Recommended actions</span>
+                  <ul class="detail-list">
+                    <li v-for="action in aiRecommendationView.recommendedActions" :key="`${action.title}-${action.priority}`">
+                      <strong>{{ action.title }}</strong>
+                      <span>{{ action.rationale }}</span>
+                      <span>Priority: {{ action.priority }}</span>
+                    </li>
+                  </ul>
+                </section>
+              </div>
+
+              <div class="transport-detail-columns">
+                <section class="transport-detail-block">
+                  <span class="panel-label">Missing data</span>
+                  <ul class="detail-list">
+                    <li v-if="aiRecommendationView.missingData.length === 0">
+                      <strong>None</strong>
+                      <span>No critical context is missing for this answer.</span>
+                    </li>
+                    <li v-for="item in aiRecommendationView.missingData" :key="item">
+                      <strong>Missing</strong>
+                      <span>{{ item }}</span>
+                    </li>
+                  </ul>
+                </section>
+
+                <section class="transport-detail-block">
+                  <span class="panel-label">Scenario note</span>
+                  <p class="provider-meta">
+                    {{ aiRecommendationView.alternativeScenarioNote ?? 'No alternate scenario note was returned.' }}
+                  </p>
+                </section>
+
+                <section class="transport-detail-block">
+                  <span class="panel-label">Answer posture</span>
+                  <p class="provider-meta">
+                    The workflow returns {{ aiRecommendationView.confidenceLevel }} confidence and surfaces evidence before any recommendation.
+                  </p>
+                </section>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="surface optimization-surface">
+        <div class="surface-heading">
+          <div>
+            <span class="panel-label">Dispatcher optimization</span>
+            <h2>Route recovery review</h2>
+          </div>
+          <div class="catalog-heading-meta">
+            <span class="status-pill" :class="optimizationWorkflowTone">
+              {{ optimizationWorkflowLabel }}
+            </span>
+            <span class="mini-badge">
+              {{ isOptimizingRoute ? 'Recomputing plan' : routeOptimization.solverBackend }}
+            </span>
+          </div>
+        </div>
+
+        <div class="optimization-grid">
+          <article class="optimization-summary-card">
+            <div class="connection-card-head">
+              <div>
+                <strong>{{ routeOptimization.routeReference }}</strong>
+                <p>{{ routeDetail.truckReference }} - {{ routeDetail.driverName }} - {{ currentScenario.name }}</p>
+              </div>
+              <span class="status-pill" :class="transportProjectionTone">
+                {{ routeDetail.status }}
+              </span>
+            </div>
+
+            <div class="catalog-meta ai-context-meta">
+              <span>Current remaining stops {{ currentRemainingRouteOrder.length }}</span>
+              <span>Completed deliveries {{ routeDetail.completedDeliveryCount }}</span>
+              <span>Objective {{ routeOptimization.objectiveScore ?? 'n/a' }}</span>
+            </div>
+
+            <div class="catalog-editor-actions">
+              <button
+                type="button"
+                class="catalog-save-button"
+                :disabled="isOptimizingRoute"
+                @click="refreshRouteOptimization(false)"
+              >
+                {{ isOptimizingRoute ? 'Optimizing...' : 'Re-run optimization' }}
+              </button>
+              <span class="catalog-editor-note">
+                {{ routeOptimizationErrorMessage ?? 'The optimization workflow compares the remaining route posture against solver-backed alternatives.' }}
+              </span>
+            </div>
+          </article>
+
+          <article class="optimization-plan-card">
+            <div class="surface-heading">
+              <div>
+                <span class="panel-label">Current remaining plan</span>
+                <h3>{{ currentRoute.reference }}</h3>
+              </div>
+              <span class="mini-badge">{{ currentRemainingRouteOrder.length }} stops</span>
+            </div>
+
+            <ol class="optimization-order-list">
+              <li v-for="stopName in currentRemainingRouteOrder" :key="`current-${stopName}`">
+                {{ stopName }}
+              </li>
+            </ol>
+          </article>
+
+          <article class="optimization-plan-card">
+            <div class="surface-heading">
+              <div>
+                <span class="panel-label">Recommended plan</span>
+                <h3>{{ routeOptimization.status }}</h3>
+              </div>
+              <span class="mini-badge">{{ routeOptimization.solverBackend }}</span>
+            </div>
+
+            <ol class="optimization-order-list">
+              <li v-for="stopName in routeOptimization.orderedStopReferences" :key="`optimized-${stopName}`">
+                {{ stopName }}
+              </li>
+            </ol>
+          </article>
+        </div>
+
+        <div class="optimization-grid is-detail">
+          <article class="optimization-detail-card">
+            <span class="panel-label">Explanation</span>
+            <p class="catalog-summary">{{ routeOptimization.explanation.selectedVehicleReason }}</p>
+            <p class="catalog-summary">{{ routeOptimization.explanation.prioritizationReason }}</p>
+
+            <div class="chip-row">
+              <span v-for="constraint in routeOptimization.explanation.tightConstraints" :key="constraint" class="catalog-chip is-missing">
+                {{ constraint }}
+              </span>
+              <span v-if="routeOptimization.explanation.tightConstraints.length === 0" class="catalog-chip is-muted">
+                No tight constraints
+              </span>
+            </div>
+          </article>
+
+          <article class="optimization-detail-card">
+            <span class="panel-label">Trade-offs</span>
+            <ul class="detail-list">
+              <li v-for="tradeOff in routeOptimization.explanation.tradeOffs" :key="tradeOff">
+                <strong>Trade-off</strong>
+                <span>{{ tradeOff }}</span>
+              </li>
+              <li v-if="routeOptimization.explanation.infeasibilityReason">
+                <strong>Infeasibility</strong>
+                <span>{{ routeOptimization.explanation.infeasibilityReason }}</span>
+              </li>
+            </ul>
+          </article>
+
+          <article class="optimization-detail-card">
+            <span class="panel-label">Alternatives</span>
+            <ul class="detail-list">
+              <li v-for="alternative in routeOptimization.alternatives" :key="alternative.label">
+                <strong>{{ alternative.label }}</strong>
+                <span>{{ alternative.orderedStopReferences.join(' -> ') }}</span>
+                <span>{{ alternative.summary }}</span>
+              </li>
+              <li v-if="routeOptimization.alternatives.length === 0">
+                <strong>No alternatives</strong>
+                <span>The workflow kept a single recommended plan for this route posture.</span>
+              </li>
+            </ul>
+          </article>
+        </div>
       </section>
 
       <section class="surface catalog-surface">
@@ -1126,7 +1692,7 @@ onBeforeUnmount(() => {
 
 .connection-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 14px;
 }
 
@@ -1181,6 +1747,14 @@ onBeforeUnmount(() => {
   margin-top: 16px;
 }
 
+.ai-surface {
+  margin-top: 16px;
+}
+
+.optimization-surface {
+  margin-top: 16px;
+}
+
 .catalog-heading-meta {
   display: flex;
   flex-wrap: wrap;
@@ -1216,6 +1790,23 @@ onBeforeUnmount(() => {
   align-content: start;
 }
 
+.ai-workflow-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  gap: 14px;
+}
+
+.optimization-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 14px;
+}
+
+.optimization-grid.is-detail {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 14px;
+}
+
 .controls-surface,
 .detail-surface {
   grid-column: 1;
@@ -1238,6 +1829,11 @@ onBeforeUnmount(() => {
 .zone-strip {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.transport-detail-grid {
+  display: grid;
   gap: 12px;
 }
 
@@ -1425,11 +2021,100 @@ onBeforeUnmount(() => {
 .feed-row,
 .provider-row,
 .scenario-card,
-.timeline-metric {
+.timeline-metric,
+.route-detail-card {
   padding: 14px;
   border: 1px solid rgba(148, 163, 184, 0.14);
   border-radius: 8px;
   background: rgba(8, 17, 31, 0.55);
+}
+
+.route-row {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 14px;
+  appearance: none;
+  text-align: left;
+  cursor: pointer;
+}
+
+.route-row.is-selected {
+  border-color: rgba(96, 165, 250, 0.46);
+  background: rgba(37, 99, 235, 0.18);
+}
+
+.route-detail-card {
+  display: grid;
+  gap: 12px;
+}
+
+.route-detail-head {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.route-detail-head h3 {
+  margin: 4px 0 2px;
+  font-size: 20px;
+  color: #f8fafc;
+}
+
+.route-detail-head p,
+.route-detail-meta,
+.detail-list span {
+  margin: 0;
+  color: #cbd5e1;
+}
+
+.route-detail-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  font-size: 13px;
+}
+
+.route-detail-meta span {
+  padding: 6px 10px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.72);
+}
+
+.transport-detail-columns {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.transport-detail-block {
+  display: grid;
+  gap: 8px;
+}
+
+.detail-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.detail-list li {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.82);
+}
+
+.detail-list strong {
+  color: #f8fafc;
 }
 
 .provider-meta {
@@ -1533,6 +2218,17 @@ onBeforeUnmount(() => {
   border-radius: 8px;
 }
 
+.catalog-field textarea {
+  width: 100%;
+  min-height: 96px;
+  padding: 10px 12px;
+  color: #e2e8f0;
+  background: rgba(15, 23, 42, 0.92);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 8px;
+  resize: vertical;
+}
+
 .catalog-toggle {
   display: inline-flex;
   align-items: center;
@@ -1557,9 +2253,74 @@ onBeforeUnmount(() => {
 
 .catalog-save-button:disabled,
 .catalog-field input:disabled,
+.catalog-field textarea:disabled,
 .catalog-toggle input:disabled {
   cursor: not-allowed;
   opacity: 0.6;
+}
+
+.ai-prompt-chip {
+  appearance: none;
+  cursor: pointer;
+  text-align: left;
+}
+
+.ai-query-panel,
+.ai-answer-panel {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 8px;
+  background: rgba(8, 17, 31, 0.55);
+}
+
+.optimization-summary-card,
+.optimization-plan-card,
+.optimization-detail-card {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 8px;
+  background: rgba(8, 17, 31, 0.55);
+}
+
+.ai-answer-body {
+  display: grid;
+  gap: 14px;
+}
+
+.ai-context-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+}
+
+.ai-context-meta span {
+  padding: 6px 10px;
+  color: #cbd5e1;
+  font-size: 13px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.72);
+}
+
+.optimization-order-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding-left: 18px;
+  color: #e2e8f0;
+}
+
+.optimization-order-list li {
+  padding: 10px 12px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.82);
 }
 
 .chip-row {
@@ -1699,7 +2460,10 @@ onBeforeUnmount(() => {
   .workspace-grid,
   .control-columns,
   .detail-columns,
-  .zone-strip {
+  .zone-strip,
+  .ai-workflow-grid,
+  .optimization-grid,
+  .optimization-grid.is-detail {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -1712,6 +2476,10 @@ onBeforeUnmount(() => {
   }
 
   .connection-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .transport-detail-columns {
     grid-template-columns: 1fr;
   }
 
@@ -1762,7 +2530,15 @@ onBeforeUnmount(() => {
   .zone-strip,
   .control-columns,
   .detail-columns,
-  .catalog-grid {
+  .catalog-grid,
+  .ai-workflow-grid,
+  .optimization-grid,
+  .optimization-grid.is-detail {
+    grid-template-columns: 1fr;
+  }
+
+  .connection-grid,
+  .transport-detail-columns {
     grid-template-columns: 1fr;
   }
 

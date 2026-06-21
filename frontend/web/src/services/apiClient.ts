@@ -6,7 +6,7 @@ type ApiRequestOptions = {
   body?: BodyInit
   headers?: Record<string, string>
   includeTenantHeader?: boolean
-  method?: 'GET' | 'PUT'
+  method?: 'GET' | 'POST' | 'PUT'
   retryCount?: number
   timeoutMs?: number
 }

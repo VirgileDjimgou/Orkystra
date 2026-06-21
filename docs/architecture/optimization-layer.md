@@ -34,6 +34,15 @@ This sprint supports a narrow but real routing use case:
 - `GET /optimize/demo`
 - `POST /optimize`
 
+## Product workflow integration
+
+Sprint 22 connects the optimization service to the operator workspace through a bounded backend workflow:
+
+- `Orkystra.Api` now exposes `POST /api/transport/routes/{routeId}/optimization`
+- the endpoint gathers the current tenant-aware route detail projection and selected scenario id before calling the Python service
+- the browser receives one dispatcher-facing optimization envelope instead of talking to the Python service directly
+- the workflow falls back to a local comparison plan when the optimization service is unreachable, so the control tower keeps a usable recovery surface during local development
+
 ## Response contract
 
 The main response contains:
@@ -53,5 +62,5 @@ The main response contains:
 - single-vehicle sequencing only
 - no pickup-and-delivery pairing yet
 - no heterogeneous fleet search yet
-- no persisted optimization audit logs yet
+- no persisted optimization run history yet
 - no event publication yet

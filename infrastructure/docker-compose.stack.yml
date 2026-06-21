@@ -32,6 +32,8 @@ services:
       ASPNETCORE_ENVIRONMENT: Development
       Security__ApiKey: orkystra-dev-local-key
       TenantAccess__DefaultTenantId: north-hub-demo
+      AiService__BaseUrl: http://ai-service:8001
+      OptimizationService__BaseUrl: http://optimization-service:8002
     ports:
       - "8080:8080"
     depends_on:

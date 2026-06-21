@@ -3,7 +3,7 @@ using Orkystra.Contracts.Transport;
 
 namespace Orkystra.Application.Connectors.Providers;
 
-public sealed class RestTransportProvider : ITransportProviderAdapter
+public sealed class RestTransportProvider : ITransportProjectionProviderAdapter
 {
     public string ProviderId => "rest-transport-adapter";
 
@@ -68,37 +68,134 @@ public sealed class RestTransportProvider : ITransportProviderAdapter
 
     public ValueTask<IReadOnlyCollection<RouteSummaryReadModel>> ReadRoutesAsync(CancellationToken cancellationToken = default)
     {
-        IReadOnlyCollection<RouteSummaryReadModel> routes =
+        IReadOnlyCollection<RouteSummaryReadModel> routes = BuildRouteDetails()
+            .Select(route => new RouteSummaryReadModel(
+                route.RouteId,
+                route.Reference,
+                route.TruckId,
+                route.TruckReference,
+                route.Status,
+                route.StopCount,
+                route.ShipmentCount,
+                route.CompletedDeliveryCount))
+            .ToArray();
+
+        return ValueTask.FromResult(routes);
+    }
+
+    public ValueTask<IReadOnlyCollection<RouteDetailReadModel>> ReadRouteDetailsAsync(CancellationToken cancellationToken = default)
+    {
+        return ValueTask.FromResult(BuildRouteDetails());
+    }
+
+    private static IReadOnlyCollection<RouteDetailReadModel> BuildRouteDetails()
+    {
+        return
         [
-            new RouteSummaryReadModel(
+            new RouteDetailReadModel(
                 Guid.Parse("5024fa82-f658-46c8-88bf-aece07d56f09"),
                 "RT-204",
                 Guid.Parse("0d91dc2f-3a74-4562-96a6-c8de611f699d"),
                 "TRK-11",
+                "Alex Driver",
                 "On time",
+                "In transit",
+                500m,
+                440m,
                 5,
                 22,
-                2),
-            new RouteSummaryReadModel(
+                2,
+                DateTimeOffset.Parse("2026-06-20T10:42:00Z"),
+                [
+                    new TransportRouteStopReadModel(1, "North Hub A", "48.8566, 2.3522", "08:00-09:30"),
+                    new TransportRouteStopReadModel(2, "City Cross-Dock", "48.8809, 2.3743", "09:45-10:15"),
+                    new TransportRouteStopReadModel(3, "Retail Depot 14", "48.9050, 2.4130", "10:30-11:15"),
+                    new TransportRouteStopReadModel(4, "Retail Depot 19", "48.9178, 2.4571", "11:20-12:10"),
+                    new TransportRouteStopReadModel(5, "West Flow Center", "48.9352, 2.4912", "12:20-13:00")
+                ],
+                [
+                    new TransportRouteShipmentReadModel("SHIP-204-01", "Loaded", 120m, "ORD-2041"),
+                    new TransportRouteShipmentReadModel("SHIP-204-02", "Departed", 100m, "ORD-2042"),
+                    new TransportRouteShipmentReadModel("SHIP-204-03", "Arrived", 80m, "ORD-2043"),
+                    new TransportRouteShipmentReadModel("SHIP-204-04", "Completed", 140m, "ORD-2044")
+                ],
+                [
+                    new TransportRouteDeliveryReadModel("DLV-204-01", 1, "North Hub A", "SHIP-204-01", "Completed"),
+                    new TransportRouteDeliveryReadModel("DLV-204-02", 2, "City Cross-Dock", "SHIP-204-02", "Completed"),
+                    new TransportRouteDeliveryReadModel("DLV-204-03", 3, "Retail Depot 14", "SHIP-204-03", "Pending"),
+                    new TransportRouteDeliveryReadModel("DLV-204-04", 4, "Retail Depot 19", "SHIP-204-04", "Pending"),
+                    new TransportRouteDeliveryReadModel("DLV-204-05", 5, "West Flow Center", "SHIP-204-04", "Pending")
+                ]),
+            new RouteDetailReadModel(
                 Guid.Parse("528c1588-40fd-451b-8c86-2caa625602de"),
                 "RT-318",
                 Guid.Parse("2a398a30-61cf-4fc3-a18d-e491530b4f24"),
                 "TRK-07",
+                "Mina Lopez",
                 "At risk",
+                "Delayed",
+                460m,
+                310m,
                 4,
                 15,
-                1),
-            new RouteSummaryReadModel(
+                1,
+                DateTimeOffset.Parse("2026-06-20T11:05:00Z"),
+                [
+                    new TransportRouteStopReadModel(1, "West Flow Center", "48.9352, 2.4912", "09:10-09:40"),
+                    new TransportRouteStopReadModel(2, "Retail Depot 21", "48.9642, 2.5339", "10:00-10:30"),
+                    new TransportRouteStopReadModel(3, "Regional Store 07", "48.9772, 2.5751", "10:45-11:15"),
+                    new TransportRouteStopReadModel(4, "Regional Store 11", "48.9918, 2.6182", "11:30-12:20")
+                ],
+                [
+                    new TransportRouteShipmentReadModel("SHIP-318-01", "Loaded", 90m, "ORD-3181"),
+                    new TransportRouteShipmentReadModel("SHIP-318-02", "Loaded", 75m, "ORD-3182"),
+                    new TransportRouteShipmentReadModel("SHIP-318-03", "Departed", 80m, "ORD-3183"),
+                    new TransportRouteShipmentReadModel("SHIP-318-04", "Arrived", 65m, "ORD-3184")
+                ],
+                [
+                    new TransportRouteDeliveryReadModel("DLV-318-01", 1, "West Flow Center", "SHIP-318-01", "Completed"),
+                    new TransportRouteDeliveryReadModel("DLV-318-02", 2, "Retail Depot 21", "SHIP-318-02", "Pending"),
+                    new TransportRouteDeliveryReadModel("DLV-318-03", 3, "Regional Store 07", "SHIP-318-03", "Pending"),
+                    new TransportRouteDeliveryReadModel("DLV-318-04", 4, "Regional Store 11", "SHIP-318-04", "Pending")
+                ]),
+            new RouteDetailReadModel(
                 Guid.Parse("9f91e82e-226a-48f7-a94c-907b79431739"),
                 "RT-412",
                 Guid.Parse("cf7c6cc8-7b55-49d4-94ff-a5ee9e340856"),
                 "TRK-19",
+                "Noah Karim",
                 "Delayed",
+                "Delayed",
+                520m,
+                470m,
                 6,
                 27,
-                3)
+                3,
+                DateTimeOffset.Parse("2026-06-20T11:37:00Z"),
+                [
+                    new TransportRouteStopReadModel(1, "North Hub A", "48.8566, 2.3522", "09:20-09:50"),
+                    new TransportRouteStopReadModel(2, "Urban Relay 04", "48.8893, 2.3784", "10:15-10:45"),
+                    new TransportRouteStopReadModel(3, "Regional Store 16", "48.9251, 2.4220", "11:00-11:30"),
+                    new TransportRouteStopReadModel(4, "Regional Store 22", "48.9517, 2.4613", "11:40-12:05"),
+                    new TransportRouteStopReadModel(5, "Cross-Dock Bravo", "48.9784, 2.5085", "12:20-12:50"),
+                    new TransportRouteStopReadModel(6, "West Flow Center", "48.9952, 2.5526", "13:00-13:40")
+                ],
+                [
+                    new TransportRouteShipmentReadModel("SHIP-412-01", "Loaded", 80m, "ORD-4121"),
+                    new TransportRouteShipmentReadModel("SHIP-412-02", "Loaded", 90m, "ORD-4122"),
+                    new TransportRouteShipmentReadModel("SHIP-412-03", "Departed", 75m, "ORD-4123"),
+                    new TransportRouteShipmentReadModel("SHIP-412-04", "Departed", 95m, "ORD-4124"),
+                    new TransportRouteShipmentReadModel("SHIP-412-05", "Arrived", 65m, "ORD-4125"),
+                    new TransportRouteShipmentReadModel("SHIP-412-06", "Completed", 65m, "ORD-4126")
+                ],
+                [
+                    new TransportRouteDeliveryReadModel("DLV-412-01", 1, "North Hub A", "SHIP-412-01", "Completed"),
+                    new TransportRouteDeliveryReadModel("DLV-412-02", 2, "Urban Relay 04", "SHIP-412-02", "Completed"),
+                    new TransportRouteDeliveryReadModel("DLV-412-03", 3, "Regional Store 16", "SHIP-412-03", "Pending"),
+                    new TransportRouteDeliveryReadModel("DLV-412-04", 4, "Regional Store 22", "SHIP-412-04", "Pending"),
+                    new TransportRouteDeliveryReadModel("DLV-412-05", 5, "Cross-Dock Bravo", "SHIP-412-05", "Pending"),
+                    new TransportRouteDeliveryReadModel("DLV-412-06", 6, "West Flow Center", "SHIP-412-06", "Pending")
+                ])
         ];
-
-        return ValueTask.FromResult(routes);
     }
 }

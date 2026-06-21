@@ -19,6 +19,8 @@ Sprint 7 introduces the first grounded AI service skeleton in `python-services/a
 - `GET /recommendations/demo/warehouse`
 - `GET /recommendations/demo/dispatcher`
 
+Sprint 21 wires the AI workflow into the operator workspace through `POST /api/ai/recommendations` on the .NET API. The backend collects the current control-tower overview, forwards it to the Python AI service, and returns a grounded recommendation envelope to the browser.
+
 ## Current agents
 
 - `supervisor-agent`: routes intent and enforces the response shape
@@ -49,3 +51,12 @@ Sprint 7 does not implement live retrieval yet. It only defines:
 - retrieval grounding policy
 
 This keeps the AI layer grounded in the current product architecture without pretending that Qdrant or live document ingestion already exists.
+
+## Workflow boundary
+
+The operator workspace never talks to the Python AI service directly. It calls the backend workflow endpoint, which:
+
+- reuses the current tenant-aware overview snapshot as grounding context
+- forwards the question and current projections to the AI service
+- returns evidence, assumptions, recommended actions, confidence, and missing data in one bounded envelope
+- falls back to a local planner when the Python service is unavailable

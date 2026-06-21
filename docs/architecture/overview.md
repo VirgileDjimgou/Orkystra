@@ -42,8 +42,8 @@ The domain layer must not depend on infrastructure, persistence, HTTP, MQTT, AI 
 - `backend/src/Orkystra.Domain`: pure domain model and invariants.
 - `backend/src/Orkystra.Contracts`: DTOs and integration contracts.
 - `frontend/web`: Vue 3 control tower client.
-- `python-services/ai-service`: future FastAPI and LangGraph AI service.
-- `python-services/optimization-service`: future FastAPI and OR-Tools optimization service.
+- `python-services/ai-service`: FastAPI and LangGraph AI service for grounded logistics recommendations.
+- `python-services/optimization-service`: FastAPI and OR-Tools-preferred optimization service for bounded dispatcher workflows.
 - `infrastructure`: local development dependencies and deployment assets.
 
 ## Sprint 1 Entry Point
@@ -126,6 +126,13 @@ Sprint 7 introduces the first grounded AI service skeleton in `python-services/a
 
 The AI service remains projection-first and bounded. It explains what it can support from the provided state and refuses to invent missing operational facts.
 
+Sprint 21 connects that service to the operator workspace through a backend workflow endpoint:
+
+- `Orkystra.Api` now exposes `POST /api/ai/recommendations`
+- the endpoint collects the current tenant-aware overview snapshot before calling the AI service
+- the browser sees one bounded recommendation envelope instead of having to talk to the Python service directly
+- the workflow falls back to a local planner when the Python service is unreachable, keeping the operator experience usable during local development
+
 ## Optimization Layer
 
 Sprint 8 introduces the first explainable optimization service in `python-services/optimization-service`:
@@ -136,6 +143,13 @@ Sprint 8 introduces the first explainable optimization service in `python-servic
 - OR-Tools is used when available, with a deterministic fallback to keep the project runnable in lighter environments
 
 This keeps optimization separate from route projection while still producing outputs that the dispatcher and AI layers can explain upstream.
+
+Sprint 22 connects that service to the operator workspace through a backend workflow endpoint:
+
+- `Orkystra.Api` now exposes `POST /api/transport/routes/{routeId}/optimization`
+- the endpoint collects the current tenant-aware route detail projection before calling the optimization service
+- the browser sees one bounded optimization envelope instead of having to talk to the Python service directly
+- the workflow falls back to a local comparison plan when the Python service is unreachable, keeping dispatcher review usable during local development
 
 ## Connector Layer
 
@@ -209,3 +223,14 @@ The next operational increment moves audit from log-only scaffolding to a locall
 - correlation id, tenant, reason, and response status are now inspectable after the fact instead of only being emitted to logs
 
 This improves demo support and operator troubleshooting while leaving room for a future centralized audit sink.
+
+## Centralized Persistence Foundations
+
+Sprint 23 introduces the first structured operational persistence layer in `Orkystra.Api`:
+
+- `OperationalPersistenceStore` now writes key read-model snapshots and workflow envelopes into one SQLite database
+- control-tower overview, warehouse projections, transport projections, and provider catalog responses are persisted as latest snapshots per tenant and projection key
+- AI recommendation and route optimization requests are persisted as append-only workflow-run records for later inspection
+- protected observability endpoints now expose recent persisted snapshots and workflow runs without asking developers to open ad hoc local files
+
+This is intentionally a foundation rather than the final storage architecture. It centralizes persistence behavior and makes it queryable, while still leaving room for a future Postgres-backed or event-driven evolution.

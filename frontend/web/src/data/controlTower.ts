@@ -51,6 +51,74 @@ export type RouteSummaryView = {
   mapY: string
 }
 
+export type RouteStopView = {
+  sequence: number
+  name: string
+  coordinateLabel: string
+  timeWindowLabel: string
+}
+
+export type RouteShipmentView = {
+  reference: string
+  status: 'Created' | 'Assigned' | 'Loaded' | 'Departed' | 'Arrived' | 'Completed'
+  loadWeightKilograms: number
+  orderReference: string
+}
+
+export type RouteDeliveryView = {
+  reference: string
+  stopSequence: number
+  stopName: string
+  shipmentReference: string
+  status: 'Pending' | 'Completed'
+}
+
+export type RouteDetailView = {
+  routeId: string
+  reference: string
+  truckId: string
+  truckReference: string
+  driverName: string
+  status: 'On time' | 'At risk' | 'Delayed'
+  truckStatus: string
+  truckCapacityKilograms: number
+  totalLoadKilograms: number
+  stopCount: number
+  shipmentCount: number
+  completedDeliveryCount: number
+  updatedAtLabel: string
+  stops: RouteStopView[]
+  shipments: RouteShipmentView[]
+  deliveries: RouteDeliveryView[]
+}
+
+export type RouteOptimizationAlternativeView = {
+  label: string
+  orderedStopReferences: string[]
+  objectiveScore: number
+  summary: string
+}
+
+export type RouteOptimizationView = {
+  routeId: string
+  routeReference: string
+  status: 'optimized' | 'infeasible'
+  objectiveScore: number | null
+  orderedStopReferences: string[]
+  etaMinutes: Record<string, number>
+  loadDistribution: Record<string, number>
+  constraintViolations: string[]
+  explanation: {
+    selectedVehicleReason: string
+    prioritizationReason: string
+    tightConstraints: string[]
+    infeasibilityReason: string | null
+    tradeOffs: string[]
+  }
+  alternatives: RouteOptimizationAlternativeView[]
+  solverBackend: string
+}
+
 export type ScenarioSummaryView = {
   scenarioId: string
   name: string
@@ -193,6 +261,80 @@ type ApiRoute = {
   stopCount: number
   shipmentCount: number
   completedDeliveryCount: number
+}
+
+type ApiRouteStop = {
+  sequence: number
+  name: string
+  coordinateLabel: string
+  timeWindowLabel: string
+}
+
+type ApiRouteShipment = {
+  reference: string
+  status: string
+  loadWeightKilograms: number
+  orderReference: string
+}
+
+type ApiRouteDelivery = {
+  reference: string
+  stopSequence: number
+  stopName: string
+  shipmentReference: string
+  status: string
+}
+
+type ApiRouteDetail = {
+  routeId: string
+  reference: string
+  truckId: string
+  truckReference: string
+  driverName: string
+  status: string
+  truckStatus: string
+  truckCapacityKilograms: number
+  totalLoadKilograms: number
+  stopCount: number
+  shipmentCount: number
+  completedDeliveryCount: number
+  updatedAtUtc: string
+  stops: ApiRouteStop[]
+  shipments: ApiRouteShipment[]
+  deliveries: ApiRouteDelivery[]
+}
+
+type ApiRouteOptimizationAlternative = {
+  label: string
+  orderedStopReferences: string[]
+  objectiveScore: number
+  summary: string
+}
+
+type ApiRouteOptimizationResult = {
+  routeId: string
+  routeReference: string
+  status: string
+  objectiveScore: number | null
+  orderedStopReferences: string[]
+  etaMinutes: Record<string, number>
+  loadDistribution: Record<string, number>
+  constraintViolations: string[]
+  explanation: {
+    selectedVehicleReason: string
+    prioritizationReason: string
+    tightConstraints: string[]
+    infeasibilityReason: string | null
+    tradeOffs: string[]
+  }
+  alternatives: ApiRouteOptimizationAlternative[]
+  solverBackend: string
+}
+
+type ApiRouteOptimizationEnvelope = {
+  optimization: ApiRouteOptimizationResult
+  source: string
+  errorMessage: string | null
 }
 
 type ApiAlert = {
@@ -344,6 +486,116 @@ const fallbackWarehouseDetails: Record<string, WarehouseDetailView> = {
   },
 }
 
+const fallbackRouteDetails: Record<string, RouteDetailView> = {
+  '5024fa82-f658-46c8-88bf-aece07d56f09': {
+    routeId: '5024fa82-f658-46c8-88bf-aece07d56f09',
+    reference: 'RT-204',
+    truckId: '0d91dc2f-3a74-4562-96a6-c8de611f699d',
+    truckReference: 'TRK-11',
+    driverName: 'Alex Driver',
+    status: 'On time',
+    truckStatus: 'In transit',
+    truckCapacityKilograms: 500,
+    totalLoadKilograms: 440,
+    stopCount: 5,
+    shipmentCount: 22,
+    completedDeliveryCount: 2,
+    updatedAtLabel: '2026-06-20 10:42 UTC',
+    stops: [
+      { sequence: 1, name: 'North Hub A', coordinateLabel: '48.8566, 2.3522', timeWindowLabel: '08:00-09:30' },
+      { sequence: 2, name: 'City Cross-Dock', coordinateLabel: '48.8809, 2.3743', timeWindowLabel: '09:45-10:15' },
+      { sequence: 3, name: 'Retail Depot 14', coordinateLabel: '48.9050, 2.4130', timeWindowLabel: '10:30-11:15' },
+      { sequence: 4, name: 'Retail Depot 19', coordinateLabel: '48.9178, 2.4571', timeWindowLabel: '11:20-12:10' },
+      { sequence: 5, name: 'West Flow Center', coordinateLabel: '48.9352, 2.4912', timeWindowLabel: '12:20-13:00' },
+    ],
+    shipments: [
+      { reference: 'SHIP-204-01', status: 'Loaded', loadWeightKilograms: 120, orderReference: 'ORD-2041' },
+      { reference: 'SHIP-204-02', status: 'Departed', loadWeightKilograms: 100, orderReference: 'ORD-2042' },
+      { reference: 'SHIP-204-03', status: 'Arrived', loadWeightKilograms: 80, orderReference: 'ORD-2043' },
+      { reference: 'SHIP-204-04', status: 'Completed', loadWeightKilograms: 140, orderReference: 'ORD-2044' },
+    ],
+    deliveries: [
+      { reference: 'DLV-204-01', stopSequence: 1, stopName: 'North Hub A', shipmentReference: 'SHIP-204-01', status: 'Completed' },
+      { reference: 'DLV-204-02', stopSequence: 2, stopName: 'City Cross-Dock', shipmentReference: 'SHIP-204-02', status: 'Completed' },
+      { reference: 'DLV-204-03', stopSequence: 3, stopName: 'Retail Depot 14', shipmentReference: 'SHIP-204-03', status: 'Pending' },
+      { reference: 'DLV-204-04', stopSequence: 4, stopName: 'Retail Depot 19', shipmentReference: 'SHIP-204-04', status: 'Pending' },
+      { reference: 'DLV-204-05', stopSequence: 5, stopName: 'West Flow Center', shipmentReference: 'SHIP-204-04', status: 'Pending' },
+    ],
+  },
+  '528c1588-40fd-451b-8c86-2caa625602de': {
+    routeId: '528c1588-40fd-451b-8c86-2caa625602de',
+    reference: 'RT-318',
+    truckId: '2a398a30-61cf-4fc3-a18d-e491530b4f24',
+    truckReference: 'TRK-07',
+    driverName: 'Mina Lopez',
+    status: 'At risk',
+    truckStatus: 'Delayed',
+    truckCapacityKilograms: 460,
+    totalLoadKilograms: 310,
+    stopCount: 4,
+    shipmentCount: 15,
+    completedDeliveryCount: 1,
+    updatedAtLabel: '2026-06-20 11:05 UTC',
+    stops: [
+      { sequence: 1, name: 'West Flow Center', coordinateLabel: '48.9352, 2.4912', timeWindowLabel: '09:10-09:40' },
+      { sequence: 2, name: 'Retail Depot 21', coordinateLabel: '48.9642, 2.5339', timeWindowLabel: '10:00-10:30' },
+      { sequence: 3, name: 'Regional Store 07', coordinateLabel: '48.9772, 2.5751', timeWindowLabel: '10:45-11:15' },
+      { sequence: 4, name: 'Regional Store 11', coordinateLabel: '48.9918, 2.6182', timeWindowLabel: '11:30-12:20' },
+    ],
+    shipments: [
+      { reference: 'SHIP-318-01', status: 'Loaded', loadWeightKilograms: 90, orderReference: 'ORD-3181' },
+      { reference: 'SHIP-318-02', status: 'Loaded', loadWeightKilograms: 75, orderReference: 'ORD-3182' },
+      { reference: 'SHIP-318-03', status: 'Departed', loadWeightKilograms: 80, orderReference: 'ORD-3183' },
+      { reference: 'SHIP-318-04', status: 'Arrived', loadWeightKilograms: 65, orderReference: 'ORD-3184' },
+    ],
+    deliveries: [
+      { reference: 'DLV-318-01', stopSequence: 1, stopName: 'West Flow Center', shipmentReference: 'SHIP-318-01', status: 'Completed' },
+      { reference: 'DLV-318-02', stopSequence: 2, stopName: 'Retail Depot 21', shipmentReference: 'SHIP-318-02', status: 'Pending' },
+      { reference: 'DLV-318-03', stopSequence: 3, stopName: 'Regional Store 07', shipmentReference: 'SHIP-318-03', status: 'Pending' },
+      { reference: 'DLV-318-04', stopSequence: 4, stopName: 'Regional Store 11', shipmentReference: 'SHIP-318-04', status: 'Pending' },
+    ],
+  },
+  '9f91e82e-226a-48f7-a94c-907b79431739': {
+    routeId: '9f91e82e-226a-48f7-a94c-907b79431739',
+    reference: 'RT-412',
+    truckId: 'cf7c6cc8-7b55-49d4-94ff-a5ee9e340856',
+    truckReference: 'TRK-19',
+    driverName: 'Noah Karim',
+    status: 'Delayed',
+    truckStatus: 'Delayed',
+    truckCapacityKilograms: 520,
+    totalLoadKilograms: 470,
+    stopCount: 6,
+    shipmentCount: 27,
+    completedDeliveryCount: 3,
+    updatedAtLabel: '2026-06-20 11:37 UTC',
+    stops: [
+      { sequence: 1, name: 'North Hub A', coordinateLabel: '48.8566, 2.3522', timeWindowLabel: '09:20-09:50' },
+      { sequence: 2, name: 'Urban Relay 04', coordinateLabel: '48.8893, 2.3784', timeWindowLabel: '10:15-10:45' },
+      { sequence: 3, name: 'Regional Store 16', coordinateLabel: '48.9251, 2.4220', timeWindowLabel: '11:00-11:30' },
+      { sequence: 4, name: 'Regional Store 22', coordinateLabel: '48.9517, 2.4613', timeWindowLabel: '11:40-12:05' },
+      { sequence: 5, name: 'Cross-Dock Bravo', coordinateLabel: '48.9784, 2.5085', timeWindowLabel: '12:20-12:50' },
+      { sequence: 6, name: 'West Flow Center', coordinateLabel: '48.9952, 2.5526', timeWindowLabel: '13:00-13:40' },
+    ],
+    shipments: [
+      { reference: 'SHIP-412-01', status: 'Loaded', loadWeightKilograms: 80, orderReference: 'ORD-4121' },
+      { reference: 'SHIP-412-02', status: 'Loaded', loadWeightKilograms: 90, orderReference: 'ORD-4122' },
+      { reference: 'SHIP-412-03', status: 'Departed', loadWeightKilograms: 75, orderReference: 'ORD-4123' },
+      { reference: 'SHIP-412-04', status: 'Departed', loadWeightKilograms: 95, orderReference: 'ORD-4124' },
+      { reference: 'SHIP-412-05', status: 'Arrived', loadWeightKilograms: 65, orderReference: 'ORD-4125' },
+      { reference: 'SHIP-412-06', status: 'Completed', loadWeightKilograms: 65, orderReference: 'ORD-4126' },
+    ],
+    deliveries: [
+      { reference: 'DLV-412-01', stopSequence: 1, stopName: 'North Hub A', shipmentReference: 'SHIP-412-01', status: 'Completed' },
+      { reference: 'DLV-412-02', stopSequence: 2, stopName: 'Urban Relay 04', shipmentReference: 'SHIP-412-02', status: 'Completed' },
+      { reference: 'DLV-412-03', stopSequence: 3, stopName: 'Regional Store 16', shipmentReference: 'SHIP-412-03', status: 'Pending' },
+      { reference: 'DLV-412-04', stopSequence: 4, stopName: 'Regional Store 22', shipmentReference: 'SHIP-412-04', status: 'Pending' },
+      { reference: 'DLV-412-05', stopSequence: 5, stopName: 'Cross-Dock Bravo', shipmentReference: 'SHIP-412-05', status: 'Pending' },
+      { reference: 'DLV-412-06', stopSequence: 6, stopName: 'West Flow Center', shipmentReference: 'SHIP-412-06', status: 'Pending' },
+    ],
+  },
+}
+
 const routeDecorations: Record<string, { nextEtaLabel: string; mapX: string; mapY: string }> = {
   'RT-204': { nextEtaLabel: 'ETA 10:42', mapX: '16%', mapY: '58%' },
   'RT-318': { nextEtaLabel: 'ETA 11:05', mapX: '48%', mapY: '34%' },
@@ -449,6 +701,53 @@ function buildWarehouseSummaryFromDetail(detail: WarehouseDetailView): Warehouse
   }
 }
 
+function buildRouteSummaryFromDetail(detail: RouteDetailView): RouteSummaryView {
+  return {
+    routeId: detail.routeId,
+    reference: detail.reference,
+    truckId: detail.truckId,
+    truckReference: detail.truckReference,
+    status: detail.status,
+    stopCount: detail.stopCount,
+    shipmentCount: detail.shipmentCount,
+    completedDeliveryCount: detail.completedDeliveryCount,
+    nextEtaLabel: detail.reference === 'RT-204' ? 'ETA 10:42' : detail.reference === 'RT-318' ? 'ETA 11:05' : 'ETA 11:37',
+    mapX: detail.reference === 'RT-204' ? '16%' : detail.reference === 'RT-318' ? '48%' : '76%',
+    mapY: detail.reference === 'RT-204' ? '58%' : detail.reference === 'RT-318' ? '34%' : '68%',
+  }
+}
+
+function pendingRouteStops(detail: RouteDetailView): Array<{ name: string; sequence: number; timeWindowLabel: string; priority: number }> {
+  const pendingStopSequences = new Set(
+    detail.deliveries
+      .filter((delivery) => delivery.status !== 'Completed')
+      .map((delivery) => delivery.stopSequence),
+  )
+
+  return detail.stops
+    .filter((stop) => pendingStopSequences.has(stop.sequence))
+    .map((stop, index) => ({
+      name: stop.name,
+      sequence: stop.sequence,
+      timeWindowLabel: stop.timeWindowLabel,
+      priority: Math.max(1, 10 - index),
+    }))
+}
+
+function parseTimeWindowEndMinutes(label: string): number {
+  const range = label.split('-')
+  if (range.length !== 2) {
+    return 0
+  }
+
+  const endParts = range[1].trim().split(':')
+  if (endParts.length !== 2) {
+    return 0
+  }
+
+  return (Number(endParts[0]) * 60) + Number(endParts[1])
+}
+
 export function buildFallbackOverview(): ControlTowerOverviewView {
   return {
     tenantId: 'north-hub-demo',
@@ -493,45 +792,9 @@ export function buildFallbackOverview(): ControlTowerOverviewView {
       buildWarehouseSummaryFromDetail(fallbackWarehouseDetails['3f224c42-00a5-49a6-955c-c8114d0a6b81']),
     ],
     routes: [
-      {
-        routeId: '5024fa82-f658-46c8-88bf-aece07d56f09',
-        reference: 'RT-204',
-        truckId: '0d91dc2f-3a74-4562-96a6-c8de611f699d',
-        truckReference: 'TRK-11',
-        status: 'On time',
-        stopCount: 5,
-        shipmentCount: 22,
-        completedDeliveryCount: 2,
-        nextEtaLabel: 'ETA 10:42',
-        mapX: '16%',
-        mapY: '58%',
-      },
-      {
-        routeId: '528c1588-40fd-451b-8c86-2caa625602de',
-        reference: 'RT-318',
-        truckId: '2a398a30-61cf-4fc3-a18d-e491530b4f24',
-        truckReference: 'TRK-07',
-        status: 'At risk',
-        stopCount: 4,
-        shipmentCount: 15,
-        completedDeliveryCount: 1,
-        nextEtaLabel: 'ETA 11:05',
-        mapX: '48%',
-        mapY: '34%',
-      },
-      {
-        routeId: '9f91e82e-226a-48f7-a94c-907b79431739',
-        reference: 'RT-412',
-        truckId: 'cf7c6cc8-7b55-49d4-94ff-a5ee9e340856',
-        truckReference: 'TRK-19',
-        status: 'Delayed',
-        stopCount: 6,
-        shipmentCount: 27,
-        completedDeliveryCount: 3,
-        nextEtaLabel: 'ETA 11:37',
-        mapX: '76%',
-        mapY: '68%',
-      },
+      buildRouteSummaryFromDetail(fallbackRouteDetails['5024fa82-f658-46c8-88bf-aece07d56f09']),
+      buildRouteSummaryFromDetail(fallbackRouteDetails['528c1588-40fd-451b-8c86-2caa625602de']),
+      buildRouteSummaryFromDetail(fallbackRouteDetails['9f91e82e-226a-48f7-a94c-907b79431739']),
     ],
     alerts: [
       { severity: 'Critical', title: 'Cross-dock queue building', description: 'Carrier handoff at North Hub A is slipping beyond the planned window for route RT-412.' },
@@ -645,6 +908,64 @@ export function buildFallbackWarehouseDetail(warehouseId: string): WarehouseDeta
     ?? fallbackWarehouseDetails['db9a789f-9df8-45ff-a252-96d4319c2f12']
 }
 
+export function buildFallbackRouteDetail(routeId: string): RouteDetailView {
+  return fallbackRouteDetails[routeId]
+    ?? fallbackRouteDetails['5024fa82-f658-46c8-88bf-aece07d56f09']
+}
+
+export function buildFallbackRouteOptimization(detail: RouteDetailView): RouteOptimizationView {
+  const pendingStops = pendingRouteStops(detail)
+  const currentOrder = pendingStops.map((stop) => stop.name)
+  const priorityOrder = [...pendingStops]
+    .sort((left, right) => right.priority - left.priority || parseTimeWindowEndMinutes(left.timeWindowLabel) - parseTimeWindowEndMinutes(right.timeWindowLabel))
+    .map((stop) => stop.name)
+  const conservativeOrder = [...pendingStops]
+    .sort((left, right) => parseTimeWindowEndMinutes(left.timeWindowLabel) - parseTimeWindowEndMinutes(right.timeWindowLabel) || right.priority - left.priority)
+    .map((stop) => stop.name)
+
+  const alternatives: RouteOptimizationAlternativeView[] = []
+  if (priorityOrder.join('|') !== currentOrder.join('|')) {
+    alternatives.push({
+      label: 'priority-plan',
+      orderedStopReferences: priorityOrder,
+      objectiveScore: 92.4,
+      summary: 'Higher-priority stops are moved earlier to protect the most sensitive deliveries.',
+    })
+  }
+
+  if (conservativeOrder.join('|') !== currentOrder.join('|') && conservativeOrder.join('|') !== priorityOrder.join('|')) {
+    alternatives.push({
+      label: 'conservative-plan',
+      orderedStopReferences: conservativeOrder,
+      objectiveScore: 96.8,
+      summary: 'Earlier-closing windows are visited sooner to reduce lateness risk.',
+    })
+  }
+
+  return {
+    routeId: detail.routeId,
+    routeReference: detail.reference,
+    status: 'optimized',
+    objectiveScore: pendingStops.length === 0 ? null : Number((pendingStops.length * 18.5).toFixed(1)),
+    orderedStopReferences: currentOrder,
+    etaMinutes: Object.fromEntries(pendingStops.map((stop, index) => [stop.name, 660 + (index * 35)])),
+    loadDistribution: Object.fromEntries(pendingStops.map((stop) => [stop.name, Math.max(1, Math.round(detail.totalLoadKilograms / Math.max(pendingStops.length, 1) / 10))])),
+    constraintViolations: [],
+    explanation: {
+      selectedVehicleReason: `Vehicle ${detail.truckReference} remains assigned because the fallback keeps the current route posture.`,
+      prioritizationReason: 'The local fallback preserves the current remaining stop order and exposes comparison plans for review.',
+      tightConstraints: pendingStops.length >= 4 ? ['route duration'] : [],
+      infeasibilityReason: null,
+      tradeOffs: [
+        'The optimization service was unavailable, so no solver-backed resequencing was attempted.',
+        'Alternative plans are still shown so the dispatcher can compare risk posture manually.',
+      ],
+    },
+    alternatives,
+    solverBackend: 'frontend-local-fallback',
+  }
+}
+
 export function mapApiWarehouseDetailToView(apiWarehouse: ApiWarehouseDetail): WarehouseDetailView {
   return {
     warehouseId: apiWarehouse.warehouseId,
@@ -669,6 +990,74 @@ export function mapApiWarehouseDetailToView(apiWarehouse: ApiWarehouseDetail): W
       status: normalizeDockStatus(dock.status),
       activityLabel: dock.activityLabel,
     })),
+  }
+}
+
+export function mapApiRouteDetailToView(apiRoute: ApiRouteDetail): RouteDetailView {
+  return {
+    routeId: apiRoute.routeId,
+    reference: apiRoute.reference,
+    truckId: apiRoute.truckId,
+    truckReference: apiRoute.truckReference,
+    driverName: apiRoute.driverName,
+    status: normalizeRouteStatus(apiRoute.status),
+    truckStatus: apiRoute.truckStatus,
+    truckCapacityKilograms: apiRoute.truckCapacityKilograms,
+    totalLoadKilograms: apiRoute.totalLoadKilograms,
+    stopCount: apiRoute.stopCount,
+    shipmentCount: apiRoute.shipmentCount,
+    completedDeliveryCount: apiRoute.completedDeliveryCount,
+    updatedAtLabel: formatUtcLabel(apiRoute.updatedAtUtc),
+    stops: apiRoute.stops.map((stop) => ({
+      sequence: stop.sequence,
+      name: stop.name,
+      coordinateLabel: stop.coordinateLabel,
+      timeWindowLabel: stop.timeWindowLabel,
+    })),
+    shipments: apiRoute.shipments.map((shipment) => ({
+      reference: shipment.reference,
+      status: shipment.status as RouteShipmentView['status'],
+      loadWeightKilograms: shipment.loadWeightKilograms,
+      orderReference: shipment.orderReference,
+    })),
+    deliveries: apiRoute.deliveries.map((delivery) => ({
+      reference: delivery.reference,
+      stopSequence: delivery.stopSequence,
+      stopName: delivery.stopName,
+      shipmentReference: delivery.shipmentReference,
+      status: delivery.status as RouteDeliveryView['status'],
+    })),
+  }
+}
+
+export function mapApiRouteOptimizationToView(apiEnvelope: ApiRouteOptimizationEnvelope): { optimization: RouteOptimizationView; source: 'api' | 'fallback'; errorMessage: string | null } {
+  return {
+    optimization: {
+      routeId: apiEnvelope.optimization.routeId,
+      routeReference: apiEnvelope.optimization.routeReference,
+      status: apiEnvelope.optimization.status === 'infeasible' ? 'infeasible' : 'optimized',
+      objectiveScore: apiEnvelope.optimization.objectiveScore,
+      orderedStopReferences: apiEnvelope.optimization.orderedStopReferences,
+      etaMinutes: apiEnvelope.optimization.etaMinutes,
+      loadDistribution: apiEnvelope.optimization.loadDistribution,
+      constraintViolations: apiEnvelope.optimization.constraintViolations,
+      explanation: {
+        selectedVehicleReason: apiEnvelope.optimization.explanation.selectedVehicleReason,
+        prioritizationReason: apiEnvelope.optimization.explanation.prioritizationReason,
+        tightConstraints: apiEnvelope.optimization.explanation.tightConstraints,
+        infeasibilityReason: apiEnvelope.optimization.explanation.infeasibilityReason,
+        tradeOffs: apiEnvelope.optimization.explanation.tradeOffs,
+      },
+      alternatives: apiEnvelope.optimization.alternatives.map((alternative) => ({
+        label: alternative.label,
+        orderedStopReferences: alternative.orderedStopReferences,
+        objectiveScore: alternative.objectiveScore,
+        summary: alternative.summary,
+      })),
+      solverBackend: apiEnvelope.optimization.solverBackend,
+    },
+    source: apiEnvelope.source === 'api' ? 'api' : 'fallback',
+    errorMessage: apiEnvelope.errorMessage,
   }
 }
 
@@ -723,7 +1112,7 @@ export function buildFallbackProviderCatalog(): ProviderCatalogView {
         lastActivityLabel: 'Last attempt 2026-06-20 10:15 UTC',
         summary: 'REST adapter skeleton is available but not yet configured against a live upstream service.',
         capabilities: ['Read', 'Write', 'Commands', 'History', 'Read-only'],
-        supportedReadModels: ['RouteSummaryReadModel'],
+        supportedReadModels: ['RouteSummaryReadModel', 'RouteDetailReadModel'],
         schemaResourceName: 'transport-route-resource',
         schemaFields: [
           { name: 'route_reference', canonicalMapping: 'Route.Reference', required: true },
