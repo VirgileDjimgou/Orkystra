@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Orkystra.Api/Orkystra.Api.csproj" />
+    <Project Path="src/Orkystra.Application/Orkystra.Application.csproj" />
+    <Project Path="src/Orkystra.Contracts/Orkystra.Contracts.csproj" />
+    <Project Path="src/Orkystra.Domain/Orkystra.Domain.csproj" />
+  </Folder>
+  <Project Path="../tests/backend/Orkystra.Domain.Tests/Orkystra.Domain.Tests.csproj" />
+</Solution>

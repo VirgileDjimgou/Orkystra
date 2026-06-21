@@ -1,0 +1,50 @@
+# Build outputs
+bin/
+obj/
+dist/
+build/
+coverage/
+
+# Dependency folders
+node_modules/
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# IDE and OS files
+.vs/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.user
+*.suo
+backend/src/Orkystra.Api/appsettings.Development.json
+backend/src/Orkystra.Api/appsettings.Local.json
+*.local.json
+
+# Logs and temp files
+*.log
+tmp/
+temp/
+
+# Local databases and generated artifacts
+*.db
+*.sqlite
+*.sqlite3
+output/
+
+# Private local workflow and authoring artifacts
+prompts/
+constitution/
+docs/blueprints/
+docs/methodology/
+docs/adr/0001-project-execution-model.md
+PROJECT_STATUS.md
+IMPLEMENTATION_ROADMAP.md
