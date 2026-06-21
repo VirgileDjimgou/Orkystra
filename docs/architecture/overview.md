@@ -199,3 +199,13 @@ The next connector-focused increment turns the registry into a visible catalog:
 - the frontend now has a dedicated catalog surface for operator-facing connector inspection
 
 This moves the project one step closer to live provider configuration and operational support workflows.
+
+## Local Audit Persistence
+
+The next operational increment moves audit from log-only scaffolding to a locally persisted operational trail:
+
+- audit entries are appended to a local JSONL store
+- `GET /observability/audit` exposes recent audit events through a protected endpoint
+- correlation id, tenant, reason, and response status are now inspectable after the fact instead of only being emitted to logs
+
+This improves demo support and operator troubleshooting while leaving room for a future centralized audit sink.

@@ -8,6 +8,7 @@ Run commands from the repository root unless noted.
 dotnet restore backend/Orkystra.slnx
 dotnet build backend/Orkystra.slnx --configuration Release /p:UseSharedCompilation=false /nodeReuse:false
 dotnet test backend/Orkystra.slnx --configuration Release /p:UseSharedCompilation=false /nodeReuse:false
+$env:Security__ApiKey='replace-with-local-key'
 dotnet run --project backend/src/Orkystra.Api
 ```
 
@@ -15,6 +16,8 @@ Protected operational API routes expect:
 
 - `X-Api-Key`
 - `X-Tenant-Id` when tenant-header enforcement is enabled
+
+The development API key is intentionally not committed. Provide it through environment variables or an ignored local configuration file.
 
 ## Frontend
 

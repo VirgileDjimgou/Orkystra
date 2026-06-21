@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.Extensions.Options;
 using Orkystra.Api.Connectors;
 using Orkystra.Api.ControlTower;
 using Orkystra.Api.Observability;
@@ -21,6 +22,7 @@ builder.Services.Configure<ObservabilityOptions>(builder.Configuration.GetSectio
 builder.Services.AddSingleton<ApiKeyValidator>();
 builder.Services.AddSingleton<TenantResolutionService>();
 builder.Services.AddSingleton<RequestMetricsStore>();
+builder.Services.AddSingleton<IAuditStore, FileAuditStore>();
 builder.Services.AddSingleton<ProviderCatalogService>();
 builder.Services.AddSingleton<ControlTowerOverviewService>();
 builder.Services.AddScoped<RequestTenantContext>();
@@ -73,6 +75,20 @@ app.MapGet("/observability/context", (HttpContext httpContext, RequestTenantCont
 }))
 .RequireAuthorization()
 .WithName("GetOperationalContext");
+
+app.MapGet("/observability/audit", async (IAuditStore auditStore, IOptions<ObservabilityOptions> options, int? count, CancellationToken cancellationToken) =>
+{
+    var requestedCount = count ?? 50;
+    var boundedCount = Math.Clamp(requestedCount, 1, options.Value.AuditReadLimit);
+    var entries = await auditStore.ReadRecentAsync(boundedCount, cancellationToken);
+    return Results.Ok(new
+    {
+        count = entries.Count,
+        entries
+    });
+})
+.RequireAuthorization()
+.WithName("GetRecentAuditEntries");
 
 app.MapGet("/api/control-tower/overview", async (RequestTenantContext tenantContext, ControlTowerOverviewService overviewService, CancellationToken cancellationToken) =>
 {

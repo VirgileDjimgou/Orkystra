@@ -71,4 +71,14 @@ public sealed class ProductionHardeningTests
         Assert.Equal(1, snapshot.SuccessfulRequests);
         Assert.Equal(2, snapshot.FailedRequests);
     }
+
+    [Fact]
+    public void ObservabilityOptions_expose_audit_persistence_defaults()
+    {
+        var options = new ObservabilityOptions();
+
+        Assert.True(options.EnableAuditLogging);
+        Assert.Contains("audit-log.jsonl", options.AuditLogFilePath, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(200, options.AuditReadLimit);
+    }
 }

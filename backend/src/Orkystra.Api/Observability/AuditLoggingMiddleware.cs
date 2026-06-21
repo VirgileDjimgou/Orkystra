@@ -8,15 +8,18 @@ public sealed class AuditLoggingMiddleware
     private readonly RequestDelegate _next;
     private readonly ILogger<AuditLoggingMiddleware> _logger;
     private readonly ObservabilityOptions _options;
+    private readonly IAuditStore _auditStore;
 
     public AuditLoggingMiddleware(
         RequestDelegate next,
         ILogger<AuditLoggingMiddleware> logger,
-        IOptions<ObservabilityOptions> options)
+        IOptions<ObservabilityOptions> options,
+        IAuditStore auditStore)
     {
         _next = next;
         _logger = logger;
         _options = options.Value;
+        _auditStore = auditStore;
     }
 
     public async Task InvokeAsync(HttpContext context, RequestTenantContext tenantContext)
@@ -31,8 +34,7 @@ public sealed class AuditLoggingMiddleware
             return;
         }
 
-        _logger.LogInformation(
-            "AUDIT who={User} what={Method} {Path} when={Timestamp} tenant={TenantId} why={Reason} from={RemoteIp} correlationId={CorrelationId} status={StatusCode}",
+        var entry = new AuditEntry(
             context.User.Identity?.Name ?? "anonymous",
             context.Request.Method,
             context.Request.Path,
@@ -42,6 +44,20 @@ public sealed class AuditLoggingMiddleware
             context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
             correlationId,
             context.Response.StatusCode);
+
+        _logger.LogInformation(
+            "AUDIT who={User} what={Method} {Path} when={Timestamp} tenant={TenantId} why={Reason} from={RemoteIp} correlationId={CorrelationId} status={StatusCode}",
+            entry.User,
+            entry.Method,
+            entry.Path,
+            entry.TimestampUtc,
+            entry.TenantId,
+            entry.Reason,
+            entry.RemoteIp,
+            entry.CorrelationId,
+            entry.StatusCode);
+
+        await _auditStore.AppendAsync(entry, context.RequestAborted);
     }
 
     private static string GetOrCreateCorrelationId(HttpContext context)

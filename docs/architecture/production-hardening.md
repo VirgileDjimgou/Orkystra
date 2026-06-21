@@ -28,7 +28,7 @@ Protected routes require the configured API key header. Tenant resolution is per
 
 ## Audit posture
 
-The current audit scaffold logs:
+The current audit scaffold stores audit events as append-only local records and logs:
 
 - who
 - what
@@ -39,7 +39,7 @@ The current audit scaffold logs:
 - correlation id
 - response status
 
-This is log-based scaffolding, not a persisted audit store yet.
+The current sink is a local JSONL audit file exposed through a protected read endpoint. It is operationally useful for local demos and support workflows, but it is not yet a centralized compliance-grade audit store.
 
 ## Packaging posture
 
