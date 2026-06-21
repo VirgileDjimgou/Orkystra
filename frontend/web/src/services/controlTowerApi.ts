@@ -1,8 +1,5 @@
 import { buildFallbackOverview, mapApiOverviewToView, type ControlTowerOverviewView } from '../data/controlTower'
-
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:5043'
-const apiKey = import.meta.env.VITE_API_KEY ?? ''
-const tenantId = import.meta.env.VITE_TENANT_ID ?? 'north-hub-demo'
+import { sendApiRequest } from './apiClient'
 
 export type ControlTowerOverviewLoadResult = {
   overview: ControlTowerOverviewView
@@ -12,16 +9,8 @@ export type ControlTowerOverviewLoadResult = {
 
 export async function loadControlTowerOverview(): Promise<ControlTowerOverviewLoadResult> {
   try {
-    const headers: Record<string, string> = {
-      'X-Tenant-Id': tenantId,
-    }
-
-    if (apiKey) {
-      headers['X-Api-Key'] = apiKey
-    }
-
-    const response = await fetch(`${apiBaseUrl}/api/control-tower/overview`, {
-      headers,
+    const response = await sendApiRequest('/api/control-tower/overview', {
+      includeTenantHeader: true,
     })
 
     if (!response.ok) {

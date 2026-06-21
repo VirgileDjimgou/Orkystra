@@ -9,7 +9,7 @@ import {
   Group,
   Mesh,
   MeshStandardMaterial,
-  PCFSoftShadowMap,
+  PCFShadowMap,
   PerspectiveCamera,
   PlaneGeometry,
   Scene,
@@ -50,7 +50,7 @@ function buildScene(): void {
   renderer = new WebGLRenderer({ antialias: true, alpha: false })
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
   renderer.shadowMap.enabled = true
-  renderer.shadowMap.type = PCFSoftShadowMap
+  renderer.shadowMap.type = PCFShadowMap
 
   canvasHost.value.innerHTML = ''
   canvasHost.value.appendChild(renderer.domElement)
@@ -233,6 +233,7 @@ onBeforeUnmount(() => {
   width: 100%;
   min-height: 320px;
   cursor: grab;
+  touch-action: none;
 }
 
 .canvas-host:active {

@@ -1,15 +1,21 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import WarehouseTwinScene from './components/WarehouseTwinScene.vue'
 import {
   buildFallbackOverview,
+  buildFallbackWarehouseDetail,
   buildFallbackProviderCatalog,
   simulationSpeeds,
   type ControlTowerOverviewView,
+  type WarehouseDetailView,
   type ProviderCatalogView,
+  type ProviderCatalogItemView,
 } from './data/controlTower'
 import { loadControlTowerOverview } from './services/controlTowerApi'
-import { loadProviderCatalog } from './services/providerCatalogApi'
+import { loadProviderCatalog, updateProviderConfiguration } from './services/providerCatalogApi'
+import { loadWarehouseProjection } from './services/warehouseApi'
+
+type DataConnectionState = 'loading' | 'api' | 'fallback' | 'stale'
 
 const navigationItems = [
   { label: 'Control Tower', short: 'CT', active: true },
@@ -20,15 +26,25 @@ const navigationItems = [
 
 const fallbackOverview = buildFallbackOverview()
 const overview = ref<ControlTowerOverviewView>(fallbackOverview)
+const warehouseDetail = ref<WarehouseDetailView>(buildFallbackWarehouseDetail(fallbackOverview.warehouses[0].warehouseId))
 const isApiConnected = ref(false)
-const dataSourceLabel = ref<'API' | 'Fallback'>('Fallback')
-const isLoadingOverview = ref(true)
+const isRefreshingWorkspace = ref(false)
 const loadErrorMessage = ref<string | null>(null)
+const overviewConnectionState = ref<DataConnectionState>('loading')
+const warehouseDetailErrorMessage = ref<string | null>(null)
+const warehouseConnectionState = ref<DataConnectionState>('loading')
 const providerCatalog = ref<ProviderCatalogView>(buildFallbackProviderCatalog())
+const isProviderCatalogConnected = ref(false)
+const providerCatalogErrorMessage = ref<string | null>(null)
+const providerCatalogConnectionState = ref<DataConnectionState>('loading')
+const savingProviderId = ref<string | null>(null)
+const providerConfigurationNotice = ref<Record<string, string>>({})
+const providerConfigurationDrafts = ref<Record<string, { enabled: boolean; environment: string; settings: Record<string, string> }>>({})
 const selectedScenarioId = ref(fallbackOverview.scenarios[0].scenarioId)
 const selectedWarehouseId = ref(fallbackOverview.warehouses[0].warehouseId)
 const simulationState = ref<'Running' | 'Paused'>('Running')
 const selectedSpeed = ref(simulationSpeeds[1])
+let connectionRecoveryHandle = 0
 
 const currentScenario = computed(
   () => overview.value.scenarios.find((scenario) => scenario.scenarioId === selectedScenarioId.value) ?? overview.value.scenarios[0],
@@ -46,13 +62,62 @@ const warehouseUtilization = computed(() => {
   return Math.round((warehouse.storedPalletCount / warehouse.slotCount) * 100)
 })
 
-const scenarioStatusTone = computed(() => (simulationState.value === 'Running' ? 'is-running' : 'is-paused'))
-const dataConnectionTone = computed(() => {
-  if (isLoadingOverview.value) {
+function toneForConnectionState(state: DataConnectionState): 'is-loading' | 'is-running' | 'is-paused' | 'is-warning' {
+  if (state === 'loading') {
     return 'is-loading'
   }
 
-  return isApiConnected.value ? 'is-running' : 'is-paused'
+  if (state === 'api') {
+    return 'is-running'
+  }
+
+  if (state === 'stale') {
+    return 'is-warning'
+  }
+
+  return 'is-paused'
+}
+
+function labelForConnectionState(state: DataConnectionState, apiLabel: string, fallbackLabel: string): string {
+  if (state === 'loading') {
+    return 'Loading'
+  }
+
+  if (state === 'api') {
+    return apiLabel
+  }
+
+  if (state === 'stale') {
+    return `Stale ${apiLabel}`
+  }
+
+  return fallbackLabel
+}
+
+const scenarioStatusTone = computed(() => (simulationState.value === 'Running' ? 'is-running' : 'is-paused'))
+const providerEditorTone = computed(() => toneForConnectionState(providerCatalogConnectionState.value))
+const dataConnectionTone = computed(() => toneForConnectionState(overviewConnectionState.value))
+const warehouseProjectionTone = computed(() => toneForConnectionState(warehouseConnectionState.value))
+const overviewConnectionLabel = computed(() => labelForConnectionState(overviewConnectionState.value, 'API live', 'Fallback active'))
+const warehouseProjectionLabel = computed(() => labelForConnectionState(warehouseConnectionState.value, 'Warehouse API live', 'Warehouse fallback'))
+const catalogConnectionLabel = computed(() => labelForConnectionState(providerCatalogConnectionState.value, 'Editable local API', 'Read-only fallback'))
+const tenantSummary = computed(() => {
+  if (overviewConnectionState.value === 'api') {
+    return 'API-backed control tower'
+  }
+
+  if (overviewConnectionState.value === 'stale') {
+    return 'Last successful API snapshot retained'
+  }
+
+  if (overviewConnectionState.value === 'loading') {
+    return 'Connecting to local services'
+  }
+
+  return 'Fallback demo data active'
+})
+const connectionMessage = computed(() => {
+  return loadErrorMessage.value ?? warehouseDetailErrorMessage.value ?? providerCatalogErrorMessage.value ?? 'All local data surfaces are ready.'
 })
 
 function toggleSimulation(): void {
@@ -63,18 +128,197 @@ function setSimulationSpeed(speed: (typeof simulationSpeeds)[number]): void {
   selectedSpeed.value = speed
 }
 
+function syncProviderDrafts(catalog: ProviderCatalogView): void {
+  providerConfigurationDrafts.value = Object.fromEntries(
+    catalog.providers.map((provider) => [
+      provider.providerId,
+      {
+        enabled: provider.configurationEnabled,
+        environment: provider.configurationEnvironment,
+        settings: Object.fromEntries(provider.editableSettings.map((setting) => [setting.key, setting.value])),
+      },
+    ]),
+  )
+}
+
+function providerDraft(providerId: string): { enabled: boolean; environment: string; settings: Record<string, string> } {
+  const existing = providerConfigurationDrafts.value[providerId]
+
+  if (existing) {
+    return existing
+  }
+
+  providerConfigurationDrafts.value[providerId] = {
+    enabled: true,
+    environment: 'local-demo',
+    settings: {},
+  }
+
+  return providerConfigurationDrafts.value[providerId]
+}
+
+function applyOverviewResult(result: Awaited<ReturnType<typeof loadControlTowerOverview>>, preserveExisting: boolean): void {
+  const keepCurrentSnapshot = preserveExisting &&
+    result.source === 'fallback' &&
+    (overviewConnectionState.value === 'api' || overviewConnectionState.value === 'stale')
+
+  if (!keepCurrentSnapshot) {
+    overview.value = result.overview
+    selectedScenarioId.value = result.overview.scenarios.some((scenario) => scenario.scenarioId === selectedScenarioId.value)
+      ? selectedScenarioId.value
+      : (result.overview.scenarios[0]?.scenarioId ?? fallbackOverview.scenarios[0].scenarioId)
+    selectedWarehouseId.value = result.overview.warehouses.some((warehouse) => warehouse.warehouseId === selectedWarehouseId.value)
+      ? selectedWarehouseId.value
+      : (result.overview.warehouses[0]?.warehouseId ?? fallbackOverview.warehouses[0].warehouseId)
+  }
+
+  overviewConnectionState.value = keepCurrentSnapshot
+    ? 'stale'
+    : result.source === 'api'
+      ? 'api'
+      : 'fallback'
+  isApiConnected.value = overviewConnectionState.value !== 'fallback'
+  loadErrorMessage.value = keepCurrentSnapshot && result.errorMessage
+    ? `${result.errorMessage} Showing the last successful API snapshot.`
+    : result.errorMessage
+}
+
+function applyCatalogResult(result: Awaited<ReturnType<typeof loadProviderCatalog>>, preserveExisting: boolean): void {
+  const keepCurrentSnapshot = preserveExisting &&
+    result.source === 'fallback' &&
+    (providerCatalogConnectionState.value === 'api' || providerCatalogConnectionState.value === 'stale')
+
+  if (!keepCurrentSnapshot) {
+    providerCatalog.value = result.catalog
+    syncProviderDrafts(result.catalog)
+  }
+
+  providerCatalogConnectionState.value = keepCurrentSnapshot
+    ? 'stale'
+    : result.source === 'api'
+      ? 'api'
+      : 'fallback'
+  isProviderCatalogConnected.value = providerCatalogConnectionState.value !== 'fallback'
+  providerCatalogErrorMessage.value = keepCurrentSnapshot && result.errorMessage
+    ? `${result.errorMessage} Keeping the last successful editable catalog.`
+    : result.errorMessage
+}
+
+function applyWarehouseProjectionResult(
+  result: Awaited<ReturnType<typeof loadWarehouseProjection>>,
+  preserveExisting: boolean,
+  requestedWarehouseId: string,
+): void {
+  const keepCurrentSnapshot = preserveExisting &&
+    result.source === 'fallback' &&
+    warehouseDetail.value.warehouseId === requestedWarehouseId &&
+    (warehouseConnectionState.value === 'api' || warehouseConnectionState.value === 'stale')
+
+  if (!keepCurrentSnapshot) {
+    warehouseDetail.value = result.warehouse
+  }
+
+  warehouseConnectionState.value = keepCurrentSnapshot
+    ? 'stale'
+    : result.source === 'api'
+      ? 'api'
+      : 'fallback'
+  warehouseDetailErrorMessage.value = keepCurrentSnapshot && result.errorMessage
+    ? `${result.errorMessage} Keeping the last successful warehouse projection.`
+    : result.errorMessage
+}
+
+async function refreshWarehouseProjection(warehouseId: string, preserveExisting = true): Promise<void> {
+  if (!preserveExisting) {
+    warehouseConnectionState.value = 'loading'
+  }
+
+  const result = await loadWarehouseProjection(warehouseId)
+  applyWarehouseProjectionResult(result, preserveExisting, warehouseId)
+}
+
+async function refreshWorkspace(preserveExisting = true): Promise<void> {
+  isRefreshingWorkspace.value = true
+
+  if (!preserveExisting) {
+    overviewConnectionState.value = 'loading'
+    warehouseConnectionState.value = 'loading'
+    providerCatalogConnectionState.value = 'loading'
+  }
+
+  const [overviewResult, catalogResult] = await Promise.all([loadControlTowerOverview(), loadProviderCatalog()])
+  applyOverviewResult(overviewResult, preserveExisting)
+  applyCatalogResult(catalogResult, preserveExisting)
+  await refreshWarehouseProjection(selectedWarehouseId.value, preserveExisting)
+  isRefreshingWorkspace.value = false
+
+  const hasPartialFallback =
+    [overviewConnectionState.value, warehouseConnectionState.value, providerCatalogConnectionState.value].some((state) => state === 'fallback') &&
+    [overviewConnectionState.value, warehouseConnectionState.value, providerCatalogConnectionState.value].some((state) => state === 'api' || state === 'stale')
+
+  if (hasPartialFallback) {
+    window.clearTimeout(connectionRecoveryHandle)
+    connectionRecoveryHandle = window.setTimeout(() => {
+      void refreshWorkspace(true)
+    }, 1500)
+  }
+}
+
+async function refreshProviderCatalog(preserveExisting = true): Promise<void> {
+  if (!preserveExisting) {
+    providerCatalogConnectionState.value = 'loading'
+  }
+
+  const catalogResult = await loadProviderCatalog()
+  applyCatalogResult(catalogResult, preserveExisting)
+}
+
+async function saveProviderConfiguration(provider: ProviderCatalogItemView): Promise<void> {
+  const draft = providerDraft(provider.providerId)
+  providerConfigurationNotice.value = {
+    ...providerConfigurationNotice.value,
+    [provider.providerId]: '',
+  }
+
+  savingProviderId.value = provider.providerId
+
+  try {
+    await updateProviderConfiguration({
+      providerId: provider.providerId,
+      enabled: draft.enabled,
+      environment: draft.environment,
+      settings: draft.settings,
+    })
+
+    await refreshProviderCatalog(true)
+    providerConfigurationNotice.value = {
+      ...providerConfigurationNotice.value,
+      [provider.providerId]: 'Saved locally.',
+    }
+  } catch (error) {
+    providerConfigurationNotice.value = {
+      ...providerConfigurationNotice.value,
+      [provider.providerId]: error instanceof Error ? error.message : 'Unable to save provider configuration.',
+    }
+  } finally {
+    savingProviderId.value = null
+  }
+}
+
 onMounted(async () => {
-  isLoadingOverview.value = true
-  const [overviewResult, catalog] = await Promise.all([loadControlTowerOverview(), loadProviderCatalog()])
-  const loadedOverview = overviewResult.overview
-  overview.value = loadedOverview
-  selectedScenarioId.value = loadedOverview.scenarios[0]?.scenarioId ?? fallbackOverview.scenarios[0].scenarioId
-  selectedWarehouseId.value = loadedOverview.warehouses[0]?.warehouseId ?? fallbackOverview.warehouses[0].warehouseId
-  providerCatalog.value = catalog
-  isApiConnected.value = overviewResult.source === 'api'
-  dataSourceLabel.value = overviewResult.source === 'api' ? 'API' : 'Fallback'
-  loadErrorMessage.value = overviewResult.errorMessage
-  isLoadingOverview.value = false
+  await refreshWorkspace(false)
+})
+
+watch(selectedWarehouseId, (nextWarehouseId, previousWarehouseId) => {
+  if (nextWarehouseId === previousWarehouseId || isRefreshingWorkspace.value) {
+    return
+  }
+
+  void refreshWarehouseProjection(nextWarehouseId, false)
+})
+
+onBeforeUnmount(() => {
+  window.clearTimeout(connectionRecoveryHandle)
 })
 </script>
 
@@ -105,9 +349,9 @@ onMounted(async () => {
       <section class="sidebar-panel">
         <span class="panel-label">Tenant</span>
         <strong>{{ overview.tenantId }}</strong>
-        <p>{{ isApiConnected ? 'API-backed control tower' : 'Fallback demo data active' }}</p>
+        <p>{{ tenantSummary }}</p>
         <span class="status-pill" :class="dataConnectionTone">
-          {{ isLoadingOverview ? 'Loading overview' : `${dataSourceLabel} data` }}
+          {{ overviewConnectionLabel }}
         </span>
       </section>
 
@@ -132,6 +376,10 @@ onMounted(async () => {
         </div>
 
         <div class="topbar-actions">
+          <button type="button" class="refresh-button" :disabled="isRefreshingWorkspace" @click="refreshWorkspace(true)">
+            {{ isRefreshingWorkspace ? 'Refreshing...' : 'Refresh data' }}
+          </button>
+
           <label class="scenario-select">
             <span>Scenario</span>
             <select v-model="selectedScenarioId">
@@ -191,12 +439,51 @@ onMounted(async () => {
         </article>
       </section>
 
-      <section v-if="loadErrorMessage" class="surface connection-banner">
-        <div>
-          <span class="panel-label">Connection state</span>
-          <h2>Fallback mode enabled</h2>
+      <section class="surface connection-surface">
+        <div class="surface-heading">
+          <div>
+            <span class="panel-label">Connection state</span>
+            <h2>Data access posture</h2>
+          </div>
+          <span class="mini-badge">{{ isRefreshingWorkspace ? 'Refreshing' : 'Stable view' }}</span>
         </div>
-        <p>{{ loadErrorMessage }}</p>
+
+        <div class="connection-grid">
+          <article class="connection-card">
+            <div class="connection-card-head">
+              <div>
+                <strong>Overview feed</strong>
+                <p>Scenario, warehouse, transport, alerts, and provider watch.</p>
+              </div>
+              <span class="status-pill" :class="dataConnectionTone">{{ overviewConnectionLabel }}</span>
+            </div>
+            <p>{{ loadErrorMessage ?? 'Overview endpoint is serving the operator workspace.' }}</p>
+          </article>
+
+          <article class="connection-card">
+            <div class="connection-card-head">
+              <div>
+                <strong>Warehouse projection</strong>
+                <p>Zone posture, dock availability, and twin-facing warehouse detail.</p>
+              </div>
+              <span class="status-pill" :class="warehouseProjectionTone">{{ warehouseProjectionLabel }}</span>
+            </div>
+            <p>{{ warehouseDetailErrorMessage ?? `Detailed warehouse projection updated ${warehouseDetail.updatedAtLabel}.` }}</p>
+          </article>
+
+          <article class="connection-card">
+            <div class="connection-card-head">
+              <div>
+                <strong>Provider catalog</strong>
+                <p>Connector inventory, runtime posture, and local editing flow.</p>
+              </div>
+              <span class="status-pill" :class="providerEditorTone">{{ catalogConnectionLabel }}</span>
+            </div>
+            <p>{{ providerCatalogErrorMessage ?? 'Provider catalog is available for local inspection and editing.' }}</p>
+          </article>
+        </div>
+
+        <p class="connection-summary">{{ connectionMessage }}</p>
       </section>
 
       <section class="workspace-grid">
@@ -207,36 +494,57 @@ onMounted(async () => {
               <h2>{{ currentWarehouse.name }}</h2>
             </div>
 
-            <label class="compact-select">
-              <span>View</span>
-              <select v-model="selectedWarehouseId">
-                <option v-for="warehouse in overview.warehouses" :key="warehouse.warehouseId" :value="warehouse.warehouseId">
-                  {{ warehouse.name }}
-                </option>
-              </select>
-            </label>
+            <div class="warehouse-actions">
+              <span class="status-pill" :class="warehouseProjectionTone">{{ warehouseProjectionLabel }}</span>
+              <label class="compact-select">
+                <span>View</span>
+                <select v-model="selectedWarehouseId">
+                  <option v-for="warehouse in overview.warehouses" :key="warehouse.warehouseId" :value="warehouse.warehouseId">
+                    {{ warehouse.name }}
+                  </option>
+                </select>
+              </label>
+            </div>
           </div>
 
           <div class="surface-body">
             <WarehouseTwinScene
-              :zones="currentWarehouse.zones"
-              :occupied-dock-count="currentWarehouse.occupiedDockCount"
-              :stored-pallet-count="currentWarehouse.storedPalletCount"
+              :zones="warehouseDetail.zones"
+              :occupied-dock-count="warehouseDetail.occupiedDockCount"
+              :stored-pallet-count="warehouseDetail.storedPalletCount"
             />
 
-            <div class="zone-strip" aria-label="Warehouse zones">
-              <article v-for="zone in currentWarehouse.zones" :key="zone.code" class="zone-tile">
-                <div class="zone-head">
-                  <strong>{{ zone.code }}</strong>
-                  <span>{{ zone.status }}</span>
-                </div>
-                <p>{{ zone.description }}</p>
-                <div class="zone-meta">
-                  <span>{{ zone.utilization }}% full</span>
-                  <span>{{ zone.pallets }} pallets</span>
-                  <span>{{ zone.throughputLabel }}</span>
-                </div>
-              </article>
+            <div class="warehouse-detail-grid">
+              <div class="zone-strip" aria-label="Warehouse zones">
+                <article v-for="zone in warehouseDetail.zones" :key="zone.code" class="zone-tile">
+                  <div class="zone-head">
+                    <div>
+                      <strong>{{ zone.code }}</strong>
+                      <p class="zone-label">{{ zone.name }}</p>
+                    </div>
+                    <span>{{ zone.status }}</span>
+                  </div>
+                  <p>{{ zone.description }}</p>
+                  <div class="zone-meta">
+                    <span>{{ zone.utilization }}% full</span>
+                    <span>{{ zone.pallets }} pallets</span>
+                    <span>{{ zone.throughputLabel }}</span>
+                  </div>
+                </article>
+              </div>
+
+              <div class="dock-strip" aria-label="Warehouse docks">
+                <article v-for="dock in warehouseDetail.docks" :key="dock.code" class="dock-card">
+                  <div class="zone-head">
+                    <strong>{{ dock.code }}</strong>
+                    <span class="dock-status" :class="dock.status === 'Occupied' ? 'is-occupied' : 'is-available'">
+                      {{ dock.status }}
+                    </span>
+                  </div>
+                  <p>{{ dock.activityLabel }}</p>
+                </article>
+                <p class="warehouse-summary-note">Detailed warehouse projection updated {{ warehouseDetail.updatedAtLabel }}.</p>
+              </div>
             </div>
           </div>
         </section>
@@ -391,8 +699,17 @@ onMounted(async () => {
             <span class="panel-label">Connector catalog</span>
             <h2>Provider inventory</h2>
           </div>
-          <span class="mini-badge">{{ providerCatalog.generatedAtLabel }}</span>
+          <div class="catalog-heading-meta">
+            <span class="status-pill" :class="providerEditorTone">
+              {{ catalogConnectionLabel }}
+            </span>
+            <span class="mini-badge">{{ providerCatalog.generatedAtLabel }}</span>
+          </div>
         </div>
+
+        <p v-if="providerCatalogErrorMessage" class="catalog-editor-note">
+          {{ providerCatalogErrorMessage }}
+        </p>
 
         <div class="catalog-grid">
           <article v-for="provider in providerCatalog.providers" :key="provider.providerId" class="catalog-card">
@@ -432,6 +749,56 @@ onMounted(async () => {
                   class="catalog-chip is-missing"
                 >
                   Missing {{ field }}
+                </span>
+              </div>
+            </div>
+
+            <div class="catalog-block">
+              <div class="catalog-editor-heading">
+                <span class="panel-label">Runtime editor</span>
+                <span class="catalog-editor-note">Changes persist to local appsettings.Local.json only.</span>
+              </div>
+
+              <label class="catalog-toggle">
+                <input v-model="providerDraft(provider.providerId).enabled" type="checkbox" :disabled="!isProviderCatalogConnected || savingProviderId === provider.providerId">
+                <span>Provider enabled</span>
+              </label>
+
+              <label class="catalog-field">
+                <span>Environment</span>
+                <input
+                  v-model="providerDraft(provider.providerId).environment"
+                  type="text"
+                  :disabled="!isProviderCatalogConnected || savingProviderId === provider.providerId"
+                >
+              </label>
+
+              <div class="catalog-editor-grid">
+                <label
+                  v-for="setting in provider.editableSettings"
+                  :key="`${provider.providerId}-setting-${setting.key}`"
+                  class="catalog-field"
+                >
+                  <span>{{ setting.key }}<small v-if="setting.required">Required</small></span>
+                  <input
+                    v-model="providerDraft(provider.providerId).settings[setting.key]"
+                    type="text"
+                    :disabled="!isProviderCatalogConnected || savingProviderId === provider.providerId"
+                  >
+                </label>
+              </div>
+
+              <div class="catalog-editor-actions">
+                <button
+                  type="button"
+                  class="catalog-save-button"
+                  :disabled="!isProviderCatalogConnected || savingProviderId === provider.providerId"
+                  @click="saveProviderConfiguration(provider)"
+                >
+                  {{ savingProviderId === provider.providerId ? 'Saving...' : 'Save local configuration' }}
+                </button>
+                <span v-if="providerConfigurationNotice[provider.providerId]" class="catalog-editor-note">
+                  {{ providerConfigurationNotice[provider.providerId] }}
                 </span>
               </div>
             </div>
@@ -577,6 +944,7 @@ onMounted(async () => {
 .workspace {
   display: grid;
   gap: 20px;
+  min-width: 0;
   padding: 20px;
 }
 
@@ -646,12 +1014,33 @@ onMounted(async () => {
   border: 1px solid rgba(96, 165, 250, 0.24);
 }
 
+.status-pill.is-warning {
+  color: #fef3c7;
+  background: rgba(120, 53, 15, 0.42);
+  border: 1px solid rgba(251, 191, 36, 0.26);
+}
+
 .topbar-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: end;
   justify-content: end;
   gap: 12px;
+}
+
+.refresh-button {
+  min-height: 40px;
+  padding: 0 14px;
+  color: #f8fafc;
+  background: rgba(37, 99, 235, 0.24);
+  border: 1px solid rgba(96, 165, 250, 0.46);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.refresh-button:disabled {
+  cursor: progress;
+  opacity: 0.65;
 }
 
 .scenario-select,
@@ -727,11 +1116,76 @@ onMounted(async () => {
 .surface {
   display: grid;
   gap: 16px;
+  min-width: 0;
   padding: 18px;
+}
+
+.connection-surface {
+  align-content: start;
+}
+
+.connection-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.connection-card,
+.metric-panel,
+.route-row,
+.alert-row,
+.feed-row,
+.provider-row,
+.scenario-card,
+.timeline-metric,
+.catalog-card {
+  min-width: 0;
+}
+
+.connection-card {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 8px;
+  background: rgba(8, 17, 31, 0.55);
+}
+
+.connection-card-head {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.connection-card strong,
+.connection-summary {
+  color: #f8fafc;
+}
+
+.connection-card p,
+.connection-summary {
+  margin: 0;
+}
+
+.connection-card p {
+  color: #cbd5e1;
+}
+
+.connection-summary {
+  color: #94a3b8;
+  font-size: 13px;
 }
 
 .catalog-surface {
   margin-top: 16px;
+}
+
+.catalog-heading-meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: end;
+  gap: 10px;
 }
 
 .surface-heading {
@@ -774,6 +1228,13 @@ onMounted(async () => {
   gap: 16px;
 }
 
+.warehouse-actions,
+.warehouse-detail-grid,
+.dock-strip {
+  display: grid;
+  gap: 12px;
+}
+
 .zone-strip {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -811,12 +1272,54 @@ onMounted(async () => {
   color: #f8fafc;
 }
 
+.zone-label,
+.warehouse-summary-note {
+  margin: 0;
+  color: #94a3b8;
+}
+
 .zone-meta {
   display: flex;
   flex-wrap: wrap;
   gap: 8px 10px;
   color: #cbd5e1;
   font-size: 13px;
+}
+
+.dock-card {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 8px;
+  background: rgba(8, 17, 31, 0.55);
+}
+
+.dock-card p {
+  margin: 0;
+  color: #cbd5e1;
+}
+
+.dock-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 999px;
+}
+
+.dock-status.is-occupied {
+  color: #fef3c7;
+  background: rgba(120, 53, 15, 0.42);
+  border: 1px solid rgba(251, 191, 36, 0.26);
+}
+
+.dock-status.is-available {
+  color: #d1fae5;
+  background: rgba(6, 95, 70, 0.38);
+  border: 1px solid rgba(52, 211, 153, 0.32);
 }
 
 .map-stage {
@@ -976,6 +1479,89 @@ onMounted(async () => {
   font-size: 13px;
 }
 
+.catalog-meta span,
+.catalog-summary,
+.provider-meta,
+.route-row p,
+.zone-tile p,
+.feed-row p,
+.alert-row p,
+.connection-card p,
+.catalog-editor-note {
+  overflow-wrap: anywhere;
+}
+
+.catalog-editor-heading,
+.catalog-editor-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.catalog-editor-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.catalog-field {
+  display: grid;
+  gap: 6px;
+}
+
+.catalog-field span,
+.catalog-toggle span,
+.catalog-editor-note {
+  color: #94a3b8;
+  font-size: 12px;
+}
+
+.catalog-field small {
+  margin-left: 6px;
+  color: #cbd5e1;
+}
+
+.catalog-field input {
+  width: 100%;
+  min-height: 40px;
+  padding: 10px 12px;
+  color: #e2e8f0;
+  background: rgba(15, 23, 42, 0.92);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 8px;
+}
+
+.catalog-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: #e2e8f0;
+}
+
+.catalog-toggle input {
+  width: 16px;
+  height: 16px;
+}
+
+.catalog-save-button {
+  min-height: 40px;
+  padding: 0 14px;
+  color: #f8fafc;
+  background: rgba(37, 99, 235, 0.24);
+  border: 1px solid rgba(96, 165, 250, 0.46);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.catalog-save-button:disabled,
+.catalog-field input:disabled,
+.catalog-toggle input:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
 .chip-row {
   display: flex;
   flex-wrap: wrap;
@@ -1028,6 +1614,7 @@ onMounted(async () => {
   display: grid;
   justify-items: end;
   gap: 6px;
+  min-width: 0;
   color: #cbd5e1;
 }
 
@@ -1124,6 +1711,14 @@ onMounted(async () => {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .connection-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .catalog-editor-grid {
+    grid-template-columns: 1fr;
+  }
+
   .transport-surface {
     grid-column: 1 / -1;
     grid-row: auto;
@@ -1147,6 +1742,9 @@ onMounted(async () => {
 
   .topbar,
   .surface-heading,
+  .connection-card-head,
+  .catalog-editor-heading,
+  .catalog-editor-actions,
   .route-row,
   .feed-row,
   .alert-heading,

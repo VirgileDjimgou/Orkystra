@@ -1,26 +1,58 @@
 import { buildFallbackProviderCatalog, mapApiProviderCatalogToView, type ProviderCatalogView } from '../data/controlTower'
+import { sendApiRequest } from './apiClient'
 
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:5043'
-const apiKey = import.meta.env.VITE_API_KEY ?? ''
+export type ProviderCatalogLoadResult = {
+  catalog: ProviderCatalogView
+  source: 'api' | 'fallback'
+  errorMessage: string | null
+}
 
-export async function loadProviderCatalog(): Promise<ProviderCatalogView> {
+export type UpdateProviderConfigurationInput = {
+  providerId: string
+  enabled: boolean
+  environment: string
+  settings: Record<string, string>
+}
+
+export async function loadProviderCatalog(): Promise<ProviderCatalogLoadResult> {
   try {
-    const headers: Record<string, string> = {}
-
-    if (apiKey) {
-      headers['X-Api-Key'] = apiKey
-    }
-
-    const response = await fetch(`${apiBaseUrl}/api/providers/catalog`, {
-      headers,
+    const response = await sendApiRequest('/api/providers/catalog', {
+      includeTenantHeader: true,
     })
 
     if (!response.ok) {
       throw new Error(`Provider catalog request failed with status ${response.status}`)
     }
 
-    return mapApiProviderCatalogToView(await response.json())
-  } catch {
-    return buildFallbackProviderCatalog()
+    return {
+      catalog: mapApiProviderCatalogToView(await response.json()),
+      source: 'api',
+      errorMessage: null,
+    }
+  } catch (error) {
+    return {
+      catalog: buildFallbackProviderCatalog(),
+      source: 'fallback',
+      errorMessage: error instanceof Error ? error.message : 'Provider catalog request failed.',
+    }
+  }
+}
+
+export async function updateProviderConfiguration(input: UpdateProviderConfigurationInput): Promise<void> {
+  const response = await sendApiRequest(`/api/providers/catalog/${input.providerId}/configuration`, {
+    method: 'PUT',
+    includeTenantHeader: true,
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      enabled: input.enabled,
+      environment: input.environment,
+      settings: input.settings,
+    }),
+  })
+
+  if (!response.ok) {
+    throw new Error(`Provider configuration update failed with status ${response.status}`)
   }
 }

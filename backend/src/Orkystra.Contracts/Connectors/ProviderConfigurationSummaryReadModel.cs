@@ -5,4 +5,5 @@ public sealed record ProviderConfigurationSummaryReadModel(
     string Environment,
     string Readiness,
     IReadOnlyCollection<string> ConfiguredFields,
-    IReadOnlyCollection<string> MissingFields);
+    IReadOnlyCollection<string> MissingFields,
+    IReadOnlyCollection<ProviderConfigurationSettingReadModel> Settings);

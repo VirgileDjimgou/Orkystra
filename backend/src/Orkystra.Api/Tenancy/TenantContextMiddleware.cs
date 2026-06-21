@@ -11,7 +11,8 @@ public sealed class TenantContextMiddleware
 
     public async Task InvokeAsync(HttpContext context, RequestTenantContext tenantContext, TenantResolutionService tenantResolutionService)
     {
-        if (context.Request.Path.StartsWithSegments("/health") ||
+        if (HttpMethods.IsOptions(context.Request.Method) ||
+            context.Request.Path.StartsWithSegments("/health") ||
             context.Request.Path.StartsWithSegments("/observability/metrics"))
         {
             await _next(context);

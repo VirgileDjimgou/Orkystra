@@ -1,5 +1,6 @@
 export type WarehouseZoneView = {
   code: string
+  name: string
   status: 'Stable' | 'Watch' | 'Critical'
   description: string
   utilization: number
@@ -15,7 +16,25 @@ export type WarehouseSummaryView = {
   slotCount: number
   occupiedDockCount: number
   storedPalletCount: number
+}
+
+export type WarehouseDockView = {
+  code: string
+  status: 'Available' | 'Occupied'
+  activityLabel: string
+}
+
+export type WarehouseDetailView = {
+  warehouseId: string
+  name: string
+  zoneCount: number
+  rackCount: number
+  slotCount: number
+  occupiedDockCount: number
+  storedPalletCount: number
+  updatedAtLabel: string
   zones: WarehouseZoneView[]
+  docks: WarehouseDockView[]
 }
 
 export type RouteSummaryView = {
@@ -63,6 +82,12 @@ export type ProviderCatalogFieldView = {
   required: boolean
 }
 
+export type ProviderConfigurationSettingView = {
+  key: string
+  value: string
+  required: boolean
+}
+
 export type ProviderCatalogItemView = {
   providerId: string
   providerName: string
@@ -74,6 +99,7 @@ export type ProviderCatalogItemView = {
   configurationEnabled: boolean
   configuredFields: string[]
   missingFields: string[]
+  editableSettings: ProviderConfigurationSettingView[]
   syncStatusLabel: string
   lastActivityLabel: string
   summary: string
@@ -127,6 +153,35 @@ type ApiWarehouse = {
   slotCount: number
   occupiedDockCount: number
   storedPalletCount: number
+}
+
+type ApiWarehouseZone = {
+  code: string
+  name: string
+  status: string
+  description: string
+  utilizationPercent: number
+  palletCount: number
+  throughputLabel: string
+}
+
+type ApiWarehouseDock = {
+  code: string
+  status: string
+  activityLabel: string
+}
+
+type ApiWarehouseDetail = {
+  warehouseId: string
+  name: string
+  zoneCount: number
+  rackCount: number
+  slotCount: number
+  occupiedDockCount: number
+  storedPalletCount: number
+  updatedAtUtc: string
+  zones: ApiWarehouseZone[]
+  docks: ApiWarehouseDock[]
 }
 
 type ApiRoute = {
@@ -194,6 +249,11 @@ type ApiProviderCatalogItem = {
     readiness: string
     configuredFields: string[]
     missingFields: string[]
+    settings: Array<{
+      key: string
+      value: string
+      required: boolean
+    }>
   }
   health: {
     providerId: string
@@ -239,18 +299,49 @@ export const simulationSpeeds = [
   { label: '16x', multiplier: 16 },
 ]
 
-const zoneDecorations: Record<string, WarehouseZoneView[]> = {
-  'North Hub A': [
-    { code: 'INB', status: 'Stable', description: 'Inbound pallets waiting for slotting decisions.', utilization: 62, pallets: 124, throughputLabel: '38 pallets/h' },
-    { code: 'AMB', status: 'Watch', description: 'Ambient picking wave with rising congestion.', utilization: 81, pallets: 228, throughputLabel: '57 picks/h' },
-    { code: 'COL', status: 'Stable', description: 'Cold chain reserve with stable replenishment rhythm.', utilization: 54, pallets: 93, throughputLabel: '19 pallets/h' },
-    { code: 'XDK', status: 'Critical', description: 'Cross-dock zone impacted by late carrier arrival.', utilization: 92, pallets: 167, throughputLabel: '12 trucks queued' },
-  ],
-  'West Flow Center': [
-    { code: 'RET', status: 'Stable', description: 'Returns lane with controlled backlog.', utilization: 45, pallets: 88, throughputLabel: '23 cases/h' },
-    { code: 'FUL', status: 'Watch', description: 'E-commerce fulfillment under peak order burst.', utilization: 79, pallets: 205, throughputLabel: '91 lines/h' },
-    { code: 'STG', status: 'Stable', description: 'Outbound staging synced with carrier windows.', utilization: 63, pallets: 108, throughputLabel: '7 trailers/h' },
-  ],
+const fallbackWarehouseDetails: Record<string, WarehouseDetailView> = {
+  'db9a789f-9df8-45ff-a252-96d4319c2f12': {
+    warehouseId: 'db9a789f-9df8-45ff-a252-96d4319c2f12',
+    name: 'North Hub A',
+    zoneCount: 4,
+    rackCount: 18,
+    slotCount: 820,
+    occupiedDockCount: 3,
+    storedPalletCount: 612,
+    updatedAtLabel: '2026-06-20 10:15 UTC',
+    zones: [
+      { code: 'INB', name: 'Inbound Buffer', status: 'Stable', description: 'Inbound pallets waiting for slotting decisions.', utilization: 62, pallets: 124, throughputLabel: '38 pallets/h' },
+      { code: 'AMB', name: 'Ambient Picking', status: 'Watch', description: 'Ambient picking wave with rising congestion.', utilization: 81, pallets: 228, throughputLabel: '57 picks/h' },
+      { code: 'COL', name: 'Cold Reserve', status: 'Stable', description: 'Cold chain reserve with stable replenishment rhythm.', utilization: 54, pallets: 93, throughputLabel: '19 pallets/h' },
+      { code: 'XDK', name: 'Cross Dock', status: 'Critical', description: 'Cross-dock zone impacted by late carrier arrival.', utilization: 92, pallets: 167, throughputLabel: '12 trucks queued' },
+    ],
+    docks: [
+      { code: 'D-01', status: 'Occupied', activityLabel: 'Trailer TRK-19 staging late handoff' },
+      { code: 'D-02', status: 'Occupied', activityLabel: 'Outbound wave RT-204 loading' },
+      { code: 'D-03', status: 'Occupied', activityLabel: 'Inbound unload slot active' },
+      { code: 'D-04', status: 'Available', activityLabel: 'Buffer dock ready' },
+    ],
+  },
+  '3f224c42-00a5-49a6-955c-c8114d0a6b81': {
+    warehouseId: '3f224c42-00a5-49a6-955c-c8114d0a6b81',
+    name: 'West Flow Center',
+    zoneCount: 3,
+    rackCount: 14,
+    slotCount: 640,
+    occupiedDockCount: 2,
+    storedPalletCount: 401,
+    updatedAtLabel: '2026-06-20 10:12 UTC',
+    zones: [
+      { code: 'RET', name: 'Returns', status: 'Stable', description: 'Returns lane with controlled backlog.', utilization: 45, pallets: 88, throughputLabel: '23 cases/h' },
+      { code: 'FUL', name: 'Fulfillment', status: 'Watch', description: 'E-commerce fulfillment under peak order burst.', utilization: 79, pallets: 205, throughputLabel: '91 lines/h' },
+      { code: 'STG', name: 'Staging', status: 'Stable', description: 'Outbound staging synced with carrier windows.', utilization: 63, pallets: 108, throughputLabel: '7 trailers/h' },
+    ],
+    docks: [
+      { code: 'W-01', status: 'Occupied', activityLabel: 'Parcel wave consolidation' },
+      { code: 'W-02', status: 'Occupied', activityLabel: 'Carrier arrival on schedule' },
+      { code: 'W-03', status: 'Available', activityLabel: 'Returns overflow backup' },
+    ],
+  },
 }
 
 const routeDecorations: Record<string, { nextEtaLabel: string; mapX: string; mapY: string }> = {
@@ -277,6 +368,22 @@ function normalizeRouteStatus(status: string): RouteSummaryView['status'] {
     return status
   }
   return 'On time'
+}
+
+function normalizeZoneStatus(status: string): WarehouseZoneView['status'] {
+  if (status === 'Watch' || status === 'Critical') {
+    return status
+  }
+
+  return 'Stable'
+}
+
+function normalizeDockStatus(status: string): WarehouseDockView['status'] {
+  if (status === 'Occupied') {
+    return status
+  }
+
+  return 'Available'
 }
 
 function normalizeAlertSeverity(severity: string): AlertView['severity'] {
@@ -330,6 +437,18 @@ function capabilityLabels(capabilities: ApiProviderCatalogItem['capabilities']):
   ].filter((value): value is string => value !== null)
 }
 
+function buildWarehouseSummaryFromDetail(detail: WarehouseDetailView): WarehouseSummaryView {
+  return {
+    warehouseId: detail.warehouseId,
+    name: detail.name,
+    zoneCount: detail.zoneCount,
+    rackCount: detail.rackCount,
+    slotCount: detail.slotCount,
+    occupiedDockCount: detail.occupiedDockCount,
+    storedPalletCount: detail.storedPalletCount,
+  }
+}
+
 export function buildFallbackOverview(): ControlTowerOverviewView {
   return {
     tenantId: 'north-hub-demo',
@@ -370,26 +489,8 @@ export function buildFallbackOverview(): ControlTowerOverviewView {
       },
     ],
     warehouses: [
-      {
-        warehouseId: 'db9a789f-9df8-45ff-a252-96d4319c2f12',
-        name: 'North Hub A',
-        zoneCount: 4,
-        rackCount: 18,
-        slotCount: 820,
-        occupiedDockCount: 3,
-        storedPalletCount: 612,
-        zones: zoneDecorations['North Hub A'],
-      },
-      {
-        warehouseId: '3f224c42-00a5-49a6-955c-c8114d0a6b81',
-        name: 'West Flow Center',
-        zoneCount: 3,
-        rackCount: 14,
-        slotCount: 640,
-        occupiedDockCount: 2,
-        storedPalletCount: 401,
-        zones: zoneDecorations['West Flow Center'],
-      },
+      buildWarehouseSummaryFromDetail(fallbackWarehouseDetails['db9a789f-9df8-45ff-a252-96d4319c2f12']),
+      buildWarehouseSummaryFromDetail(fallbackWarehouseDetails['3f224c42-00a5-49a6-955c-c8114d0a6b81']),
     ],
     routes: [
       {
@@ -501,7 +602,6 @@ export function mapApiOverviewToView(apiOverview: ApiControlTowerOverview): Cont
       slotCount: warehouse.slotCount,
       occupiedDockCount: warehouse.occupiedDockCount,
       storedPalletCount: warehouse.storedPalletCount,
-      zones: zoneDecorations[warehouse.name] ?? [],
     })),
     routes: apiOverview.routes.map((route) => ({
       routeId: route.routeId,
@@ -540,6 +640,38 @@ export function mapApiOverviewToView(apiOverview: ApiControlTowerOverview): Cont
   }
 }
 
+export function buildFallbackWarehouseDetail(warehouseId: string): WarehouseDetailView {
+  return fallbackWarehouseDetails[warehouseId]
+    ?? fallbackWarehouseDetails['db9a789f-9df8-45ff-a252-96d4319c2f12']
+}
+
+export function mapApiWarehouseDetailToView(apiWarehouse: ApiWarehouseDetail): WarehouseDetailView {
+  return {
+    warehouseId: apiWarehouse.warehouseId,
+    name: apiWarehouse.name,
+    zoneCount: apiWarehouse.zoneCount,
+    rackCount: apiWarehouse.rackCount,
+    slotCount: apiWarehouse.slotCount,
+    occupiedDockCount: apiWarehouse.occupiedDockCount,
+    storedPalletCount: apiWarehouse.storedPalletCount,
+    updatedAtLabel: formatUtcLabel(apiWarehouse.updatedAtUtc),
+    zones: apiWarehouse.zones.map((zone) => ({
+      code: zone.code,
+      name: zone.name,
+      status: normalizeZoneStatus(zone.status),
+      description: zone.description,
+      utilization: zone.utilizationPercent,
+      pallets: zone.palletCount,
+      throughputLabel: zone.throughputLabel,
+    })),
+    docks: apiWarehouse.docks.map((dock) => ({
+      code: dock.code,
+      status: normalizeDockStatus(dock.status),
+      activityLabel: dock.activityLabel,
+    })),
+  }
+}
+
 export function buildFallbackProviderCatalog(): ProviderCatalogView {
   return {
     generatedAtLabel: '2026-06-20 10:15 UTC',
@@ -555,6 +687,10 @@ export function buildFallbackProviderCatalog(): ProviderCatalogView {
         configurationEnabled: true,
         configuredFields: ['sourcePath', 'importSchedule'],
         missingFields: [],
+        editableSettings: [
+          { key: 'sourcePath', value: 'data/imports/warehouse-demo.csv', required: true },
+          { key: 'importSchedule', value: 'manual', required: true },
+        ],
         syncStatusLabel: 'Ready',
         lastActivityLabel: 'Last success 2026-06-20 09:57 UTC',
         summary: 'CSV adapter skeleton is ready to validate and map warehouse import files.',
@@ -579,6 +715,10 @@ export function buildFallbackProviderCatalog(): ProviderCatalogView {
         configurationEnabled: true,
         configuredFields: ['baseUrl', 'authMode'],
         missingFields: [],
+        editableSettings: [
+          { key: 'baseUrl', value: 'https://sandbox.example.invalid/transport', required: true },
+          { key: 'authMode', value: 'api-key', required: true },
+        ],
         syncStatusLabel: 'Awaiting Configuration',
         lastActivityLabel: 'Last attempt 2026-06-20 10:15 UTC',
         summary: 'REST adapter skeleton is available but not yet configured against a live upstream service.',
@@ -603,6 +743,10 @@ export function buildFallbackProviderCatalog(): ProviderCatalogView {
         configurationEnabled: true,
         configuredFields: ['streamTopic', 'snapshotIntervalSeconds'],
         missingFields: [],
+        editableSettings: [
+          { key: 'streamTopic', value: 'fleet/gps/demo', required: true },
+          { key: 'snapshotIntervalSeconds', value: '15', required: true },
+        ],
         syncStatusLabel: 'Connected',
         lastActivityLabel: 'Last success 2026-06-20 10:14 UTC',
         summary: 'GPS adapter skeleton can expose canonical truck-position snapshots.',
@@ -634,6 +778,11 @@ export function mapApiProviderCatalogToView(apiCatalog: ApiProviderCatalogRespon
       configurationEnabled: provider.configuration.enabled,
       configuredFields: provider.configuration.configuredFields,
       missingFields: provider.configuration.missingFields,
+      editableSettings: provider.configuration.settings.map((setting) => ({
+        key: setting.key,
+        value: setting.value,
+        required: setting.required,
+      })),
       syncStatusLabel: formatSyncStatusLabel(provider.syncStatus.status),
       lastActivityLabel: formatRelativeSyncLabel(provider.syncStatus.lastSuccessfulSyncAt, provider.syncStatus.lastAttemptedSyncAt),
       summary: provider.health.summary,

@@ -16,13 +16,19 @@ Use this checklist before a demo, a local release candidate, or a staging handof
 - `GET /observability/context` returns 200 when `X-Api-Key` and `X-Tenant-Id` are present
 - Missing API key returns 401 on protected routes
 - Missing tenant header only fails when tenant-header enforcement is enabled
+- `GET /api/warehouses` returns warehouse summaries with 200
+- `GET /api/warehouses/{warehouseId}` returns detailed zones and docks with 200
 
 ## 3. Frontend
 
 - Control Tower loads in the browser
+- Connection posture shows `API live` for the overview, `Warehouse API live` for the twin detail surface, and `Editable local API` for the provider catalog once the local stack is ready
+- `Refresh data` recovers cleanly after a local API or Vite restart
 - Scenario selector changes visible state
+- Warehouse selector swaps between at least two API-backed warehouse detail views
 - Warehouse 3D placeholder renders and rotates
-- Transport board and detail panels render without overlap
+- Transport board and detail panels render without overlap on desktop and mobile-width viewports
+- Provider runtime editor stays enabled only when the catalog is API-backed and shows save feedback after a local configuration update
 
 ## 4. Python services
 

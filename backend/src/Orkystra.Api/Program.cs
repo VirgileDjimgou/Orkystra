@@ -3,12 +3,28 @@ using Microsoft.Extensions.Options;
 using Orkystra.Api.Connectors;
 using Orkystra.Api.ControlTower;
 using Orkystra.Api.Observability;
+using Orkystra.Contracts.Connectors;
 using Orkystra.Api.Security;
 using Orkystra.Api.Tenancy;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
 
 builder.Services.AddOpenApi();
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("frontend-dev", policy =>
+    {
+        policy
+            .WithOrigins(
+                "http://127.0.0.1:4173",
+                "http://localhost:4173",
+                "http://127.0.0.1:5173",
+                "http://localhost:5173")
+            .WithHeaders("Content-Type", "X-Api-Key", "X-Tenant-Id")
+            .WithMethods("GET", "PUT");
+    });
+});
 builder.Services.AddAuthentication(ApiKeyAuthenticationHandler.SchemeName)
     .AddScheme<AuthenticationSchemeOptions, ApiKeyAuthenticationHandler>(
         ApiKeyAuthenticationHandler.SchemeName,
@@ -24,8 +40,12 @@ builder.Services.AddSingleton<ApiKeyValidator>();
 builder.Services.AddSingleton<TenantResolutionService>();
 builder.Services.AddSingleton<RequestMetricsStore>();
 builder.Services.AddSingleton<IAuditStore, FileAuditStore>();
+builder.Services.AddSingleton(provider => new ProviderRuntimeStore(
+    provider.GetRequiredService<IOptions<ProviderRuntimeOptions>>(),
+    Path.Combine(builder.Environment.ContentRootPath, "appsettings.Local.json")));
 builder.Services.AddSingleton<ProviderCatalogService>();
 builder.Services.AddSingleton<ControlTowerOverviewService>();
+builder.Services.AddSingleton<WarehouseProjectionService>();
 builder.Services.AddScoped<RequestTenantContext>();
 
 var app = builder.Build();
@@ -36,6 +56,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseMiddleware<RequestMetricsMiddleware>();
+app.UseCors("frontend-dev");
 app.UseMiddleware<TenantContextMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();
@@ -99,6 +120,22 @@ app.MapGet("/api/control-tower/overview", async (RequestTenantContext tenantCont
 .RequireAuthorization()
 .WithName("GetControlTowerOverview");
 
+app.MapGet("/api/warehouses", async (WarehouseProjectionService warehouseProjectionService, CancellationToken cancellationToken) =>
+{
+    var warehouses = await warehouseProjectionService.ListAsync(cancellationToken);
+    return Results.Ok(warehouses);
+})
+.RequireAuthorization()
+.WithName("ListWarehouseProjections");
+
+app.MapGet("/api/warehouses/{warehouseId:guid}", async (Guid warehouseId, WarehouseProjectionService warehouseProjectionService, CancellationToken cancellationToken) =>
+{
+    var warehouse = await warehouseProjectionService.GetByIdAsync(warehouseId, cancellationToken);
+    return warehouse is null ? Results.NotFound() : Results.Ok(warehouse);
+})
+.RequireAuthorization()
+.WithName("GetWarehouseProjection");
+
 app.MapGet("/api/providers/catalog", async (ProviderCatalogService catalogService, CancellationToken cancellationToken) =>
 {
     var catalog = await catalogService.BuildCatalogAsync(cancellationToken);
@@ -106,5 +143,34 @@ app.MapGet("/api/providers/catalog", async (ProviderCatalogService catalogServic
 })
 .RequireAuthorization()
 .WithName("GetProviderCatalog");
+
+app.MapPut("/api/providers/catalog/{providerId}/configuration", async (
+    string providerId,
+    UpdateProviderConfigurationRequest request,
+    ProviderRuntimeStore runtimeStore,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        await runtimeStore.UpdateAsync(providerId, request, cancellationToken);
+        return Results.NoContent();
+    }
+    catch (KeyNotFoundException exception)
+    {
+        return Results.NotFound(new
+        {
+            message = exception.Message
+        });
+    }
+    catch (ArgumentException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["configuration"] = [exception.Message]
+        });
+    }
+})
+.RequireAuthorization()
+.WithName("UpdateProviderConfiguration");
 
 app.Run();

@@ -17,7 +17,15 @@ Protected operational API routes expect:
 - `X-Api-Key`
 - `X-Tenant-Id` when tenant-header enforcement is enabled
 
+Useful local warehouse endpoints once the API is running:
+
+- `GET /api/control-tower/overview`
+- `GET /api/warehouses`
+- `GET /api/warehouses/{warehouseId}`
+- `GET /api/providers/catalog`
+
 The development API key is intentionally not committed. Provide it through environment variables or an ignored local configuration file.
+The API now allows local Vite origins on `127.0.0.1` and `localhost` for development workflows, so the operator UI can call the protected backend directly during local browser sessions.
 
 ## Frontend
 
@@ -25,8 +33,14 @@ The development API key is intentionally not committed. Provide it through envir
 cd frontend/web
 npm install
 npm run build
+$env:VITE_API_BASE_URL='http://127.0.0.1:5043'
+$env:VITE_API_KEY='replace-with-local-key'
 npm run dev
 ```
+
+For repeatable local browser work, you can also place `VITE_API_BASE_URL`, `VITE_API_KEY`, and `VITE_TENANT_ID` in `frontend/web/.env.local`. That file is ignored by Git.
+The operator workspace now retries transient local API failures and exposes a manual `Refresh data` action, so browser sessions can recover more gracefully when the API or Vite server is restarted during development.
+The warehouse twin now loads detailed zone and dock posture from `GET /api/warehouses/{warehouseId}` instead of relying only on control-tower summary shaping in the browser.
 
 ## Python Services
 

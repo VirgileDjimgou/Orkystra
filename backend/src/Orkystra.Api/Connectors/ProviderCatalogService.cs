@@ -1,18 +1,17 @@
 using Orkystra.Application.Connectors;
 using Orkystra.Application.Connectors.Providers;
 using Orkystra.Contracts.Connectors;
-using Microsoft.Extensions.Options;
 
 namespace Orkystra.Api.Connectors;
 
 public sealed class ProviderCatalogService
 {
     private readonly ProviderRegistry _providerRegistry;
-    private readonly ProviderRuntimeOptions _runtimeOptions;
+    private readonly ProviderRuntimeStore _runtimeStore;
 
-    public ProviderCatalogService(IOptions<ProviderRuntimeOptions> runtimeOptions)
+    public ProviderCatalogService(ProviderRuntimeStore runtimeStore)
     {
-        _runtimeOptions = runtimeOptions.Value;
+        _runtimeStore = runtimeStore;
         _providerRegistry = new ProviderRegistry(
         [
             new CsvWarehouseImportProvider(),
@@ -62,8 +61,9 @@ public sealed class ProviderCatalogService
 
     private ProviderConfigurationSummaryReadModel BuildConfigurationSummary(string providerId)
     {
-        var configuredProvider = _runtimeOptions.Providers.FirstOrDefault(provider =>
-            string.Equals(provider.ProviderId, providerId, StringComparison.OrdinalIgnoreCase));
+        var configuredProvider = _runtimeStore.GetProvider(providerId);
+        var editableFields = ProviderRuntimeMetadata.GetEditableFields(providerId);
+        var requiredFields = ProviderRuntimeMetadata.GetRequiredFields(providerId);
 
         if (configuredProvider is null)
         {
@@ -72,7 +72,8 @@ public sealed class ProviderCatalogService
                 "unconfigured",
                 "Missing Configuration",
                 [],
-                GetRequiredFields(providerId));
+                requiredFields,
+                editableFields.Select(field => new ProviderConfigurationSettingReadModel(field, string.Empty, requiredFields.Contains(field, StringComparer.OrdinalIgnoreCase))).ToArray());
         }
 
         var configuredFields = configuredProvider.Settings
@@ -81,7 +82,7 @@ public sealed class ProviderCatalogService
             .OrderBy(key => key, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
-        var missingFields = GetRequiredFields(providerId)
+        var missingFields = requiredFields
             .Except(configuredFields, StringComparer.OrdinalIgnoreCase)
             .OrderBy(key => key, StringComparer.OrdinalIgnoreCase)
             .ToArray();
@@ -99,17 +100,12 @@ public sealed class ProviderCatalogService
             configuredProvider.Environment,
             readiness,
             configuredFields,
-            missingFields);
-    }
-
-    private static IReadOnlyCollection<string> GetRequiredFields(string providerId)
-    {
-        return providerId switch
-        {
-            "csv-warehouse-import" => ["sourcePath", "importSchedule"],
-            "rest-transport-adapter" => ["baseUrl", "authMode"],
-            "gps-telematics-adapter" => ["streamTopic", "snapshotIntervalSeconds"],
-            _ => []
-        };
+            missingFields,
+            editableFields
+                .Select(field => new ProviderConfigurationSettingReadModel(
+                    field,
+                    configuredProvider.Settings.TryGetValue(field, out var value) ? value : string.Empty,
+                    requiredFields.Contains(field, StringComparer.OrdinalIgnoreCase)))
+                .ToArray());
     }
 }
