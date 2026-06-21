@@ -1,15 +1,18 @@
 using Orkystra.Application.Connectors;
 using Orkystra.Application.Connectors.Providers;
 using Orkystra.Contracts.Connectors;
+using Microsoft.Extensions.Options;
 
 namespace Orkystra.Api.Connectors;
 
 public sealed class ProviderCatalogService
 {
     private readonly ProviderRegistry _providerRegistry;
+    private readonly ProviderRuntimeOptions _runtimeOptions;
 
-    public ProviderCatalogService()
+    public ProviderCatalogService(IOptions<ProviderRuntimeOptions> runtimeOptions)
     {
+        _runtimeOptions = runtimeOptions.Value;
         _providerRegistry = new ProviderRegistry(
         [
             new CsvWarehouseImportProvider(),
@@ -35,6 +38,7 @@ public sealed class ProviderCatalogService
                 provider.ProviderName,
                 provider.Domain.ToString(),
                 provider.Kind.ToString(),
+                BuildConfigurationSummary(provider.ProviderId),
                 health,
                 syncStatus,
                 capabilities,
@@ -52,6 +56,59 @@ public sealed class ProviderCatalogService
             IWarehouseProviderAdapter => ["WarehouseSummaryReadModel"],
             ITransportProviderAdapter => ["RouteSummaryReadModel"],
             IGpsProviderAdapter => ["GpsPositionSnapshot"],
+            _ => []
+        };
+    }
+
+    private ProviderConfigurationSummaryReadModel BuildConfigurationSummary(string providerId)
+    {
+        var configuredProvider = _runtimeOptions.Providers.FirstOrDefault(provider =>
+            string.Equals(provider.ProviderId, providerId, StringComparison.OrdinalIgnoreCase));
+
+        if (configuredProvider is null)
+        {
+            return new ProviderConfigurationSummaryReadModel(
+                false,
+                "unconfigured",
+                "Missing Configuration",
+                [],
+                GetRequiredFields(providerId));
+        }
+
+        var configuredFields = configuredProvider.Settings
+            .Where(setting => !string.IsNullOrWhiteSpace(setting.Value))
+            .Select(setting => setting.Key)
+            .OrderBy(key => key, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        var missingFields = GetRequiredFields(providerId)
+            .Except(configuredFields, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(key => key, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        var readiness = !configuredProvider.Enabled
+            ? "Disabled"
+            : missingFields.Length == 0
+                ? "Configured"
+                : configuredFields.Length == 0
+                    ? "Missing Configuration"
+                    : "Partial Configuration";
+
+        return new ProviderConfigurationSummaryReadModel(
+            configuredProvider.Enabled,
+            configuredProvider.Environment,
+            readiness,
+            configuredFields,
+            missingFields);
+    }
+
+    private static IReadOnlyCollection<string> GetRequiredFields(string providerId)
+    {
+        return providerId switch
+        {
+            "csv-warehouse-import" => ["sourcePath", "importSchedule"],
+            "rest-transport-adapter" => ["baseUrl", "authMode"],
+            "gps-telematics-adapter" => ["streamTopic", "snapshotIntervalSeconds"],
             _ => []
         };
     }

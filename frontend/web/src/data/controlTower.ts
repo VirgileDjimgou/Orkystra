@@ -69,6 +69,11 @@ export type ProviderCatalogItemView = {
   domain: string
   kind: string
   healthStatus: 'Healthy' | 'Degraded' | 'Unhealthy'
+  configurationReadiness: string
+  configurationEnvironment: string
+  configurationEnabled: boolean
+  configuredFields: string[]
+  missingFields: string[]
   syncStatusLabel: string
   lastActivityLabel: string
   summary: string
@@ -183,6 +188,13 @@ type ApiProviderCatalogItem = {
   providerName: string
   domain: string
   kind: string
+  configuration: {
+    enabled: boolean
+    environment: string
+    readiness: string
+    configuredFields: string[]
+    missingFields: string[]
+  }
   health: {
     providerId: string
     providerName: string
@@ -538,6 +550,11 @@ export function buildFallbackProviderCatalog(): ProviderCatalogView {
         domain: 'Warehouse',
         kind: 'Connector',
         healthStatus: 'Healthy',
+        configurationReadiness: 'Configured',
+        configurationEnvironment: 'local-demo',
+        configurationEnabled: true,
+        configuredFields: ['sourcePath', 'importSchedule'],
+        missingFields: [],
         syncStatusLabel: 'Ready',
         lastActivityLabel: 'Last success 2026-06-20 09:57 UTC',
         summary: 'CSV adapter skeleton is ready to validate and map warehouse import files.',
@@ -557,6 +574,11 @@ export function buildFallbackProviderCatalog(): ProviderCatalogView {
         domain: 'Transport',
         kind: 'Connector',
         healthStatus: 'Degraded',
+        configurationReadiness: 'Configured',
+        configurationEnvironment: 'sandbox',
+        configurationEnabled: true,
+        configuredFields: ['baseUrl', 'authMode'],
+        missingFields: [],
         syncStatusLabel: 'Awaiting Configuration',
         lastActivityLabel: 'Last attempt 2026-06-20 10:15 UTC',
         summary: 'REST adapter skeleton is available but not yet configured against a live upstream service.',
@@ -576,6 +598,11 @@ export function buildFallbackProviderCatalog(): ProviderCatalogView {
         domain: 'Gps',
         kind: 'Connector',
         healthStatus: 'Healthy',
+        configurationReadiness: 'Configured',
+        configurationEnvironment: 'local-demo',
+        configurationEnabled: true,
+        configuredFields: ['streamTopic', 'snapshotIntervalSeconds'],
+        missingFields: [],
         syncStatusLabel: 'Connected',
         lastActivityLabel: 'Last success 2026-06-20 10:14 UTC',
         summary: 'GPS adapter skeleton can expose canonical truck-position snapshots.',
@@ -602,6 +629,11 @@ export function mapApiProviderCatalogToView(apiCatalog: ApiProviderCatalogRespon
       domain: provider.domain,
       kind: provider.kind,
       healthStatus: normalizeProviderHealthStatus(provider.health.status),
+      configurationReadiness: provider.configuration.readiness,
+      configurationEnvironment: provider.configuration.environment,
+      configurationEnabled: provider.configuration.enabled,
+      configuredFields: provider.configuration.configuredFields,
+      missingFields: provider.configuration.missingFields,
       syncStatusLabel: formatSyncStatusLabel(provider.syncStatus.status),
       lastActivityLabel: formatRelativeSyncLabel(provider.syncStatus.lastSuccessfulSyncAt, provider.syncStatus.lastAttemptedSyncAt),
       summary: provider.health.summary,

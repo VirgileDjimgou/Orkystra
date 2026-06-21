@@ -18,6 +18,7 @@ builder.Services.AddAuthorization();
 builder.Services.Configure<ApiSecurityOptions>(builder.Configuration.GetSection(ApiSecurityOptions.SectionName));
 builder.Services.Configure<TenantAccessOptions>(builder.Configuration.GetSection(TenantAccessOptions.SectionName));
 builder.Services.Configure<ObservabilityOptions>(builder.Configuration.GetSection(ObservabilityOptions.SectionName));
+builder.Services.Configure<ProviderRuntimeOptions>(builder.Configuration.GetSection(ProviderRuntimeOptions.SectionName));
 
 builder.Services.AddSingleton<ApiKeyValidator>();
 builder.Services.AddSingleton<TenantResolutionService>();

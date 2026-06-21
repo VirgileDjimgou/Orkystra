@@ -5,6 +5,7 @@ public sealed record ProviderCatalogItemReadModel(
     string ProviderName,
     string Domain,
     string Kind,
+    ProviderConfigurationSummaryReadModel Configuration,
     ProviderHealthReport Health,
     ProviderSyncStatus SyncStatus,
     ProviderCapabilitySet Capabilities,

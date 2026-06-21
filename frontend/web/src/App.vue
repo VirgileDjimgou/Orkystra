@@ -409,12 +409,31 @@ onMounted(async () => {
             <p class="catalog-summary">{{ provider.summary }}</p>
 
             <div class="catalog-meta">
+              <span>{{ provider.configurationEnabled ? 'Enabled' : 'Disabled' }}</span>
+              <span>{{ provider.configurationEnvironment }}</span>
+              <span>{{ provider.configurationReadiness }}</span>
               <span>{{ provider.syncStatusLabel }}</span>
               <span>{{ provider.lastActivityLabel }}</span>
             </div>
 
             <div class="chip-row">
               <span v-for="capability in provider.capabilities" :key="capability" class="catalog-chip">{{ capability }}</span>
+            </div>
+
+            <div class="catalog-block">
+              <span class="panel-label">Configuration</span>
+              <div class="chip-row">
+                <span v-for="field in provider.configuredFields" :key="`${provider.providerId}-configured-${field}`" class="catalog-chip">
+                  {{ field }}
+                </span>
+                <span
+                  v-for="field in provider.missingFields"
+                  :key="`${provider.providerId}-missing-${field}`"
+                  class="catalog-chip is-missing"
+                >
+                  Missing {{ field }}
+                </span>
+              </div>
             </div>
 
             <div class="catalog-block">
@@ -979,6 +998,12 @@ onMounted(async () => {
   color: #cbd5e1;
   border-color: rgba(148, 163, 184, 0.18);
   background: rgba(30, 41, 59, 0.7);
+}
+
+.catalog-chip.is-missing {
+  color: #fef3c7;
+  border-color: rgba(251, 191, 36, 0.26);
+  background: rgba(120, 53, 15, 0.42);
 }
 
 .catalog-block {
