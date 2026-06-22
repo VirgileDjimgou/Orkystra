@@ -6,6 +6,7 @@ import {
   buildFallbackRouteDetail,
   buildFallbackRouteOptimization,
   buildFallbackTransportExceptionWorkbench,
+  buildFallbackTransportExceptionResolutionHistory,
   buildFallbackTransportSyncDiff,
   buildFallbackTransportSyncHistory,
   buildFallbackTransportSyncStatus,
@@ -17,6 +18,7 @@ import {
   type RouteDetailView,
   type RouteOptimizationView,
   type TransportExceptionWorkbenchView,
+  type TransportExceptionResolutionHistoryView,
   type TransportSyncDiffView,
   type TransportSyncHistoryView,
   type TransportSyncStatusView,
@@ -48,6 +50,7 @@ import {
 } from "./services/transportSyncApi";
 import { loadTransportSyncDiff } from "./services/transportSyncDiffApi";
 import { loadTransportExceptionWorkbench } from "./services/transportExceptionWorkbenchApi";
+import { loadTransportExceptionResolutionHistory } from "./services/transportExceptionResolutionHistoryApi";
 import { saveTransportExceptionResolution } from "./services/transportExceptionResolutionApi";
 import { loadTransportSyncHistory } from "./services/transportSyncHistoryApi";
 
@@ -69,6 +72,12 @@ type TransportExceptionActionId =
   | "focus-route-diff"
   | "review-history";
 type TransportExceptionFilter = "all" | "unreviewed" | string;
+type TransportExceptionResolutionFilter =
+  | "open"
+  | "reviewed"
+  | "resolved"
+  | "deferred"
+  | "all";
 type TransportDiffFilter = "all" | "changed" | "added" | "removed" | "selected";
 
 const navigationItems = [
@@ -117,6 +126,12 @@ const transportExceptionWorkbenchConnectionState = ref<DataConnectionState>(
   "loading"
 );
 const transportExceptionWorkbenchErrorMessage = ref<string | null>(null);
+const transportExceptionResolutionHistory = ref<TransportExceptionResolutionHistoryView>(
+  buildFallbackTransportExceptionResolutionHistory()
+);
+const transportExceptionResolutionHistoryConnectionState =
+  ref<DataConnectionState>("loading");
+const transportExceptionResolutionHistoryErrorMessage = ref<string | null>(null);
 const transportExceptionResolutionDrafts = ref<Record<string, string>>({});
 const savingTransportExceptionResolutionId = ref<string | null>(null);
 const transportExceptionResolutionNotice = ref<Record<string, string>>({});
@@ -158,6 +173,8 @@ const selectedScenarioId = ref(fallbackOverview.scenarios[0].scenarioId);
 const selectedWarehouseId = ref(fallbackOverview.warehouses[0].warehouseId);
 const selectedRouteId = ref(fallbackOverview.routes[0].routeId);
 const selectedTransportExceptionFilter = ref<TransportExceptionFilter>("unreviewed");
+const selectedTransportExceptionResolutionFilter =
+  ref<TransportExceptionResolutionFilter>("open");
 const reviewedTransportExceptionIds = ref<string[]>([]);
 const selectedTransportDiffFilter = ref<TransportDiffFilter>("changed");
 const syncFreshnessClock = ref(Date.now());
@@ -470,20 +487,60 @@ const transportSyncHistory = computed(() => transportSyncHistoryFeed.value.entri
 const transportExceptionItems = computed(
   () => transportExceptionWorkbench.value.items
 );
-const unreviewedTransportExceptionItems = computed(() =>
+function effectiveTransportExceptionResolutionStatus(
+  item: TransportExceptionWorkbenchView["items"][number]
+): "Reviewed" | "Resolved" | "Deferred" | null {
+  if (item.resolutionStatus) {
+    return item.resolutionStatus;
+  }
+
+  if (reviewedTransportExceptionIds.value.includes(item.id)) {
+    return "Reviewed";
+  }
+
+  return null;
+}
+
+const openTransportExceptionItems = computed(() =>
   transportExceptionItems.value.filter(
-    (item) =>
-      item.resolutionStatus === null &&
-      !reviewedTransportExceptionIds.value.includes(item.id)
+    (item) => effectiveTransportExceptionResolutionStatus(item) === null
+  )
+);
+const reviewedTransportExceptionItems = computed(() =>
+  transportExceptionItems.value.filter(
+    (item) => effectiveTransportExceptionResolutionStatus(item) === "Reviewed"
+  )
+);
+const resolvedTransportExceptionItems = computed(() =>
+  transportExceptionItems.value.filter(
+    (item) => effectiveTransportExceptionResolutionStatus(item) === "Resolved"
+  )
+);
+const deferredTransportExceptionItems = computed(() =>
+  transportExceptionItems.value.filter(
+    (item) => effectiveTransportExceptionResolutionStatus(item) === "Deferred"
   )
 );
 const visibleTransportExceptionItems = computed(() => {
+  const byResolution =
+    selectedTransportExceptionResolutionFilter.value === "all"
+      ? transportExceptionItems.value
+      : selectedTransportExceptionResolutionFilter.value === "open"
+      ? openTransportExceptionItems.value
+      : selectedTransportExceptionResolutionFilter.value === "reviewed"
+      ? reviewedTransportExceptionItems.value
+      : selectedTransportExceptionResolutionFilter.value === "resolved"
+      ? resolvedTransportExceptionItems.value
+      : deferredTransportExceptionItems.value;
+
   const source =
     selectedTransportExceptionFilter.value === "all"
-      ? transportExceptionItems.value
+      ? byResolution
       : selectedTransportExceptionFilter.value === "unreviewed"
-      ? unreviewedTransportExceptionItems.value
-      : transportExceptionItems.value.filter(
+      ? byResolution.filter(
+          (item) => effectiveTransportExceptionResolutionStatus(item) === null
+        )
+      : byResolution.filter(
           (item) => item.category === selectedTransportExceptionFilter.value
         );
 
@@ -492,11 +549,58 @@ const visibleTransportExceptionItems = computed(() => {
 const nextTransportExceptionItem = computed(
   () => visibleTransportExceptionItems.value[0] ?? null
 );
+const transportExceptionHistoryTitleById = computed(() => {
+  const entries = transportExceptionWorkbench.value.items.map((item) => [
+    item.id,
+    item.title,
+  ] as const);
+
+  return new Map(entries);
+});
+const transportExceptionHistoryTarget = computed(
+  () => nextTransportExceptionItem.value ?? visibleTransportExceptionItems.value[0] ?? null
+);
+const focusedTransportExceptionHistoryEntries = computed(() => {
+  const target = transportExceptionHistoryTarget.value;
+  if (target === null) {
+    return [];
+  }
+
+  return transportExceptionResolutionHistory.value.entries.filter(
+    (entry) => entry.exceptionId === target.id
+  );
+});
+const latestFocusedTransportExceptionHistoryEntry = computed(
+  () => focusedTransportExceptionHistoryEntries.value[0] ?? null
+);
+const previousFocusedTransportExceptionHistoryEntries = computed(() =>
+  focusedTransportExceptionHistoryEntries.value.slice(1, 4)
+);
+const recentTransportExceptionHistoryEntries = computed(() => {
+  const focusedExceptionId = transportExceptionHistoryTarget.value?.id;
+  const entries = focusedExceptionId
+    ? transportExceptionResolutionHistory.value.entries.filter(
+        (entry) => entry.exceptionId !== focusedExceptionId
+      )
+    : transportExceptionResolutionHistory.value.entries;
+
+  return entries.slice(0, 6);
+});
+const activeTransportExceptionHistoryStatus = computed(() => {
+  if (latestFocusedTransportExceptionHistoryEntry.value !== null) {
+    return latestFocusedTransportExceptionHistoryEntry.value.status;
+  }
+
+  return transportExceptionHistoryTarget.value
+    ? effectiveTransportExceptionResolutionStatus(transportExceptionHistoryTarget.value) ??
+        "Open"
+    : "Clear";
+});
 const transportExceptionFilterOptions = computed(() => [
   {
     key: "unreviewed",
-    label: "Unreviewed",
-    count: unreviewedTransportExceptionItems.value.length,
+    label: "Open in group",
+    count: openTransportExceptionItems.value.length,
   },
   ...transportExceptionWorkbench.value.groups.map((group) => ({
     key: group.label,
@@ -511,11 +615,25 @@ const transportExceptionFilterOptions = computed(() => [
     count: transportExceptionItems.value.length,
   },
 ]);
-const reviewedTransportExceptionCount = computed(
-  () =>
-    transportExceptionItems.value.length -
-    unreviewedTransportExceptionItems.value.length
-);
+const transportExceptionResolutionFilterOptions = computed(() => [
+  { key: "open", label: "Open", count: openTransportExceptionItems.value.length },
+  {
+    key: "reviewed",
+    label: "Reviewed",
+    count: reviewedTransportExceptionItems.value.length,
+  },
+  {
+    key: "resolved",
+    label: "Resolved",
+    count: resolvedTransportExceptionItems.value.length,
+  },
+  {
+    key: "deferred",
+    label: "Deferred",
+    count: deferredTransportExceptionItems.value.length,
+  },
+  { key: "all", label: "All", count: transportExceptionItems.value.length },
+]);
 const selectedRouteDiff = computed(
   () =>
     transportSyncDiff.value.routeDiffs.find(
@@ -1658,6 +1776,7 @@ function transportExceptionResolutionDraft(exceptionId: string): string {
 function resetTransportExceptionReviewQueue(): void {
   reviewedTransportExceptionIds.value = [];
   selectedTransportExceptionFilter.value = "unreviewed";
+  selectedTransportExceptionResolutionFilter.value = "open";
 }
 
 function reviewNextTransportException(): void {
@@ -1691,6 +1810,7 @@ async function saveResolvedTransportException(
       note: transportExceptionResolutionDraft(exceptionId),
     });
     await refreshTransportExceptionWorkbench(true);
+    await refreshTransportExceptionResolutionHistory(true);
     transportExceptionResolutionDrafts.value = {
       ...transportExceptionResolutionDrafts.value,
       [exceptionId]: "",
@@ -2017,6 +2137,32 @@ function applyTransportExceptionWorkbenchResult(
       : result.errorMessage;
 }
 
+function applyTransportExceptionResolutionHistoryResult(
+  result: Awaited<ReturnType<typeof loadTransportExceptionResolutionHistory>>,
+  preserveExisting: boolean
+): void {
+  const keepCurrentSnapshot =
+    preserveExisting &&
+    result.source === "fallback" &&
+    transportExceptionResolutionHistory.value.entries.length > 0 &&
+    (transportExceptionResolutionHistoryConnectionState.value === "api" ||
+      transportExceptionResolutionHistoryConnectionState.value === "stale");
+
+  if (!keepCurrentSnapshot) {
+    transportExceptionResolutionHistory.value = result.history;
+  }
+
+  transportExceptionResolutionHistoryConnectionState.value = keepCurrentSnapshot
+    ? "stale"
+    : result.source === "api"
+    ? "api"
+    : "fallback";
+  transportExceptionResolutionHistoryErrorMessage.value =
+    keepCurrentSnapshot && result.errorMessage
+      ? `${result.errorMessage} Keeping the last successful transport exception resolution history.`
+      : result.errorMessage;
+}
+
 function applyAiRecommendationResult(
   result: Awaited<ReturnType<typeof loadAiRecommendation>>,
   preserveExisting: boolean
@@ -2161,6 +2307,17 @@ async function refreshTransportExceptionWorkbench(
   applyTransportExceptionWorkbenchResult(result, preserveExisting);
 }
 
+async function refreshTransportExceptionResolutionHistory(
+  preserveExisting = true
+): Promise<void> {
+  if (!preserveExisting) {
+    transportExceptionResolutionHistoryConnectionState.value = "loading";
+  }
+
+  const result = await loadTransportExceptionResolutionHistory();
+  applyTransportExceptionResolutionHistoryResult(result, preserveExisting);
+}
+
 async function refreshTransportSyncEvidenceBundle(
   preserveExisting = true
 ): Promise<void> {
@@ -2168,6 +2325,7 @@ async function refreshTransportSyncEvidenceBundle(
   await refreshTransportSyncDiff(preserveExisting);
   await refreshTransportSyncHistory(preserveExisting);
   await refreshTransportExceptionWorkbench(preserveExisting);
+  await refreshTransportExceptionResolutionHistory(preserveExisting);
 }
 
 async function refreshAiRecommendation(
@@ -3557,6 +3715,28 @@ onBeforeUnmount(() => {
 
               <div class="chip-row transport-diff-filter-row">
                 <button
+                  v-for="filterOption in transportExceptionResolutionFilterOptions"
+                  :key="filterOption.key"
+                  type="button"
+                  class="catalog-chip transport-diff-filter-chip"
+                  :class="{
+                    'is-muted':
+                      selectedTransportExceptionResolutionFilter !==
+                      filterOption.key,
+                    'is-active':
+                      selectedTransportExceptionResolutionFilter ===
+                      filterOption.key,
+                  }"
+                  @click="
+                    selectedTransportExceptionResolutionFilter = filterOption.key
+                  "
+                >
+                  {{ filterOption.label }} ({{ filterOption.count }})
+                </button>
+              </div>
+
+              <div class="chip-row transport-diff-filter-row">
+                <button
                   v-for="filterOption in transportExceptionFilterOptions"
                   :key="filterOption.key"
                   type="button"
@@ -3575,28 +3755,24 @@ onBeforeUnmount(() => {
 
               <div class="transport-sync-grid">
                 <div class="transport-sync-metric">
-                  <span class="panel-label">Queue</span>
-                  <strong>{{ unreviewedTransportExceptionItems.length }}</strong>
-                  <span>unreviewed exceptions</span>
+                  <span class="panel-label">Open</span>
+                  <strong>{{ openTransportExceptionItems.length }}</strong>
+                  <span>exceptions still needing operator closure</span>
                 </div>
 
                 <div class="transport-sync-metric">
                   <span class="panel-label">Reviewed</span>
-                  <strong>{{ reviewedTransportExceptionCount }}</strong>
-                  <span>cleared in this local review pass</span>
+                  <strong>{{ reviewedTransportExceptionItems.length }}</strong>
+                  <span>captured with an explicit review posture</span>
                 </div>
 
                 <div class="transport-sync-metric">
-                  <span class="panel-label">Next up</span>
-                  <strong>{{
-                    nextTransportExceptionItem?.routeReference ??
-                    nextTransportExceptionItem?.category ??
-                    "Clear"
-                  }}</strong>
-                  <span>{{
-                    nextTransportExceptionItem?.actionLabel ??
-                    "No remaining exception in this view"
-                  }}</span>
+                  <span class="panel-label">Closed</span>
+                  <strong>{{ resolvedTransportExceptionItems.length }}</strong>
+                  <span>
+                    {{ deferredTransportExceptionItems.length }} deferred for
+                    later follow-up
+                  </span>
                 </div>
               </div>
 
@@ -3617,7 +3793,10 @@ onBeforeUnmount(() => {
                 <button
                   type="button"
                   class="transport-support-action"
-                  :disabled="reviewedTransportExceptionCount === 0"
+                  :disabled="
+                    reviewedTransportExceptionIds.length === 0 &&
+                    selectedTransportExceptionResolutionFilter === 'open'
+                  "
                   @click="resetTransportExceptionReviewQueue"
                 >
                   <strong>Reset review queue</strong>
@@ -3642,8 +3821,31 @@ onBeforeUnmount(() => {
                     </template>
                   </span>
                   <span v-if="item.evidence.length > 0">
-                    {{ item.evidence.join(" • ") }}
+                    {{ item.evidence.join(" · ") }}
                   </span>
+                  <span v-if="effectiveTransportExceptionResolutionStatus(item)">
+                    Resolution:
+                    {{ effectiveTransportExceptionResolutionStatus(item) }}
+                    <template v-if="item.resolutionUpdatedAtLabel">
+                      - {{ item.resolutionUpdatedAtLabel }}
+                    </template>
+                  </span>
+                  <span v-if="item.resolutionNote">{{ item.resolutionNote }}</span>
+                  <label class="provider-field">
+                    <span>Resolution note</span>
+                    <input
+                      :value="transportExceptionResolutionDraft(item.id)"
+                      class="provider-input"
+                      type="text"
+                      maxlength="160"
+                      placeholder="Add a short operator note"
+                      @input="
+                        transportExceptionResolutionDrafts[item.id] = (
+                          $event.target as HTMLInputElement
+                        ).value
+                      "
+                    />
+                  </label>
                   <button
                     type="button"
                     class="catalog-save-button"
@@ -3660,10 +3862,30 @@ onBeforeUnmount(() => {
                   <button
                     type="button"
                     class="catalog-save-button"
-                    @click="markTransportExceptionReviewed(item.id)"
+                    :disabled="savingTransportExceptionResolutionId === item.id"
+                    @click="saveResolvedTransportException(item.id, 'Reviewed')"
                   >
-                    Mark reviewed
+                    Save review
                   </button>
+                  <button
+                    type="button"
+                    class="catalog-save-button"
+                    :disabled="savingTransportExceptionResolutionId === item.id"
+                    @click="saveResolvedTransportException(item.id, 'Deferred')"
+                  >
+                    Defer
+                  </button>
+                  <button
+                    type="button"
+                    class="catalog-save-button"
+                    :disabled="savingTransportExceptionResolutionId === item.id"
+                    @click="saveResolvedTransportException(item.id, 'Resolved')"
+                  >
+                    Resolve
+                  </button>
+                  <span v-if="transportExceptionResolutionNotice[item.id]">
+                    {{ transportExceptionResolutionNotice[item.id] }}
+                  </span>
                 </li>
                 <li v-if="visibleTransportExceptionItems.length === 0">
                   <strong>No exceptions in this view</strong>
@@ -3849,6 +4071,115 @@ onBeforeUnmount(() => {
                   <span>
                     Adjust the filter or import another transport snapshot to
                     expand the before/after drill-down evidence.
+                  </span>
+                </li>
+              </ul>
+            </article>
+
+            <article class="transport-story-card">
+              <div class="catalog-editor-heading">
+                <div>
+                  <span class="panel-label">Resolution history</span>
+                  <h3>Recent exception updates</h3>
+                </div>
+                <span class="mini-badge">{{
+                  transportExceptionResolutionHistory.count
+                }}</span>
+              </div>
+
+              <p class="catalog-summary">
+                {{
+                  transportExceptionResolutionHistoryErrorMessage ??
+                  transportExceptionResolutionHistory.summary
+                }}
+              </p>
+
+              <div class="transport-sync-grid">
+                <div class="transport-sync-metric">
+                  <span class="panel-label">Recent updates</span>
+                  <strong>{{ transportExceptionResolutionHistory.count }}</strong>
+                  <span>persisted operator resolution events</span>
+                </div>
+
+                <div class="transport-sync-metric">
+                  <span class="panel-label">Focused trail</span>
+                  <strong>{{ focusedTransportExceptionHistoryEntries.length }}</strong>
+                  <span>
+                    {{
+                      transportExceptionHistoryTarget?.title ??
+                      "No focused exception"
+                    }}
+                  </span>
+                </div>
+
+                <div class="transport-sync-metric">
+                  <span class="panel-label">Current posture</span>
+                  <strong>{{ activeTransportExceptionHistoryStatus }}</strong>
+                  <span>
+                    {{
+                      latestFocusedTransportExceptionHistoryEntry?.updatedAtLabel ??
+                      "No persisted history yet"
+                    }}
+                  </span>
+                </div>
+              </div>
+
+              <ul class="transport-story-list">
+                <li v-if="latestFocusedTransportExceptionHistoryEntry">
+                  <strong>
+                    Current posture for
+                    {{
+                      transportExceptionHistoryTarget?.title ??
+                      latestFocusedTransportExceptionHistoryEntry.exceptionId
+                    }}
+                  </strong>
+                  <span>
+                    {{ latestFocusedTransportExceptionHistoryEntry.status }} -
+                    {{ latestFocusedTransportExceptionHistoryEntry.updatedAtLabel }}
+                  </span>
+                  <span>
+                    {{
+                      latestFocusedTransportExceptionHistoryEntry.note ??
+                      "No operator note was saved with the latest update."
+                    }}
+                  </span>
+                </li>
+                <li
+                  v-for="entry in previousFocusedTransportExceptionHistoryEntries"
+                  :key="entry.id"
+                >
+                  <strong>
+                    Previous update for
+                    {{
+                      transportExceptionHistoryTarget?.title ??
+                      entry.exceptionId
+                    }}
+                  </strong>
+                  <span>{{ entry.status }} - {{ entry.updatedAtLabel }}</span>
+                  <span>{{
+                    entry.note ?? "No operator note was saved for this update."
+                  }}</span>
+                </li>
+                <li
+                  v-for="entry in recentTransportExceptionHistoryEntries"
+                  :key="`recent-${entry.id}`"
+                >
+                  <strong>
+                    {{
+                      transportExceptionHistoryTitleById.get(entry.exceptionId) ??
+                      entry.exceptionId
+                    }}
+                  </strong>
+                  <span>{{ entry.status }} - {{ entry.updatedAtLabel }}</span>
+                  <span>{{
+                    entry.note ?? "No operator note was saved for this update."
+                  }}</span>
+                </li>
+                <li v-if="recentTransportExceptionHistoryEntries.length === 0">
+                  <strong>No persisted resolution history yet</strong>
+                  <span>
+                    Save a review, defer an exception, or resolve one to build a
+                    recent audit trail here.
                   </span>
                 </li>
               </ul>
@@ -4808,7 +5139,7 @@ onBeforeUnmount(() => {
                       ? "API key is set. Enter a new value to rotate it."
                       : "API key required for live upstream access."
                   }}
-                  Stored in local secrets file only — never committed to source
+                  Stored in local secrets file only - never committed to source
                   control.
                 </span>
               </div>

@@ -164,6 +164,23 @@ public sealed class TransportExceptionWorkbenchServiceTests
             var resolvedItem = refreshedWorkbench.Items.First(item => item.ExceptionId == "latest-import-delta");
             Assert.Equal("Resolved", resolvedItem.ResolutionStatus);
             Assert.Equal("Reviewed during support pass.", resolvedItem.ResolutionNote);
+
+            await resolutionLedgerService.SaveAsync(
+                "tenant-a",
+                new TransportExceptionResolutionWriteRequest("latest-import-delta", "Deferred", "Waiting for upstream confirmation."));
+
+            var resolutionHistory = await resolutionLedgerService.GetHistoryAsync("tenant-a", 10);
+            Assert.Equal(2, resolutionHistory.EntryCount);
+            Assert.Equal("Deferred", resolutionHistory.Entries.First().Status);
+            Assert.Equal("Waiting for upstream confirmation.", resolutionHistory.Entries.First().Note);
+            Assert.All(
+                resolutionHistory.Entries,
+                entry => Assert.Equal("latest-import-delta", entry.ExceptionId));
+
+            var latestLedger = await resolutionLedgerService.GetAsync("tenant-a");
+            var latestResolution = latestLedger.Entries.Single(entry => entry.ExceptionId == "latest-import-delta");
+            Assert.Equal("Deferred", latestResolution.Status);
+            Assert.Equal("Waiting for upstream confirmation.", latestResolution.Note);
         }
         finally
         {

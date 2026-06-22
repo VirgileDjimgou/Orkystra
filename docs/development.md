@@ -185,6 +185,11 @@ curl http://127.0.0.1:5043/api/transport/exceptions-workbench `
 curl http://127.0.0.1:5043/api/transport/exceptions-workbench/resolutions `
   -H "X-Api-Key: your-dev-key" `
   -H "X-Tenant-Id: local-demo-tenant"
+
+# Read recent exception resolution history
+curl http://127.0.0.1:5043/api/transport/exceptions-workbench/resolution-history?count=12 `
+  -H "X-Api-Key: your-dev-key" `
+  -H "X-Tenant-Id: local-demo-tenant"
 ```
 
 When a persisted transport snapshot exists, `GET /api/transport/routes` and `GET /api/transport/routes/{routeId}` can reuse that tenant snapshot instead of forcing a fresh upstream read every time. This makes local demos and future support flows more stable, and it gives later sprints a clearer synchronization boundary.
@@ -197,6 +202,9 @@ The transport board now includes a historical diff drill-down that compares the 
 The transport board now also includes a dedicated exception workbench that turns sync posture, delayed routes, missing imported routes, and recent import deltas into a prioritized operator shortlist with direct jump actions.
 The exception workbench now also supports grouped review: operators can filter by exception family, review the next outstanding exception in sequence, and locally mark items as reviewed during a support pass without losing the underlying transport evidence.
 The review loop is now auditable as well: exception items can carry a persisted resolution status, timestamp, and short support note, and the local tenant can save reviewed or resolved posture through the exception-resolution ledger API.
+The workbench now separates that posture explicitly with resolution-aware filters for `Open`, `Reviewed`, `Resolved`, `Deferred`, and `All`, so operators can move between active and closed exceptions without rebuilding their mental queue.
+The same surface now exposes open-vs-closed metrics, inline resolution notes, and direct `Save review`, `Defer`, and `Resolve` actions on each exception row.
+The transport board now also exposes recent resolution history as a dedicated operator card, which separates the latest current posture for the focused exception from previous saved updates and broader recent activity.
 The latest freshness warning now drills through to a dedicated evidence panel that ties the snapshot age back to the last import time, sync posture, historical diff, selected route, and latest sync note, so the operator can move from symptom to cause without leaving the transport board.
 The freshness story now extends one step further with a lineage card, a sync cadence card, a trust badge, a selected-route spotlight, and a short operator checklist so the next action is obvious when the snapshot starts to age.
 Chrome-driven browser QA confirmed that the five-card transport freshness cluster stays readable together at desktop width.

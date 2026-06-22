@@ -8,8 +8,11 @@ public sealed class TransportExceptionResolutionLedgerService
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
     private readonly OperationalPersistenceStore _persistenceStore;
-    private const string ProjectionName = "transport-exception-resolutions";
-    private const string ProjectionKey = "active";
+    private const string CurrentProjectionName = "transport-exception-resolutions";
+    private const string CurrentProjectionKey = "active";
+    private const string HistoryProjectionName = "transport-exception-resolution-history";
+    private const string HistoryProjectionKey = "recent";
+    private const int MaxHistoryEntries = 120;
 
     public TransportExceptionResolutionLedgerService(OperationalPersistenceStore persistenceStore)
     {
@@ -22,8 +25,8 @@ public sealed class TransportExceptionResolutionLedgerService
     {
         var snapshot = await _persistenceStore.ReadProjectionSnapshotAsync(
             tenantId,
-            ProjectionName,
-            ProjectionKey,
+            CurrentProjectionName,
+            CurrentProjectionKey,
             cancellationToken);
 
         if (snapshot is null)
@@ -35,6 +38,39 @@ public sealed class TransportExceptionResolutionLedgerService
                    snapshot.PayloadJson,
                    SerializerOptions)
                ?? new TransportExceptionResolutionLedgerReadModel(DateTimeOffset.UtcNow, 0, []);
+    }
+
+    public async ValueTask<TransportExceptionResolutionHistoryReadModel> GetHistoryAsync(
+        string tenantId,
+        int count = 12,
+        CancellationToken cancellationToken = default)
+    {
+        var snapshot = await _persistenceStore.ReadProjectionSnapshotAsync(
+            tenantId,
+            HistoryProjectionName,
+            HistoryProjectionKey,
+            cancellationToken);
+
+        if (snapshot is null)
+        {
+            return new TransportExceptionResolutionHistoryReadModel(DateTimeOffset.UtcNow, 0, []);
+        }
+
+        var history = JsonSerializer.Deserialize<TransportExceptionResolutionHistoryReadModel>(
+                          snapshot.PayloadJson,
+                          SerializerOptions)
+                      ?? new TransportExceptionResolutionHistoryReadModel(DateTimeOffset.UtcNow, 0, []);
+
+        var normalizedCount = Math.Clamp(count, 1, 50);
+        var entries = history.Entries
+            .OrderByDescending(entry => entry.UpdatedAtUtc)
+            .Take(normalizedCount)
+            .ToArray();
+
+        return new TransportExceptionResolutionHistoryReadModel(
+            history.UpdatedAtUtc,
+            entries.Length,
+            entries);
     }
 
     public async ValueTask<TransportExceptionResolutionLedgerReadModel> SaveAsync(
@@ -54,31 +90,78 @@ public sealed class TransportExceptionResolutionLedgerService
         }
 
         var current = await GetAsync(tenantId, cancellationToken);
+        var currentHistory = await GetFullHistoryAsync(tenantId, cancellationToken);
         var nextEntries = current.Entries
             .Where(entry => !string.Equals(entry.ExceptionId, request.ExceptionId, StringComparison.OrdinalIgnoreCase))
             .ToList();
+        var updatedAtUtc = DateTimeOffset.UtcNow;
 
         nextEntries.Add(new TransportExceptionResolutionEntryReadModel(
             request.ExceptionId,
             normalizedStatus,
             string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim(),
-            DateTimeOffset.UtcNow));
+            updatedAtUtc));
 
         var nextLedger = new TransportExceptionResolutionLedgerReadModel(
-            DateTimeOffset.UtcNow,
+            updatedAtUtc,
             nextEntries.Count,
             nextEntries
                 .OrderByDescending(entry => entry.UpdatedAtUtc)
                 .ToArray());
 
+        var nextHistoryEntries = currentHistory.Entries
+            .Prepend(new TransportExceptionResolutionHistoryEntryReadModel(
+                Guid.NewGuid().ToString("N"),
+                request.ExceptionId,
+                normalizedStatus,
+                string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim(),
+                updatedAtUtc))
+            .OrderByDescending(entry => entry.UpdatedAtUtc)
+            .Take(MaxHistoryEntries)
+            .ToArray();
+
+        var nextHistory = new TransportExceptionResolutionHistoryReadModel(
+            updatedAtUtc,
+            nextHistoryEntries.Length,
+            nextHistoryEntries);
+
         await _persistenceStore.UpsertProjectionAsync(
             tenantId,
-            ProjectionName,
-            ProjectionKey,
+            CurrentProjectionName,
+            CurrentProjectionKey,
             "api",
             nextLedger,
             cancellationToken);
 
+        await _persistenceStore.UpsertProjectionAsync(
+            tenantId,
+            HistoryProjectionName,
+            HistoryProjectionKey,
+            "api",
+            nextHistory,
+            cancellationToken);
+
         return nextLedger;
+    }
+
+    private async ValueTask<TransportExceptionResolutionHistoryReadModel> GetFullHistoryAsync(
+        string tenantId,
+        CancellationToken cancellationToken)
+    {
+        var snapshot = await _persistenceStore.ReadProjectionSnapshotAsync(
+            tenantId,
+            HistoryProjectionName,
+            HistoryProjectionKey,
+            cancellationToken);
+
+        if (snapshot is null)
+        {
+            return new TransportExceptionResolutionHistoryReadModel(DateTimeOffset.UtcNow, 0, []);
+        }
+
+        return JsonSerializer.Deserialize<TransportExceptionResolutionHistoryReadModel>(
+                   snapshot.PayloadJson,
+                   SerializerOptions)
+               ?? new TransportExceptionResolutionHistoryReadModel(DateTimeOffset.UtcNow, 0, []);
     }
 }

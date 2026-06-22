@@ -526,6 +526,22 @@ app.MapGet("/api/transport/exceptions-workbench/resolutions", async (
 .RequireAuthorization()
 .WithName("GetTransportExceptionResolutionLedger");
 
+app.MapGet("/api/transport/exceptions-workbench/resolution-history", async (
+    int? count,
+    RequestTenantContext tenantContext,
+    TransportExceptionResolutionLedgerService resolutionLedgerService,
+    CancellationToken cancellationToken) =>
+{
+    var tenantId = tenantContext.TenantId ?? "local-demo-tenant";
+    var history = await resolutionLedgerService.GetHistoryAsync(
+        tenantId,
+        count ?? 12,
+        cancellationToken);
+    return Results.Ok(history);
+})
+.RequireAuthorization()
+.WithName("GetTransportExceptionResolutionHistory");
+
 app.MapPut("/api/transport/exceptions-workbench/resolutions", async (
     TransportExceptionResolutionWriteRequest request,
     RequestTenantContext tenantContext,

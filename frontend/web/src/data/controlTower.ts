@@ -195,6 +195,20 @@ export type TransportExceptionWorkbenchView = {
   items: TransportExceptionWorkbenchItemView[]
 }
 
+export type TransportExceptionResolutionHistoryEntryView = {
+  id: string
+  exceptionId: string
+  status: 'Reviewed' | 'Resolved' | 'Deferred'
+  note: string | null
+  updatedAtLabel: string
+}
+
+export type TransportExceptionResolutionHistoryView = {
+  count: number
+  summary: string
+  entries: TransportExceptionResolutionHistoryEntryView[]
+}
+
 export type RouteOptimizationAlternativeView = {
   label: string
   orderedStopReferences: string[]
@@ -1375,6 +1389,20 @@ type ApiTransportExceptionWorkbench = {
   items: ApiTransportExceptionWorkbenchItem[]
 }
 
+type ApiTransportExceptionResolutionHistoryEntry = {
+  historyEntryId: string
+  exceptionId: string
+  status: string
+  note: string | null
+  updatedAtUtc: string
+}
+
+type ApiTransportExceptionResolutionHistory = {
+  updatedAtUtc: string
+  entryCount: number
+  entries: ApiTransportExceptionResolutionHistoryEntry[]
+}
+
 export function mapApiTransportSyncHistoryToView(apiHistory: ApiTransportSyncHistory): TransportSyncHistoryView {
   return {
     count: apiHistory.count,
@@ -1433,6 +1461,14 @@ export function buildFallbackTransportExceptionWorkbench(): TransportExceptionWo
   }
 }
 
+export function buildFallbackTransportExceptionResolutionHistory(): TransportExceptionResolutionHistoryView {
+  return {
+    count: 0,
+    summary: 'Resolution history is unavailable in fallback mode.',
+    entries: [],
+  }
+}
+
 function normalizeTransportExceptionSeverity(status: string): TransportExceptionWorkbenchItemView['severity'] {
   if (status === 'Critical' || status === 'Warning') {
     return status
@@ -1466,6 +1502,16 @@ function normalizeTransportExceptionResolutionStatus(
   return null
 }
 
+function normalizeTransportExceptionHistoryStatus(
+  status: string
+): TransportExceptionResolutionHistoryEntryView['status'] {
+  if (status === 'Resolved' || status === 'Deferred') {
+    return status
+  }
+
+  return 'Reviewed'
+}
+
 export function mapApiTransportExceptionWorkbenchToView(apiWorkbench: ApiTransportExceptionWorkbench): TransportExceptionWorkbenchView {
   return {
     generatedAtLabel: formatUtcLabel(apiWorkbench.generatedAtUtc),
@@ -1495,6 +1541,27 @@ export function mapApiTransportExceptionWorkbenchToView(apiWorkbench: ApiTranspo
       resolutionUpdatedAtLabel: item.resolutionUpdatedAtUtc ? formatUtcLabel(item.resolutionUpdatedAtUtc) : null,
       evidence: item.evidence,
     })),
+  }
+}
+
+export function mapApiTransportExceptionResolutionHistoryToView(
+  apiHistory: ApiTransportExceptionResolutionHistory
+): TransportExceptionResolutionHistoryView {
+  const entries = apiHistory.entries.map((entry) => ({
+    id: entry.historyEntryId,
+    exceptionId: entry.exceptionId,
+    status: normalizeTransportExceptionHistoryStatus(entry.status),
+    note: entry.note,
+    updatedAtLabel: formatUtcLabel(entry.updatedAtUtc),
+  }))
+
+  return {
+    count: apiHistory.entryCount,
+    summary:
+      entries.length === 0
+        ? 'No persisted exception resolution history is available yet.'
+        : `${entries.length} recent resolution update(s) are available for operator review.`,
+    entries,
   }
 }
 
