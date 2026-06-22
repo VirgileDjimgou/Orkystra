@@ -100,6 +100,9 @@ export type TransportSyncStatusView = {
   importedRouteCount: number
   importedRouteIds: string[]
   importedRouteReferences: string[]
+  lastImportedAtUtc: string | null
+  lastSuccessfulSyncAtUtc: string | null
+  lastAttemptedSyncAtUtc: string | null
   lastImportedAtLabel: string | null
   lastActivityLabel: string
   syncStatus: string
@@ -766,7 +769,7 @@ function normalizeTransportSyncSource(source: string): TransportSyncStatusView['
   return 'demo-fallback'
 }
 
-function formatUtcLabel(value: string): string {
+export function formatUtcLabel(value: string): string {
   const date = new Date(value)
   return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')} ${String(date.getUTCHours()).padStart(2, '0')}:${String(date.getUTCMinutes()).padStart(2, '0')} UTC`
 }
@@ -1035,6 +1038,9 @@ export function buildFallbackTransportSyncStatus(): TransportSyncStatusView {
     importedRouteCount: 0,
     importedRouteIds: [],
     importedRouteReferences: [],
+    lastImportedAtUtc: null,
+    lastSuccessfulSyncAtUtc: null,
+    lastAttemptedSyncAtUtc: null,
     lastImportedAtLabel: null,
     lastActivityLabel: 'Last attempt 2026-06-20 10:15 UTC',
     syncStatus: 'degraded-live-snapshot',
@@ -1171,6 +1177,9 @@ export function mapApiTransportSyncStatusToView(apiStatus: ApiTransportSyncStatu
     importedRouteCount: apiStatus.importedRouteCount,
     importedRouteIds: apiStatus.importedRouteIds,
     importedRouteReferences: apiStatus.importedRouteReferences,
+    lastImportedAtUtc: apiStatus.lastImportedAtUtc,
+    lastSuccessfulSyncAtUtc: apiStatus.lastSuccessfulSyncAt,
+    lastAttemptedSyncAtUtc: apiStatus.lastAttemptedSyncAt,
     lastImportedAtLabel: apiStatus.lastImportedAtUtc ? formatUtcLabel(apiStatus.lastImportedAtUtc) : null,
     lastActivityLabel: formatRelativeSyncLabel(apiStatus.lastSuccessfulSyncAt, apiStatus.lastAttemptedSyncAt),
     syncStatus: apiStatus.syncStatus,

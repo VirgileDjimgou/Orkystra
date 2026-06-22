@@ -9,6 +9,7 @@ import {
   buildFallbackTransportSyncStatus,
   buildFallbackWarehouseDetail,
   buildFallbackProviderCatalog,
+  formatUtcLabel,
   simulationSpeeds,
   type ControlTowerOverviewView,
   type RouteDetailView,
@@ -50,6 +51,7 @@ type TransportSupportActionId =
   | "route-refresh"
   | "route-focus-import"
   | "optimization-refresh";
+type TransportDiffFilter = "all" | "changed" | "added" | "removed" | "selected";
 
 const navigationItems = [
   { label: "Control Tower", short: "CT", active: true },
@@ -122,9 +124,12 @@ const secretSaveNotice = ref<Record<string, string>>({});
 const selectedScenarioId = ref(fallbackOverview.scenarios[0].scenarioId);
 const selectedWarehouseId = ref(fallbackOverview.warehouses[0].warehouseId);
 const selectedRouteId = ref(fallbackOverview.routes[0].routeId);
+const selectedTransportDiffFilter = ref<TransportDiffFilter>("changed");
+const syncFreshnessClock = ref(Date.now());
 const simulationState = ref<"Running" | "Paused">("Running");
 const selectedSpeed = ref(simulationSpeeds[1]);
 let connectionRecoveryHandle = 0;
+let freshnessTickerHandle = 0;
 
 const currentScenario = computed(
   () =>
@@ -327,6 +332,67 @@ const transportSyncHealthClass = computed(() => {
       return "severity-healthy";
   }
 });
+const transportSyncFreshness = computed(() => {
+  const importedAtUtc = transportSyncStatus.value.lastImportedAtUtc;
+
+  if (!importedAtUtc) {
+    return {
+      label: "No persisted snapshot",
+      detail: "Import a transport snapshot to establish a freshness baseline.",
+      tone: "severity-warning",
+      ageMinutes: null as number | null,
+    };
+  }
+
+  const importedAt = new Date(importedAtUtc);
+  if (Number.isNaN(importedAt.getTime())) {
+    return {
+      label: "Freshness unavailable",
+      detail: "The imported timestamp could not be parsed reliably.",
+      tone: "severity-warning",
+      ageMinutes: null as number | null,
+    };
+  }
+
+  const ageMinutes = Math.max(
+    0,
+    Math.floor((syncFreshnessClock.value - importedAt.getTime()) / 60000)
+  );
+
+  if (ageMinutes < 30) {
+    return {
+      label: "Fresh",
+      detail: `Imported ${ageMinutes} minute${ageMinutes === 1 ? "" : "s"} ago.`,
+      tone: "severity-healthy",
+      ageMinutes,
+    };
+  }
+
+  if (ageMinutes < 360) {
+    return {
+      label: "Aging",
+      detail: `Imported ${ageMinutes} minute${ageMinutes === 1 ? "" : "s"} ago.`,
+      tone: "severity-warning",
+      ageMinutes,
+    };
+  }
+
+  if (ageMinutes < 1440) {
+    return {
+      label: "Stale",
+      detail: `Imported about ${Math.round(ageMinutes / 60)} hour${Math.round(ageMinutes / 60) === 1 ? "" : "s"} ago.`,
+      tone: "severity-degraded",
+      ageMinutes,
+    };
+  }
+
+  return {
+    label: "Expired",
+    detail: `Imported about ${Math.round(ageMinutes / 1440)} day${Math.round(ageMinutes / 1440) === 1 ? "" : "s"} ago.`,
+    tone: "severity-unhealthy",
+    ageMinutes,
+  };
+});
 const transportSyncDeltaSummary = computed(() => {
   const imported = new Set(transportSyncStatus.value.importedRouteReferences);
   const current = new Set(
@@ -370,11 +436,92 @@ const transportSyncHistory = computed(() =>
     (run) => run.workflowKind === "transport-sync-import"
   )
 );
-const transportChangedDiffs = computed(() =>
-  transportSyncDiff.value.routeDiffs.filter(
-    (item) => item.changeType !== "Unchanged"
-  )
+const selectedRouteDiff = computed(
+  () =>
+    transportSyncDiff.value.routeDiffs.find(
+      (item) => item.routeReference === routeDetail.value.reference
+    ) ?? null
 );
+const selectedRouteDiffSummary = computed(() => {
+  const diff = selectedRouteDiff.value;
+
+  if (!diff) {
+    return {
+      title: "Selected route is not in the current diff window",
+      detail:
+        "This route is outside the latest comparable import pair or there is not enough import history yet.",
+    };
+  }
+
+  if (diff.changeType === "Unchanged") {
+    return {
+      title: `${diff.routeReference} is stable across the latest two imports`,
+      detail:
+        "No route-level posture change was detected for the selected route in the latest comparable import pair.",
+    };
+  }
+
+  return {
+    title: `${diff.routeReference} is ${diff.changeType.toLowerCase()} in the latest diff`,
+    detail: diff.summary,
+  };
+});
+const transportDiffFilterOptions = computed(() => {
+  const routeDiffs = transportSyncDiff.value.routeDiffs;
+  const selectedReference = routeDetail.value.reference;
+
+  return [
+    {
+      value: "changed" as const,
+      label: "Changed",
+      count: routeDiffs.filter((item) => item.changeType === "Changed").length,
+    },
+    {
+      value: "added" as const,
+      label: "Added",
+      count: routeDiffs.filter((item) => item.changeType === "Added").length,
+    },
+    {
+      value: "removed" as const,
+      label: "Removed",
+      count: routeDiffs.filter((item) => item.changeType === "Removed").length,
+    },
+    {
+      value: "selected" as const,
+      label: selectedReference,
+      count: routeDiffs.some((item) => item.routeReference === selectedReference)
+        ? 1
+        : 0,
+    },
+    {
+      value: "all" as const,
+      label: "All",
+      count: routeDiffs.length,
+    },
+  ];
+});
+const filteredTransportDiffs = computed(() => {
+  switch (selectedTransportDiffFilter.value) {
+    case "changed":
+      return transportSyncDiff.value.routeDiffs.filter(
+        (item) => item.changeType === "Changed"
+      );
+    case "added":
+      return transportSyncDiff.value.routeDiffs.filter(
+        (item) => item.changeType === "Added"
+      );
+    case "removed":
+      return transportSyncDiff.value.routeDiffs.filter(
+        (item) => item.changeType === "Removed"
+      );
+    case "selected":
+      return transportSyncDiff.value.routeDiffs.filter(
+        (item) => item.routeReference === routeDetail.value.reference
+      );
+    default:
+      return transportSyncDiff.value.routeDiffs;
+  }
+});
 const latestImportedRoute = computed(() => {
   const importedRefs = new Set(
     transportSyncStatus.value.importedRouteReferences
@@ -433,6 +580,7 @@ const transportRecoveryCues = computed(() => {
     detail: string;
     actionId: TransportSupportActionId;
     actionLabel: string;
+    tone: "severity-healthy" | "severity-warning" | "severity-degraded" | "severity-unhealthy";
   }> = [];
 
   if (!transportSyncStatus.value.hasPersistedSnapshot) {
@@ -442,6 +590,63 @@ const transportRecoveryCues = computed(() => {
         "Run a manual import before the demo so the route board can rely on a saved transport baseline.",
       actionId: "sync-import",
       actionLabel: "Import snapshot",
+      tone: "severity-warning",
+    });
+  }
+
+  const freshnessTone = transportSyncFreshness.value.tone;
+
+  if (transportSyncFreshness.value.label === "Aging") {
+    cues.push({
+      title: "Snapshot is starting to age",
+      detail:
+        transportSyncFreshness.value.detail +
+        " Refresh it soon if operators are about to trust the route board.",
+      actionId:
+        transportSyncStatus.value.source === "live"
+          ? "sync-refresh"
+          : "sync-import",
+      actionLabel:
+        transportSyncStatus.value.source === "live"
+          ? "Refresh sync"
+          : "Import snapshot",
+      tone: freshnessTone,
+    });
+  }
+
+  if (transportSyncFreshness.value.label === "Stale") {
+    cues.push({
+      title: "Snapshot is stale",
+      detail:
+        transportSyncFreshness.value.detail +
+        " Re-import before using the transport board for decisions.",
+      actionId:
+        transportSyncStatus.value.source === "live"
+          ? "sync-refresh"
+          : "sync-import",
+      actionLabel:
+        transportSyncStatus.value.source === "live"
+          ? "Refresh sync"
+          : "Import snapshot",
+      tone: "severity-degraded",
+    });
+  }
+
+  if (transportSyncFreshness.value.label === "Expired") {
+    cues.push({
+      title: "Snapshot is expired",
+      detail:
+        transportSyncFreshness.value.detail +
+        " Treat the current view as illustrative until a fresh import lands.",
+      actionId:
+        transportSyncStatus.value.source === "live"
+          ? "sync-refresh"
+          : "sync-import",
+      actionLabel:
+        transportSyncStatus.value.source === "live"
+          ? "Refresh sync"
+          : "Import snapshot",
+      tone: "severity-unhealthy",
     });
   }
 
@@ -463,6 +668,10 @@ const transportRecoveryCues = computed(() => {
       actionLabel: transportSyncStatus.value.hasPersistedSnapshot
         ? "Refresh sync"
         : "Import snapshot",
+      tone:
+        transportSyncStatus.value.healthStatus === "Unhealthy"
+          ? "severity-unhealthy"
+          : "severity-warning",
     });
   }
 
@@ -477,6 +686,7 @@ const transportRecoveryCues = computed(() => {
         `Reload ${routeDetail.value.reference} before using it for support or optimization decisions.`,
       actionId: "route-refresh",
       actionLabel: "Refresh route",
+      tone: "severity-warning",
     });
   }
 
@@ -491,6 +701,7 @@ const transportRecoveryCues = computed(() => {
         "The current optimization snapshot may not match the latest route state.",
       actionId: "optimization-refresh",
       actionLabel: "Re-run optimization",
+      tone: "severity-warning",
     });
   }
 
@@ -506,10 +717,287 @@ const transportRecoveryCues = computed(() => {
       detail: `${routeDetail.value.reference} is still visible in the board, but ${latestImportedRoute.value.reference} is the nearest confirmed route from the latest imported snapshot.`,
       actionId: "route-focus-import",
       actionLabel: `Focus ${latestImportedRoute.value.reference}`,
+      tone: "severity-warning",
     });
   }
 
   return cues;
+});
+const transportFreshnessDrillThrough = computed(() => {
+  const evidence: Array<{ title: string; detail: string }> = [];
+
+  if (!transportSyncStatus.value.hasPersistedSnapshot) {
+    evidence.push({
+      title: "No persisted snapshot",
+      detail:
+        "No tenant snapshot exists yet, so the transport board is still working from fallback evidence.",
+    });
+    return evidence;
+  }
+
+  evidence.push({
+    title: "Freshness state",
+    detail: `${transportSyncFreshness.value.label} - ${transportSyncFreshness.value.detail}`,
+  });
+  evidence.push({
+    title: "Last import",
+    detail: transportSyncStatus.value.lastImportedAtLabel
+      ? `Imported ${transportSyncStatus.value.lastImportedAtLabel}.`
+      : "The imported timestamp is unavailable.",
+  });
+  evidence.push({
+    title: "Sync posture",
+    detail: `${transportSyncStatus.value.syncStatusLabel} - ${transportSyncStatus.value.healthSummary}`,
+  });
+
+  if (transportSyncDiff.value.hasComparableHistory) {
+    evidence.push({
+      title: "Latest diff",
+      detail: transportSyncDiff.value.detail,
+    });
+  }
+
+  evidence.push({
+    title: "Selected route",
+    detail: selectedRouteDiffSummary.value.detail,
+  });
+
+  const latestSyncRun = transportSyncHistory.value[0];
+  if (latestSyncRun) {
+    evidence.push({
+      title: "Latest sync note",
+      detail: latestSyncRun.summary,
+    });
+  }
+
+  return evidence;
+});
+const transportFreshnessLineage = computed(() => {
+  const lineage: Array<{ title: string; detail: string }> = [];
+
+  if (!transportSyncStatus.value.hasPersistedSnapshot) {
+    lineage.push({
+      title: "No persisted lineage",
+      detail:
+        "There is no saved transport snapshot yet, so freshness still depends on fallback evidence.",
+    });
+    return lineage;
+  }
+
+  const successLabel = transportSyncStatus.value.lastSuccessfulSyncAtUtc
+    ? formatUtcLabel(transportSyncStatus.value.lastSuccessfulSyncAtUtc)
+    : "No successful sync recorded";
+  const attemptLabel = transportSyncStatus.value.lastAttemptedSyncAtUtc
+    ? formatUtcLabel(transportSyncStatus.value.lastAttemptedSyncAtUtc)
+    : "No sync attempt recorded";
+  const successTime = transportSyncStatus.value.lastSuccessfulSyncAtUtc
+    ? Date.parse(transportSyncStatus.value.lastSuccessfulSyncAtUtc)
+    : null;
+  const attemptTime = transportSyncStatus.value.lastAttemptedSyncAtUtc
+    ? Date.parse(transportSyncStatus.value.lastAttemptedSyncAtUtc)
+    : null;
+
+  lineage.push({
+    title: "Source posture",
+    detail: `${transportSyncSourceLabel.value} is the current transport source state.`,
+  });
+  lineage.push({
+    title: "Last successful sync",
+    detail: successLabel,
+  });
+  lineage.push({
+    title: "Last attempted sync",
+    detail: attemptLabel,
+  });
+  lineage.push({
+    title: "Snapshot age",
+    detail: transportSyncFreshness.value.detail,
+  });
+  lineage.push({
+    title: "Causality",
+    detail:
+      successTime !== null && attemptTime !== null && attemptTime > successTime
+        ? "A later retry exists, so the current age reflects the last successful import rather than the most recent attempt."
+        : successTime !== null && attemptTime !== null
+        ? "The latest success and attempt are aligned, so freshness is driven by elapsed time since the last import."
+        : successTime !== null
+        ? "Freshness is driven by the last successful import because no later attempt is recorded."
+        : "Freshness is still based on fallback evidence because the store has no successful import yet.",
+  });
+
+  return lineage;
+});
+const transportSyncCadence = computed(() => {
+  if (!transportSyncStatus.value.hasPersistedSnapshot) {
+    return {
+      label: "No cadence yet",
+      detail: "Import a transport snapshot to establish a sync rhythm.",
+      tone: "severity-warning" as const,
+    };
+  }
+
+  const successTime = transportSyncStatus.value.lastSuccessfulSyncAtUtc
+    ? Date.parse(transportSyncStatus.value.lastSuccessfulSyncAtUtc)
+    : null;
+  const attemptTime = transportSyncStatus.value.lastAttemptedSyncAtUtc
+    ? Date.parse(transportSyncStatus.value.lastAttemptedSyncAtUtc)
+    : null;
+
+  if (successTime === null && attemptTime === null) {
+    return {
+      label: "Cadence unknown",
+      detail: "No successful or attempted sync timestamp has been recorded yet.",
+      tone: "severity-warning" as const,
+    };
+  }
+
+  if (successTime === null || attemptTime === null) {
+    return {
+      label: "Cadence sparse",
+      detail:
+        "Only one sync timestamp is recorded, so the rhythm of imports is still incomplete.",
+      tone: "severity-warning" as const,
+    };
+  }
+
+  const gapHours = Math.abs(attemptTime - successTime) / 3_600_000;
+
+  if (attemptTime > successTime) {
+    return {
+      label: gapHours > 24 ? "Retry lagging" : "Retry active",
+      detail: `The latest attempt landed ${gapHours.toFixed(1)} hour${
+        gapHours === 1 ? "" : "s"
+      } after the last success.`,
+      tone: gapHours > 24 ? ("severity-degraded" as const) : ("severity-healthy" as const),
+    };
+  }
+
+  return {
+    label: gapHours > 24 ? "Slow cadence" : "Steady cadence",
+    detail: `The last attempt and the last success are ${gapHours.toFixed(1)} hour${
+      gapHours === 1 ? "" : "s"
+    } apart.`,
+    tone: gapHours > 24 ? ("severity-warning" as const) : ("severity-healthy" as const),
+  };
+});
+const transportFreshnessTrust = computed(() => {
+  if (!transportSyncStatus.value.hasPersistedSnapshot) {
+    return {
+      label: "No trust baseline",
+      detail: "There is not yet a persisted transport snapshot to trust.",
+      tone: "severity-warning" as const,
+    };
+  }
+
+  if (
+    transportSyncFreshness.value.label === "Expired" ||
+    transportSyncStatus.value.healthStatus === "Unhealthy"
+  ) {
+    return {
+      label: "Low trust",
+      detail:
+        "The transport snapshot is expired or unhealthy, so operators should treat it as illustrative only.",
+      tone: "severity-unhealthy" as const,
+    };
+  }
+
+  if (
+    transportSyncFreshness.value.label === "Stale" ||
+    transportSyncConnectionState.value === "fallback"
+  ) {
+    return {
+      label: "Guarded trust",
+      detail:
+        "The transport view is usable, but the freshness posture still needs a cautious read.",
+      tone: "severity-degraded" as const,
+    };
+  }
+
+  if (
+    transportSyncFreshness.value.label === "Aging" ||
+    transportSyncStatus.value.healthStatus === "Degraded"
+  ) {
+    return {
+      label: "Moderate trust",
+      detail:
+        "The snapshot is still usable, but freshness or sync health deserves a closer look.",
+      tone: "severity-warning" as const,
+    };
+  }
+
+  return {
+    label: "High trust",
+    detail: "The snapshot is fresh enough for normal operator use.",
+    tone: "severity-healthy" as const,
+  };
+});
+const transportRouteFreshnessSpotlight = computed(() => {
+  if (!transportSyncStatus.value.hasPersistedSnapshot) {
+    return {
+      label: "No route baseline",
+      detail:
+        "Import a transport snapshot before checking whether the selected route is present in it.",
+      tone: "severity-warning" as const,
+    };
+  }
+
+  const selectedReference = routeDetail.value.reference;
+  const isPresentInLatestImport =
+    transportSyncStatus.value.importedRouteReferences.includes(selectedReference);
+
+  if (isPresentInLatestImport) {
+    return {
+      label: "Route confirmed",
+      detail: `${selectedReference} is present in the latest imported snapshot.`,
+      tone: "severity-healthy" as const,
+    };
+  }
+
+  const nearestReference = latestImportedRoute.value?.reference ?? "the latest import";
+
+  return {
+    label: "Route outside snapshot",
+    detail: `${selectedReference} is not present in the latest snapshot, so ${nearestReference} is the nearest confirmed route.`,
+    tone: "severity-warning" as const,
+  };
+});
+const transportFreshnessChecklist = computed(() => {
+  const refreshActionLabel =
+    transportSyncStatus.value.source === "live" ? "Refresh sync" : "Import snapshot";
+  const refreshActionDetail =
+    transportSyncStatus.value.source === "live"
+      ? "Pull a fresh transport snapshot before trusting the current board."
+      : "Create or refresh the persisted transport snapshot before making decisions.";
+
+  const routeDetailText = transportRouteFreshnessSpotlight.value.detail;
+  const recommendation =
+    transportFreshnessTrust.value.tone === "severity-healthy"
+      ? "Keep the current snapshot in use and monitor cadence for drift."
+      : transportFreshnessTrust.value.tone === "severity-warning"
+      ? "Refresh the snapshot soon and confirm the selected route remains in the latest import."
+      : "Refresh the snapshot immediately and treat the current board as illustrative until trust improves.";
+
+  return {
+    recommendation,
+    items: [
+      {
+        title: "Stabilize the snapshot",
+        detail: refreshActionDetail,
+        actionLabel: refreshActionLabel,
+      },
+      {
+        title: "Check the route spotlight",
+        detail: routeDetailText,
+        actionLabel: "Show selected diff",
+      },
+      {
+        title: "Inspect the evidence chain",
+        detail:
+          "Use the drill-through and lineage cards to confirm whether the age comes from quiet time, retry lag, or a missing sync success.",
+        actionLabel: "Focus route",
+      },
+    ],
+  };
 });
 const selectedRouteStoryHighlights = computed(() => {
   const highlights: Array<{ title: string; detail: string }> = [];
@@ -615,6 +1103,21 @@ function runTransportSupportAction(actionId: TransportSupportActionId): void {
     case "optimization-refresh":
       void refreshRouteOptimization(false);
       return;
+  }
+}
+
+function focusTransportSelectedDiff(): void {
+  selectedTransportDiffFilter.value = "selected";
+}
+
+function focusTransportDiffRoute(routeReference: string): void {
+  const route = overview.value.routes.find(
+    (candidate) => candidate.reference === routeReference
+  );
+
+  if (route) {
+    selectedRouteId.value = route.routeId;
+    selectedTransportDiffFilter.value = "selected";
   }
 }
 
@@ -1204,6 +1707,9 @@ async function setProviderSecret(
 }
 
 onMounted(async () => {
+  freshnessTickerHandle = window.setInterval(() => {
+    syncFreshnessClock.value = Date.now();
+  }, 60000);
   await refreshWorkspace(false);
 });
 
@@ -1239,6 +1745,7 @@ watch(selectedScenarioId, (nextScenarioId, previousScenarioId) => {
 
 onBeforeUnmount(() => {
   window.clearTimeout(connectionRecoveryHandle);
+  window.clearInterval(freshnessTickerHandle);
 });
 </script>
 
@@ -1729,12 +2236,331 @@ onBeforeUnmount(() => {
                 <strong>{{ transportSyncStatus.syncStatusLabel }}</strong>
                 <span>{{ transportSyncStatus.lastActivityLabel }}</span>
               </div>
+
+              <div class="transport-sync-metric">
+                <span class="panel-label">Freshness</span>
+                <strong>{{ transportSyncFreshness.label }}</strong>
+                <span :class="transportSyncFreshness.tone">
+                  {{ transportSyncFreshness.detail }}
+                </span>
+              </div>
             </div>
 
             <div class="transport-sync-delta">
               <span class="panel-label">Route delta</span>
               <p>{{ transportSyncDeltaSummary }}</p>
             </div>
+
+            <div class="transport-sync-escalation">
+              <div class="catalog-editor-heading">
+                <div>
+                  <span class="panel-label">Escalation cues</span>
+                  <h3>When to stop trusting the snapshot</h3>
+                </div>
+                <span class="mini-badge">{{ transportRecoveryCues.length }}</span>
+              </div>
+
+              <ul class="transport-story-list">
+                <li
+                  v-for="cue in transportRecoveryCues"
+                  :key="`${cue.title}-${cue.actionId}`"
+                  class="transport-escalation-item"
+                >
+                  <div class="transport-route-diff-head">
+                    <strong>{{ cue.title }}</strong>
+                    <span class="status-pill" :class="cue.tone">
+                      {{ cue.tone.replace('severity-', '') }}
+                    </span>
+                  </div>
+                  <span>{{ cue.detail }}</span>
+                  <button
+                    type="button"
+                    class="catalog-save-button"
+                    @click="runTransportSupportAction(cue.actionId)"
+                  >
+                    {{ cue.actionLabel }}
+                  </button>
+                </li>
+                <li v-if="transportRecoveryCues.length === 0">
+                  <strong>Fresh enough for now</strong>
+                  <span>
+                    The latest persisted transport snapshot is still recent
+                    enough to keep the current board in active use.
+                  </span>
+                </li>
+              </ul>
+            </div>
+
+            <article
+              class="transport-story-card"
+              id="transport-freshness-drillthrough"
+            >
+              <div class="catalog-editor-heading">
+                <div>
+                  <span class="panel-label">Freshness drill-through</span>
+                  <h3>Why the snapshot looks that way</h3>
+                </div>
+                <span class="mini-badge">{{
+                  transportFreshnessDrillThrough.length
+                }}</span>
+              </div>
+
+              <p class="catalog-summary">
+                {{
+                  transportSyncStatus.hasPersistedSnapshot
+                    ? "Follow the evidence chain below when freshness stops looking trustworthy."
+                    : "There is no persisted snapshot yet, so the board is still on fallback evidence."
+                }}
+              </p>
+
+              <div class="transport-freshness-actions">
+                <button
+                  type="button"
+                  class="transport-freshness-action"
+                  @click="
+                    runTransportSupportAction(
+                      transportSyncStatus.source === 'live'
+                        ? 'sync-refresh'
+                        : 'sync-import'
+                    )
+                  "
+                >
+                  <strong>{{
+                    transportSyncStatus.source === "live"
+                      ? "Refresh sync"
+                      : "Import snapshot"
+                  }}</strong>
+                  <span>
+                    {{
+                      transportSyncStatus.source === "live"
+                        ? "Pull a fresh transport snapshot from the live provider."
+                        : "Create the first persisted transport snapshot for this tenant."
+                    }}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  class="transport-freshness-action"
+                  @click="focusTransportSelectedDiff"
+                >
+                  <strong>Show selected diff</strong>
+                  <span>
+                    Focus the selected route in the latest comparable import
+                    pair.
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  class="transport-freshness-action"
+                  @click="focusTransportDiffRoute(routeDetail.reference)"
+                >
+                  <strong>Focus current route</strong>
+                  <span>
+                    Jump back into the selected route's detail and compare it
+                    with the latest import.
+                  </span>
+                </button>
+              </div>
+
+              <ul class="transport-story-list">
+                <li
+                  v-for="item in transportFreshnessDrillThrough"
+                  :key="item.title"
+                >
+                  <strong>{{ item.title }}</strong>
+                  <span>{{ item.detail }}</span>
+                </li>
+              </ul>
+            </article>
+
+            <article
+              class="transport-story-card"
+              id="transport-freshness-lineage"
+            >
+              <div class="catalog-editor-heading">
+                <div>
+                  <span class="panel-label">Freshness lineage</span>
+                  <h3>How the snapshot aged</h3>
+                </div>
+                <span class="mini-badge">{{
+                  transportFreshnessLineage.length
+                }}</span>
+              </div>
+
+              <p class="catalog-summary">
+                The lineage below shows whether the current age comes from a
+                quiet period, a missing sync success, or a more recent retry.
+              </p>
+
+              <ul class="transport-story-list">
+                <li v-for="item in transportFreshnessLineage" :key="item.title">
+                  <strong>{{ item.title }}</strong>
+                  <span>{{ item.detail }}</span>
+                </li>
+              </ul>
+            </article>
+
+            <article class="transport-story-card" id="transport-sync-cadence">
+              <div class="catalog-editor-heading">
+                <div>
+                  <span class="panel-label">Sync cadence</span>
+                  <h3>How fast freshness is changing</h3>
+                </div>
+                <span class="status-pill" :class="transportSyncCadence.tone">
+                  {{ transportSyncCadence.label }}
+                </span>
+              </div>
+
+              <p class="catalog-summary">
+                {{ transportSyncCadence.detail }}
+              </p>
+
+              <div class="transport-sync-delta">
+                <span class="panel-label">Cadence meaning</span>
+                <p>
+                  {{
+                    transportSyncCadence.tone === "severity-healthy"
+                      ? "The import rhythm is still consistent enough for active operator use."
+                      : transportSyncCadence.tone === "severity-degraded"
+                      ? "Imports are still happening, but the rhythm is slowing and freshness needs attention."
+                      : "The import rhythm is thin or missing, so the snapshot should be treated cautiously."
+                  }}
+                </p>
+              </div>
+            </article>
+
+            <article class="transport-story-card" id="transport-freshness-trust">
+              <div class="catalog-editor-heading">
+                <div>
+                  <span class="panel-label">Trust badge</span>
+                  <h3>How much confidence to place in the snapshot</h3>
+                </div>
+                <span class="status-pill" :class="transportFreshnessTrust.tone">
+                  {{ transportFreshnessTrust.label }}
+                </span>
+              </div>
+
+              <p class="catalog-summary">
+                {{ transportFreshnessTrust.detail }}
+              </p>
+
+              <ul class="transport-story-list">
+                <li>
+                  <strong>Freshness posture</strong>
+                  <span>{{ transportSyncFreshness.label }} - {{ transportSyncFreshness.detail }}</span>
+                </li>
+                <li>
+                  <strong>Health posture</strong>
+                  <span>{{ transportSyncStatus.healthStatus }} - {{ transportSyncStatus.healthSummary }}</span>
+                </li>
+                <li>
+                  <strong>Cadence posture</strong>
+                  <span>{{ transportSyncCadence.label }} - {{ transportSyncCadence.detail }}</span>
+                </li>
+              </ul>
+            </article>
+
+            <article
+              class="transport-story-card"
+              id="transport-route-freshness-spotlight"
+            >
+              <div class="catalog-editor-heading">
+                <div>
+                  <span class="panel-label">Route spotlight</span>
+                  <h3>Where the selected route stands in the latest import</h3>
+                </div>
+                <span class="status-pill" :class="transportRouteFreshnessSpotlight.tone">
+                  {{ transportRouteFreshnessSpotlight.label }}
+                </span>
+              </div>
+
+              <p class="catalog-summary">
+                {{ transportRouteFreshnessSpotlight.detail }}
+              </p>
+
+              <div class="transport-freshness-actions">
+                <button
+                  type="button"
+                  class="transport-freshness-action"
+                  @click="focusTransportSelectedDiff"
+                >
+                  <strong>Show selected diff</strong>
+                  <span>Jump straight to the selected route's import comparison.</span>
+                </button>
+
+                <button
+                  type="button"
+                  class="transport-freshness-action"
+                  @click="focusTransportDiffRoute(routeDetail.reference)"
+                >
+                  <strong>Focus route</strong>
+                  <span>Recenter the transport board on the selected route.</span>
+                </button>
+              </div>
+            </article>
+
+            <article
+              class="transport-story-card"
+              id="transport-freshness-checklist"
+            >
+              <div class="catalog-editor-heading">
+                <div>
+                  <span class="panel-label">Operator checklist</span>
+                  <h3>What to do next when freshness matters</h3>
+                </div>
+                <span class="mini-badge">{{
+                  transportFreshnessChecklist.items.length
+                }}</span>
+              </div>
+
+              <p class="catalog-summary">
+                {{ transportFreshnessChecklist.recommendation }}
+              </p>
+
+              <ul class="transport-story-list">
+                <li v-for="item in transportFreshnessChecklist.items" :key="item.title">
+                  <strong>{{ item.title }}</strong>
+                  <span>{{ item.detail }}</span>
+                </li>
+              </ul>
+
+              <div class="transport-freshness-actions">
+                <button
+                  type="button"
+                  class="transport-freshness-action"
+                  @click="
+                    runTransportSupportAction(
+                      transportSyncStatus.source === 'live'
+                        ? 'sync-refresh'
+                        : 'sync-import'
+                    )
+                  "
+                >
+                  <strong>{{ transportFreshnessChecklist.items[0].actionLabel }}</strong>
+                  <span>{{ transportFreshnessChecklist.items[0].detail }}</span>
+                </button>
+
+                <button
+                  type="button"
+                  class="transport-freshness-action"
+                  @click="focusTransportSelectedDiff"
+                >
+                  <strong>{{ transportFreshnessChecklist.items[1].actionLabel }}</strong>
+                  <span>{{ transportFreshnessChecklist.items[1].detail }}</span>
+                </button>
+
+                <button
+                  type="button"
+                  class="transport-freshness-action"
+                  @click="focusTransportDiffRoute(routeDetail.reference)"
+                >
+                  <strong>{{ transportFreshnessChecklist.items[2].actionLabel }}</strong>
+                  <span>{{ transportFreshnessChecklist.items[2].detail }}</span>
+                </button>
+              </div>
+            </article>
 
             <div class="catalog-block">
               <span class="panel-label">Imported route references</span>
@@ -1877,9 +2703,7 @@ onBeforeUnmount(() => {
                   <span class="panel-label">Historical diff</span>
                   <h3>Latest vs previous import</h3>
                 </div>
-                <span class="mini-badge">{{
-                  transportChangedDiffs.length
-                }}</span>
+                <span class="mini-badge">{{ filteredTransportDiffs.length }}</span>
               </div>
 
               <p class="catalog-summary">
@@ -1919,22 +2743,58 @@ onBeforeUnmount(() => {
                 </div>
               </div>
 
+              <div class="transport-route-diff-focus">
+                <span class="panel-label">Selected route diff</span>
+                <strong>{{ selectedRouteDiffSummary.title }}</strong>
+                <span>{{ selectedRouteDiffSummary.detail }}</span>
+              </div>
+
+              <div class="chip-row transport-diff-filter-row">
+                <button
+                  v-for="filterOption in transportDiffFilterOptions"
+                  :key="filterOption.value"
+                  type="button"
+                  class="catalog-chip transport-diff-filter-chip"
+                  :class="{
+                    'is-muted': selectedTransportDiffFilter !== filterOption.value,
+                    'is-active': selectedTransportDiffFilter === filterOption.value,
+                  }"
+                  @click="selectedTransportDiffFilter = filterOption.value"
+                >
+                  {{ filterOption.label }} ({{ filterOption.count }})
+                </button>
+              </div>
+
               <ul class="transport-story-list">
                 <li
-                  v-for="item in transportChangedDiffs"
+                  v-for="item in filteredTransportDiffs"
                   :key="`${item.routeReference}-${item.changeType}`"
                   class="transport-route-diff-item"
                 >
-                  <strong
-                    >{{ item.routeReference }} - {{ item.changeType }}</strong
-                  >
+                  <div class="transport-route-diff-head">
+                    <strong
+                      >{{ item.routeReference }} - {{ item.changeType }}</strong
+                    >
+                    <button
+                      v-if="
+                        overview.routes.some(
+                          (route) => route.reference === item.routeReference
+                        )
+                      "
+                      type="button"
+                      class="catalog-save-button"
+                      @click="focusTransportDiffRoute(item.routeReference)"
+                    >
+                      Focus route
+                    </button>
+                  </div>
                   <span>{{ item.summary }}</span>
                 </li>
-                <li v-if="transportChangedDiffs.length === 0">
-                  <strong>No route-level deltas yet</strong>
+                <li v-if="filteredTransportDiffs.length === 0">
+                  <strong>No route-level deltas for this filter</strong>
                   <span>
-                    Import another transport snapshot to unlock before/after
-                    drill-down evidence.
+                    Adjust the filter or import another transport snapshot to
+                    expand the before/after drill-down evidence.
                   </span>
                 </li>
               </ul>
@@ -3485,6 +4345,28 @@ onBeforeUnmount(() => {
   color: #cbd5e1;
 }
 
+.transport-route-diff-focus {
+  display: grid;
+  gap: 6px;
+  padding: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.82);
+}
+
+.transport-route-diff-focus strong,
+.transport-route-diff-focus span {
+  margin: 0;
+}
+
+.transport-route-diff-focus strong {
+  color: #f8fafc;
+}
+
+.transport-route-diff-focus span {
+  color: #cbd5e1;
+}
+
 .transport-story-grid {
   display: grid;
   grid-template-columns: 1fr;
@@ -3583,8 +4465,70 @@ onBeforeUnmount(() => {
   opacity: 0.62;
 }
 
+.transport-freshness-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  align-items: stretch;
+  grid-auto-rows: 1fr;
+  gap: 12px;
+}
+
+.transport-freshness-action {
+  display: grid;
+  gap: 6px;
+  padding: 14px;
+  min-height: 100%;
+  text-align: left;
+  color: #e2e8f0;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.82);
+  cursor: pointer;
+}
+
+.transport-freshness-action strong,
+.transport-freshness-action span {
+  margin: 0;
+}
+
+.transport-freshness-action strong {
+  color: #f8fafc;
+}
+
+.transport-freshness-action span {
+  color: #cbd5e1;
+}
+
+.transport-freshness-action:hover {
+  border-color: rgba(96, 165, 250, 0.4);
+  background: rgba(30, 41, 59, 0.9);
+}
+
 .transport-recovery-item {
   align-items: start;
+}
+
+.transport-diff-filter-row {
+  align-items: center;
+}
+
+.transport-diff-filter-chip {
+  cursor: pointer;
+  background: rgba(30, 41, 59, 0.7);
+}
+
+.transport-diff-filter-chip.is-active {
+  color: #f8fafc;
+  border-color: rgba(96, 165, 250, 0.42);
+  background: rgba(37, 99, 235, 0.28);
+}
+
+.transport-route-diff-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
 }
 
 .zone-tile {
@@ -4363,6 +5307,24 @@ onBeforeUnmount(() => {
   .transport-sync-grid,
   .transport-story-grid {
     grid-template-columns: 1fr;
+  }
+
+  .transport-freshness-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .transport-story-card {
+    padding: 14px;
+  }
+
+  .transport-freshness-action {
+    padding: 12px;
+  }
+
+  .catalog-summary,
+  .transport-story-list span,
+  .transport-freshness-action span {
+    line-height: 1.45;
   }
 
   .scenario-select select,

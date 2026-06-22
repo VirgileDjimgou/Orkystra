@@ -53,10 +53,18 @@ Use this checklist before a demo, a local release candidate, or a staging handof
 - Route selector swaps between at least two API-backed route detail views
 - Transport board shows a transport sync card with source posture, health badge, imported route count, and imported route references
 - The `Import snapshot` action refreshes the sync card and keeps the transport board readable without layout overlap
+- Transport sync card shows a freshness badge with an approximate age for the latest persisted snapshot
+- The board surfaces escalation cues when the latest snapshot is aging, stale, or expired
 - Transport board shows a historical diff card with latest-versus-previous counts plus route-level changed/added/removed storytelling
 - Transport board shows support shortcuts for `Import snapshot`, `Refresh sync`, `Refresh route`, and `Re-run optimization`
 - Recovery cues point to a useful next action when sync posture is degraded, route detail is stale, optimization is stale, or the selected route is outside the latest import
+- Freshness warning opens a drill-through panel that ties the warning back to last import, sync posture, historical diff, selected route, and latest sync note
+- Transport board shows a freshness lineage card, sync cadence card, trust badge, selected-route spotlight, and operator checklist for the current transport snapshot
+- Chrome-driven browser QA should confirm the five freshness cards remain readable together at desktop width
+- On mobile-width viewports, the freshness actions stack cleanly and keep consistent spacing and height
 - Transport board shows a route storyline card for the selected route plus a recent sync timeline that reflects `transport-sync-import` workflow runs
+- The historical diff panel supports filter-based triage for changed, added, removed, selected-route, and all route deltas
+- Diff rows can focus the corresponding current route when that route still exists in the latest transport board
 - On a wide desktop viewport, the transport sync metrics, storyline, timeline, and route-detail lists remain readable without collapsing into cramped multi-column blocks
 - Transport board and detail panels render without overlap on desktop and mobile-width viewports
 - AI workflow panel renders a grounded recommendation, shows confidence, and exposes evidence and missing-data context

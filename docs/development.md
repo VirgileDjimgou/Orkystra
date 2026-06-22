@@ -2,6 +2,20 @@
 
 Run commands from the repository root unless noted.
 
+## Autonomous Continuation
+
+Use this command in Codex or GitHub Copilot when you want a longer supervised run:
+
+```text
+Smart Logistic continue
+```
+
+This means: read project memory, then execute up to 5 consecutive unfinished sprints, one sprint at a time.
+
+The agent must stop early if a sprint needs human approval, secrets, paid external services, destructive migration work, or a build/test failure that cannot be repaired in the current session.
+
+The canonical local prompt is `prompts/SMART_LOGISTIC_CONTINUE_5_SPRINTS.md`. GitHub Copilot also reads `.github/copilot-instructions.md`, which contains the same batch-mode rule in a tracked file.
+
 ## Backend
 
 ```powershell
@@ -167,7 +181,13 @@ When a persisted transport snapshot exists, `GET /api/transport/routes` and `GET
 The operator workspace now surfaces that same transport sync evidence directly in the transport board, including source posture, imported route count, last import freshness, and a local `Import snapshot` action for the current tenant.
 The transport board now also tells a small route-by-route story around that sync evidence: it shows whether the selected route is present in the latest import, how far deliveries have progressed, and the most recent transport-sync timeline entries recorded in the operational trace.
 The transport board now includes a compact support layer for operator recovery: shortcut actions to refresh sync evidence, reload the selected route, re-run optimization, and jump to a route confirmed by the latest import, plus recovery cues that explain which follow-up action is most useful when transport data is stale, degraded, or outside the latest snapshot.
+The historical diff panel now supports operator triage as well: you can filter deltas by changed, added, removed, selected-route, or all evidence, and jump directly from a diff row back into the current route detail when that route still exists in the latest board.
+The transport sync card now shows a freshness state with an approximate age for the latest persisted snapshot, and the board surfaces escalation cues that tell the operator when the import is getting old enough that it should no longer be trusted at face value.
 The transport board now includes a historical diff drill-down that compares the latest two imported snapshots, including route counts, added/removed/changed totals, and route-level change summaries.
+The latest freshness warning now drills through to a dedicated evidence panel that ties the snapshot age back to the last import time, sync posture, historical diff, selected route, and latest sync note, so the operator can move from symptom to cause without leaving the transport board.
+The freshness story now extends one step further with a lineage card, a sync cadence card, a trust badge, a selected-route spotlight, and a short operator checklist so the next action is obvious when the snapshot starts to age.
+Chrome-driven browser QA confirmed that the five-card transport freshness cluster stays readable together at desktop width.
+The mobile viewport polish pass tightened the freshness action cards so they stack cleanly on narrow screens, and the freshness actions now share a consistent height and spacing rhythm.
 
 ## Python Services
 
