@@ -1,31 +1,32 @@
 using Orkystra.Application.Connectors;
-using Orkystra.Application.Connectors.Providers;
 using Orkystra.Contracts.Connectors;
 
 namespace Orkystra.Api.Connectors;
 
 public sealed class ProviderCatalogService
 {
-    private readonly ProviderRegistry _providerRegistry;
+    private readonly ProviderRegistryFactory _providerRegistryFactory;
     private readonly ProviderRuntimeStore _runtimeStore;
 
     public ProviderCatalogService(ProviderRuntimeStore runtimeStore)
     {
         _runtimeStore = runtimeStore;
-        _providerRegistry = new ProviderRegistry(
-        [
-            new CsvWarehouseImportProvider(),
-            new RestTransportProvider(),
-            new GpsTelematicsProvider()
-        ]);
+        _providerRegistryFactory = new ProviderRegistryFactory();
+    }
+
+    public ProviderCatalogService(ProviderRuntimeStore runtimeStore, ProviderRegistryFactory providerRegistryFactory)
+    {
+        _runtimeStore = runtimeStore;
+        _providerRegistryFactory = providerRegistryFactory;
     }
 
     public async ValueTask<ProviderCatalogResponse> BuildCatalogAsync(CancellationToken cancellationToken = default)
     {
         var generatedAtUtc = DateTimeOffset.UtcNow;
         var providers = new List<ProviderCatalogItemReadModel>();
+        var providerRegistry = _providerRegistryFactory.CreateRegistry();
 
-        foreach (var provider in _providerRegistry.ListAll())
+        foreach (var provider in providerRegistry.ListAll())
         {
             var health = await provider.GetHealthAsync(cancellationToken);
             var syncStatus = await provider.GetSyncStatusAsync(cancellationToken);

@@ -1,3 +1,5 @@
+using System.Net.Http.Json;
+using System.Text.Json;
 using Orkystra.Contracts.Connectors;
 using Orkystra.Contracts.Transport;
 
@@ -5,6 +7,20 @@ namespace Orkystra.Application.Connectors.Providers;
 
 public sealed class RestTransportProvider : ITransportProjectionProviderAdapter
 {
+    private readonly HttpClient? _httpClient;
+    private readonly RestTransportProviderConfiguration _configuration;
+
+    public RestTransportProvider()
+        : this(httpClient: null, RestTransportProviderConfiguration.LocalDemo)
+    {
+    }
+
+    public RestTransportProvider(HttpClient? httpClient, RestTransportProviderConfiguration configuration)
+    {
+        _httpClient = httpClient;
+        _configuration = configuration;
+    }
+
     public string ProviderId => "rest-transport-adapter";
 
     public string ProviderName => "REST Transport Adapter";
@@ -13,16 +29,50 @@ public sealed class RestTransportProvider : ITransportProjectionProviderAdapter
 
     public ProviderKind Kind => ProviderKind.Connector;
 
-    public ValueTask<ProviderHealthReport> GetHealthAsync(CancellationToken cancellationToken = default)
+    public async ValueTask<ProviderHealthReport> GetHealthAsync(CancellationToken cancellationToken = default)
     {
-        return ValueTask.FromResult(
-            new ProviderHealthReport(
-                ProviderId,
-                ProviderName,
+        if (!_configuration.Enabled)
+        {
+            return BuildHealthReport(
                 ProviderHealthStatus.Degraded,
-                DateTimeOffset.UtcNow,
-                "REST adapter skeleton is available but not yet configured against a live upstream service.",
-                ["endpoint-unconfigured", "schema-ready"]));
+                "REST transport provider is disabled in the current runtime configuration.",
+                ["provider-disabled"]);
+        }
+
+        if (!IsLiveModeConfigured())
+        {
+            return BuildHealthReport(
+                ProviderHealthStatus.Degraded,
+                "REST adapter is available in demo fallback mode because no valid live upstream endpoint is configured yet.",
+                ["endpoint-unconfigured", "schema-ready", "demo-fallback"]);
+        }
+
+        try
+        {
+            var healthResponse = await SendAsync("health", cancellationToken);
+            if (healthResponse?.IsSuccessStatusCode == true)
+            {
+                var payload = await healthResponse.Content.ReadFromJsonAsync<LiveTransportHealthPayload>(cancellationToken);
+                return BuildHealthReport(
+                    MapHealthStatus(payload?.Status),
+                    payload?.Summary ?? $"Live transport endpoint {_configuration.BaseUrl} responded successfully.",
+                    payload?.Signals?.Count > 0
+                        ? payload.Signals
+                        : ["live-endpoint-configured", "schema-ready"]);
+            }
+
+            return BuildHealthReport(
+                ProviderHealthStatus.Degraded,
+                $"Live transport endpoint {_configuration.BaseUrl} is configured, but its health probe is unavailable.",
+                ["health-probe-unavailable", "live-endpoint-configured"]);
+        }
+        catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or JsonException)
+        {
+            return BuildHealthReport(
+                ProviderHealthStatus.Degraded,
+                $"Live transport endpoint {_configuration.BaseUrl} could not be reached. Demo fallback remains active. {exception.Message}",
+                ["live-endpoint-unreachable", "demo-fallback"]);
+        }
     }
 
     public ValueTask<ProviderCapabilitySet> GetCapabilitiesAsync(CancellationToken cancellationToken = default)
@@ -40,6 +90,30 @@ public sealed class RestTransportProvider : ITransportProjectionProviderAdapter
 
     public ValueTask<ProviderSyncStatus> GetSyncStatusAsync(CancellationToken cancellationToken = default)
     {
+        if (!_configuration.Enabled)
+        {
+            return ValueTask.FromResult(
+                new ProviderSyncStatus(
+                    ProviderId,
+                    "pull",
+                    null,
+                    DateTimeOffset.UtcNow,
+                    "disabled",
+                    "Provider runtime configuration is currently disabled."));
+        }
+
+        if (IsLiveModeConfigured())
+        {
+            return ValueTask.FromResult(
+                new ProviderSyncStatus(
+                    ProviderId,
+                    "pull",
+                    null,
+                    DateTimeOffset.UtcNow,
+                    "live-configured",
+                    $"Configured to pull transport projections from {_configuration.BaseUrl}."));
+        }
+
         return ValueTask.FromResult(
             new ProviderSyncStatus(
                 ProviderId,
@@ -66,8 +140,14 @@ public sealed class RestTransportProvider : ITransportProjectionProviderAdapter
                 ]));
     }
 
-    public ValueTask<IReadOnlyCollection<RouteSummaryReadModel>> ReadRoutesAsync(CancellationToken cancellationToken = default)
+    public async ValueTask<IReadOnlyCollection<RouteSummaryReadModel>> ReadRoutesAsync(CancellationToken cancellationToken = default)
     {
+        var liveRoutes = await TryReadLiveAsync<IReadOnlyCollection<RouteSummaryReadModel>>("routes", cancellationToken);
+        if (liveRoutes is not null && liveRoutes.Count > 0)
+        {
+            return liveRoutes;
+        }
+
         IReadOnlyCollection<RouteSummaryReadModel> routes = BuildRouteDetails()
             .Select(route => new RouteSummaryReadModel(
                 route.RouteId,
@@ -80,13 +160,108 @@ public sealed class RestTransportProvider : ITransportProjectionProviderAdapter
                 route.CompletedDeliveryCount))
             .ToArray();
 
-        return ValueTask.FromResult(routes);
+        return routes;
     }
 
-    public ValueTask<IReadOnlyCollection<RouteDetailReadModel>> ReadRouteDetailsAsync(CancellationToken cancellationToken = default)
+    public async ValueTask<IReadOnlyCollection<RouteDetailReadModel>> ReadRouteDetailsAsync(CancellationToken cancellationToken = default)
     {
-        return ValueTask.FromResult(BuildRouteDetails());
+        var liveRoutes = await TryReadLiveAsync<IReadOnlyCollection<RouteDetailReadModel>>("routes/details", cancellationToken);
+        return liveRoutes is { Count: > 0 } ? liveRoutes : BuildRouteDetails();
     }
+
+    private bool IsLiveModeConfigured()
+    {
+        if (string.IsNullOrWhiteSpace(_configuration.BaseUrl))
+        {
+            return false;
+        }
+
+        if (!Uri.TryCreate(_configuration.BaseUrl, UriKind.Absolute, out var uri))
+        {
+            return false;
+        }
+
+        return (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps)
+            && !uri.Host.EndsWith(".invalid", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private async Task<T?> TryReadLiveAsync<T>(string path, CancellationToken cancellationToken)
+    {
+        if (!IsLiveModeConfigured())
+        {
+            return default;
+        }
+
+        try
+        {
+            var response = await SendAsync(path, cancellationToken);
+            if (response?.IsSuccessStatusCode != true)
+            {
+                return default;
+            }
+
+            return await response.Content.ReadFromJsonAsync<T>(cancellationToken);
+        }
+        catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or JsonException)
+        {
+            return default;
+        }
+    }
+
+    private async Task<HttpResponseMessage?> SendAsync(string path, CancellationToken cancellationToken)
+    {
+        if (_httpClient is null || !IsLiveModeConfigured())
+        {
+            return null;
+        }
+
+        using var request = new HttpRequestMessage(HttpMethod.Get, BuildRequestUri(path));
+        if (string.Equals(_configuration.AuthMode, "api-key", StringComparison.OrdinalIgnoreCase) &&
+            !string.IsNullOrWhiteSpace(_configuration.ApiKey))
+        {
+            request.Headers.TryAddWithoutValidation("X-Api-Key", _configuration.ApiKey);
+        }
+
+        return await _httpClient.SendAsync(request, cancellationToken);
+    }
+
+    private string BuildRequestUri(string path)
+    {
+        var baseUrl = _configuration.BaseUrl!.TrimEnd('/');
+        return $"{baseUrl}/{path.TrimStart('/')}";
+    }
+
+    private ProviderHealthReport BuildHealthReport(
+        ProviderHealthStatus status,
+        string summary,
+        IReadOnlyCollection<string> signals)
+    {
+        return new ProviderHealthReport(
+            ProviderId,
+            ProviderName,
+            status,
+            DateTimeOffset.UtcNow,
+            summary,
+            signals);
+    }
+
+    private static ProviderHealthStatus MapHealthStatus(string? status)
+    {
+        return status?.Trim().ToLowerInvariant() switch
+        {
+            "healthy" => ProviderHealthStatus.Healthy,
+            "warning" => ProviderHealthStatus.Degraded,
+            "degraded" => ProviderHealthStatus.Degraded,
+            "critical" => ProviderHealthStatus.Unhealthy,
+            "unhealthy" => ProviderHealthStatus.Unhealthy,
+            _ => ProviderHealthStatus.Healthy
+        };
+    }
+
+    private sealed record LiveTransportHealthPayload(
+        string? Status,
+        string? Summary,
+        IReadOnlyCollection<string>? Signals);
 
     private static IReadOnlyCollection<RouteDetailReadModel> BuildRouteDetails()
     {

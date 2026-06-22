@@ -20,6 +20,11 @@ import {
   type AiRecommendationEnvelopeView,
 } from './services/aiApi'
 import { loadControlTowerOverview } from './services/controlTowerApi'
+import {
+  buildFallbackOperationalActivity,
+  loadOperationalActivity,
+  type OperationalActivityView,
+} from './services/observabilityApi'
 import { loadRouteOptimization } from './services/optimizationApi'
 import { loadProviderCatalog, updateProviderConfiguration } from './services/providerCatalogApi'
 import { loadWarehouseProjection } from './services/warehouseApi'
@@ -55,6 +60,10 @@ const aiQuestion = ref('Which route should the dispatcher review first?')
 const aiRecommendationErrorMessage = ref<string | null>(null)
 const aiConnectionState = ref<DataConnectionState>('loading')
 const isRequestingAi = ref(false)
+const operationalActivity = ref<OperationalActivityView>(buildFallbackOperationalActivity())
+const operationalActivityErrorMessage = ref<string | null>(null)
+const operationalConnectionState = ref<DataConnectionState>('loading')
+const isRefreshingOperationalActivity = ref(false)
 const routeOptimization = ref<RouteOptimizationView>(buildFallbackRouteOptimization(routeDetail.value))
 const routeOptimizationErrorMessage = ref<string | null>(null)
 const routeOptimizationConnectionState = ref<DataConnectionState>('loading')
@@ -132,6 +141,8 @@ const transportProjectionLabel = computed(() => labelForConnectionState(routeCon
 const catalogConnectionLabel = computed(() => labelForConnectionState(providerCatalogConnectionState.value, 'Editable local API', 'Read-only fallback'))
 const aiWorkflowTone = computed(() => toneForConnectionState(aiConnectionState.value))
 const aiWorkflowLabel = computed(() => labelForConnectionState(aiConnectionState.value, 'AI workflow live', 'AI fallback'))
+const operationalWorkflowTone = computed(() => toneForConnectionState(operationalConnectionState.value))
+const operationalWorkflowLabel = computed(() => labelForConnectionState(operationalConnectionState.value, 'Operational trace live', 'Operational trace fallback'))
 const optimizationWorkflowTone = computed(() => toneForConnectionState(routeOptimizationConnectionState.value))
 const optimizationWorkflowLabel = computed(() => labelForConnectionState(routeOptimizationConnectionState.value, 'Optimization live', 'Optimization fallback'))
 const aiRecommendationView = computed(() => aiRecommendation.value?.recommendation ?? null)
@@ -171,6 +182,7 @@ const connectionMessage = computed(() => {
     routeDetailErrorMessage.value ??
     providerCatalogErrorMessage.value ??
     aiRecommendationErrorMessage.value ??
+    operationalActivityErrorMessage.value ??
     routeOptimizationErrorMessage.value ??
     'All local data surfaces are ready.'
 })
@@ -340,6 +352,25 @@ function applyAiRecommendationResult(result: Awaited<ReturnType<typeof loadAiRec
     : result.errorMessage
 }
 
+function applyOperationalActivityResult(result: Awaited<ReturnType<typeof loadOperationalActivity>>, preserveExisting: boolean): void {
+  const keepCurrentSnapshot = preserveExisting &&
+    result.source === 'fallback' &&
+    (operationalConnectionState.value === 'api' || operationalConnectionState.value === 'stale')
+
+  if (!keepCurrentSnapshot) {
+    operationalActivity.value = result.activity
+  }
+
+  operationalConnectionState.value = keepCurrentSnapshot
+    ? 'stale'
+    : result.source === 'api'
+      ? 'api'
+      : 'fallback'
+  operationalActivityErrorMessage.value = keepCurrentSnapshot && result.errorMessage
+    ? `${result.errorMessage} Keeping the last successful operational trace.`
+    : result.errorMessage
+}
+
 function applyRouteOptimizationResult(result: Awaited<ReturnType<typeof loadRouteOptimization>>, preserveExisting: boolean, requestedRouteId: string): void {
   const keepCurrentSnapshot = preserveExisting &&
     result.source === 'fallback' &&
@@ -378,7 +409,7 @@ async function refreshTransportProjection(routeId: string, preserveExisting = tr
   applyTransportProjectionResult(result, preserveExisting, routeId)
 }
 
-async function refreshAiRecommendation(preserveExisting = true): Promise<void> {
+async function refreshAiRecommendation(preserveExisting = true, syncOperationalTrace = true): Promise<void> {
   isRequestingAi.value = true
 
   if (!preserveExisting) {
@@ -391,12 +422,31 @@ async function refreshAiRecommendation(preserveExisting = true): Promise<void> {
       scenarioId: selectedScenarioId.value,
     })
     applyAiRecommendationResult(result, preserveExisting)
+
+    if (syncOperationalTrace) {
+      await refreshOperationalActivity(true)
+    }
   } finally {
     isRequestingAi.value = false
   }
 }
 
-async function refreshRouteOptimization(preserveExisting = true): Promise<void> {
+async function refreshOperationalActivity(preserveExisting = true): Promise<void> {
+  isRefreshingOperationalActivity.value = true
+
+  if (!preserveExisting) {
+    operationalConnectionState.value = 'loading'
+  }
+
+  try {
+    const result = await loadOperationalActivity()
+    applyOperationalActivityResult(result, preserveExisting)
+  } finally {
+    isRefreshingOperationalActivity.value = false
+  }
+}
+
+async function refreshRouteOptimization(preserveExisting = true, syncOperationalTrace = true): Promise<void> {
   isOptimizingRoute.value = true
 
   if (!preserveExisting) {
@@ -406,6 +456,10 @@ async function refreshRouteOptimization(preserveExisting = true): Promise<void> 
   try {
     const result = await loadRouteOptimization(routeDetail.value, selectedScenarioId.value)
     applyRouteOptimizationResult(result, preserveExisting, routeDetail.value.routeId)
+
+    if (syncOperationalTrace) {
+      await refreshOperationalActivity(true)
+    }
   } finally {
     isOptimizingRoute.value = false
   }
@@ -420,6 +474,7 @@ async function refreshWorkspace(preserveExisting = true): Promise<void> {
     routeConnectionState.value = 'loading'
     providerCatalogConnectionState.value = 'loading'
     aiConnectionState.value = 'loading'
+    operationalConnectionState.value = 'loading'
     routeOptimizationConnectionState.value = 'loading'
   }
 
@@ -428,13 +483,14 @@ async function refreshWorkspace(preserveExisting = true): Promise<void> {
   applyCatalogResult(catalogResult, preserveExisting)
   await refreshWarehouseProjection(selectedWarehouseId.value, preserveExisting)
   await refreshTransportProjection(selectedRouteId.value, preserveExisting)
-  await refreshRouteOptimization(preserveExisting)
-  await refreshAiRecommendation(preserveExisting)
+  await refreshRouteOptimization(preserveExisting, false)
+  await refreshAiRecommendation(preserveExisting, false)
+  await refreshOperationalActivity(preserveExisting)
   isRefreshingWorkspace.value = false
 
   const hasPartialFallback =
-    [overviewConnectionState.value, warehouseConnectionState.value, routeConnectionState.value, providerCatalogConnectionState.value, aiConnectionState.value, routeOptimizationConnectionState.value].some((state) => state === 'fallback') &&
-    [overviewConnectionState.value, warehouseConnectionState.value, routeConnectionState.value, providerCatalogConnectionState.value, aiConnectionState.value, routeOptimizationConnectionState.value].some((state) => state === 'api' || state === 'stale')
+    [overviewConnectionState.value, warehouseConnectionState.value, routeConnectionState.value, providerCatalogConnectionState.value, aiConnectionState.value, operationalConnectionState.value, routeOptimizationConnectionState.value].some((state) => state === 'fallback') &&
+    [overviewConnectionState.value, warehouseConnectionState.value, routeConnectionState.value, providerCatalogConnectionState.value, aiConnectionState.value, operationalConnectionState.value, routeOptimizationConnectionState.value].some((state) => state === 'api' || state === 'stale')
 
   if (hasPartialFallback) {
     window.clearTimeout(connectionRecoveryHandle)
@@ -471,6 +527,7 @@ async function saveProviderConfiguration(provider: ProviderCatalogItemView): Pro
     })
 
     await refreshProviderCatalog(true)
+    await refreshOperationalActivity(true)
     providerConfigurationNotice.value = {
       ...providerConfigurationNotice.value,
       [provider.providerId]: 'Saved locally.',
@@ -704,6 +761,17 @@ onBeforeUnmount(() => {
               <span class="status-pill" :class="optimizationWorkflowTone">{{ optimizationWorkflowLabel }}</span>
             </div>
             <p>{{ routeOptimizationErrorMessage ?? `Optimization review ready for ${routeOptimization.routeReference}.` }}</p>
+          </article>
+
+          <article class="connection-card">
+            <div class="connection-card-head">
+              <div>
+                <strong>Operational trace</strong>
+                <p>Persisted snapshots, workflow runs, and recent audit evidence.</p>
+              </div>
+              <span class="status-pill" :class="operationalWorkflowTone">{{ operationalWorkflowLabel }}</span>
+            </div>
+            <p>{{ operationalActivityErrorMessage ?? `Trace panel ready with ${operationalActivity.workflowRuns.length} workflow runs.` }}</p>
           </article>
         </div>
 
@@ -1259,6 +1327,108 @@ onBeforeUnmount(() => {
         </div>
       </section>
 
+      <section class="surface operations-surface">
+        <div class="surface-heading">
+          <div>
+            <span class="panel-label">Operational trace</span>
+            <h2>Recent persisted activity</h2>
+          </div>
+          <div class="catalog-heading-meta">
+            <span class="status-pill" :class="operationalWorkflowTone">
+              {{ operationalWorkflowLabel }}
+            </span>
+            <button
+              type="button"
+              class="catalog-save-button"
+              :disabled="isRefreshingOperationalActivity"
+              @click="refreshOperationalActivity(false)"
+            >
+              {{ isRefreshingOperationalActivity ? 'Refreshing trace...' : 'Refresh trace' }}
+            </button>
+          </div>
+        </div>
+
+        <div class="operations-summary-grid">
+          <article class="optimization-summary-card">
+            <span class="panel-label">Trace posture</span>
+            <p class="catalog-summary">
+              {{ operationalActivityErrorMessage ?? 'The operator workspace can now inspect persisted snapshots, workflow runs, and audit entries without opening backend files directly.' }}
+            </p>
+            <div class="catalog-meta">
+              <span>{{ operationalActivity.workflowRuns.length }} workflow runs</span>
+              <span>{{ operationalActivity.projectionSnapshots.length }} snapshots</span>
+              <span>{{ operationalActivity.auditEntries.length }} audit entries</span>
+            </div>
+          </article>
+
+          <article class="optimization-summary-card">
+            <span class="panel-label">Why it matters</span>
+            <p class="catalog-summary">
+              This is the demo bridge between product behavior and operational evidence: every recommendation, optimization, and projection refresh can now be traced back to persisted backend state.
+            </p>
+          </article>
+        </div>
+
+        <div class="operations-grid">
+          <article class="operations-card">
+            <div class="surface-heading">
+              <div>
+                <span class="panel-label">Workflow runs</span>
+                <h3>AI and optimization</h3>
+              </div>
+              <span class="mini-badge">{{ operationalActivity.workflowRuns.length }} items</span>
+            </div>
+
+            <ul class="detail-list">
+              <li v-for="run in operationalActivity.workflowRuns" :key="run.id">
+                <strong>{{ run.workflowKind }}</strong>
+                <span>{{ run.subjectLabel }} - {{ run.status }} - {{ run.source }}</span>
+                <span>{{ run.scenarioLabel }} - {{ run.createdAtLabel }}</span>
+                <span>{{ run.summary }}</span>
+              </li>
+            </ul>
+          </article>
+
+          <article class="operations-card">
+            <div class="surface-heading">
+              <div>
+                <span class="panel-label">Projection snapshots</span>
+                <h3>Persisted read models</h3>
+              </div>
+              <span class="mini-badge">{{ operationalActivity.projectionSnapshots.length }} items</span>
+            </div>
+
+            <ul class="detail-list">
+              <li v-for="snapshot in operationalActivity.projectionSnapshots" :key="snapshot.id">
+                <strong>{{ snapshot.projectionName }}</strong>
+                <span>{{ snapshot.projectionKey }} - {{ snapshot.source }}</span>
+                <span>{{ snapshot.capturedAtLabel }}</span>
+                <span>{{ snapshot.summary }}</span>
+              </li>
+            </ul>
+          </article>
+
+          <article class="operations-card">
+            <div class="surface-heading">
+              <div>
+                <span class="panel-label">Audit trail</span>
+                <h3>Protected API activity</h3>
+              </div>
+              <span class="mini-badge">{{ operationalActivity.auditEntries.length }} items</span>
+            </div>
+
+            <ul class="detail-list">
+              <li v-for="entry in operationalActivity.auditEntries" :key="entry.id">
+                <strong>{{ entry.actionLabel }}</strong>
+                <span>Status {{ entry.statusCode }} - {{ entry.occurredAtLabel }}</span>
+                <span>Correlation {{ entry.correlationId }}</span>
+                <span>{{ entry.summary }}</span>
+              </li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
       <section class="surface catalog-surface">
         <div class="surface-heading">
           <div>
@@ -1755,6 +1925,10 @@ onBeforeUnmount(() => {
   margin-top: 16px;
 }
 
+.operations-surface {
+  margin-top: 16px;
+}
+
 .catalog-heading-meta {
   display: flex;
   flex-wrap: wrap;
@@ -1805,6 +1979,18 @@ onBeforeUnmount(() => {
 .optimization-grid.is-detail {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   margin-top: 14px;
+}
+
+.operations-summary-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 14px;
+}
+
+.operations-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
 }
 
 .controls-surface,
@@ -2129,6 +2315,15 @@ onBeforeUnmount(() => {
 }
 
 .catalog-card {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 8px;
+  background: rgba(8, 17, 31, 0.72);
+}
+
+.operations-card {
   display: grid;
   gap: 12px;
   padding: 16px;
@@ -2462,6 +2657,8 @@ onBeforeUnmount(() => {
   .detail-columns,
   .zone-strip,
   .ai-workflow-grid,
+  .operations-summary-grid,
+  .operations-grid,
   .optimization-grid,
   .optimization-grid.is-detail {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2532,6 +2729,8 @@ onBeforeUnmount(() => {
   .detail-columns,
   .catalog-grid,
   .ai-workflow-grid,
+  .operations-summary-grid,
+  .operations-grid,
   .optimization-grid,
   .optimization-grid.is-detail {
     grid-template-columns: 1fr;

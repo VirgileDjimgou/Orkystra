@@ -1,26 +1,26 @@
 using Orkystra.Application.Connectors;
-using Orkystra.Application.Connectors.Providers;
+using Orkystra.Api.Connectors;
 using Orkystra.Contracts.Warehouse;
 
 namespace Orkystra.Api.ControlTower;
 
 public sealed class WarehouseProjectionService
 {
-    private readonly ProviderRegistry _providerRegistry;
+    private readonly ProviderRegistryFactory _providerRegistryFactory;
 
     public WarehouseProjectionService()
     {
-        _providerRegistry = new ProviderRegistry(
-        [
-            new CsvWarehouseImportProvider(),
-            new RestTransportProvider(),
-            new GpsTelematicsProvider()
-        ]);
+        _providerRegistryFactory = new ProviderRegistryFactory();
+    }
+
+    public WarehouseProjectionService(ProviderRegistryFactory providerRegistryFactory)
+    {
+        _providerRegistryFactory = providerRegistryFactory;
     }
 
     public async ValueTask<IReadOnlyCollection<WarehouseSummaryReadModel>> ListAsync(CancellationToken cancellationToken = default)
     {
-        var warehouseProvider = _providerRegistry.ListByDomain(ProviderDomain.Warehouse)
+        var warehouseProvider = _providerRegistryFactory.CreateRegistry().ListByDomain(ProviderDomain.Warehouse)
             .OfType<IWarehouseProviderAdapter>()
             .First();
 
@@ -29,7 +29,7 @@ public sealed class WarehouseProjectionService
 
     public async ValueTask<WarehouseDetailReadModel?> GetByIdAsync(Guid warehouseId, CancellationToken cancellationToken = default)
     {
-        var warehouseProvider = _providerRegistry.ListByDomain(ProviderDomain.Warehouse)
+        var warehouseProvider = _providerRegistryFactory.CreateRegistry().ListByDomain(ProviderDomain.Warehouse)
             .OfType<IWarehouseProjectionProviderAdapter>()
             .FirstOrDefault();
 

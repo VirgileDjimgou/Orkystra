@@ -1,26 +1,26 @@
 using Orkystra.Application.Connectors;
-using Orkystra.Application.Connectors.Providers;
+using Orkystra.Api.Connectors;
 using Orkystra.Contracts.Transport;
 
 namespace Orkystra.Api.ControlTower;
 
 public sealed class TransportProjectionService
 {
-    private readonly ProviderRegistry _providerRegistry;
+    private readonly ProviderRegistryFactory _providerRegistryFactory;
 
     public TransportProjectionService()
     {
-        _providerRegistry = new ProviderRegistry(
-        [
-            new CsvWarehouseImportProvider(),
-            new RestTransportProvider(),
-            new GpsTelematicsProvider()
-        ]);
+        _providerRegistryFactory = new ProviderRegistryFactory();
+    }
+
+    public TransportProjectionService(ProviderRegistryFactory providerRegistryFactory)
+    {
+        _providerRegistryFactory = providerRegistryFactory;
     }
 
     public async ValueTask<IReadOnlyCollection<RouteSummaryReadModel>> ListAsync(CancellationToken cancellationToken = default)
     {
-        var transportProvider = _providerRegistry.ListByDomain(ProviderDomain.Transport)
+        var transportProvider = _providerRegistryFactory.CreateRegistry().ListByDomain(ProviderDomain.Transport)
             .OfType<ITransportProviderAdapter>()
             .First();
 
@@ -29,7 +29,7 @@ public sealed class TransportProjectionService
 
     public async ValueTask<RouteDetailReadModel?> GetByIdAsync(Guid routeId, CancellationToken cancellationToken = default)
     {
-        var transportProvider = _providerRegistry.ListByDomain(ProviderDomain.Transport)
+        var transportProvider = _providerRegistryFactory.CreateRegistry().ListByDomain(ProviderDomain.Transport)
             .OfType<ITransportProjectionProviderAdapter>()
             .FirstOrDefault();
 

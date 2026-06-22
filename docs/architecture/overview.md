@@ -234,3 +234,24 @@ Sprint 23 introduces the first structured operational persistence layer in `Orky
 - protected observability endpoints now expose recent persisted snapshots and workflow runs without asking developers to open ad hoc local files
 
 This is intentionally a foundation rather than the final storage architecture. It centralizes persistence behavior and makes it queryable, while still leaving room for a future Postgres-backed or event-driven evolution.
+
+## Demo-Ready Operational Polish
+
+Sprint 24 turns that persistence foundation into a visible operator story:
+
+- the frontend now exposes an `Operational trace` surface that shows recent workflow runs, persisted snapshots, and audit entries
+- workspace refreshes, AI requests, optimization requests, and provider-configuration saves now naturally feed that trace
+- the control tower can now demonstrate not only decisions and recommendations, but also the persisted evidence trail behind them
+
+This makes the product feel more supportable and more believable in a near-final demo, even though the underlying providers are still mostly demo-backed.
+
+## Live Provider Integration Foundations
+
+Sprint 25 starts the transition from demo-only connectors toward real upstream transport data:
+
+- `ProviderRegistryFactory` now builds connector registries from current runtime configuration, so API services stop hardcoding provider instances
+- the REST transport adapter can now probe `/health` and read `/routes` plus `/routes/details` from a configured upstream HTTP endpoint
+- placeholder or incomplete runtime settings intentionally keep the adapter in demo fallback mode, which preserves local stability while allowing disciplined live bring-up
+- backend tests now cover both successful live reads and safe fallback behavior
+
+This is still an early integration slice rather than a full enterprise connector, but it is the first real bridge between Orkystra's canonical transport projections and an external provider surface.

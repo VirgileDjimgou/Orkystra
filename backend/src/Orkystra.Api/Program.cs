@@ -56,6 +56,10 @@ builder.Services.AddSingleton(provider => new ProviderRuntimeStore(
 builder.Services.AddSingleton(provider => new OperationalPersistenceStore(
     provider.GetRequiredService<IOptions<OperationalPersistenceOptions>>(),
     builder.Environment.ContentRootPath));
+builder.Services.AddHttpClient("provider-rest-transport", client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(5);
+});
 builder.Services.AddHttpClient<AiWorkflowService>((provider, client) =>
 {
     var options = provider.GetRequiredService<IOptions<AiServiceOptions>>().Value;
@@ -68,6 +72,7 @@ builder.Services.AddHttpClient<RouteOptimizationWorkflowService>((provider, clie
     client.BaseAddress = new Uri(options.BaseUrl, UriKind.Absolute);
     client.Timeout = TimeSpan.FromSeconds(options.TimeoutSeconds);
 });
+builder.Services.AddSingleton<ProviderRegistryFactory>();
 builder.Services.AddSingleton<ProviderCatalogService>();
 builder.Services.AddSingleton<ControlTowerOverviewService>();
 builder.Services.AddSingleton<WarehouseProjectionService>();

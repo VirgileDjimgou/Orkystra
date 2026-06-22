@@ -24,6 +24,7 @@ Use this checklist before a demo, a local release candidate, or a staging handof
 - `POST /api/transport/routes/{routeId}/optimization` returns a bounded optimization review with route order, explanation, and alternatives
 - `GET /observability/persistence/projections` returns persisted projection snapshots for the active tenant
 - `GET /observability/persistence/workflows` returns persisted AI and optimization workflow runs for the active tenant
+- When a real transport provider `baseUrl` is configured locally, provider health and route endpoints reflect live upstream posture instead of demo fallback
 
 ## 3. Frontend
 
@@ -39,7 +40,9 @@ Use this checklist before a demo, a local release candidate, or a staging handof
 - Transport board and detail panels render without overlap on desktop and mobile-width viewports
 - AI workflow panel renders a grounded recommendation, shows confidence, and exposes evidence and missing-data context
 - Optimization workflow panel renders the current remaining order, a recommended plan, and at least one explanation or fallback trade-off note
+- Operational trace surface renders recent workflow runs, persisted snapshots, and recent audit entries without layout overlap
 - Provider runtime editor stays enabled only when the catalog is API-backed and shows save feedback after a local configuration update
+- Provider catalog and overview health posture make it obvious when transport is using live upstream data versus demo fallback
 
 ## 4. Python services
 

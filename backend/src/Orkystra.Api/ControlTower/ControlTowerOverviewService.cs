@@ -1,36 +1,37 @@
 using Orkystra.Application.Connectors;
-using Orkystra.Application.Connectors.Providers;
+using Orkystra.Api.Connectors;
 using Orkystra.Contracts.ControlTower;
 
 namespace Orkystra.Api.ControlTower;
 
 public sealed class ControlTowerOverviewService
 {
-    private readonly ProviderRegistry _providerRegistry;
+    private readonly ProviderRegistryFactory _providerRegistryFactory;
 
     public ControlTowerOverviewService()
     {
-        _providerRegistry = new ProviderRegistry(
-        [
-            new CsvWarehouseImportProvider(),
-            new RestTransportProvider(),
-            new GpsTelematicsProvider()
-        ]);
+        _providerRegistryFactory = new ProviderRegistryFactory();
+    }
+
+    public ControlTowerOverviewService(ProviderRegistryFactory providerRegistryFactory)
+    {
+        _providerRegistryFactory = providerRegistryFactory;
     }
 
     public async ValueTask<ControlTowerOverviewResponse> BuildOverviewAsync(string tenantId, CancellationToken cancellationToken = default)
     {
+        var providerRegistry = _providerRegistryFactory.CreateRegistry();
         var generatedAtUtc = DateTimeOffset.UtcNow;
-        var warehouseProvider = _providerRegistry.ListByDomain(ProviderDomain.Warehouse)
+        var warehouseProvider = providerRegistry.ListByDomain(ProviderDomain.Warehouse)
             .OfType<IWarehouseProviderAdapter>()
             .First();
-        var transportProvider = _providerRegistry.ListByDomain(ProviderDomain.Transport)
+        var transportProvider = providerRegistry.ListByDomain(ProviderDomain.Transport)
             .OfType<ITransportProviderAdapter>()
             .First();
 
         var warehouses = await warehouseProvider.ReadWarehousesAsync(cancellationToken);
         var routes = await transportProvider.ReadRoutesAsync(cancellationToken);
-        var providers = await BuildProviderStatusesAsync(cancellationToken);
+        var providers = await BuildProviderStatusesAsync(providerRegistry, cancellationToken);
 
         IReadOnlyCollection<Orkystra.Contracts.Simulation.ScenarioSummaryReadModel> scenarios =
         [
@@ -63,9 +64,11 @@ public sealed class ControlTowerOverviewService
         return new ControlTowerOverviewResponse(tenantId, generatedAtUtc, scenarios, warehouses, routes, alerts, eventFeed, providers);
     }
 
-    private async ValueTask<IReadOnlyCollection<ProviderStatusReadModel>> BuildProviderStatusesAsync(CancellationToken cancellationToken)
+    private async ValueTask<IReadOnlyCollection<ProviderStatusReadModel>> BuildProviderStatusesAsync(
+        ProviderRegistry providerRegistry,
+        CancellationToken cancellationToken)
     {
-        var providers = _providerRegistry.ListAll();
+        var providers = providerRegistry.ListAll();
         var providerStatuses = new List<ProviderStatusReadModel>(providers.Count);
 
         foreach (var provider in providers)
