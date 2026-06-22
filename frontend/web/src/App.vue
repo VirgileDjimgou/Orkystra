@@ -329,7 +329,9 @@ const transportSyncHealthClass = computed(() => {
 });
 const transportSyncDeltaSummary = computed(() => {
   const imported = new Set(transportSyncStatus.value.importedRouteReferences);
-  const current = new Set(overview.value.routes.map((route) => route.reference));
+  const current = new Set(
+    overview.value.routes.map((route) => route.reference)
+  );
 
   const newRoutes = transportSyncStatus.value.importedRouteReferences.filter(
     (reference) => !current.has(reference)
@@ -348,11 +350,17 @@ const transportSyncDeltaSummary = computed(() => {
 
   const parts: string[] = [];
   if (newRoutes.length > 0) {
-    parts.push(`${newRoutes.length} new route${newRoutes.length > 1 ? "s" : ""}`);
+    parts.push(
+      `${newRoutes.length} new route${newRoutes.length > 1 ? "s" : ""}`
+    );
   }
 
   if (missingRoutes.length > 0) {
-    parts.push(`${missingRoutes.length} route${missingRoutes.length > 1 ? "s" : ""} no longer present`);
+    parts.push(
+      `${missingRoutes.length} route${
+        missingRoutes.length > 1 ? "s" : ""
+      } no longer present`
+    );
   }
 
   return `${parts.join(" and ")} versus the current route board.`;
@@ -368,9 +376,14 @@ const transportChangedDiffs = computed(() =>
   )
 );
 const latestImportedRoute = computed(() => {
-  const importedRefs = new Set(transportSyncStatus.value.importedRouteReferences);
+  const importedRefs = new Set(
+    transportSyncStatus.value.importedRouteReferences
+  );
 
-  return overview.value.routes.find((route) => importedRefs.has(route.reference)) ?? null;
+  return (
+    overview.value.routes.find((route) => importedRefs.has(route.reference)) ??
+    null
+  );
 });
 const transportSupportActions = computed(() => [
   {
@@ -394,8 +407,10 @@ const transportSupportActions = computed(() => [
   {
     id: "optimization-refresh" as const,
     label: isOptimizingRoute.value ? "Reviewing..." : "Re-run optimization",
-    detail: "Rebuild the optimization review for the current route and scenario.",
-    disabled: isOptimizingRoute.value || routeConnectionState.value === "loading",
+    detail:
+      "Rebuild the optimization review for the current route and scenario.",
+    disabled:
+      isOptimizingRoute.value || routeConnectionState.value === "loading",
   },
   {
     id: "route-focus-import" as const,
@@ -442,8 +457,9 @@ const transportRecoveryCues = computed(() => {
         transportSyncErrorMessage.value ??
         transportSyncStatus.value.syncDetail ??
         "Refresh sync evidence or re-import a snapshot before trusting the current board.",
-      actionId:
-        transportSyncStatus.value.hasPersistedSnapshot ? "sync-refresh" : "sync-import",
+      actionId: transportSyncStatus.value.hasPersistedSnapshot
+        ? "sync-refresh"
+        : "sync-import",
       actionLabel: transportSyncStatus.value.hasPersistedSnapshot
         ? "Refresh sync"
         : "Import snapshot",
@@ -480,7 +496,9 @@ const transportRecoveryCues = computed(() => {
 
   if (
     transportSyncStatus.value.hasPersistedSnapshot &&
-    !transportSyncStatus.value.importedRouteReferences.includes(routeDetail.value.reference) &&
+    !transportSyncStatus.value.importedRouteReferences.includes(
+      routeDetail.value.reference
+    ) &&
     latestImportedRoute.value
   ) {
     cues.push({
@@ -496,13 +514,17 @@ const transportRecoveryCues = computed(() => {
 const selectedRouteStoryHighlights = computed(() => {
   const highlights: Array<{ title: string; detail: string }> = [];
   const routeReference = routeDetail.value.reference;
-  const importedRefs = new Set(transportSyncStatus.value.importedRouteReferences);
+  const importedRefs = new Set(
+    transportSyncStatus.value.importedRouteReferences
+  );
   const pendingDeliveries = routeDetail.value.deliveries.filter(
     (delivery) => delivery.status !== "Completed"
   ).length;
 
   highlights.push({
-    title: importedRefs.has(routeReference) ? "Present in latest import" : "Not present in latest import",
+    title: importedRefs.has(routeReference)
+      ? "Present in latest import"
+      : "Not present in latest import",
     detail: importedRefs.has(routeReference)
       ? `${routeReference} is part of the latest imported transport snapshot.`
       : `${routeReference} is visible in the current board but missing from the latest imported snapshot.`,
@@ -1687,10 +1709,7 @@ onBeforeUnmount(() => {
               <div class="transport-sync-metric">
                 <span class="panel-label">Source</span>
                 <strong>{{ transportSyncSourceLabel }}</strong>
-                <span
-                  class="status-pill"
-                  :class="transportSyncHealthClass"
-                >
+                <span class="status-pill" :class="transportSyncHealthClass">
                   {{ transportSyncStatus.healthStatus }}
                 </span>
               </div>
@@ -1728,7 +1747,9 @@ onBeforeUnmount(() => {
                   {{ reference }}
                 </span>
                 <span
-                  v-if="transportSyncStatus.importedRouteReferences.length === 0"
+                  v-if="
+                    transportSyncStatus.importedRouteReferences.length === 0
+                  "
                   class="catalog-chip is-muted"
                 >
                   No imported routes yet
@@ -1770,7 +1791,9 @@ onBeforeUnmount(() => {
                   <span class="panel-label">Recovery cues</span>
                   <h3>What to check next</h3>
                 </div>
-                <span class="mini-badge">{{ transportRecoveryCues.length }}</span>
+                <span class="mini-badge">{{
+                  transportRecoveryCues.length
+                }}</span>
               </div>
 
               <ul class="transport-story-list">
@@ -1792,8 +1815,8 @@ onBeforeUnmount(() => {
                 <li v-if="transportRecoveryCues.length === 0">
                   <strong>Transport posture looks healthy</strong>
                   <span>
-                    Sync, route detail, and optimization are aligned enough for a
-                    clean operator demo.
+                    Sync, route detail, and optimization are aligned enough for
+                    a clean operator demo.
                   </span>
                 </li>
               </ul>
@@ -1827,14 +1850,13 @@ onBeforeUnmount(() => {
                   <span class="panel-label">Sync timeline</span>
                   <h3>Recent imports</h3>
                 </div>
-                <span class="mini-badge">{{ transportSyncHistory.length }}</span>
+                <span class="mini-badge">{{
+                  transportSyncHistory.length
+                }}</span>
               </div>
 
               <ul class="transport-story-list">
-                <li
-                  v-for="run in transportSyncHistory"
-                  :key="run.id"
-                >
+                <li v-for="run in transportSyncHistory" :key="run.id">
                   <strong>{{ run.createdAtLabel }}</strong>
                   <span>{{ run.summary }}</span>
                   <span>{{ run.status }} via {{ run.source }}</span>
@@ -1842,8 +1864,8 @@ onBeforeUnmount(() => {
                 <li v-if="transportSyncHistory.length === 0">
                   <strong>No import history yet</strong>
                   <span>
-                    Trigger an import to start building a transport sync timeline
-                    for this tenant.
+                    Trigger an import to start building a transport sync
+                    timeline for this tenant.
                   </span>
                 </li>
               </ul>
@@ -1855,7 +1877,9 @@ onBeforeUnmount(() => {
                   <span class="panel-label">Historical diff</span>
                   <h3>Latest vs previous import</h3>
                 </div>
-                <span class="mini-badge">{{ transportChangedDiffs.length }}</span>
+                <span class="mini-badge">{{
+                  transportChangedDiffs.length
+                }}</span>
               </div>
 
               <p class="catalog-summary">
@@ -1865,21 +1889,32 @@ onBeforeUnmount(() => {
               <div class="transport-sync-grid">
                 <div class="transport-sync-metric">
                   <span class="panel-label">Latest import</span>
-                  <strong>{{ transportSyncDiff.latestRouteCount }} routes</strong>
-                  <span>{{ transportSyncDiff.latestImportedAtLabel ?? "Unavailable" }}</span>
+                  <strong
+                    >{{ transportSyncDiff.latestRouteCount }} routes</strong
+                  >
+                  <span>{{
+                    transportSyncDiff.latestImportedAtLabel ?? "Unavailable"
+                  }}</span>
                 </div>
 
                 <div class="transport-sync-metric">
                   <span class="panel-label">Previous import</span>
-                  <strong>{{ transportSyncDiff.previousRouteCount }} routes</strong>
-                  <span>{{ transportSyncDiff.previousImportedAtLabel ?? "Unavailable" }}</span>
+                  <strong
+                    >{{ transportSyncDiff.previousRouteCount }} routes</strong
+                  >
+                  <span>{{
+                    transportSyncDiff.previousImportedAtLabel ?? "Unavailable"
+                  }}</span>
                 </div>
 
                 <div class="transport-sync-metric">
                   <span class="panel-label">Delta</span>
-                  <strong>{{ transportSyncDiff.changedRouteCount }} changed</strong>
+                  <strong
+                    >{{ transportSyncDiff.changedRouteCount }} changed</strong
+                  >
                   <span>
-                    {{ transportSyncDiff.addedRouteCount }} added, {{ transportSyncDiff.removedRouteCount }} removed
+                    {{ transportSyncDiff.addedRouteCount }} added,
+                    {{ transportSyncDiff.removedRouteCount }} removed
                   </span>
                 </div>
               </div>
@@ -1890,13 +1925,16 @@ onBeforeUnmount(() => {
                   :key="`${item.routeReference}-${item.changeType}`"
                   class="transport-route-diff-item"
                 >
-                  <strong>{{ item.routeReference }} - {{ item.changeType }}</strong>
+                  <strong
+                    >{{ item.routeReference }} - {{ item.changeType }}</strong
+                  >
                   <span>{{ item.summary }}</span>
                 </li>
                 <li v-if="transportChangedDiffs.length === 0">
                   <strong>No route-level deltas yet</strong>
                   <span>
-                    Import another transport snapshot to unlock before/after drill-down evidence.
+                    Import another transport snapshot to unlock before/after
+                    drill-down evidence.
                   </span>
                 </li>
               </ul>
@@ -3517,9 +3555,7 @@ onBeforeUnmount(() => {
   border-radius: 8px;
   background: rgba(15, 23, 42, 0.82);
   cursor: pointer;
-  transition:
-    border-color 140ms ease,
-    background 140ms ease,
+  transition: border-color 140ms ease, background 140ms ease,
     transform 140ms ease;
 }
 
