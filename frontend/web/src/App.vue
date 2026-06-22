@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import WarehouseTwinScene from './components/WarehouseTwinScene.vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import WarehouseTwinScene from "./components/WarehouseTwinScene.vue";
 import {
   buildFallbackOverview,
   buildFallbackRouteDetail,
@@ -14,191 +14,302 @@ import {
   type WarehouseDetailView,
   type ProviderCatalogView,
   type ProviderCatalogItemView,
-} from './data/controlTower'
+} from "./data/controlTower";
 import {
   loadAiRecommendation,
   type AiRecommendationEnvelopeView,
-} from './services/aiApi'
-import { loadControlTowerOverview } from './services/controlTowerApi'
+} from "./services/aiApi";
+import { loadControlTowerOverview } from "./services/controlTowerApi";
 import {
   buildFallbackOperationalActivity,
   loadOperationalActivity,
   type OperationalActivityView,
-} from './services/observabilityApi'
-import { loadRouteOptimization } from './services/optimizationApi'
-import { loadProviderCatalog, updateProviderConfiguration } from './services/providerCatalogApi'
-import { loadWarehouseProjection } from './services/warehouseApi'
-import { loadTransportProjection } from './services/transportApi'
+} from "./services/observabilityApi";
+import { loadRouteOptimization } from "./services/optimizationApi";
+import {
+  loadProviderCatalog,
+  updateProviderConfiguration,
+  updateProviderSecret,
+} from "./services/providerCatalogApi";
+import { loadWarehouseProjection } from "./services/warehouseApi";
+import { loadTransportProjection } from "./services/transportApi";
 
-type DataConnectionState = 'loading' | 'api' | 'fallback' | 'stale'
+type DataConnectionState = "loading" | "api" | "fallback" | "stale";
 
 const navigationItems = [
-  { label: 'Control Tower', short: 'CT', active: true },
-  { label: 'Warehouse', short: 'WH', active: false },
-  { label: 'Transport', short: 'TR', active: false },
-  { label: 'Scenarios', short: 'SC', active: false },
-]
+  { label: "Control Tower", short: "CT", active: true },
+  { label: "Warehouse", short: "WH", active: false },
+  { label: "Transport", short: "TR", active: false },
+  { label: "Scenarios", short: "SC", active: false },
+];
 
-const fallbackOverview = buildFallbackOverview()
-const overview = ref<ControlTowerOverviewView>(fallbackOverview)
-const warehouseDetail = ref<WarehouseDetailView>(buildFallbackWarehouseDetail(fallbackOverview.warehouses[0].warehouseId))
-const routeDetail = ref<RouteDetailView>(buildFallbackRouteDetail(fallbackOverview.routes[0].routeId))
-const isApiConnected = ref(false)
-const isRefreshingWorkspace = ref(false)
-const loadErrorMessage = ref<string | null>(null)
-const overviewConnectionState = ref<DataConnectionState>('loading')
-const warehouseDetailErrorMessage = ref<string | null>(null)
-const warehouseConnectionState = ref<DataConnectionState>('loading')
-const routeDetailErrorMessage = ref<string | null>(null)
-const routeConnectionState = ref<DataConnectionState>('loading')
-const providerCatalog = ref<ProviderCatalogView>(buildFallbackProviderCatalog())
-const isProviderCatalogConnected = ref(false)
-const providerCatalogErrorMessage = ref<string | null>(null)
-const providerCatalogConnectionState = ref<DataConnectionState>('loading')
-const aiRecommendation = ref<AiRecommendationEnvelopeView | null>(null)
-const aiQuestion = ref('Which route should the dispatcher review first?')
-const aiRecommendationErrorMessage = ref<string | null>(null)
-const aiConnectionState = ref<DataConnectionState>('loading')
-const isRequestingAi = ref(false)
-const operationalActivity = ref<OperationalActivityView>(buildFallbackOperationalActivity())
-const operationalActivityErrorMessage = ref<string | null>(null)
-const operationalConnectionState = ref<DataConnectionState>('loading')
-const isRefreshingOperationalActivity = ref(false)
-const routeOptimization = ref<RouteOptimizationView>(buildFallbackRouteOptimization(routeDetail.value))
-const routeOptimizationErrorMessage = ref<string | null>(null)
-const routeOptimizationConnectionState = ref<DataConnectionState>('loading')
-const isOptimizingRoute = ref(false)
-const savingProviderId = ref<string | null>(null)
-const providerConfigurationNotice = ref<Record<string, string>>({})
-const providerConfigurationDrafts = ref<Record<string, { enabled: boolean; environment: string; settings: Record<string, string> }>>({})
-const selectedScenarioId = ref(fallbackOverview.scenarios[0].scenarioId)
-const selectedWarehouseId = ref(fallbackOverview.warehouses[0].warehouseId)
-const selectedRouteId = ref(fallbackOverview.routes[0].routeId)
-const simulationState = ref<'Running' | 'Paused'>('Running')
-const selectedSpeed = ref(simulationSpeeds[1])
-let connectionRecoveryHandle = 0
+const fallbackOverview = buildFallbackOverview();
+const overview = ref<ControlTowerOverviewView>(fallbackOverview);
+const warehouseDetail = ref<WarehouseDetailView>(
+  buildFallbackWarehouseDetail(fallbackOverview.warehouses[0].warehouseId)
+);
+const routeDetail = ref<RouteDetailView>(
+  buildFallbackRouteDetail(fallbackOverview.routes[0].routeId)
+);
+const isApiConnected = ref(false);
+const isRefreshingWorkspace = ref(false);
+const loadErrorMessage = ref<string | null>(null);
+const overviewConnectionState = ref<DataConnectionState>("loading");
+const warehouseDetailErrorMessage = ref<string | null>(null);
+const warehouseConnectionState = ref<DataConnectionState>("loading");
+const routeDetailErrorMessage = ref<string | null>(null);
+const routeConnectionState = ref<DataConnectionState>("loading");
+const providerCatalog = ref<ProviderCatalogView>(
+  buildFallbackProviderCatalog()
+);
+const isProviderCatalogConnected = ref(false);
+const providerCatalogErrorMessage = ref<string | null>(null);
+const providerCatalogConnectionState = ref<DataConnectionState>("loading");
+const aiRecommendation = ref<AiRecommendationEnvelopeView | null>(null);
+const aiQuestion = ref("Which route should the dispatcher review first?");
+const aiRecommendationErrorMessage = ref<string | null>(null);
+const aiConnectionState = ref<DataConnectionState>("loading");
+const isRequestingAi = ref(false);
+const operationalActivity = ref<OperationalActivityView>(
+  buildFallbackOperationalActivity()
+);
+const operationalActivityErrorMessage = ref<string | null>(null);
+const operationalConnectionState = ref<DataConnectionState>("loading");
+const isRefreshingOperationalActivity = ref(false);
+const routeOptimization = ref<RouteOptimizationView>(
+  buildFallbackRouteOptimization(routeDetail.value)
+);
+const routeOptimizationErrorMessage = ref<string | null>(null);
+const routeOptimizationConnectionState = ref<DataConnectionState>("loading");
+const isOptimizingRoute = ref(false);
+const savingProviderId = ref<string | null>(null);
+const providerConfigurationNotice = ref<Record<string, string>>({});
+const providerConfigurationDrafts = ref<
+  Record<
+    string,
+    { enabled: boolean; environment: string; settings: Record<string, string> }
+  >
+>({});
+const secretKeyDrafts = ref<Record<string, string>>({});
+const savingSecretProviderId = ref<string | null>(null);
+const secretSaveNotice = ref<Record<string, string>>({});
+const selectedScenarioId = ref(fallbackOverview.scenarios[0].scenarioId);
+const selectedWarehouseId = ref(fallbackOverview.warehouses[0].warehouseId);
+const selectedRouteId = ref(fallbackOverview.routes[0].routeId);
+const simulationState = ref<"Running" | "Paused">("Running");
+const selectedSpeed = ref(simulationSpeeds[1]);
+let connectionRecoveryHandle = 0;
 
 const currentScenario = computed(
-  () => overview.value.scenarios.find((scenario) => scenario.scenarioId === selectedScenarioId.value) ?? overview.value.scenarios[0],
-)
+  () =>
+    overview.value.scenarios.find(
+      (scenario) => scenario.scenarioId === selectedScenarioId.value
+    ) ?? overview.value.scenarios[0]
+);
 
 const currentWarehouse = computed(
-  () => overview.value.warehouses.find((warehouse) => warehouse.warehouseId === selectedWarehouseId.value) ?? overview.value.warehouses[0],
-)
+  () =>
+    overview.value.warehouses.find(
+      (warehouse) => warehouse.warehouseId === selectedWarehouseId.value
+    ) ?? overview.value.warehouses[0]
+);
 
 const currentRoute = computed(
-  () => overview.value.routes.find((route) => route.routeId === selectedRouteId.value) ?? overview.value.routes[0],
-)
+  () =>
+    overview.value.routes.find(
+      (route) => route.routeId === selectedRouteId.value
+    ) ?? overview.value.routes[0]
+);
 
-const currentRiskCount = computed(() => overview.value.alerts.filter((alert) => alert.severity !== 'Info').length)
-const delayedRouteCount = computed(() => overview.value.routes.filter((route) => route.status !== 'On time').length)
-const degradedProviderCount = computed(() => overview.value.providers.filter((provider) => provider.healthStatus !== 'Healthy').length)
+const currentRiskCount = computed(
+  () =>
+    overview.value.alerts.filter((alert) => alert.severity !== "Info").length
+);
+const delayedRouteCount = computed(
+  () =>
+    overview.value.routes.filter((route) => route.status !== "On time").length
+);
+const degradedProviderCount = computed(
+  () =>
+    overview.value.providers.filter(
+      (provider) => provider.healthStatus !== "Healthy"
+    ).length
+);
 const warehouseUtilization = computed(() => {
-  const warehouse = currentWarehouse.value
-  return Math.round((warehouse.storedPalletCount / warehouse.slotCount) * 100)
-})
+  const warehouse = currentWarehouse.value;
+  return Math.round((warehouse.storedPalletCount / warehouse.slotCount) * 100);
+});
 
-function toneForConnectionState(state: DataConnectionState): 'is-loading' | 'is-running' | 'is-paused' | 'is-warning' {
-  if (state === 'loading') {
-    return 'is-loading'
+function toneForConnectionState(
+  state: DataConnectionState
+): "is-loading" | "is-running" | "is-paused" | "is-warning" {
+  if (state === "loading") {
+    return "is-loading";
   }
 
-  if (state === 'api') {
-    return 'is-running'
+  if (state === "api") {
+    return "is-running";
   }
 
-  if (state === 'stale') {
-    return 'is-warning'
+  if (state === "stale") {
+    return "is-warning";
   }
 
-  return 'is-paused'
+  return "is-paused";
 }
 
-function labelForConnectionState(state: DataConnectionState, apiLabel: string, fallbackLabel: string): string {
-  if (state === 'loading') {
-    return 'Loading'
+function labelForConnectionState(
+  state: DataConnectionState,
+  apiLabel: string,
+  fallbackLabel: string
+): string {
+  if (state === "loading") {
+    return "Loading";
   }
 
-  if (state === 'api') {
-    return apiLabel
+  if (state === "api") {
+    return apiLabel;
   }
 
-  if (state === 'stale') {
-    return `Stale ${apiLabel}`
+  if (state === "stale") {
+    return `Stale ${apiLabel}`;
   }
 
-  return fallbackLabel
+  return fallbackLabel;
 }
 
-const scenarioStatusTone = computed(() => (simulationState.value === 'Running' ? 'is-running' : 'is-paused'))
-const providerEditorTone = computed(() => toneForConnectionState(providerCatalogConnectionState.value))
-const dataConnectionTone = computed(() => toneForConnectionState(overviewConnectionState.value))
-const warehouseProjectionTone = computed(() => toneForConnectionState(warehouseConnectionState.value))
-const transportProjectionTone = computed(() => toneForConnectionState(routeConnectionState.value))
-const overviewConnectionLabel = computed(() => labelForConnectionState(overviewConnectionState.value, 'API live', 'Fallback active'))
-const warehouseProjectionLabel = computed(() => labelForConnectionState(warehouseConnectionState.value, 'Warehouse API live', 'Warehouse fallback'))
-const transportProjectionLabel = computed(() => labelForConnectionState(routeConnectionState.value, 'Transport API live', 'Transport fallback'))
-const catalogConnectionLabel = computed(() => labelForConnectionState(providerCatalogConnectionState.value, 'Editable local API', 'Read-only fallback'))
-const aiWorkflowTone = computed(() => toneForConnectionState(aiConnectionState.value))
-const aiWorkflowLabel = computed(() => labelForConnectionState(aiConnectionState.value, 'AI workflow live', 'AI fallback'))
-const operationalWorkflowTone = computed(() => toneForConnectionState(operationalConnectionState.value))
-const operationalWorkflowLabel = computed(() => labelForConnectionState(operationalConnectionState.value, 'Operational trace live', 'Operational trace fallback'))
-const optimizationWorkflowTone = computed(() => toneForConnectionState(routeOptimizationConnectionState.value))
-const optimizationWorkflowLabel = computed(() => labelForConnectionState(routeOptimizationConnectionState.value, 'Optimization live', 'Optimization fallback'))
-const aiRecommendationView = computed(() => aiRecommendation.value?.recommendation ?? null)
+const scenarioStatusTone = computed(() =>
+  simulationState.value === "Running" ? "is-running" : "is-paused"
+);
+const providerEditorTone = computed(() =>
+  toneForConnectionState(providerCatalogConnectionState.value)
+);
+const dataConnectionTone = computed(() =>
+  toneForConnectionState(overviewConnectionState.value)
+);
+const warehouseProjectionTone = computed(() =>
+  toneForConnectionState(warehouseConnectionState.value)
+);
+const transportProjectionTone = computed(() =>
+  toneForConnectionState(routeConnectionState.value)
+);
+const overviewConnectionLabel = computed(() =>
+  labelForConnectionState(
+    overviewConnectionState.value,
+    "API live",
+    "Fallback active"
+  )
+);
+const warehouseProjectionLabel = computed(() =>
+  labelForConnectionState(
+    warehouseConnectionState.value,
+    "Warehouse API live",
+    "Warehouse fallback"
+  )
+);
+const transportProjectionLabel = computed(() =>
+  labelForConnectionState(
+    routeConnectionState.value,
+    "Transport API live",
+    "Transport fallback"
+  )
+);
+const catalogConnectionLabel = computed(() =>
+  labelForConnectionState(
+    providerCatalogConnectionState.value,
+    "Editable local API",
+    "Read-only fallback"
+  )
+);
+const aiWorkflowTone = computed(() =>
+  toneForConnectionState(aiConnectionState.value)
+);
+const aiWorkflowLabel = computed(() =>
+  labelForConnectionState(
+    aiConnectionState.value,
+    "AI workflow live",
+    "AI fallback"
+  )
+);
+const operationalWorkflowTone = computed(() =>
+  toneForConnectionState(operationalConnectionState.value)
+);
+const operationalWorkflowLabel = computed(() =>
+  labelForConnectionState(
+    operationalConnectionState.value,
+    "Operational trace live",
+    "Operational trace fallback"
+  )
+);
+const optimizationWorkflowTone = computed(() =>
+  toneForConnectionState(routeOptimizationConnectionState.value)
+);
+const optimizationWorkflowLabel = computed(() =>
+  labelForConnectionState(
+    routeOptimizationConnectionState.value,
+    "Optimization live",
+    "Optimization fallback"
+  )
+);
+const aiRecommendationView = computed(
+  () => aiRecommendation.value?.recommendation ?? null
+);
 const currentRemainingRouteOrder = computed(() => {
   const pendingStopSequences = new Set(
     routeDetail.value.deliveries
-      .filter((delivery) => delivery.status !== 'Completed')
-      .map((delivery) => delivery.stopSequence),
-  )
+      .filter((delivery) => delivery.status !== "Completed")
+      .map((delivery) => delivery.stopSequence)
+  );
 
   const pendingStops = routeDetail.value.stops
     .filter((stop) => pendingStopSequences.has(stop.sequence))
-    .map((stop) => stop.name)
+    .map((stop) => stop.name);
 
   return pendingStops.length > 0
     ? pendingStops
-    : routeDetail.value.stops.map((stop) => stop.name)
-})
+    : routeDetail.value.stops.map((stop) => stop.name);
+});
 const tenantSummary = computed(() => {
-  if (overviewConnectionState.value === 'api') {
-    return 'API-backed control tower'
+  if (overviewConnectionState.value === "api") {
+    return "API-backed control tower";
   }
 
-  if (overviewConnectionState.value === 'stale') {
-    return 'Last successful API snapshot retained'
+  if (overviewConnectionState.value === "stale") {
+    return "Last successful API snapshot retained";
   }
 
-  if (overviewConnectionState.value === 'loading') {
-    return 'Connecting to local services'
+  if (overviewConnectionState.value === "loading") {
+    return "Connecting to local services";
   }
 
-  return 'Fallback demo data active'
-})
+  return "Fallback demo data active";
+});
 const connectionMessage = computed(() => {
-  return loadErrorMessage.value ??
+  return (
+    loadErrorMessage.value ??
     warehouseDetailErrorMessage.value ??
     routeDetailErrorMessage.value ??
     providerCatalogErrorMessage.value ??
     aiRecommendationErrorMessage.value ??
     operationalActivityErrorMessage.value ??
     routeOptimizationErrorMessage.value ??
-    'All local data surfaces are ready.'
-})
+    "All local data surfaces are ready."
+  );
+});
 
 const aiQuickPrompts = [
-  'Which warehouse needs attention right now?',
-  'Which route should the dispatcher review first?',
-  'What data is still missing before we can be confident?',
-]
+  "Which warehouse needs attention right now?",
+  "Which route should the dispatcher review first?",
+  "What data is still missing before we can be confident?",
+];
 
 function toggleSimulation(): void {
-  simulationState.value = simulationState.value === 'Running' ? 'Paused' : 'Running'
+  simulationState.value =
+    simulationState.value === "Running" ? "Paused" : "Running";
 }
 
 function setSimulationSpeed(speed: (typeof simulationSpeeds)[number]): void {
-  selectedSpeed.value = speed
+  selectedSpeed.value = speed;
 }
 
 function syncProviderDrafts(catalog: ProviderCatalogView): void {
@@ -208,315 +319,412 @@ function syncProviderDrafts(catalog: ProviderCatalogView): void {
       {
         enabled: provider.configurationEnabled,
         environment: provider.configurationEnvironment,
-        settings: Object.fromEntries(provider.editableSettings.map((setting) => [setting.key, setting.value])),
+        settings: Object.fromEntries(
+          provider.editableSettings.map((setting) => [
+            setting.key,
+            setting.value,
+          ])
+        ),
       },
-    ]),
-  )
+    ])
+  );
 }
 
-function providerDraft(providerId: string): { enabled: boolean; environment: string; settings: Record<string, string> } {
-  const existing = providerConfigurationDrafts.value[providerId]
+function providerDraft(providerId: string): {
+  enabled: boolean;
+  environment: string;
+  settings: Record<string, string>;
+} {
+  const existing = providerConfigurationDrafts.value[providerId];
 
   if (existing) {
-    return existing
+    return existing;
   }
 
   providerConfigurationDrafts.value[providerId] = {
     enabled: true,
-    environment: 'local-demo',
+    environment: "local-demo",
     settings: {},
-  }
+  };
 
-  return providerConfigurationDrafts.value[providerId]
+  return providerConfigurationDrafts.value[providerId];
 }
 
 async function runAiPrompt(question: string): Promise<void> {
-  aiQuestion.value = question
-  await refreshAiRecommendation(false)
+  aiQuestion.value = question;
+  await refreshAiRecommendation(false);
 }
 
-function applyOverviewResult(result: Awaited<ReturnType<typeof loadControlTowerOverview>>, preserveExisting: boolean): void {
-  const keepCurrentSnapshot = preserveExisting &&
-    result.source === 'fallback' &&
-    (overviewConnectionState.value === 'api' || overviewConnectionState.value === 'stale')
+function applyOverviewResult(
+  result: Awaited<ReturnType<typeof loadControlTowerOverview>>,
+  preserveExisting: boolean
+): void {
+  const keepCurrentSnapshot =
+    preserveExisting &&
+    result.source === "fallback" &&
+    (overviewConnectionState.value === "api" ||
+      overviewConnectionState.value === "stale");
 
   if (!keepCurrentSnapshot) {
-    overview.value = result.overview
-    selectedScenarioId.value = result.overview.scenarios.some((scenario) => scenario.scenarioId === selectedScenarioId.value)
+    overview.value = result.overview;
+    selectedScenarioId.value = result.overview.scenarios.some(
+      (scenario) => scenario.scenarioId === selectedScenarioId.value
+    )
       ? selectedScenarioId.value
-      : (result.overview.scenarios[0]?.scenarioId ?? fallbackOverview.scenarios[0].scenarioId)
-    selectedWarehouseId.value = result.overview.warehouses.some((warehouse) => warehouse.warehouseId === selectedWarehouseId.value)
+      : result.overview.scenarios[0]?.scenarioId ??
+        fallbackOverview.scenarios[0].scenarioId;
+    selectedWarehouseId.value = result.overview.warehouses.some(
+      (warehouse) => warehouse.warehouseId === selectedWarehouseId.value
+    )
       ? selectedWarehouseId.value
-      : (result.overview.warehouses[0]?.warehouseId ?? fallbackOverview.warehouses[0].warehouseId)
-    selectedRouteId.value = result.overview.routes.some((route) => route.routeId === selectedRouteId.value)
+      : result.overview.warehouses[0]?.warehouseId ??
+        fallbackOverview.warehouses[0].warehouseId;
+    selectedRouteId.value = result.overview.routes.some(
+      (route) => route.routeId === selectedRouteId.value
+    )
       ? selectedRouteId.value
-      : (result.overview.routes[0]?.routeId ?? fallbackOverview.routes[0].routeId)
+      : result.overview.routes[0]?.routeId ??
+        fallbackOverview.routes[0].routeId;
   }
 
   overviewConnectionState.value = keepCurrentSnapshot
-    ? 'stale'
-    : result.source === 'api'
-      ? 'api'
-      : 'fallback'
-  isApiConnected.value = overviewConnectionState.value !== 'fallback'
-  loadErrorMessage.value = keepCurrentSnapshot && result.errorMessage
-    ? `${result.errorMessage} Showing the last successful API snapshot.`
-    : result.errorMessage
+    ? "stale"
+    : result.source === "api"
+    ? "api"
+    : "fallback";
+  isApiConnected.value = overviewConnectionState.value !== "fallback";
+  loadErrorMessage.value =
+    keepCurrentSnapshot && result.errorMessage
+      ? `${result.errorMessage} Showing the last successful API snapshot.`
+      : result.errorMessage;
 }
 
-function applyCatalogResult(result: Awaited<ReturnType<typeof loadProviderCatalog>>, preserveExisting: boolean): void {
-  const keepCurrentSnapshot = preserveExisting &&
-    result.source === 'fallback' &&
-    (providerCatalogConnectionState.value === 'api' || providerCatalogConnectionState.value === 'stale')
+function applyCatalogResult(
+  result: Awaited<ReturnType<typeof loadProviderCatalog>>,
+  preserveExisting: boolean
+): void {
+  const keepCurrentSnapshot =
+    preserveExisting &&
+    result.source === "fallback" &&
+    (providerCatalogConnectionState.value === "api" ||
+      providerCatalogConnectionState.value === "stale");
 
   if (!keepCurrentSnapshot) {
-    providerCatalog.value = result.catalog
-    syncProviderDrafts(result.catalog)
+    providerCatalog.value = result.catalog;
+    syncProviderDrafts(result.catalog);
   }
 
   providerCatalogConnectionState.value = keepCurrentSnapshot
-    ? 'stale'
-    : result.source === 'api'
-      ? 'api'
-      : 'fallback'
-  isProviderCatalogConnected.value = providerCatalogConnectionState.value !== 'fallback'
-  providerCatalogErrorMessage.value = keepCurrentSnapshot && result.errorMessage
-    ? `${result.errorMessage} Keeping the last successful editable catalog.`
-    : result.errorMessage
+    ? "stale"
+    : result.source === "api"
+    ? "api"
+    : "fallback";
+  isProviderCatalogConnected.value =
+    providerCatalogConnectionState.value !== "fallback";
+  providerCatalogErrorMessage.value =
+    keepCurrentSnapshot && result.errorMessage
+      ? `${result.errorMessage} Keeping the last successful editable catalog.`
+      : result.errorMessage;
 }
 
 function applyWarehouseProjectionResult(
   result: Awaited<ReturnType<typeof loadWarehouseProjection>>,
   preserveExisting: boolean,
-  requestedWarehouseId: string,
+  requestedWarehouseId: string
 ): void {
-  const keepCurrentSnapshot = preserveExisting &&
-    result.source === 'fallback' &&
+  const keepCurrentSnapshot =
+    preserveExisting &&
+    result.source === "fallback" &&
     warehouseDetail.value.warehouseId === requestedWarehouseId &&
-    (warehouseConnectionState.value === 'api' || warehouseConnectionState.value === 'stale')
+    (warehouseConnectionState.value === "api" ||
+      warehouseConnectionState.value === "stale");
 
   if (!keepCurrentSnapshot) {
-    warehouseDetail.value = result.warehouse
+    warehouseDetail.value = result.warehouse;
   }
 
   warehouseConnectionState.value = keepCurrentSnapshot
-    ? 'stale'
-    : result.source === 'api'
-      ? 'api'
-      : 'fallback'
-  warehouseDetailErrorMessage.value = keepCurrentSnapshot && result.errorMessage
-    ? `${result.errorMessage} Keeping the last successful warehouse projection.`
-    : result.errorMessage
+    ? "stale"
+    : result.source === "api"
+    ? "api"
+    : "fallback";
+  warehouseDetailErrorMessage.value =
+    keepCurrentSnapshot && result.errorMessage
+      ? `${result.errorMessage} Keeping the last successful warehouse projection.`
+      : result.errorMessage;
 }
 
 function applyTransportProjectionResult(
   result: Awaited<ReturnType<typeof loadTransportProjection>>,
   preserveExisting: boolean,
-  requestedRouteId: string,
+  requestedRouteId: string
 ): void {
-  const keepCurrentSnapshot = preserveExisting &&
-    result.source === 'fallback' &&
+  const keepCurrentSnapshot =
+    preserveExisting &&
+    result.source === "fallback" &&
     routeDetail.value.routeId === requestedRouteId &&
-    (routeConnectionState.value === 'api' || routeConnectionState.value === 'stale')
+    (routeConnectionState.value === "api" ||
+      routeConnectionState.value === "stale");
 
   if (!keepCurrentSnapshot) {
-    routeDetail.value = result.route
+    routeDetail.value = result.route;
   }
 
   routeConnectionState.value = keepCurrentSnapshot
-    ? 'stale'
-    : result.source === 'api'
-      ? 'api'
-      : 'fallback'
-  routeDetailErrorMessage.value = keepCurrentSnapshot && result.errorMessage
-    ? `${result.errorMessage} Keeping the last successful transport projection.`
-    : result.errorMessage
+    ? "stale"
+    : result.source === "api"
+    ? "api"
+    : "fallback";
+  routeDetailErrorMessage.value =
+    keepCurrentSnapshot && result.errorMessage
+      ? `${result.errorMessage} Keeping the last successful transport projection.`
+      : result.errorMessage;
 }
 
-function applyAiRecommendationResult(result: Awaited<ReturnType<typeof loadAiRecommendation>>, preserveExisting: boolean): void {
-  const keepCurrentSnapshot = preserveExisting &&
-    result.source === 'fallback' &&
-    (aiConnectionState.value === 'api' || aiConnectionState.value === 'stale')
+function applyAiRecommendationResult(
+  result: Awaited<ReturnType<typeof loadAiRecommendation>>,
+  preserveExisting: boolean
+): void {
+  const keepCurrentSnapshot =
+    preserveExisting &&
+    result.source === "fallback" &&
+    (aiConnectionState.value === "api" || aiConnectionState.value === "stale");
 
   if (!keepCurrentSnapshot) {
-    aiRecommendation.value = result.workflow
+    aiRecommendation.value = result.workflow;
   }
 
   aiConnectionState.value = keepCurrentSnapshot
-    ? 'stale'
-    : result.source === 'api'
-      ? 'api'
-      : 'fallback'
-  aiRecommendationErrorMessage.value = keepCurrentSnapshot && result.errorMessage
-    ? `${result.errorMessage} Keeping the last successful AI recommendation.`
-    : result.errorMessage
+    ? "stale"
+    : result.source === "api"
+    ? "api"
+    : "fallback";
+  aiRecommendationErrorMessage.value =
+    keepCurrentSnapshot && result.errorMessage
+      ? `${result.errorMessage} Keeping the last successful AI recommendation.`
+      : result.errorMessage;
 }
 
-function applyOperationalActivityResult(result: Awaited<ReturnType<typeof loadOperationalActivity>>, preserveExisting: boolean): void {
-  const keepCurrentSnapshot = preserveExisting &&
-    result.source === 'fallback' &&
-    (operationalConnectionState.value === 'api' || operationalConnectionState.value === 'stale')
+function applyOperationalActivityResult(
+  result: Awaited<ReturnType<typeof loadOperationalActivity>>,
+  preserveExisting: boolean
+): void {
+  const keepCurrentSnapshot =
+    preserveExisting &&
+    result.source === "fallback" &&
+    (operationalConnectionState.value === "api" ||
+      operationalConnectionState.value === "stale");
 
   if (!keepCurrentSnapshot) {
-    operationalActivity.value = result.activity
+    operationalActivity.value = result.activity;
   }
 
   operationalConnectionState.value = keepCurrentSnapshot
-    ? 'stale'
-    : result.source === 'api'
-      ? 'api'
-      : 'fallback'
-  operationalActivityErrorMessage.value = keepCurrentSnapshot && result.errorMessage
-    ? `${result.errorMessage} Keeping the last successful operational trace.`
-    : result.errorMessage
+    ? "stale"
+    : result.source === "api"
+    ? "api"
+    : "fallback";
+  operationalActivityErrorMessage.value =
+    keepCurrentSnapshot && result.errorMessage
+      ? `${result.errorMessage} Keeping the last successful operational trace.`
+      : result.errorMessage;
 }
 
-function applyRouteOptimizationResult(result: Awaited<ReturnType<typeof loadRouteOptimization>>, preserveExisting: boolean, requestedRouteId: string): void {
-  const keepCurrentSnapshot = preserveExisting &&
-    result.source === 'fallback' &&
+function applyRouteOptimizationResult(
+  result: Awaited<ReturnType<typeof loadRouteOptimization>>,
+  preserveExisting: boolean,
+  requestedRouteId: string
+): void {
+  const keepCurrentSnapshot =
+    preserveExisting &&
+    result.source === "fallback" &&
     routeOptimization.value.routeId === requestedRouteId &&
-    (routeOptimizationConnectionState.value === 'api' || routeOptimizationConnectionState.value === 'stale')
+    (routeOptimizationConnectionState.value === "api" ||
+      routeOptimizationConnectionState.value === "stale");
 
   if (!keepCurrentSnapshot) {
-    routeOptimization.value = result.optimization
+    routeOptimization.value = result.optimization;
   }
 
   routeOptimizationConnectionState.value = keepCurrentSnapshot
-    ? 'stale'
-    : result.source === 'api'
-      ? 'api'
-      : 'fallback'
-  routeOptimizationErrorMessage.value = keepCurrentSnapshot && result.errorMessage
-    ? `${result.errorMessage} Keeping the last successful optimization review.`
-    : result.errorMessage
+    ? "stale"
+    : result.source === "api"
+    ? "api"
+    : "fallback";
+  routeOptimizationErrorMessage.value =
+    keepCurrentSnapshot && result.errorMessage
+      ? `${result.errorMessage} Keeping the last successful optimization review.`
+      : result.errorMessage;
 }
 
-async function refreshWarehouseProjection(warehouseId: string, preserveExisting = true): Promise<void> {
+async function refreshWarehouseProjection(
+  warehouseId: string,
+  preserveExisting = true
+): Promise<void> {
   if (!preserveExisting) {
-    warehouseConnectionState.value = 'loading'
+    warehouseConnectionState.value = "loading";
   }
 
-  const result = await loadWarehouseProjection(warehouseId)
-  applyWarehouseProjectionResult(result, preserveExisting, warehouseId)
+  const result = await loadWarehouseProjection(warehouseId);
+  applyWarehouseProjectionResult(result, preserveExisting, warehouseId);
 }
 
-async function refreshTransportProjection(routeId: string, preserveExisting = true): Promise<void> {
+async function refreshTransportProjection(
+  routeId: string,
+  preserveExisting = true
+): Promise<void> {
   if (!preserveExisting) {
-    routeConnectionState.value = 'loading'
+    routeConnectionState.value = "loading";
   }
 
-  const result = await loadTransportProjection(routeId)
-  applyTransportProjectionResult(result, preserveExisting, routeId)
+  const result = await loadTransportProjection(routeId);
+  applyTransportProjectionResult(result, preserveExisting, routeId);
 }
 
-async function refreshAiRecommendation(preserveExisting = true, syncOperationalTrace = true): Promise<void> {
-  isRequestingAi.value = true
+async function refreshAiRecommendation(
+  preserveExisting = true,
+  syncOperationalTrace = true
+): Promise<void> {
+  isRequestingAi.value = true;
 
   if (!preserveExisting) {
-    aiConnectionState.value = 'loading'
+    aiConnectionState.value = "loading";
   }
 
   try {
     const result = await loadAiRecommendation({
       question: aiQuestion.value,
       scenarioId: selectedScenarioId.value,
-    })
-    applyAiRecommendationResult(result, preserveExisting)
+    });
+    applyAiRecommendationResult(result, preserveExisting);
 
     if (syncOperationalTrace) {
-      await refreshOperationalActivity(true)
+      await refreshOperationalActivity(true);
     }
   } finally {
-    isRequestingAi.value = false
+    isRequestingAi.value = false;
   }
 }
 
-async function refreshOperationalActivity(preserveExisting = true): Promise<void> {
-  isRefreshingOperationalActivity.value = true
+async function refreshOperationalActivity(
+  preserveExisting = true
+): Promise<void> {
+  isRefreshingOperationalActivity.value = true;
 
   if (!preserveExisting) {
-    operationalConnectionState.value = 'loading'
+    operationalConnectionState.value = "loading";
   }
 
   try {
-    const result = await loadOperationalActivity()
-    applyOperationalActivityResult(result, preserveExisting)
+    const result = await loadOperationalActivity();
+    applyOperationalActivityResult(result, preserveExisting);
   } finally {
-    isRefreshingOperationalActivity.value = false
+    isRefreshingOperationalActivity.value = false;
   }
 }
 
-async function refreshRouteOptimization(preserveExisting = true, syncOperationalTrace = true): Promise<void> {
-  isOptimizingRoute.value = true
+async function refreshRouteOptimization(
+  preserveExisting = true,
+  syncOperationalTrace = true
+): Promise<void> {
+  isOptimizingRoute.value = true;
 
   if (!preserveExisting) {
-    routeOptimizationConnectionState.value = 'loading'
+    routeOptimizationConnectionState.value = "loading";
   }
 
   try {
-    const result = await loadRouteOptimization(routeDetail.value, selectedScenarioId.value)
-    applyRouteOptimizationResult(result, preserveExisting, routeDetail.value.routeId)
+    const result = await loadRouteOptimization(
+      routeDetail.value,
+      selectedScenarioId.value
+    );
+    applyRouteOptimizationResult(
+      result,
+      preserveExisting,
+      routeDetail.value.routeId
+    );
 
     if (syncOperationalTrace) {
-      await refreshOperationalActivity(true)
+      await refreshOperationalActivity(true);
     }
   } finally {
-    isOptimizingRoute.value = false
+    isOptimizingRoute.value = false;
   }
 }
 
 async function refreshWorkspace(preserveExisting = true): Promise<void> {
-  isRefreshingWorkspace.value = true
+  isRefreshingWorkspace.value = true;
 
   if (!preserveExisting) {
-    overviewConnectionState.value = 'loading'
-    warehouseConnectionState.value = 'loading'
-    routeConnectionState.value = 'loading'
-    providerCatalogConnectionState.value = 'loading'
-    aiConnectionState.value = 'loading'
-    operationalConnectionState.value = 'loading'
-    routeOptimizationConnectionState.value = 'loading'
+    overviewConnectionState.value = "loading";
+    warehouseConnectionState.value = "loading";
+    routeConnectionState.value = "loading";
+    providerCatalogConnectionState.value = "loading";
+    aiConnectionState.value = "loading";
+    operationalConnectionState.value = "loading";
+    routeOptimizationConnectionState.value = "loading";
   }
 
-  const [overviewResult, catalogResult] = await Promise.all([loadControlTowerOverview(), loadProviderCatalog()])
-  applyOverviewResult(overviewResult, preserveExisting)
-  applyCatalogResult(catalogResult, preserveExisting)
-  await refreshWarehouseProjection(selectedWarehouseId.value, preserveExisting)
-  await refreshTransportProjection(selectedRouteId.value, preserveExisting)
-  await refreshRouteOptimization(preserveExisting, false)
-  await refreshAiRecommendation(preserveExisting, false)
-  await refreshOperationalActivity(preserveExisting)
-  isRefreshingWorkspace.value = false
+  const [overviewResult, catalogResult] = await Promise.all([
+    loadControlTowerOverview(),
+    loadProviderCatalog(),
+  ]);
+  applyOverviewResult(overviewResult, preserveExisting);
+  applyCatalogResult(catalogResult, preserveExisting);
+  await refreshWarehouseProjection(selectedWarehouseId.value, preserveExisting);
+  await refreshTransportProjection(selectedRouteId.value, preserveExisting);
+  await refreshRouteOptimization(preserveExisting, false);
+  await refreshAiRecommendation(preserveExisting, false);
+  await refreshOperationalActivity(preserveExisting);
+  isRefreshingWorkspace.value = false;
 
   const hasPartialFallback =
-    [overviewConnectionState.value, warehouseConnectionState.value, routeConnectionState.value, providerCatalogConnectionState.value, aiConnectionState.value, operationalConnectionState.value, routeOptimizationConnectionState.value].some((state) => state === 'fallback') &&
-    [overviewConnectionState.value, warehouseConnectionState.value, routeConnectionState.value, providerCatalogConnectionState.value, aiConnectionState.value, operationalConnectionState.value, routeOptimizationConnectionState.value].some((state) => state === 'api' || state === 'stale')
+    [
+      overviewConnectionState.value,
+      warehouseConnectionState.value,
+      routeConnectionState.value,
+      providerCatalogConnectionState.value,
+      aiConnectionState.value,
+      operationalConnectionState.value,
+      routeOptimizationConnectionState.value,
+    ].some((state) => state === "fallback") &&
+    [
+      overviewConnectionState.value,
+      warehouseConnectionState.value,
+      routeConnectionState.value,
+      providerCatalogConnectionState.value,
+      aiConnectionState.value,
+      operationalConnectionState.value,
+      routeOptimizationConnectionState.value,
+    ].some((state) => state === "api" || state === "stale");
 
   if (hasPartialFallback) {
-    window.clearTimeout(connectionRecoveryHandle)
+    window.clearTimeout(connectionRecoveryHandle);
     connectionRecoveryHandle = window.setTimeout(() => {
-      void refreshWorkspace(true)
-    }, 1500)
+      void refreshWorkspace(true);
+    }, 1500);
   }
 }
 
 async function refreshProviderCatalog(preserveExisting = true): Promise<void> {
   if (!preserveExisting) {
-    providerCatalogConnectionState.value = 'loading'
+    providerCatalogConnectionState.value = "loading";
   }
 
-  const catalogResult = await loadProviderCatalog()
-  applyCatalogResult(catalogResult, preserveExisting)
+  const catalogResult = await loadProviderCatalog();
+  applyCatalogResult(catalogResult, preserveExisting);
 }
 
-async function saveProviderConfiguration(provider: ProviderCatalogItemView): Promise<void> {
-  const draft = providerDraft(provider.providerId)
+async function saveProviderConfiguration(
+  provider: ProviderCatalogItemView
+): Promise<void> {
+  const draft = providerDraft(provider.providerId);
   providerConfigurationNotice.value = {
     ...providerConfigurationNotice.value,
-    [provider.providerId]: '',
-  }
+    [provider.providerId]: "",
+  };
 
-  savingProviderId.value = provider.providerId
+  savingProviderId.value = provider.providerId;
 
   try {
     await updateProviderConfiguration({
@@ -524,61 +732,106 @@ async function saveProviderConfiguration(provider: ProviderCatalogItemView): Pro
       enabled: draft.enabled,
       environment: draft.environment,
       settings: draft.settings,
-    })
+    });
 
-    await refreshProviderCatalog(true)
-    await refreshOperationalActivity(true)
+    await refreshProviderCatalog(true);
+    await refreshOperationalActivity(true);
     providerConfigurationNotice.value = {
       ...providerConfigurationNotice.value,
-      [provider.providerId]: 'Saved locally.',
-    }
+      [provider.providerId]: "Saved locally.",
+    };
   } catch (error) {
     providerConfigurationNotice.value = {
       ...providerConfigurationNotice.value,
-      [provider.providerId]: error instanceof Error ? error.message : 'Unable to save provider configuration.',
-    }
+      [provider.providerId]:
+        error instanceof Error
+          ? error.message
+          : "Unable to save provider configuration.",
+    };
   } finally {
-    savingProviderId.value = null
+    savingProviderId.value = null;
+  }
+}
+
+async function setProviderSecret(
+  provider: ProviderCatalogItemView,
+  secretKey: string
+): Promise<void> {
+  const secretValue = secretKeyDrafts.value[provider.providerId] ?? "";
+
+  secretSaveNotice.value = {
+    ...secretSaveNotice.value,
+    [provider.providerId]: "",
+  };
+
+  savingSecretProviderId.value = provider.providerId;
+
+  try {
+    await updateProviderSecret({
+      providerId: provider.providerId,
+      secretKey,
+      secretValue,
+    });
+
+    // Clear the draft after saving so the value is not held in memory.
+    secretKeyDrafts.value = {
+      ...secretKeyDrafts.value,
+      [provider.providerId]: "",
+    };
+
+    await refreshProviderCatalog(true);
+    secretSaveNotice.value = {
+      ...secretSaveNotice.value,
+      [provider.providerId]: "API key stored in local secrets file.",
+    };
+  } catch (error) {
+    secretSaveNotice.value = {
+      ...secretSaveNotice.value,
+      [provider.providerId]:
+        error instanceof Error ? error.message : "Unable to save API key.",
+    };
+  } finally {
+    savingSecretProviderId.value = null;
   }
 }
 
 onMounted(async () => {
-  await refreshWorkspace(false)
-})
+  await refreshWorkspace(false);
+});
 
 watch(selectedWarehouseId, (nextWarehouseId, previousWarehouseId) => {
   if (nextWarehouseId === previousWarehouseId || isRefreshingWorkspace.value) {
-    return
+    return;
   }
 
-  void refreshWarehouseProjection(nextWarehouseId, false)
-})
+  void refreshWarehouseProjection(nextWarehouseId, false);
+});
 
 watch(selectedRouteId, (nextRouteId, previousRouteId) => {
   if (nextRouteId === previousRouteId || isRefreshingWorkspace.value) {
-    return
+    return;
   }
 
   void (async () => {
-    await refreshTransportProjection(nextRouteId, false)
-    await refreshRouteOptimization(false)
-  })()
-})
+    await refreshTransportProjection(nextRouteId, false);
+    await refreshRouteOptimization(false);
+  })();
+});
 
 watch(selectedScenarioId, (nextScenarioId, previousScenarioId) => {
   if (nextScenarioId === previousScenarioId || isRefreshingWorkspace.value) {
-    return
+    return;
   }
 
   void (async () => {
-    await refreshRouteOptimization(false)
-    await refreshAiRecommendation(false)
-  })()
-})
+    await refreshRouteOptimization(false);
+    await refreshAiRecommendation(false);
+  })();
+});
 
 onBeforeUnmount(() => {
-  window.clearTimeout(connectionRecoveryHandle)
-})
+  window.clearTimeout(connectionRecoveryHandle);
+});
 </script>
 
 <template>
@@ -635,14 +888,23 @@ onBeforeUnmount(() => {
         </div>
 
         <div class="topbar-actions">
-          <button type="button" class="refresh-button" :disabled="isRefreshingWorkspace" @click="refreshWorkspace(true)">
-            {{ isRefreshingWorkspace ? 'Refreshing...' : 'Refresh data' }}
+          <button
+            type="button"
+            class="refresh-button"
+            :disabled="isRefreshingWorkspace"
+            @click="refreshWorkspace(true)"
+          >
+            {{ isRefreshingWorkspace ? "Refreshing..." : "Refresh data" }}
           </button>
 
           <label class="scenario-select">
             <span>Scenario</span>
             <select v-model="selectedScenarioId">
-              <option v-for="scenario in overview.scenarios" :key="scenario.scenarioId" :value="scenario.scenarioId">
+              <option
+                v-for="scenario in overview.scenarios"
+                :key="scenario.scenarioId"
+                :value="scenario.scenarioId"
+              >
                 {{ scenario.name }}
               </option>
             </select>
@@ -650,7 +912,7 @@ onBeforeUnmount(() => {
 
           <div class="control-group" aria-label="Simulation controls">
             <button type="button" @click="toggleSimulation">
-              {{ simulationState === 'Running' ? 'Pause' : 'Resume' }}
+              {{ simulationState === "Running" ? "Pause" : "Resume" }}
             </button>
             <button
               v-for="speed in simulationSpeeds"
@@ -670,13 +932,19 @@ onBeforeUnmount(() => {
         <article class="metric-panel">
           <span class="panel-label">Scenario clock</span>
           <strong>{{ currentScenario.currentTimeLabel }}</strong>
-          <p>Seed {{ currentScenario.seed }} - {{ currentScenario.injectedEventCount }} injected events</p>
+          <p>
+            Seed {{ currentScenario.seed }} -
+            {{ currentScenario.injectedEventCount }} injected events
+          </p>
         </article>
 
         <article class="metric-panel">
           <span class="panel-label">Warehouse occupancy</span>
           <strong>{{ warehouseUtilization }}%</strong>
-          <p>{{ currentWarehouse.storedPalletCount }} pallets across {{ currentWarehouse.slotCount }} slots</p>
+          <p>
+            {{ currentWarehouse.storedPalletCount }} pallets across
+            {{ currentWarehouse.slotCount }} slots
+          </p>
         </article>
 
         <article class="metric-panel">
@@ -688,7 +956,7 @@ onBeforeUnmount(() => {
         <article class="metric-panel">
           <span class="panel-label">Operational risk</span>
           <strong>{{ currentRiskCount }} active signals</strong>
-          <p>{{ overview.alerts[0]?.title ?? 'No active alert' }}</p>
+          <p>{{ overview.alerts[0]?.title ?? "No active alert" }}</p>
         </article>
 
         <article class="metric-panel">
@@ -704,7 +972,9 @@ onBeforeUnmount(() => {
             <span class="panel-label">Connection state</span>
             <h2>Data access posture</h2>
           </div>
-          <span class="mini-badge">{{ isRefreshingWorkspace ? 'Refreshing' : 'Stable view' }}</span>
+          <span class="mini-badge">{{
+            isRefreshingWorkspace ? "Refreshing" : "Stable view"
+          }}</span>
         </div>
 
         <div class="connection-grid">
@@ -712,22 +982,41 @@ onBeforeUnmount(() => {
             <div class="connection-card-head">
               <div>
                 <strong>Overview feed</strong>
-                <p>Scenario, warehouse, transport, alerts, and provider watch.</p>
+                <p>
+                  Scenario, warehouse, transport, alerts, and provider watch.
+                </p>
               </div>
-              <span class="status-pill" :class="dataConnectionTone">{{ overviewConnectionLabel }}</span>
+              <span class="status-pill" :class="dataConnectionTone">{{
+                overviewConnectionLabel
+              }}</span>
             </div>
-            <p>{{ loadErrorMessage ?? 'Overview endpoint is serving the operator workspace.' }}</p>
+            <p>
+              {{
+                loadErrorMessage ??
+                "Overview endpoint is serving the operator workspace."
+              }}
+            </p>
           </article>
 
           <article class="connection-card">
             <div class="connection-card-head">
               <div>
                 <strong>Warehouse projection</strong>
-                <p>Zone posture, dock availability, and twin-facing warehouse detail.</p>
+                <p>
+                  Zone posture, dock availability, and twin-facing warehouse
+                  detail.
+                </p>
               </div>
-              <span class="status-pill" :class="warehouseProjectionTone">{{ warehouseProjectionLabel }}</span>
+              <span class="status-pill" :class="warehouseProjectionTone">{{
+                warehouseProjectionLabel
+              }}</span>
             </div>
-            <p>{{ warehouseDetailErrorMessage ?? `Detailed warehouse projection updated ${warehouseDetail.updatedAtLabel}.` }}</p>
+            <p>
+              {{
+                warehouseDetailErrorMessage ??
+                `Detailed warehouse projection updated ${warehouseDetail.updatedAtLabel}.`
+              }}
+            </p>
           </article>
 
           <article class="connection-card">
@@ -736,42 +1025,77 @@ onBeforeUnmount(() => {
                 <strong>Transport projection</strong>
                 <p>Route detail, shipment posture, and delivery progress.</p>
               </div>
-              <span class="status-pill" :class="transportProjectionTone">{{ transportProjectionLabel }}</span>
+              <span class="status-pill" :class="transportProjectionTone">{{
+                transportProjectionLabel
+              }}</span>
             </div>
-            <p>{{ routeDetailErrorMessage ?? `Detailed transport projection updated ${routeDetail.updatedAtLabel}.` }}</p>
+            <p>
+              {{
+                routeDetailErrorMessage ??
+                `Detailed transport projection updated ${routeDetail.updatedAtLabel}.`
+              }}
+            </p>
           </article>
 
           <article class="connection-card">
             <div class="connection-card-head">
               <div>
                 <strong>Provider catalog</strong>
-                <p>Connector inventory, runtime posture, and local editing flow.</p>
+                <p>
+                  Connector inventory, runtime posture, and local editing flow.
+                </p>
               </div>
-              <span class="status-pill" :class="providerEditorTone">{{ catalogConnectionLabel }}</span>
+              <span class="status-pill" :class="providerEditorTone">{{
+                catalogConnectionLabel
+              }}</span>
             </div>
-            <p>{{ providerCatalogErrorMessage ?? 'Provider catalog is available for local inspection and editing.' }}</p>
+            <p>
+              {{
+                providerCatalogErrorMessage ??
+                "Provider catalog is available for local inspection and editing."
+              }}
+            </p>
           </article>
 
           <article class="connection-card">
             <div class="connection-card-head">
               <div>
                 <strong>Route optimization</strong>
-                <p>Dispatcher resequencing workflow and solver-backed recovery plans.</p>
+                <p>
+                  Dispatcher resequencing workflow and solver-backed recovery
+                  plans.
+                </p>
               </div>
-              <span class="status-pill" :class="optimizationWorkflowTone">{{ optimizationWorkflowLabel }}</span>
+              <span class="status-pill" :class="optimizationWorkflowTone">{{
+                optimizationWorkflowLabel
+              }}</span>
             </div>
-            <p>{{ routeOptimizationErrorMessage ?? `Optimization review ready for ${routeOptimization.routeReference}.` }}</p>
+            <p>
+              {{
+                routeOptimizationErrorMessage ??
+                `Optimization review ready for ${routeOptimization.routeReference}.`
+              }}
+            </p>
           </article>
 
           <article class="connection-card">
             <div class="connection-card-head">
               <div>
                 <strong>Operational trace</strong>
-                <p>Persisted snapshots, workflow runs, and recent audit evidence.</p>
+                <p>
+                  Persisted snapshots, workflow runs, and recent audit evidence.
+                </p>
               </div>
-              <span class="status-pill" :class="operationalWorkflowTone">{{ operationalWorkflowLabel }}</span>
+              <span class="status-pill" :class="operationalWorkflowTone">{{
+                operationalWorkflowLabel
+              }}</span>
             </div>
-            <p>{{ operationalActivityErrorMessage ?? `Trace panel ready with ${operationalActivity.workflowRuns.length} workflow runs.` }}</p>
+            <p>
+              {{
+                operationalActivityErrorMessage ??
+                `Trace panel ready with ${operationalActivity.workflowRuns.length} workflow runs.`
+              }}
+            </p>
           </article>
         </div>
 
@@ -787,11 +1111,17 @@ onBeforeUnmount(() => {
             </div>
 
             <div class="warehouse-actions">
-              <span class="status-pill" :class="warehouseProjectionTone">{{ warehouseProjectionLabel }}</span>
+              <span class="status-pill" :class="warehouseProjectionTone">{{
+                warehouseProjectionLabel
+              }}</span>
               <label class="compact-select">
                 <span>View</span>
                 <select v-model="selectedWarehouseId">
-                  <option v-for="warehouse in overview.warehouses" :key="warehouse.warehouseId" :value="warehouse.warehouseId">
+                  <option
+                    v-for="warehouse in overview.warehouses"
+                    :key="warehouse.warehouseId"
+                    :value="warehouse.warehouseId"
+                  >
                     {{ warehouse.name }}
                   </option>
                 </select>
@@ -808,7 +1138,11 @@ onBeforeUnmount(() => {
 
             <div class="warehouse-detail-grid">
               <div class="zone-strip" aria-label="Warehouse zones">
-                <article v-for="zone in warehouseDetail.zones" :key="zone.code" class="zone-tile">
+                <article
+                  v-for="zone in warehouseDetail.zones"
+                  :key="zone.code"
+                  class="zone-tile"
+                >
                   <div class="zone-head">
                     <div>
                       <strong>{{ zone.code }}</strong>
@@ -826,16 +1160,30 @@ onBeforeUnmount(() => {
               </div>
 
               <div class="dock-strip" aria-label="Warehouse docks">
-                <article v-for="dock in warehouseDetail.docks" :key="dock.code" class="dock-card">
+                <article
+                  v-for="dock in warehouseDetail.docks"
+                  :key="dock.code"
+                  class="dock-card"
+                >
                   <div class="zone-head">
                     <strong>{{ dock.code }}</strong>
-                    <span class="dock-status" :class="dock.status === 'Occupied' ? 'is-occupied' : 'is-available'">
+                    <span
+                      class="dock-status"
+                      :class="
+                        dock.status === 'Occupied'
+                          ? 'is-occupied'
+                          : 'is-available'
+                      "
+                    >
                       {{ dock.status }}
                     </span>
                   </div>
                   <p>{{ dock.activityLabel }}</p>
                 </article>
-                <p class="warehouse-summary-note">Detailed warehouse projection updated {{ warehouseDetail.updatedAtLabel }}.</p>
+                <p class="warehouse-summary-note">
+                  Detailed warehouse projection updated
+                  {{ warehouseDetail.updatedAtLabel }}.
+                </p>
               </div>
             </div>
           </div>
@@ -856,7 +1204,13 @@ onBeforeUnmount(() => {
               v-for="route in overview.routes"
               :key="route.routeId"
               class="route-marker"
-              :class="route.status === 'Delayed' ? 'is-delayed' : route.status === 'At risk' ? 'is-risk' : 'is-normal'"
+              :class="
+                route.status === 'Delayed'
+                  ? 'is-delayed'
+                  : route.status === 'At risk'
+                  ? 'is-risk'
+                  : 'is-normal'
+              "
               :style="{ left: route.mapX, top: route.mapY }"
             >
               <strong>{{ route.reference }}</strong>
@@ -880,7 +1234,10 @@ onBeforeUnmount(() => {
             >
               <div>
                 <strong>{{ route.reference }}</strong>
-                <p>{{ route.truckReference }} - {{ route.stopCount }} stops - {{ route.shipmentCount }} shipments</p>
+                <p>
+                  {{ route.truckReference }} - {{ route.stopCount }} stops -
+                  {{ route.shipmentCount }} shipments
+                </p>
               </div>
               <div class="route-meta">
                 <span class="route-status">{{ route.status }}</span>
@@ -895,25 +1252,43 @@ onBeforeUnmount(() => {
                 <div>
                   <span class="panel-label">Selected route</span>
                   <h3>{{ currentRoute.reference }}</h3>
-                  <p>{{ routeDetail.driverName }} - {{ routeDetail.truckReference }} - {{ routeDetail.truckStatus }}</p>
+                  <p>
+                    {{ routeDetail.driverName }} -
+                    {{ routeDetail.truckReference }} -
+                    {{ routeDetail.truckStatus }}
+                  </p>
                 </div>
-                <span class="status-pill" :class="transportProjectionTone">{{ transportProjectionLabel }}</span>
+                <span class="status-pill" :class="transportProjectionTone">{{
+                  transportProjectionLabel
+                }}</span>
               </div>
 
               <div class="route-detail-meta">
                 <span>{{ routeDetail.status }}</span>
                 <span>{{ routeDetail.updatedAtLabel }}</span>
-                <span>{{ routeDetail.totalLoadKilograms }} / {{ routeDetail.truckCapacityKilograms }} kg</span>
-                <span>{{ routeDetail.completedDeliveryCount }} completed deliveries</span>
+                <span
+                  >{{ routeDetail.totalLoadKilograms }} /
+                  {{ routeDetail.truckCapacityKilograms }} kg</span
+                >
+                <span
+                  >{{ routeDetail.completedDeliveryCount }} completed
+                  deliveries</span
+                >
               </div>
 
               <div class="transport-detail-columns">
                 <section class="transport-detail-block">
                   <span class="panel-label">Stops</span>
                   <ul class="detail-list">
-                    <li v-for="stop in routeDetail.stops" :key="`${routeDetail.routeId}-stop-${stop.sequence}`">
+                    <li
+                      v-for="stop in routeDetail.stops"
+                      :key="`${routeDetail.routeId}-stop-${stop.sequence}`"
+                    >
                       <strong>{{ stop.sequence }}. {{ stop.name }}</strong>
-                      <span>{{ stop.coordinateLabel }} - {{ stop.timeWindowLabel }}</span>
+                      <span
+                        >{{ stop.coordinateLabel }} -
+                        {{ stop.timeWindowLabel }}</span
+                      >
                     </li>
                   </ul>
                 </section>
@@ -921,9 +1296,16 @@ onBeforeUnmount(() => {
                 <section class="transport-detail-block">
                   <span class="panel-label">Shipments</span>
                   <ul class="detail-list">
-                    <li v-for="shipment in routeDetail.shipments" :key="`${routeDetail.routeId}-shipment-${shipment.reference}`">
+                    <li
+                      v-for="shipment in routeDetail.shipments"
+                      :key="`${routeDetail.routeId}-shipment-${shipment.reference}`"
+                    >
                       <strong>{{ shipment.reference }}</strong>
-                      <span>{{ shipment.status }} - {{ shipment.loadWeightKilograms }} kg - {{ shipment.orderReference }}</span>
+                      <span
+                        >{{ shipment.status }} -
+                        {{ shipment.loadWeightKilograms }} kg -
+                        {{ shipment.orderReference }}</span
+                      >
                     </li>
                   </ul>
                 </section>
@@ -931,9 +1313,16 @@ onBeforeUnmount(() => {
                 <section class="transport-detail-block">
                   <span class="panel-label">Deliveries</span>
                   <ul class="detail-list">
-                    <li v-for="delivery in routeDetail.deliveries" :key="`${routeDetail.routeId}-delivery-${delivery.reference}`">
+                    <li
+                      v-for="delivery in routeDetail.deliveries"
+                      :key="`${routeDetail.routeId}-delivery-${delivery.reference}`"
+                    >
                       <strong>{{ delivery.reference }}</strong>
-                      <span>Stop {{ delivery.stopSequence }} - {{ delivery.stopName }} - {{ delivery.shipmentReference }}</span>
+                      <span
+                        >Stop {{ delivery.stopSequence }} -
+                        {{ delivery.stopName }} -
+                        {{ delivery.shipmentReference }}</span
+                      >
                       <span>{{ delivery.status }}</span>
                     </li>
                   </ul>
@@ -974,7 +1363,9 @@ onBeforeUnmount(() => {
                 :key="scenario.scenarioId"
                 type="button"
                 class="scenario-card"
-                :class="{ 'is-selected': selectedScenarioId === scenario.scenarioId }"
+                :class="{
+                  'is-selected': selectedScenarioId === scenario.scenarioId,
+                }"
                 @click="selectedScenarioId = scenario.scenarioId"
               >
                 <strong>{{ scenario.name }}</strong>
@@ -998,10 +1389,19 @@ onBeforeUnmount(() => {
             <div>
               <h3>Operational signals</h3>
               <div class="alert-list">
-                <article v-for="alert in overview.alerts" :key="alert.title" class="alert-row">
+                <article
+                  v-for="alert in overview.alerts"
+                  :key="alert.title"
+                  class="alert-row"
+                >
                   <div class="alert-heading">
                     <strong>{{ alert.title }}</strong>
-                    <span :class="['severity-chip', `severity-${alert.severity.toLowerCase()}`]">
+                    <span
+                      :class="[
+                        'severity-chip',
+                        `severity-${alert.severity.toLowerCase()}`,
+                      ]"
+                    >
                       {{ alert.severity }}
                     </span>
                   </div>
@@ -1013,7 +1413,11 @@ onBeforeUnmount(() => {
             <div>
               <h3>Event feed</h3>
               <div class="feed-list">
-                <article v-for="event in overview.eventFeed" :key="event.id" class="feed-row">
+                <article
+                  v-for="event in overview.eventFeed"
+                  :key="event.id"
+                  class="feed-row"
+                >
                   <span>{{ event.timeLabel }}</span>
                   <div>
                     <strong>{{ event.title }}</strong>
@@ -1026,18 +1430,31 @@ onBeforeUnmount(() => {
             <div>
               <h3>Provider watch</h3>
               <div class="provider-list">
-                <article v-for="provider in overview.providers" :key="provider.providerId" class="provider-row">
+                <article
+                  v-for="provider in overview.providers"
+                  :key="provider.providerId"
+                  class="provider-row"
+                >
                   <div class="provider-heading">
                     <div>
                       <strong>{{ provider.providerName }}</strong>
-                      <p>{{ provider.domain }} - {{ provider.syncStatusLabel }}</p>
+                      <p>
+                        {{ provider.domain }} - {{ provider.syncStatusLabel }}
+                      </p>
                     </div>
-                    <span :class="['severity-chip', `severity-${provider.healthStatus.toLowerCase()}`]">
+                    <span
+                      :class="[
+                        'severity-chip',
+                        `severity-${provider.healthStatus.toLowerCase()}`,
+                      ]"
+                    >
                       {{ provider.healthStatus }}
                     </span>
                   </div>
                   <p>{{ provider.summary }}</p>
-                  <span class="provider-meta">{{ provider.lastActivityLabel }}</span>
+                  <span class="provider-meta">{{
+                    provider.lastActivityLabel
+                  }}</span>
                 </article>
               </div>
             </div>
@@ -1056,7 +1473,13 @@ onBeforeUnmount(() => {
               {{ aiWorkflowLabel }}
             </span>
             <span class="mini-badge">
-              {{ aiConnectionState === 'loading' ? 'Waiting for answer' : aiRecommendation?.source === 'api' ? 'Python service' : 'Local fallback' }}
+              {{
+                aiConnectionState === "loading"
+                  ? "Waiting for answer"
+                  : aiRecommendation?.source === "api"
+                  ? "Python service"
+                  : "Local fallback"
+              }}
             </span>
           </div>
         </div>
@@ -1066,13 +1489,20 @@ onBeforeUnmount(() => {
             <div class="catalog-editor-heading">
               <div>
                 <span class="panel-label">Ask the workflow</span>
-                <p class="catalog-summary">The current overview snapshot is the grounding context for every answer.</p>
+                <p class="catalog-summary">
+                  The current overview snapshot is the grounding context for
+                  every answer.
+                </p>
               </div>
             </div>
 
             <label class="catalog-field ai-question-field">
               <span>Question</span>
-              <textarea v-model="aiQuestion" rows="3" placeholder="Which route should the dispatcher review first?"></textarea>
+              <textarea
+                v-model="aiQuestion"
+                rows="3"
+                placeholder="Which route should the dispatcher review first?"
+              ></textarea>
             </label>
 
             <div class="chip-row">
@@ -1094,10 +1524,13 @@ onBeforeUnmount(() => {
                 :disabled="isRequestingAi"
                 @click="refreshAiRecommendation(false)"
               >
-                {{ isRequestingAi ? 'Analyzing...' : 'Ask AI' }}
+                {{ isRequestingAi ? "Analyzing..." : "Ask AI" }}
               </button>
               <span class="catalog-editor-note">
-                {{ aiRecommendationErrorMessage ?? 'The workflow stays projection-first and never invents missing state.' }}
+                {{
+                  aiRecommendationErrorMessage ??
+                  "The workflow stays projection-first and never invents missing state."
+                }}
               </span>
             </div>
 
@@ -1113,10 +1546,28 @@ onBeforeUnmount(() => {
             <div class="connection-banner">
               <div>
                 <span class="panel-label">Recommendation</span>
-                <p>{{ aiRecommendationView?.directAnswer || 'Run a question to see a grounded answer.' }}</p>
+                <p>
+                  {{
+                    aiRecommendationView?.directAnswer ||
+                    "Run a question to see a grounded answer."
+                  }}
+                </p>
               </div>
-              <span :class="['severity-chip', aiRecommendationView?.confidenceLevel === 'high' ? 'severity-healthy' : aiRecommendationView?.confidenceLevel === 'medium' ? 'severity-warning' : 'severity-unhealthy']">
-                {{ aiRecommendationView?.confidenceLevel ? aiRecommendationView.confidenceLevel.toUpperCase() : 'LOW' }}
+              <span
+                :class="[
+                  'severity-chip',
+                  aiRecommendationView?.confidenceLevel === 'high'
+                    ? 'severity-healthy'
+                    : aiRecommendationView?.confidenceLevel === 'medium'
+                    ? 'severity-warning'
+                    : 'severity-unhealthy',
+                ]"
+              >
+                {{
+                  aiRecommendationView?.confidenceLevel
+                    ? aiRecommendationView.confidenceLevel.toUpperCase()
+                    : "LOW"
+                }}
               </span>
             </div>
 
@@ -1124,14 +1575,20 @@ onBeforeUnmount(() => {
               <div class="route-detail-meta">
                 <span>Intent: {{ aiRecommendationView.intent }}</span>
                 <span>Source: {{ aiRecommendation?.source }}</span>
-                <span>Agents: {{ aiRecommendationView.specialistAgents.join(', ') }}</span>
+                <span
+                  >Agents:
+                  {{ aiRecommendationView.specialistAgents.join(", ") }}</span
+                >
               </div>
 
               <div class="transport-detail-columns">
                 <section class="transport-detail-block">
                   <span class="panel-label">Evidence</span>
                   <ul class="detail-list">
-                    <li v-for="item in aiRecommendationView.evidence" :key="`${item.source}-${item.detail}`">
+                    <li
+                      v-for="item in aiRecommendationView.evidence"
+                      :key="`${item.source}-${item.detail}`"
+                    >
                       <strong>{{ item.source }}</strong>
                       <span>{{ item.detail }}</span>
                     </li>
@@ -1143,9 +1600,15 @@ onBeforeUnmount(() => {
                   <ul class="detail-list">
                     <li v-if="aiRecommendationView.assumptions.length === 0">
                       <strong>None</strong>
-                      <span>The recommendation is grounded entirely in the live projections.</span>
+                      <span
+                        >The recommendation is grounded entirely in the live
+                        projections.</span
+                      >
                     </li>
-                    <li v-for="assumption in aiRecommendationView.assumptions" :key="assumption">
+                    <li
+                      v-for="assumption in aiRecommendationView.assumptions"
+                      :key="assumption"
+                    >
                       <strong>Assumption</strong>
                       <span>{{ assumption }}</span>
                     </li>
@@ -1155,7 +1618,10 @@ onBeforeUnmount(() => {
                 <section class="transport-detail-block">
                   <span class="panel-label">Recommended actions</span>
                   <ul class="detail-list">
-                    <li v-for="action in aiRecommendationView.recommendedActions" :key="`${action.title}-${action.priority}`">
+                    <li
+                      v-for="action in aiRecommendationView.recommendedActions"
+                      :key="`${action.title}-${action.priority}`"
+                    >
                       <strong>{{ action.title }}</strong>
                       <span>{{ action.rationale }}</span>
                       <span>Priority: {{ action.priority }}</span>
@@ -1170,9 +1636,14 @@ onBeforeUnmount(() => {
                   <ul class="detail-list">
                     <li v-if="aiRecommendationView.missingData.length === 0">
                       <strong>None</strong>
-                      <span>No critical context is missing for this answer.</span>
+                      <span
+                        >No critical context is missing for this answer.</span
+                      >
                     </li>
-                    <li v-for="item in aiRecommendationView.missingData" :key="item">
+                    <li
+                      v-for="item in aiRecommendationView.missingData"
+                      :key="item"
+                    >
                       <strong>Missing</strong>
                       <span>{{ item }}</span>
                     </li>
@@ -1182,14 +1653,19 @@ onBeforeUnmount(() => {
                 <section class="transport-detail-block">
                   <span class="panel-label">Scenario note</span>
                   <p class="provider-meta">
-                    {{ aiRecommendationView.alternativeScenarioNote ?? 'No alternate scenario note was returned.' }}
+                    {{
+                      aiRecommendationView.alternativeScenarioNote ??
+                      "No alternate scenario note was returned."
+                    }}
                   </p>
                 </section>
 
                 <section class="transport-detail-block">
                   <span class="panel-label">Answer posture</span>
                   <p class="provider-meta">
-                    The workflow returns {{ aiRecommendationView.confidenceLevel }} confidence and surfaces evidence before any recommendation.
+                    The workflow returns
+                    {{ aiRecommendationView.confidenceLevel }} confidence and
+                    surfaces evidence before any recommendation.
                   </p>
                 </section>
               </div>
@@ -1209,7 +1685,11 @@ onBeforeUnmount(() => {
               {{ optimizationWorkflowLabel }}
             </span>
             <span class="mini-badge">
-              {{ isOptimizingRoute ? 'Recomputing plan' : routeOptimization.solverBackend }}
+              {{
+                isOptimizingRoute
+                  ? "Recomputing plan"
+                  : routeOptimization.solverBackend
+              }}
             </span>
           </div>
         </div>
@@ -1219,7 +1699,10 @@ onBeforeUnmount(() => {
             <div class="connection-card-head">
               <div>
                 <strong>{{ routeOptimization.routeReference }}</strong>
-                <p>{{ routeDetail.truckReference }} - {{ routeDetail.driverName }} - {{ currentScenario.name }}</p>
+                <p>
+                  {{ routeDetail.truckReference }} -
+                  {{ routeDetail.driverName }} - {{ currentScenario.name }}
+                </p>
               </div>
               <span class="status-pill" :class="transportProjectionTone">
                 {{ routeDetail.status }}
@@ -1227,9 +1710,17 @@ onBeforeUnmount(() => {
             </div>
 
             <div class="catalog-meta ai-context-meta">
-              <span>Current remaining stops {{ currentRemainingRouteOrder.length }}</span>
-              <span>Completed deliveries {{ routeDetail.completedDeliveryCount }}</span>
-              <span>Objective {{ routeOptimization.objectiveScore ?? 'n/a' }}</span>
+              <span
+                >Current remaining stops
+                {{ currentRemainingRouteOrder.length }}</span
+              >
+              <span
+                >Completed deliveries
+                {{ routeDetail.completedDeliveryCount }}</span
+              >
+              <span
+                >Objective {{ routeOptimization.objectiveScore ?? "n/a" }}</span
+              >
             </div>
 
             <div class="catalog-editor-actions">
@@ -1239,10 +1730,15 @@ onBeforeUnmount(() => {
                 :disabled="isOptimizingRoute"
                 @click="refreshRouteOptimization(false)"
               >
-                {{ isOptimizingRoute ? 'Optimizing...' : 'Re-run optimization' }}
+                {{
+                  isOptimizingRoute ? "Optimizing..." : "Re-run optimization"
+                }}
               </button>
               <span class="catalog-editor-note">
-                {{ routeOptimizationErrorMessage ?? 'The optimization workflow compares the remaining route posture against solver-backed alternatives.' }}
+                {{
+                  routeOptimizationErrorMessage ??
+                  "The optimization workflow compares the remaining route posture against solver-backed alternatives."
+                }}
               </span>
             </div>
           </article>
@@ -1253,11 +1749,16 @@ onBeforeUnmount(() => {
                 <span class="panel-label">Current remaining plan</span>
                 <h3>{{ currentRoute.reference }}</h3>
               </div>
-              <span class="mini-badge">{{ currentRemainingRouteOrder.length }} stops</span>
+              <span class="mini-badge"
+                >{{ currentRemainingRouteOrder.length }} stops</span
+              >
             </div>
 
             <ol class="optimization-order-list">
-              <li v-for="stopName in currentRemainingRouteOrder" :key="`current-${stopName}`">
+              <li
+                v-for="stopName in currentRemainingRouteOrder"
+                :key="`current-${stopName}`"
+              >
                 {{ stopName }}
               </li>
             </ol>
@@ -1269,11 +1770,16 @@ onBeforeUnmount(() => {
                 <span class="panel-label">Recommended plan</span>
                 <h3>{{ routeOptimization.status }}</h3>
               </div>
-              <span class="mini-badge">{{ routeOptimization.solverBackend }}</span>
+              <span class="mini-badge">{{
+                routeOptimization.solverBackend
+              }}</span>
             </div>
 
             <ol class="optimization-order-list">
-              <li v-for="stopName in routeOptimization.orderedStopReferences" :key="`optimized-${stopName}`">
+              <li
+                v-for="stopName in routeOptimization.orderedStopReferences"
+                :key="`optimized-${stopName}`"
+              >
                 {{ stopName }}
               </li>
             </ol>
@@ -1283,14 +1789,28 @@ onBeforeUnmount(() => {
         <div class="optimization-grid is-detail">
           <article class="optimization-detail-card">
             <span class="panel-label">Explanation</span>
-            <p class="catalog-summary">{{ routeOptimization.explanation.selectedVehicleReason }}</p>
-            <p class="catalog-summary">{{ routeOptimization.explanation.prioritizationReason }}</p>
+            <p class="catalog-summary">
+              {{ routeOptimization.explanation.selectedVehicleReason }}
+            </p>
+            <p class="catalog-summary">
+              {{ routeOptimization.explanation.prioritizationReason }}
+            </p>
 
             <div class="chip-row">
-              <span v-for="constraint in routeOptimization.explanation.tightConstraints" :key="constraint" class="catalog-chip is-missing">
+              <span
+                v-for="constraint in routeOptimization.explanation
+                  .tightConstraints"
+                :key="constraint"
+                class="catalog-chip is-missing"
+              >
                 {{ constraint }}
               </span>
-              <span v-if="routeOptimization.explanation.tightConstraints.length === 0" class="catalog-chip is-muted">
+              <span
+                v-if="
+                  routeOptimization.explanation.tightConstraints.length === 0
+                "
+                class="catalog-chip is-muted"
+              >
                 No tight constraints
               </span>
             </div>
@@ -1299,13 +1819,18 @@ onBeforeUnmount(() => {
           <article class="optimization-detail-card">
             <span class="panel-label">Trade-offs</span>
             <ul class="detail-list">
-              <li v-for="tradeOff in routeOptimization.explanation.tradeOffs" :key="tradeOff">
+              <li
+                v-for="tradeOff in routeOptimization.explanation.tradeOffs"
+                :key="tradeOff"
+              >
                 <strong>Trade-off</strong>
                 <span>{{ tradeOff }}</span>
               </li>
               <li v-if="routeOptimization.explanation.infeasibilityReason">
                 <strong>Infeasibility</strong>
-                <span>{{ routeOptimization.explanation.infeasibilityReason }}</span>
+                <span>{{
+                  routeOptimization.explanation.infeasibilityReason
+                }}</span>
               </li>
             </ul>
           </article>
@@ -1313,14 +1838,22 @@ onBeforeUnmount(() => {
           <article class="optimization-detail-card">
             <span class="panel-label">Alternatives</span>
             <ul class="detail-list">
-              <li v-for="alternative in routeOptimization.alternatives" :key="alternative.label">
+              <li
+                v-for="alternative in routeOptimization.alternatives"
+                :key="alternative.label"
+              >
                 <strong>{{ alternative.label }}</strong>
-                <span>{{ alternative.orderedStopReferences.join(' -> ') }}</span>
+                <span>{{
+                  alternative.orderedStopReferences.join(" -> ")
+                }}</span>
                 <span>{{ alternative.summary }}</span>
               </li>
               <li v-if="routeOptimization.alternatives.length === 0">
                 <strong>No alternatives</strong>
-                <span>The workflow kept a single recommended plan for this route posture.</span>
+                <span
+                  >The workflow kept a single recommended plan for this route
+                  posture.</span
+                >
               </li>
             </ul>
           </article>
@@ -1343,7 +1876,11 @@ onBeforeUnmount(() => {
               :disabled="isRefreshingOperationalActivity"
               @click="refreshOperationalActivity(false)"
             >
-              {{ isRefreshingOperationalActivity ? 'Refreshing trace...' : 'Refresh trace' }}
+              {{
+                isRefreshingOperationalActivity
+                  ? "Refreshing trace..."
+                  : "Refresh trace"
+              }}
             </button>
           </div>
         </div>
@@ -1352,19 +1889,35 @@ onBeforeUnmount(() => {
           <article class="optimization-summary-card">
             <span class="panel-label">Trace posture</span>
             <p class="catalog-summary">
-              {{ operationalActivityErrorMessage ?? 'The operator workspace can now inspect persisted snapshots, workflow runs, and audit entries without opening backend files directly.' }}
+              {{
+                operationalActivityErrorMessage ??
+                "The operator workspace can now inspect persisted snapshots, workflow runs, and audit entries without opening backend files directly."
+              }}
             </p>
             <div class="catalog-meta">
-              <span>{{ operationalActivity.workflowRuns.length }} workflow runs</span>
-              <span>{{ operationalActivity.projectionSnapshots.length }} snapshots</span>
-              <span>{{ operationalActivity.auditEntries.length }} audit entries</span>
+              <span
+                >{{ operationalActivity.workflowRuns.length }} workflow
+                runs</span
+              >
+              <span
+                >{{
+                  operationalActivity.projectionSnapshots.length
+                }}
+                snapshots</span
+              >
+              <span
+                >{{ operationalActivity.auditEntries.length }} audit
+                entries</span
+              >
             </div>
           </article>
 
           <article class="optimization-summary-card">
             <span class="panel-label">Why it matters</span>
             <p class="catalog-summary">
-              This is the demo bridge between product behavior and operational evidence: every recommendation, optimization, and projection refresh can now be traced back to persisted backend state.
+              This is the demo bridge between product behavior and operational
+              evidence: every recommendation, optimization, and projection
+              refresh can now be traced back to persisted backend state.
             </p>
           </article>
         </div>
@@ -1376,13 +1929,18 @@ onBeforeUnmount(() => {
                 <span class="panel-label">Workflow runs</span>
                 <h3>AI and optimization</h3>
               </div>
-              <span class="mini-badge">{{ operationalActivity.workflowRuns.length }} items</span>
+              <span class="mini-badge"
+                >{{ operationalActivity.workflowRuns.length }} items</span
+              >
             </div>
 
             <ul class="detail-list">
               <li v-for="run in operationalActivity.workflowRuns" :key="run.id">
                 <strong>{{ run.workflowKind }}</strong>
-                <span>{{ run.subjectLabel }} - {{ run.status }} - {{ run.source }}</span>
+                <span
+                  >{{ run.subjectLabel }} - {{ run.status }} -
+                  {{ run.source }}</span
+                >
                 <span>{{ run.scenarioLabel }} - {{ run.createdAtLabel }}</span>
                 <span>{{ run.summary }}</span>
               </li>
@@ -1395,13 +1953,23 @@ onBeforeUnmount(() => {
                 <span class="panel-label">Projection snapshots</span>
                 <h3>Persisted read models</h3>
               </div>
-              <span class="mini-badge">{{ operationalActivity.projectionSnapshots.length }} items</span>
+              <span class="mini-badge"
+                >{{
+                  operationalActivity.projectionSnapshots.length
+                }}
+                items</span
+              >
             </div>
 
             <ul class="detail-list">
-              <li v-for="snapshot in operationalActivity.projectionSnapshots" :key="snapshot.id">
+              <li
+                v-for="snapshot in operationalActivity.projectionSnapshots"
+                :key="snapshot.id"
+              >
                 <strong>{{ snapshot.projectionName }}</strong>
-                <span>{{ snapshot.projectionKey }} - {{ snapshot.source }}</span>
+                <span
+                  >{{ snapshot.projectionKey }} - {{ snapshot.source }}</span
+                >
                 <span>{{ snapshot.capturedAtLabel }}</span>
                 <span>{{ snapshot.summary }}</span>
               </li>
@@ -1414,13 +1982,21 @@ onBeforeUnmount(() => {
                 <span class="panel-label">Audit trail</span>
                 <h3>Protected API activity</h3>
               </div>
-              <span class="mini-badge">{{ operationalActivity.auditEntries.length }} items</span>
+              <span class="mini-badge"
+                >{{ operationalActivity.auditEntries.length }} items</span
+              >
             </div>
 
             <ul class="detail-list">
-              <li v-for="entry in operationalActivity.auditEntries" :key="entry.id">
+              <li
+                v-for="entry in operationalActivity.auditEntries"
+                :key="entry.id"
+              >
                 <strong>{{ entry.actionLabel }}</strong>
-                <span>Status {{ entry.statusCode }} - {{ entry.occurredAtLabel }}</span>
+                <span
+                  >Status {{ entry.statusCode }} -
+                  {{ entry.occurredAtLabel }}</span
+                >
                 <span>Correlation {{ entry.correlationId }}</span>
                 <span>{{ entry.summary }}</span>
               </li>
@@ -1439,7 +2015,9 @@ onBeforeUnmount(() => {
             <span class="status-pill" :class="providerEditorTone">
               {{ catalogConnectionLabel }}
             </span>
-            <span class="mini-badge">{{ providerCatalog.generatedAtLabel }}</span>
+            <span class="mini-badge">{{
+              providerCatalog.generatedAtLabel
+            }}</span>
           </div>
         </div>
 
@@ -1448,13 +2026,22 @@ onBeforeUnmount(() => {
         </p>
 
         <div class="catalog-grid">
-          <article v-for="provider in providerCatalog.providers" :key="provider.providerId" class="catalog-card">
+          <article
+            v-for="provider in providerCatalog.providers"
+            :key="provider.providerId"
+            class="catalog-card"
+          >
             <div class="catalog-card-head">
               <div>
                 <strong>{{ provider.providerName }}</strong>
                 <p>{{ provider.domain }} - {{ provider.kind }}</p>
               </div>
-              <span :class="['severity-chip', `severity-${provider.healthStatus.toLowerCase()}`]">
+              <span
+                :class="[
+                  'severity-chip',
+                  `severity-${provider.healthStatus.toLowerCase()}`,
+                ]"
+              >
                 {{ provider.healthStatus }}
               </span>
             </div>
@@ -1462,7 +2049,9 @@ onBeforeUnmount(() => {
             <p class="catalog-summary">{{ provider.summary }}</p>
 
             <div class="catalog-meta">
-              <span>{{ provider.configurationEnabled ? 'Enabled' : 'Disabled' }}</span>
+              <span>{{
+                provider.configurationEnabled ? "Enabled" : "Disabled"
+              }}</span>
               <span>{{ provider.configurationEnvironment }}</span>
               <span>{{ provider.configurationReadiness }}</span>
               <span>{{ provider.syncStatusLabel }}</span>
@@ -1470,13 +2059,22 @@ onBeforeUnmount(() => {
             </div>
 
             <div class="chip-row">
-              <span v-for="capability in provider.capabilities" :key="capability" class="catalog-chip">{{ capability }}</span>
+              <span
+                v-for="capability in provider.capabilities"
+                :key="capability"
+                class="catalog-chip"
+                >{{ capability }}</span
+              >
             </div>
 
             <div class="catalog-block">
               <span class="panel-label">Configuration</span>
               <div class="chip-row">
-                <span v-for="field in provider.configuredFields" :key="`${provider.providerId}-configured-${field}`" class="catalog-chip">
+                <span
+                  v-for="field in provider.configuredFields"
+                  :key="`${provider.providerId}-configured-${field}`"
+                  class="catalog-chip"
+                >
                   {{ field }}
                 </span>
                 <span
@@ -1487,16 +2085,48 @@ onBeforeUnmount(() => {
                   Missing {{ field }}
                 </span>
               </div>
+
+              <div
+                v-if="provider.authMode !== 'none'"
+                class="catalog-auth-posture"
+              >
+                <span class="panel-label">Auth posture</span>
+                <div class="catalog-meta">
+                  <span>Mode: {{ provider.authMode }}</span>
+                  <span
+                    :class="
+                      provider.authConfigured
+                        ? 'auth-badge-ok'
+                        : 'auth-badge-missing'
+                    "
+                  >
+                    {{
+                      provider.authConfigured
+                        ? "API key: configured"
+                        : "API key: not set"
+                    }}
+                  </span>
+                </div>
+              </div>
             </div>
 
             <div class="catalog-block">
               <div class="catalog-editor-heading">
                 <span class="panel-label">Runtime editor</span>
-                <span class="catalog-editor-note">Changes persist to local appsettings.Local.json only.</span>
+                <span class="catalog-editor-note"
+                  >Changes persist to local appsettings.Local.json only.</span
+                >
               </div>
 
               <label class="catalog-toggle">
-                <input v-model="providerDraft(provider.providerId).enabled" type="checkbox" :disabled="!isProviderCatalogConnected || savingProviderId === provider.providerId">
+                <input
+                  v-model="providerDraft(provider.providerId).enabled"
+                  type="checkbox"
+                  :disabled="
+                    !isProviderCatalogConnected ||
+                    savingProviderId === provider.providerId
+                  "
+                />
                 <span>Provider enabled</span>
               </label>
 
@@ -1505,8 +2135,11 @@ onBeforeUnmount(() => {
                 <input
                   v-model="providerDraft(provider.providerId).environment"
                   type="text"
-                  :disabled="!isProviderCatalogConnected || savingProviderId === provider.providerId"
-                >
+                  :disabled="
+                    !isProviderCatalogConnected ||
+                    savingProviderId === provider.providerId
+                  "
+                />
               </label>
 
               <div class="catalog-editor-grid">
@@ -1515,12 +2148,20 @@ onBeforeUnmount(() => {
                   :key="`${provider.providerId}-setting-${setting.key}`"
                   class="catalog-field"
                 >
-                  <span>{{ setting.key }}<small v-if="setting.required">Required</small></span>
-                  <input
-                    v-model="providerDraft(provider.providerId).settings[setting.key]"
-                    type="text"
-                    :disabled="!isProviderCatalogConnected || savingProviderId === provider.providerId"
+                  <span
+                    >{{ setting.key
+                    }}<small v-if="setting.required">Required</small></span
                   >
+                  <input
+                    v-model="
+                      providerDraft(provider.providerId).settings[setting.key]
+                    "
+                    type="text"
+                    :disabled="
+                      !isProviderCatalogConnected ||
+                      savingProviderId === provider.providerId
+                    "
+                  />
                 </label>
               </div>
 
@@ -1528,21 +2169,86 @@ onBeforeUnmount(() => {
                 <button
                   type="button"
                   class="catalog-save-button"
-                  :disabled="!isProviderCatalogConnected || savingProviderId === provider.providerId"
+                  :disabled="
+                    !isProviderCatalogConnected ||
+                    savingProviderId === provider.providerId
+                  "
                   @click="saveProviderConfiguration(provider)"
                 >
-                  {{ savingProviderId === provider.providerId ? 'Saving...' : 'Save local configuration' }}
+                  {{
+                    savingProviderId === provider.providerId
+                      ? "Saving..."
+                      : "Save local configuration"
+                  }}
                 </button>
-                <span v-if="providerConfigurationNotice[provider.providerId]" class="catalog-editor-note">
+                <span
+                  v-if="providerConfigurationNotice[provider.providerId]"
+                  class="catalog-editor-note"
+                >
                   {{ providerConfigurationNotice[provider.providerId] }}
                 </span>
               </div>
             </div>
 
+            <div v-if="provider.authMode !== 'none'" class="catalog-block">
+              <div class="catalog-editor-heading">
+                <span class="panel-label">Secret key</span>
+                <span class="catalog-editor-note">
+                  {{
+                    provider.authConfigured
+                      ? "API key is set. Enter a new value to rotate it."
+                      : "API key required for live upstream access."
+                  }}
+                  Stored in local secrets file only — never committed to source
+                  control.
+                </span>
+              </div>
+
+              <div class="catalog-secret-row">
+                <input
+                  v-model="secretKeyDrafts[provider.providerId]"
+                  type="password"
+                  autocomplete="new-password"
+                  placeholder="Paste API key here"
+                  :disabled="
+                    !isProviderCatalogConnected ||
+                    savingSecretProviderId === provider.providerId
+                  "
+                  class="catalog-secret-input"
+                />
+                <button
+                  type="button"
+                  class="catalog-save-button"
+                  :disabled="
+                    !isProviderCatalogConnected ||
+                    savingSecretProviderId === provider.providerId ||
+                    !secretKeyDrafts[provider.providerId]
+                  "
+                  @click="setProviderSecret(provider, 'apiKey')"
+                >
+                  {{
+                    savingSecretProviderId === provider.providerId
+                      ? "Saving..."
+                      : "Set API key"
+                  }}
+                </button>
+              </div>
+              <span
+                v-if="secretSaveNotice[provider.providerId]"
+                class="catalog-editor-note"
+              >
+                {{ secretSaveNotice[provider.providerId] }}
+              </span>
+            </div>
+
             <div class="catalog-block">
               <span class="panel-label">Supported read models</span>
               <div class="chip-row">
-                <span v-for="readModel in provider.supportedReadModels" :key="readModel" class="catalog-chip is-muted">
+                <span
+                  v-for="readModel in provider.supportedReadModels"
+                  :key="readModel"
+                  class="catalog-chip is-muted"
+                >
                   {{ readModel }}
                 </span>
               </div>
@@ -1550,9 +2256,15 @@ onBeforeUnmount(() => {
 
             <div class="catalog-block">
               <span class="panel-label">Schema</span>
-              <p>{{ provider.schemaResourceName }} - {{ provider.schemaFields.length }} fields</p>
+              <p>
+                {{ provider.schemaResourceName }} -
+                {{ provider.schemaFields.length }} fields
+              </p>
               <ul class="schema-list">
-                <li v-for="field in provider.schemaFields.slice(0, 4)" :key="`${provider.providerId}-${field.name}`">
+                <li
+                  v-for="field in provider.schemaFields.slice(0, 4)"
+                  :key="`${provider.providerId}-${field.name}`"
+                >
                   <strong>{{ field.name }}</strong>
                   <span>{{ field.canonicalMapping }}</span>
                 </li>
@@ -2110,18 +2822,24 @@ onBeforeUnmount(() => {
   overflow: hidden;
   border: 1px solid rgba(148, 163, 184, 0.14);
   border-radius: 8px;
-  background:
-    linear-gradient(180deg, rgba(13, 30, 50, 0.92) 0%, rgba(13, 23, 36, 0.98) 100%);
+  background: linear-gradient(
+    180deg,
+    rgba(13, 30, 50, 0.92) 0%,
+    rgba(13, 23, 36, 0.98) 100%
+  );
 }
 
 .map-grid {
   position: absolute;
   inset: 0;
-  background-image:
-    linear-gradient(rgba(51, 65, 85, 0.34) 1px, transparent 1px),
+  background-image: linear-gradient(rgba(51, 65, 85, 0.34) 1px, transparent 1px),
     linear-gradient(90deg, rgba(51, 65, 85, 0.34) 1px, transparent 1px);
   background-size: 48px 48px;
-  mask-image: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.4));
+  mask-image: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.9),
+    rgba(255, 255, 255, 0.4)
+  );
 }
 
 .route-marker {
@@ -2546,6 +3264,46 @@ onBeforeUnmount(() => {
   color: #fef3c7;
   border-color: rgba(251, 191, 36, 0.26);
   background: rgba(120, 53, 15, 0.42);
+}
+
+.catalog-auth-posture {
+  display: grid;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.auth-badge-ok {
+  color: #bbf7d0;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.auth-badge-missing {
+  color: #fde68a;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.catalog-secret-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.catalog-secret-input {
+  flex: 1;
+  padding: 6px 10px;
+  font-size: 12px;
+  color: #e2e8f0;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 5px;
+  min-width: 0;
+}
+
+.catalog-secret-input:focus {
+  outline: none;
+  border-color: rgba(96, 165, 250, 0.5);
 }
 
 .catalog-block {

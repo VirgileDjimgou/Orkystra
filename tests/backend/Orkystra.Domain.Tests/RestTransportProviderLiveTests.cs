@@ -119,6 +119,92 @@ public sealed class RestTransportProviderLiveTests
         Assert.Contains("demo fallback", health.Summary, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public async Task GetHealthAsync_reports_auth_key_missing_when_api_key_mode_has_no_key()
+    {
+        // A valid live endpoint with auth mode api-key but no API key supplied.
+        var provider = new RestTransportProvider(
+            new HttpClient(new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK))),
+            new RestTransportProviderConfiguration(
+                true,
+                "live",
+                "https://transport.example.com/api",
+                "api-key",
+                null));  // No API key
+
+        var health = await provider.GetHealthAsync();
+
+        Assert.Equal(Orkystra.Contracts.Connectors.ProviderHealthStatus.Degraded, health.Status);
+        Assert.Contains("auth-key-missing", health.Signals);
+        Assert.Contains("API key", health.Summary, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task SendAsync_forwards_api_key_header_when_configured()
+    {
+        string? capturedApiKeyHeader = null;
+
+        var handler = new StubHttpMessageHandler(request =>
+        {
+            capturedApiKeyHeader = request.Headers.TryGetValues("X-Api-Key", out var values)
+                ? string.Join(",", values)
+                : null;
+
+            if (request.RequestUri?.AbsolutePath.EndsWith("/routes", StringComparison.OrdinalIgnoreCase) == true)
+            {
+                return JsonResponse("""
+                [
+                  {
+                    "routeId": "e9b0b451-df34-4607-9ee7-e8f593ab6b61",
+                    "reference": "KEYED-ROUTE-01",
+                    "truckId": "ea018d54-b1d7-44f6-9fe5-64bddd16e414",
+                    "truckReference": "TRK-KEYED-1",
+                    "status": "On time",
+                    "stopCount": 1,
+                    "shipmentCount": 2,
+                    "completedDeliveryCount": 0
+                  }
+                ]
+                """);
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        });
+
+        var provider = new RestTransportProvider(
+            new HttpClient(handler),
+            new RestTransportProviderConfiguration(
+                true,
+                "live",
+                "https://transport.example.com/api",
+                "api-key",
+                "my-secret-api-key"));
+
+        var routes = await provider.ReadRoutesAsync();
+
+        Assert.Single(routes);
+        Assert.Equal("KEYED-ROUTE-01", routes.Single().Reference);
+        Assert.Equal("my-secret-api-key", capturedApiKeyHeader);
+    }
+
+    [Fact]
+    public async Task GetSyncStatusAsync_reports_auth_key_missing_when_live_but_no_key()
+    {
+        var provider = new RestTransportProvider(
+            new HttpClient(new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK))),
+            new RestTransportProviderConfiguration(
+                true,
+                "live",
+                "https://transport.example.com/api",
+                "api-key",
+                null));
+
+        var syncStatus = await provider.GetSyncStatusAsync();
+
+        Assert.Equal("auth-key-missing", syncStatus.Status);
+        Assert.Contains("API key", syncStatus.Detail ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+    }
+
     private static HttpResponseMessage JsonResponse(string payload)
     {
         return new HttpResponseMessage(HttpStatusCode.OK)

@@ -25,6 +25,12 @@ Use this checklist before a demo, a local release candidate, or a staging handof
 - `GET /observability/persistence/projections` returns persisted projection snapshots for the active tenant
 - `GET /observability/persistence/workflows` returns persisted AI and optimization workflow runs for the active tenant
 - When a real transport provider `baseUrl` is configured locally, provider health and route endpoints reflect live upstream posture instead of demo fallback
+- When `authMode` is `api-key` and no key is supplied, the catalog reports readiness as `Auth Key Missing` and the health report includes the `auth-key-missing` signal
+- When an API key is supplied via environment variable or the secrets endpoint, the catalog reports readiness as `Configured` and health signals include `auth-key-configured`
+- `PUT /api/providers/catalog/rest-transport-adapter/secrets` with `{ "secretKey": "apiKey", "secretValue": "..." }` returns 204 and persists the key to the local secrets file
+- The secrets endpoint rejects unknown providers (404) and non-secret fields (422)
+- The browser catalog card shows `API key: configured` or `API key: not set` without exposing the value
+- The `Set API key` form in the catalog card stores and clears the value after a successful save
 
 ## 3. Frontend
 

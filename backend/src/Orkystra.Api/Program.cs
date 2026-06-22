@@ -5,14 +5,14 @@ using Orkystra.Api.AI;
 using Orkystra.Api.Connectors;
 using Orkystra.Api.ControlTower;
 using Orkystra.Api.Observability;
-using Orkystra.Api.Persistence;
 using Orkystra.Api.Optimization;
+using Orkystra.Api.Persistence;
+using Orkystra.Api.Security;
+using Orkystra.Api.Tenancy;
 using Orkystra.Contracts.Ai;
 using Orkystra.Contracts.Connectors;
 using Orkystra.Contracts.ControlTower;
 using Orkystra.Contracts.Optimization;
-using Orkystra.Api.Security;
-using Orkystra.Api.Tenancy;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
@@ -53,6 +53,8 @@ builder.Services.AddSingleton<IAuditStore, FileAuditStore>();
 builder.Services.AddSingleton(provider => new ProviderRuntimeStore(
     provider.GetRequiredService<IOptions<ProviderRuntimeOptions>>(),
     Path.Combine(builder.Environment.ContentRootPath, "appsettings.Local.json")));
+builder.Services.AddSingleton(provider => new ProviderSecretStore(
+    Path.Combine(builder.Environment.ContentRootPath, "appsettings.Secrets.local.json")));
 builder.Services.AddSingleton(provider => new OperationalPersistenceStore(
     provider.GetRequiredService<IOptions<OperationalPersistenceOptions>>(),
     builder.Environment.ContentRootPath));
@@ -394,5 +396,47 @@ app.MapPut("/api/providers/catalog/{providerId}/configuration", async (
 })
 .RequireAuthorization()
 .WithName("UpdateProviderConfiguration");
+
+app.MapPut("/api/providers/catalog/{providerId}/secrets", async (
+    string providerId,
+    ProviderSecretUpdateRequest request,
+    ProviderSecretStore secretStore,
+    CancellationToken cancellationToken) =>
+{
+    if (string.IsNullOrWhiteSpace(request.SecretKey))
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["secretKey"] = ["A secret key name is required."]
+        });
+    }
+
+    if (string.IsNullOrWhiteSpace(request.SecretValue))
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["secretValue"] = ["A non-empty secret value is required."]
+        });
+    }
+
+    try
+    {
+        await secretStore.UpdateSecretAsync(providerId, request.SecretKey, request.SecretValue, cancellationToken);
+        return Results.NoContent();
+    }
+    catch (KeyNotFoundException exception)
+    {
+        return Results.NotFound(new { message = exception.Message });
+    }
+    catch (ArgumentException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["secretKey"] = [exception.Message]
+        });
+    }
+})
+.RequireAuthorization()
+.WithName("UpdateProviderSecret");
 
 app.Run();

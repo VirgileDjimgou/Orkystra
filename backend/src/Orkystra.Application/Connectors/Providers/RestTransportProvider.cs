@@ -47,24 +47,43 @@ public sealed class RestTransportProvider : ITransportProjectionProviderAdapter
                 ["endpoint-unconfigured", "schema-ready", "demo-fallback"]);
         }
 
+        // Live endpoint is configured — check whether required auth is in place before probing.
+        if (IsApiKeyAuthRequired() && !HasApiKey())
+        {
+            return BuildHealthReport(
+                ProviderHealthStatus.Degraded,
+                $"Live transport endpoint {_configuration.BaseUrl} is configured with auth mode 'api-key' but no API key has been provided yet. " +
+                "Supply the key through the provider secrets endpoint or the ORKYSTRA_PROVIDER_REST_TRANSPORT_ADAPTER_APIKEY environment variable.",
+                ["live-configured", "auth-key-missing", "schema-ready", "demo-fallback"]);
+        }
+
         try
         {
             var healthResponse = await SendAsync("health", cancellationToken);
             if (healthResponse?.IsSuccessStatusCode == true)
             {
                 var payload = await healthResponse.Content.ReadFromJsonAsync<LiveTransportHealthPayload>(cancellationToken);
+                var baseSignals = payload?.Signals?.Count > 0
+                    ? payload.Signals.ToList()
+                    : ["live-endpoint-configured", "schema-ready"];
+
+                if (HasApiKey())
+                {
+                    baseSignals.Add("auth-key-configured");
+                }
+
                 return BuildHealthReport(
                     MapHealthStatus(payload?.Status),
                     payload?.Summary ?? $"Live transport endpoint {_configuration.BaseUrl} responded successfully.",
-                    payload?.Signals?.Count > 0
-                        ? payload.Signals
-                        : ["live-endpoint-configured", "schema-ready"]);
+                    baseSignals);
             }
 
             return BuildHealthReport(
                 ProviderHealthStatus.Degraded,
                 $"Live transport endpoint {_configuration.BaseUrl} is configured, but its health probe is unavailable.",
-                ["health-probe-unavailable", "live-endpoint-configured"]);
+                HasApiKey()
+                    ? ["health-probe-unavailable", "live-endpoint-configured", "auth-key-configured"]
+                    : ["health-probe-unavailable", "live-endpoint-configured"]);
         }
         catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or JsonException)
         {
@@ -73,6 +92,16 @@ public sealed class RestTransportProvider : ITransportProjectionProviderAdapter
                 $"Live transport endpoint {_configuration.BaseUrl} could not be reached. Demo fallback remains active. {exception.Message}",
                 ["live-endpoint-unreachable", "demo-fallback"]);
         }
+    }
+
+    private bool IsApiKeyAuthRequired()
+    {
+        return string.Equals(_configuration.AuthMode, "api-key", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private bool HasApiKey()
+    {
+        return !string.IsNullOrWhiteSpace(_configuration.ApiKey);
     }
 
     public ValueTask<ProviderCapabilitySet> GetCapabilitiesAsync(CancellationToken cancellationToken = default)
@@ -104,6 +133,18 @@ public sealed class RestTransportProvider : ITransportProjectionProviderAdapter
 
         if (IsLiveModeConfigured())
         {
+            if (IsApiKeyAuthRequired() && !HasApiKey())
+            {
+                return ValueTask.FromResult(
+                    new ProviderSyncStatus(
+                        ProviderId,
+                        "pull",
+                        null,
+                        DateTimeOffset.UtcNow,
+                        "auth-key-missing",
+                        $"Live endpoint {_configuration.BaseUrl} is configured but the API key is still missing."));
+            }
+
             return ValueTask.FromResult(
                 new ProviderSyncStatus(
                     ProviderId,

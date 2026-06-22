@@ -36,6 +36,35 @@ The AI workflow endpoint proxies the current control-tower overview into the Pyt
 The operational persistence layer stores snapshots and workflow runs in `backend/src/Orkystra.Api/output/persistence/orkystra-operations.db` by default, which makes recent backend state queryable without reading ad hoc JSON files.
 The REST transport connector can now switch from demo fallback to live upstream reads when its local runtime configuration contains a valid `baseUrl`; placeholder hosts such as `.invalid` intentionally remain in fallback mode so local demos do not start failing on outbound calls.
 
+### Live provider authentication
+
+The REST transport adapter supports API-key-style upstream authentication. The secret is kept separate from the regular provider runtime settings to prevent accidental commits.
+
+Supply the API key through one of these two paths:
+
+**Environment variable (takes precedence)**
+
+```powershell
+$env:ORKYSTRA_PROVIDER_REST_TRANSPORT_ADAPTER_APIKEY='your-key-here'
+dotnet run --project backend/src/Orkystra.Api
+```
+
+**Local secrets file via the API (operator workflow)**
+
+```powershell
+# With a running API:
+curl -X PUT http://127.0.0.1:5043/api/providers/catalog/rest-transport-adapter/secrets \
+  -H "X-Api-Key: your-dev-key" \
+  -H "Content-Type: application/json" \
+  -d '{"secretKey":"apiKey","secretValue":"your-upstream-key"}'
+```
+
+Secrets are persisted into `backend/src/Orkystra.Api/appsettings.Secrets.local.json`, which is covered by the `*.local.json` gitignore pattern and will never be committed.
+
+The provider catalog shows `API key: configured` or `API key: not set` depending on secret presence, without ever exposing the key value in any API response.
+
+The operator workspace includes a **Set API key** form in the connector catalog card for any provider whose `authMode` is not `none`. The form sends the key through the secrets endpoint and clears the value from the browser after saving.
+
 ## Frontend
 
 ```powershell

@@ -168,6 +168,8 @@ export type ProviderCatalogItemView = {
   configuredFields: string[]
   missingFields: string[]
   editableSettings: ProviderConfigurationSettingView[]
+  authMode: string
+  authConfigured: boolean
   syncStatusLabel: string
   lastActivityLabel: string
   summary: string
@@ -396,6 +398,8 @@ type ApiProviderCatalogItem = {
       value: string
       required: boolean
     }>
+    authMode: string
+    authConfigured: boolean
   }
   health: {
     providerId: string
@@ -1080,6 +1084,8 @@ export function buildFallbackProviderCatalog(): ProviderCatalogView {
           { key: 'sourcePath', value: 'data/imports/warehouse-demo.csv', required: true },
           { key: 'importSchedule', value: 'manual', required: true },
         ],
+        authMode: 'none',
+        authConfigured: true,
         syncStatusLabel: 'Ready',
         lastActivityLabel: 'Last success 2026-06-20 09:57 UTC',
         summary: 'CSV adapter skeleton is ready to validate and map warehouse import files.',
@@ -1099,7 +1105,7 @@ export function buildFallbackProviderCatalog(): ProviderCatalogView {
         domain: 'Transport',
         kind: 'Connector',
         healthStatus: 'Degraded',
-        configurationReadiness: 'Configured',
+        configurationReadiness: 'Auth Key Missing',
         configurationEnvironment: 'sandbox',
         configurationEnabled: true,
         configuredFields: ['baseUrl', 'authMode'],
@@ -1108,6 +1114,8 @@ export function buildFallbackProviderCatalog(): ProviderCatalogView {
           { key: 'baseUrl', value: 'https://sandbox.example.invalid/transport', required: true },
           { key: 'authMode', value: 'api-key', required: true },
         ],
+        authMode: 'api-key',
+        authConfigured: false,
         syncStatusLabel: 'Awaiting Configuration',
         lastActivityLabel: 'Last attempt 2026-06-20 10:15 UTC',
         summary: 'REST adapter skeleton is available but not yet configured against a live upstream service.',
@@ -1136,6 +1144,8 @@ export function buildFallbackProviderCatalog(): ProviderCatalogView {
           { key: 'streamTopic', value: 'fleet/gps/demo', required: true },
           { key: 'snapshotIntervalSeconds', value: '15', required: true },
         ],
+        authMode: 'none',
+        authConfigured: true,
         syncStatusLabel: 'Connected',
         lastActivityLabel: 'Last success 2026-06-20 10:14 UTC',
         summary: 'GPS adapter skeleton can expose canonical truck-position snapshots.',
@@ -1172,6 +1182,8 @@ export function mapApiProviderCatalogToView(apiCatalog: ApiProviderCatalogRespon
         value: setting.value,
         required: setting.required,
       })),
+      authMode: provider.configuration.authMode ?? 'none',
+      authConfigured: provider.configuration.authConfigured ?? true,
       syncStatusLabel: formatSyncStatusLabel(provider.syncStatus.status),
       lastActivityLabel: formatRelativeSyncLabel(provider.syncStatus.lastSuccessfulSyncAt, provider.syncStatus.lastAttemptedSyncAt),
       summary: provider.health.summary,

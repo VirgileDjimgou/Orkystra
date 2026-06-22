@@ -7,16 +7,22 @@ public sealed class ProviderCatalogService
 {
     private readonly ProviderRegistryFactory _providerRegistryFactory;
     private readonly ProviderRuntimeStore _runtimeStore;
+    private readonly ProviderSecretStore? _secretStore;
 
     public ProviderCatalogService(ProviderRuntimeStore runtimeStore)
     {
         _runtimeStore = runtimeStore;
+        _secretStore = null;
         _providerRegistryFactory = new ProviderRegistryFactory();
     }
 
-    public ProviderCatalogService(ProviderRuntimeStore runtimeStore, ProviderRegistryFactory providerRegistryFactory)
+    public ProviderCatalogService(
+        ProviderRuntimeStore runtimeStore,
+        ProviderSecretStore secretStore,
+        ProviderRegistryFactory providerRegistryFactory)
     {
         _runtimeStore = runtimeStore;
+        _secretStore = secretStore;
         _providerRegistryFactory = providerRegistryFactory;
     }
 
@@ -66,6 +72,8 @@ public sealed class ProviderCatalogService
         var configuredProvider = _runtimeStore.GetProvider(providerId);
         var editableFields = ProviderRuntimeMetadata.GetEditableFields(providerId);
         var requiredFields = ProviderRuntimeMetadata.GetRequiredFields(providerId);
+        var authMode = ProviderRuntimeMetadata.GetAuthMode(configuredProvider);
+        var authConfigured = IsAuthConfigured(providerId, authMode);
 
         if (configuredProvider is null)
         {
@@ -75,7 +83,12 @@ public sealed class ProviderCatalogService
                 "Missing Configuration",
                 [],
                 requiredFields,
-                editableFields.Select(field => new ProviderConfigurationSettingReadModel(field, string.Empty, requiredFields.Contains(field, StringComparer.OrdinalIgnoreCase))).ToArray());
+                editableFields.Select(field => new ProviderConfigurationSettingReadModel(
+                    field,
+                    string.Empty,
+                    requiredFields.Contains(field, StringComparer.OrdinalIgnoreCase))).ToArray(),
+                authMode,
+                authConfigured);
         }
 
         var configuredFields = configuredProvider.Settings
@@ -89,13 +102,24 @@ public sealed class ProviderCatalogService
             .OrderBy(key => key, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
-        var readiness = !configuredProvider.Enabled
-            ? "Disabled"
-            : missingFields.Length == 0
-                ? "Configured"
-                : configuredFields.Length == 0
-                    ? "Missing Configuration"
-                    : "Partial Configuration";
+        string readiness;
+
+        if (!configuredProvider.Enabled)
+        {
+            readiness = "Disabled";
+        }
+        else if (missingFields.Length > 0)
+        {
+            readiness = configuredFields.Length == 0 ? "Missing Configuration" : "Partial Configuration";
+        }
+        else if (!authConfigured && !string.Equals(authMode, "none", StringComparison.OrdinalIgnoreCase))
+        {
+            readiness = "Auth Key Missing";
+        }
+        else
+        {
+            readiness = "Configured";
+        }
 
         return new ProviderConfigurationSummaryReadModel(
             configuredProvider.Enabled,
@@ -108,6 +132,24 @@ public sealed class ProviderCatalogService
                     field,
                     configuredProvider.Settings.TryGetValue(field, out var value) ? value : string.Empty,
                     requiredFields.Contains(field, StringComparer.OrdinalIgnoreCase)))
-                .ToArray());
+                .ToArray(),
+            authMode,
+            authConfigured);
+    }
+
+    private bool IsAuthConfigured(string providerId, string authMode)
+    {
+        if (string.Equals(authMode, "none", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (string.Equals(authMode, "api-key", StringComparison.OrdinalIgnoreCase))
+        {
+            return _secretStore?.HasSecret(providerId, "apiKey") == true;
+        }
+
+        // Unknown auth modes are treated as not configured.
+        return false;
     }
 }

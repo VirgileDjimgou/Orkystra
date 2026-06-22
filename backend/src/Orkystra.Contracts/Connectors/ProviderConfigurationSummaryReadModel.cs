@@ -6,4 +6,6 @@ public sealed record ProviderConfigurationSummaryReadModel(
     string Readiness,
     IReadOnlyCollection<string> ConfiguredFields,
     IReadOnlyCollection<string> MissingFields,
-    IReadOnlyCollection<ProviderConfigurationSettingReadModel> Settings);
+    IReadOnlyCollection<ProviderConfigurationSettingReadModel> Settings,
+    string AuthMode,
+    bool AuthConfigured);

@@ -14,6 +14,12 @@ export type UpdateProviderConfigurationInput = {
   settings: Record<string, string>
 }
 
+export type UpdateProviderSecretInput = {
+  providerId: string
+  secretKey: string
+  secretValue: string
+}
+
 export async function loadProviderCatalog(): Promise<ProviderCatalogLoadResult> {
   try {
     const response = await sendApiRequest('/api/providers/catalog', {
@@ -54,5 +60,23 @@ export async function updateProviderConfiguration(input: UpdateProviderConfigura
 
   if (!response.ok) {
     throw new Error(`Provider configuration update failed with status ${response.status}`)
+  }
+}
+
+export async function updateProviderSecret(input: UpdateProviderSecretInput): Promise<void> {
+  const response = await sendApiRequest(`/api/providers/catalog/${input.providerId}/secrets`, {
+    method: 'PUT',
+    includeTenantHeader: true,
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      secretKey: input.secretKey,
+      secretValue: input.secretValue,
+    }),
+  })
+
+  if (!response.ok) {
+    throw new Error(`Provider secret update failed with status ${response.status}`)
   }
 }
