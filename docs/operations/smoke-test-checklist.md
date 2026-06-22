@@ -27,6 +27,7 @@ Use this checklist before a demo, a local release candidate, or a staging handof
 - `GET /api/transport/routes/{routeId}` returns detailed stops, shipments, and deliveries with 200
 - `GET /api/transport/sync-status` returns the latest transport sync evidence for the tenant
 - `POST /api/transport/sync` returns 200, persists a transport-sync workflow run, and updates the tenant's route snapshot
+- `GET /api/transport/sync-diff` returns latest-vs-previous route-level diff evidence (added/removed/changed) when at least two imports exist
 - `POST /api/ai/recommendations` returns a grounded response with evidence, assumptions, and missing-data fields
 - `POST /api/transport/routes/{routeId}/optimization` returns a bounded optimization review with route order, explanation, and alternatives
 - `GET /observability/persistence/projections` returns persisted projection snapshots for the active tenant
@@ -52,6 +53,7 @@ Use this checklist before a demo, a local release candidate, or a staging handof
 - Route selector swaps between at least two API-backed route detail views
 - Transport board shows a transport sync card with source posture, health badge, imported route count, and imported route references
 - The `Import snapshot` action refreshes the sync card and keeps the transport board readable without layout overlap
+- Transport board shows a historical diff card with latest-versus-previous counts plus route-level changed/added/removed storytelling
 - Transport board shows support shortcuts for `Import snapshot`, `Refresh sync`, `Refresh route`, and `Re-run optimization`
 - Recovery cues point to a useful next action when sync posture is degraded, route detail is stale, optimization is stale, or the selected route is outside the latest import
 - Transport board shows a route storyline card for the selected route plus a recent sync timeline that reflects `transport-sync-import` workflow runs

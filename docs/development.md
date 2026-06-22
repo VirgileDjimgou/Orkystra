@@ -156,12 +156,18 @@ curl -X POST http://127.0.0.1:5043/api/transport/sync `
 curl http://127.0.0.1:5043/api/transport/sync-status `
   -H "X-Api-Key: your-dev-key" `
   -H "X-Tenant-Id: local-demo-tenant"
+
+# Compare latest vs previous imported snapshots
+curl http://127.0.0.1:5043/api/transport/sync-diff `
+  -H "X-Api-Key: your-dev-key" `
+  -H "X-Tenant-Id: local-demo-tenant"
 ```
 
 When a persisted transport snapshot exists, `GET /api/transport/routes` and `GET /api/transport/routes/{routeId}` can reuse that tenant snapshot instead of forcing a fresh upstream read every time. This makes local demos and future support flows more stable, and it gives later sprints a clearer synchronization boundary.
 The operator workspace now surfaces that same transport sync evidence directly in the transport board, including source posture, imported route count, last import freshness, and a local `Import snapshot` action for the current tenant.
 The transport board now also tells a small route-by-route story around that sync evidence: it shows whether the selected route is present in the latest import, how far deliveries have progressed, and the most recent transport-sync timeline entries recorded in the operational trace.
 The transport board now includes a compact support layer for operator recovery: shortcut actions to refresh sync evidence, reload the selected route, re-run optimization, and jump to a route confirmed by the latest import, plus recovery cues that explain which follow-up action is most useful when transport data is stale, degraded, or outside the latest snapshot.
+The transport board now includes a historical diff drill-down that compares the latest two imported snapshots, including route counts, added/removed/changed totals, and route-level change summaries.
 
 ## Python Services
 

@@ -18,6 +18,7 @@ using Orkystra.Contracts.Connectors;
 using Orkystra.Contracts.ControlTower;
 using Orkystra.Contracts.Optimization;
 using Orkystra.Contracts.Simulation;
+using Orkystra.Contracts.Transport;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
@@ -105,6 +106,7 @@ builder.Services.AddSingleton<ControlTowerOverviewService>();
 builder.Services.AddSingleton<WarehouseProjectionService>();
 builder.Services.AddSingleton<TransportProjectionService>();
 builder.Services.AddSingleton<TransportSyncWorkflowService>();
+builder.Services.AddSingleton<TransportSyncHistoryService>();
 builder.Services.AddSingleton<SimulationProjectionService>();
 builder.Services.AddSingleton<ScenarioEventWorkflowService>();
 builder.Services.AddSingleton<GpsProjectionService>();
@@ -444,11 +446,14 @@ app.MapGet("/api/transport/sync-status", async (
 app.MapPost("/api/transport/sync", async (
     RequestTenantContext tenantContext,
     TransportSyncWorkflowService transportSyncWorkflowService,
+    TransportProjectionService transportProjectionService,
     OperationalPersistenceStore persistenceStore,
     CancellationToken cancellationToken) =>
 {
     var tenantId = tenantContext.TenantId ?? "local-demo-tenant";
     var result = await transportSyncWorkflowService.ImportSnapshotAsync(tenantId, cancellationToken);
+    var importedRouteSummaries = await transportProjectionService.ListAsync(tenantId, cancellationToken);
+
     await persistenceStore.AppendWorkflowRunAsync(
         tenantId,
         "transport-sync-import",
@@ -456,12 +461,26 @@ app.MapPost("/api/transport/sync", async (
         null,
         result.Source,
         result.SyncStatus,
-        result,
+        new TransportSyncImportEvidenceReadModel(result, importedRouteSummaries),
         cancellationToken);
     return Results.Ok(result);
 })
 .RequireAuthorization()
 .WithName("ImportTransportSnapshot");
+
+app.MapGet("/api/transport/sync-diff", async (
+    RequestTenantContext tenantContext,
+    TransportSyncHistoryService transportSyncHistoryService,
+    OperationalPersistenceStore persistenceStore,
+    CancellationToken cancellationToken) =>
+{
+    var tenantId = tenantContext.TenantId ?? "local-demo-tenant";
+    var diff = await transportSyncHistoryService.BuildLatestDiffAsync(tenantId, cancellationToken);
+    await persistenceStore.UpsertProjectionAsync(tenantId, "transport-sync-diff", "latest", "api", diff, cancellationToken);
+    return Results.Ok(diff);
+})
+.RequireAuthorization()
+.WithName("GetTransportSyncDiff");
 
 app.MapPost("/api/transport/routes/{routeId:guid}/optimization", async (
     Guid routeId,

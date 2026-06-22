@@ -109,6 +109,33 @@ export type TransportSyncStatusView = {
   healthSummary: string
 }
 
+export type TransportSyncRouteDiffItemView = {
+  routeReference: string
+  changeType: 'Added' | 'Removed' | 'Changed' | 'Unchanged'
+  previousStatus: string | null
+  currentStatus: string | null
+  previousStopCount: number | null
+  currentStopCount: number | null
+  previousShipmentCount: number | null
+  currentShipmentCount: number | null
+  previousCompletedDeliveryCount: number | null
+  currentCompletedDeliveryCount: number | null
+  summary: string
+}
+
+export type TransportSyncDiffView = {
+  hasComparableHistory: boolean
+  detail: string
+  latestImportedAtLabel: string | null
+  previousImportedAtLabel: string | null
+  latestRouteCount: number
+  previousRouteCount: number
+  addedRouteCount: number
+  removedRouteCount: number
+  changedRouteCount: number
+  routeDiffs: TransportSyncRouteDiffItemView[]
+}
+
 export type RouteOptimizationAlternativeView = {
   label: string
   orderedStopReferences: string[]
@@ -344,6 +371,35 @@ type ApiTransportSyncStatus = {
     summary: string
     signals: string[]
   }
+}
+
+type ApiTransportSyncRouteDiffItem = {
+  routeReference: string
+  previousRouteId: string | null
+  currentRouteId: string | null
+  changeType: string
+  previousStatus: string | null
+  currentStatus: string | null
+  previousStopCount: number | null
+  currentStopCount: number | null
+  previousShipmentCount: number | null
+  currentShipmentCount: number | null
+  previousCompletedDeliveryCount: number | null
+  currentCompletedDeliveryCount: number | null
+  summary: string
+}
+
+type ApiTransportSyncDiff = {
+  hasComparableHistory: boolean
+  detail: string
+  latestImportedAtUtc: string | null
+  previousImportedAtUtc: string | null
+  latestRouteCount: number
+  previousRouteCount: number
+  addedRouteCount: number
+  removedRouteCount: number
+  changedRouteCount: number
+  routeDiffs: ApiTransportSyncRouteDiffItem[]
 }
 
 type ApiRouteOptimizationAlternative = {
@@ -1122,6 +1178,56 @@ export function mapApiTransportSyncStatusToView(apiStatus: ApiTransportSyncStatu
     syncDetail: apiStatus.syncDetail,
     healthStatus: normalizeProviderHealthStatus(apiStatus.health.status),
     healthSummary: apiStatus.health.summary,
+  }
+}
+
+export function mapApiTransportSyncDiffToView(apiDiff: ApiTransportSyncDiff): TransportSyncDiffView {
+  const normalizeChangeType = (value: string): TransportSyncRouteDiffItemView['changeType'] => {
+    if (value === 'Added' || value === 'Removed' || value === 'Changed' || value === 'Unchanged') {
+      return value
+    }
+
+    return 'Changed'
+  }
+
+  return {
+    hasComparableHistory: apiDiff.hasComparableHistory,
+    detail: apiDiff.detail,
+    latestImportedAtLabel: apiDiff.latestImportedAtUtc ? formatUtcLabel(apiDiff.latestImportedAtUtc) : null,
+    previousImportedAtLabel: apiDiff.previousImportedAtUtc ? formatUtcLabel(apiDiff.previousImportedAtUtc) : null,
+    latestRouteCount: apiDiff.latestRouteCount,
+    previousRouteCount: apiDiff.previousRouteCount,
+    addedRouteCount: apiDiff.addedRouteCount,
+    removedRouteCount: apiDiff.removedRouteCount,
+    changedRouteCount: apiDiff.changedRouteCount,
+    routeDiffs: apiDiff.routeDiffs.map((item) => ({
+      routeReference: item.routeReference,
+      changeType: normalizeChangeType(item.changeType),
+      previousStatus: item.previousStatus,
+      currentStatus: item.currentStatus,
+      previousStopCount: item.previousStopCount,
+      currentStopCount: item.currentStopCount,
+      previousShipmentCount: item.previousShipmentCount,
+      currentShipmentCount: item.currentShipmentCount,
+      previousCompletedDeliveryCount: item.previousCompletedDeliveryCount,
+      currentCompletedDeliveryCount: item.currentCompletedDeliveryCount,
+      summary: item.summary,
+    })),
+  }
+}
+
+export function buildFallbackTransportSyncDiff(): TransportSyncDiffView {
+  return {
+    hasComparableHistory: false,
+    detail: 'Transport sync diff is unavailable in fallback mode.',
+    latestImportedAtLabel: null,
+    previousImportedAtLabel: null,
+    latestRouteCount: 0,
+    previousRouteCount: 0,
+    addedRouteCount: 0,
+    removedRouteCount: 0,
+    changedRouteCount: 0,
+    routeDiffs: [],
   }
 }
 

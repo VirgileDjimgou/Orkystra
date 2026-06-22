@@ -5,6 +5,7 @@ import {
   buildFallbackOverview,
   buildFallbackRouteDetail,
   buildFallbackRouteOptimization,
+  buildFallbackTransportSyncDiff,
   buildFallbackTransportSyncStatus,
   buildFallbackWarehouseDetail,
   buildFallbackProviderCatalog,
@@ -12,6 +13,7 @@ import {
   type ControlTowerOverviewView,
   type RouteDetailView,
   type RouteOptimizationView,
+  type TransportSyncDiffView,
   type TransportSyncStatusView,
   type WarehouseDetailView,
   type ProviderCatalogView,
@@ -39,6 +41,7 @@ import {
   loadTransportSyncStatus,
   runTransportSync,
 } from "./services/transportSyncApi";
+import { loadTransportSyncDiff } from "./services/transportSyncDiffApi";
 
 type DataConnectionState = "loading" | "api" | "fallback" | "stale";
 type TransportSupportActionId =
@@ -77,6 +80,11 @@ const transportSyncStatus = ref<TransportSyncStatusView>(
 const transportSyncErrorMessage = ref<string | null>(null);
 const transportSyncConnectionState = ref<DataConnectionState>("loading");
 const isSyncingTransport = ref(false);
+const transportSyncDiff = ref<TransportSyncDiffView>(
+  buildFallbackTransportSyncDiff()
+);
+const transportSyncDiffConnectionState = ref<DataConnectionState>("loading");
+const transportSyncDiffErrorMessage = ref<string | null>(null);
 const providerCatalog = ref<ProviderCatalogView>(
   buildFallbackProviderCatalog()
 );
@@ -352,6 +360,11 @@ const transportSyncDeltaSummary = computed(() => {
 const transportSyncHistory = computed(() =>
   operationalActivity.value.workflowRuns.filter(
     (run) => run.workflowKind === "transport-sync-import"
+  )
+);
+const transportChangedDiffs = computed(() =>
+  transportSyncDiff.value.routeDiffs.filter(
+    (item) => item.changeType !== "Unchanged"
   )
 );
 const latestImportedRoute = computed(() => {
@@ -778,6 +791,31 @@ function applyTransportSyncResult(
       : result.errorMessage;
 }
 
+function applyTransportSyncDiffResult(
+  result: Awaited<ReturnType<typeof loadTransportSyncDiff>>,
+  preserveExisting: boolean
+): void {
+  const keepCurrentSnapshot =
+    preserveExisting &&
+    result.source === "fallback" &&
+    (transportSyncDiffConnectionState.value === "api" ||
+      transportSyncDiffConnectionState.value === "stale");
+
+  if (!keepCurrentSnapshot) {
+    transportSyncDiff.value = result.diff;
+  }
+
+  transportSyncDiffConnectionState.value = keepCurrentSnapshot
+    ? "stale"
+    : result.source === "api"
+    ? "api"
+    : "fallback";
+  transportSyncDiffErrorMessage.value =
+    keepCurrentSnapshot && result.errorMessage
+      ? `${result.errorMessage} Keeping the last successful transport diff evidence.`
+      : result.errorMessage;
+}
+
 function applyAiRecommendationResult(
   result: Awaited<ReturnType<typeof loadAiRecommendation>>,
   preserveExisting: boolean
@@ -889,6 +927,17 @@ async function refreshTransportSyncStatus(
   applyTransportSyncResult(result, preserveExisting);
 }
 
+async function refreshTransportSyncDiff(
+  preserveExisting = true
+): Promise<void> {
+  if (!preserveExisting) {
+    transportSyncDiffConnectionState.value = "loading";
+  }
+
+  const result = await loadTransportSyncDiff();
+  applyTransportSyncDiffResult(result, preserveExisting);
+}
+
 async function refreshAiRecommendation(
   preserveExisting = true,
   syncOperationalTrace = true
@@ -968,6 +1017,7 @@ async function refreshWorkspace(preserveExisting = true): Promise<void> {
     warehouseConnectionState.value = "loading";
     routeConnectionState.value = "loading";
     transportSyncConnectionState.value = "loading";
+    transportSyncDiffConnectionState.value = "loading";
     providerCatalogConnectionState.value = "loading";
     aiConnectionState.value = "loading";
     operationalConnectionState.value = "loading";
@@ -983,6 +1033,7 @@ async function refreshWorkspace(preserveExisting = true): Promise<void> {
   await refreshWarehouseProjection(selectedWarehouseId.value, preserveExisting);
   await refreshTransportProjection(selectedRouteId.value, preserveExisting);
   await refreshTransportSyncStatus(preserveExisting);
+  await refreshTransportSyncDiff(preserveExisting);
   await refreshRouteOptimization(preserveExisting, false);
   await refreshAiRecommendation(preserveExisting, false);
   await refreshOperationalActivity(preserveExisting);
@@ -994,6 +1045,7 @@ async function refreshWorkspace(preserveExisting = true): Promise<void> {
       warehouseConnectionState.value,
       routeConnectionState.value,
       transportSyncConnectionState.value,
+      transportSyncDiffConnectionState.value,
       providerCatalogConnectionState.value,
       aiConnectionState.value,
       operationalConnectionState.value,
@@ -1004,6 +1056,7 @@ async function refreshWorkspace(preserveExisting = true): Promise<void> {
       warehouseConnectionState.value,
       routeConnectionState.value,
       transportSyncConnectionState.value,
+      transportSyncDiffConnectionState.value,
       providerCatalogConnectionState.value,
       aiConnectionState.value,
       operationalConnectionState.value,
@@ -1028,6 +1081,8 @@ async function triggerTransportSync(): Promise<void> {
 
     const result = await runTransportSync();
     applyTransportSyncResult(result, true);
+    const diffResult = await loadTransportSyncDiff();
+    applyTransportSyncDiffResult(diffResult, true);
 
     if (result.source === "api") {
       await refreshWorkspace(true);
@@ -1789,6 +1844,59 @@ onBeforeUnmount(() => {
                   <span>
                     Trigger an import to start building a transport sync timeline
                     for this tenant.
+                  </span>
+                </li>
+              </ul>
+            </article>
+
+            <article class="transport-story-card">
+              <div class="catalog-editor-heading">
+                <div>
+                  <span class="panel-label">Historical diff</span>
+                  <h3>Latest vs previous import</h3>
+                </div>
+                <span class="mini-badge">{{ transportChangedDiffs.length }}</span>
+              </div>
+
+              <p class="catalog-summary">
+                {{ transportSyncDiffErrorMessage ?? transportSyncDiff.detail }}
+              </p>
+
+              <div class="transport-sync-grid">
+                <div class="transport-sync-metric">
+                  <span class="panel-label">Latest import</span>
+                  <strong>{{ transportSyncDiff.latestRouteCount }} routes</strong>
+                  <span>{{ transportSyncDiff.latestImportedAtLabel ?? "Unavailable" }}</span>
+                </div>
+
+                <div class="transport-sync-metric">
+                  <span class="panel-label">Previous import</span>
+                  <strong>{{ transportSyncDiff.previousRouteCount }} routes</strong>
+                  <span>{{ transportSyncDiff.previousImportedAtLabel ?? "Unavailable" }}</span>
+                </div>
+
+                <div class="transport-sync-metric">
+                  <span class="panel-label">Delta</span>
+                  <strong>{{ transportSyncDiff.changedRouteCount }} changed</strong>
+                  <span>
+                    {{ transportSyncDiff.addedRouteCount }} added, {{ transportSyncDiff.removedRouteCount }} removed
+                  </span>
+                </div>
+              </div>
+
+              <ul class="transport-story-list">
+                <li
+                  v-for="item in transportChangedDiffs"
+                  :key="`${item.routeReference}-${item.changeType}`"
+                  class="transport-route-diff-item"
+                >
+                  <strong>{{ item.routeReference }} - {{ item.changeType }}</strong>
+                  <span>{{ item.summary }}</span>
+                </li>
+                <li v-if="transportChangedDiffs.length === 0">
+                  <strong>No route-level deltas yet</strong>
+                  <span>
+                    Import another transport snapshot to unlock before/after drill-down evidence.
                   </span>
                 </li>
               </ul>

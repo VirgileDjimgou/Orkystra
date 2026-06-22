@@ -148,10 +148,11 @@ function workflowSummary(entry: ApiWorkflowEntry): string {
   }
 
   if (entry.workflowKind === 'transport-sync-import') {
-    const routeCount = Number(payload.importedRouteCount ?? 0)
-    const source = String(payload.source ?? entry.source)
-    const references = Array.isArray(payload.importedRouteReferences)
-      ? payload.importedRouteReferences.slice(0, 3).join(', ')
+    const syncStatusPayload = (payload.syncStatus as Record<string, unknown> | undefined) ?? payload
+    const routeCount = Number(syncStatusPayload.importedRouteCount ?? 0)
+    const source = String(syncStatusPayload.source ?? entry.source)
+    const references = Array.isArray(syncStatusPayload.importedRouteReferences)
+      ? syncStatusPayload.importedRouteReferences.slice(0, 3).join(', ')
       : ''
     const referenceSuffix = references ? ` (${references})` : ''
     return `${routeCount} routes imported from ${source}${referenceSuffix}.`
