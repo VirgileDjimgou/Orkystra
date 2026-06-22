@@ -112,6 +112,8 @@ function projectionSummary(entry: ApiProjectionEntry): string {
   switch (entry.projectionName) {
     case 'control-tower-overview':
       return `${countArrayField(payload, 'routes')} routes, ${countArrayField(payload, 'warehouses')} warehouses, ${countArrayField(payload, 'providers')} providers.`
+    case 'transport-sync-status':
+      return `${String(payload.source ?? entry.source)} sync with ${String(payload.importedRouteCount ?? 0)} imported routes.`
     case 'warehouse-summaries':
       return `${countArrayPayload(payload)} warehouse summaries refreshed.`
     case 'warehouse-detail':
@@ -143,6 +145,16 @@ function workflowSummary(entry: ApiWorkflowEntry): string {
       ? optimization?.orderedStopReferences.length
       : 0
     return `${String(optimization?.routeReference ?? entry.subjectKey)} returned ${orderedStops} ordered stops with status ${String(optimization?.status ?? entry.status)}.`
+  }
+
+  if (entry.workflowKind === 'transport-sync-import') {
+    const routeCount = Number(payload.importedRouteCount ?? 0)
+    const source = String(payload.source ?? entry.source)
+    const references = Array.isArray(payload.importedRouteReferences)
+      ? payload.importedRouteReferences.slice(0, 3).join(', ')
+      : ''
+    const referenceSuffix = references ? ` (${references})` : ''
+    return `${routeCount} routes imported from ${source}${referenceSuffix}.`
   }
 
   return `Stored ${entry.workflowKind} run for ${entry.subjectKey}.`

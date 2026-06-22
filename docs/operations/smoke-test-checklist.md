@@ -52,6 +52,10 @@ Use this checklist before a demo, a local release candidate, or a staging handof
 - Route selector swaps between at least two API-backed route detail views
 - Transport board shows a transport sync card with source posture, health badge, imported route count, and imported route references
 - The `Import snapshot` action refreshes the sync card and keeps the transport board readable without layout overlap
+- Transport board shows support shortcuts for `Import snapshot`, `Refresh sync`, `Refresh route`, and `Re-run optimization`
+- Recovery cues point to a useful next action when sync posture is degraded, route detail is stale, optimization is stale, or the selected route is outside the latest import
+- Transport board shows a route storyline card for the selected route plus a recent sync timeline that reflects `transport-sync-import` workflow runs
+- On a wide desktop viewport, the transport sync metrics, storyline, timeline, and route-detail lists remain readable without collapsing into cramped multi-column blocks
 - Transport board and detail panels render without overlap on desktop and mobile-width viewports
 - AI workflow panel renders a grounded recommendation, shows confidence, and exposes evidence and missing-data context
 - Optimization workflow panel renders the current remaining order, a recommended plan, and at least one explanation or fallback trade-off note

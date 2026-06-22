@@ -41,6 +41,12 @@ import {
 } from "./services/transportSyncApi";
 
 type DataConnectionState = "loading" | "api" | "fallback" | "stale";
+type TransportSupportActionId =
+  | "sync-import"
+  | "sync-refresh"
+  | "route-refresh"
+  | "route-focus-import"
+  | "optimization-refresh";
 
 const navigationItems = [
   { label: "Control Tower", short: "CT", active: true },
@@ -343,6 +349,174 @@ const transportSyncDeltaSummary = computed(() => {
 
   return `${parts.join(" and ")} versus the current route board.`;
 });
+const transportSyncHistory = computed(() =>
+  operationalActivity.value.workflowRuns.filter(
+    (run) => run.workflowKind === "transport-sync-import"
+  )
+);
+const latestImportedRoute = computed(() => {
+  const importedRefs = new Set(transportSyncStatus.value.importedRouteReferences);
+
+  return overview.value.routes.find((route) => importedRefs.has(route.reference)) ?? null;
+});
+const transportSupportActions = computed(() => [
+  {
+    id: "sync-import" as const,
+    label: isSyncingTransport.value ? "Syncing..." : "Import snapshot",
+    detail: "Pull the latest transport snapshot into the persisted local view.",
+    disabled: isSyncingTransport.value,
+  },
+  {
+    id: "sync-refresh" as const,
+    label: "Refresh sync",
+    detail: "Reload sync evidence without running a new import.",
+    disabled: isSyncingTransport.value,
+  },
+  {
+    id: "route-refresh" as const,
+    label: "Refresh route",
+    detail: `Reload the selected route projection for ${routeDetail.value.reference}.`,
+    disabled: routeConnectionState.value === "loading",
+  },
+  {
+    id: "optimization-refresh" as const,
+    label: isOptimizingRoute.value ? "Reviewing..." : "Re-run optimization",
+    detail: "Rebuild the optimization review for the current route and scenario.",
+    disabled: isOptimizingRoute.value || routeConnectionState.value === "loading",
+  },
+  {
+    id: "route-focus-import" as const,
+    label:
+      latestImportedRoute.value &&
+      latestImportedRoute.value.routeId !== selectedRouteId.value
+        ? `Focus ${latestImportedRoute.value.reference}`
+        : "Imported route in focus",
+    detail: latestImportedRoute.value
+      ? "Jump to a route that is confirmed in the latest imported transport snapshot."
+      : "No imported route is available yet in the current transport board.",
+    disabled:
+      latestImportedRoute.value === null ||
+      latestImportedRoute.value.routeId === selectedRouteId.value,
+  },
+]);
+const transportRecoveryCues = computed(() => {
+  const cues: Array<{
+    title: string;
+    detail: string;
+    actionId: TransportSupportActionId;
+    actionLabel: string;
+  }> = [];
+
+  if (!transportSyncStatus.value.hasPersistedSnapshot) {
+    cues.push({
+      title: "No persisted transport snapshot yet",
+      detail:
+        "Run a manual import before the demo so the route board can rely on a saved transport baseline.",
+      actionId: "sync-import",
+      actionLabel: "Import snapshot",
+    });
+  }
+
+  if (
+    transportSyncConnectionState.value === "fallback" ||
+    transportSyncConnectionState.value === "stale" ||
+    transportSyncStatus.value.source === "configuration-incomplete" ||
+    transportSyncStatus.value.healthStatus !== "Healthy"
+  ) {
+    cues.push({
+      title: "Sync posture needs attention",
+      detail:
+        transportSyncErrorMessage.value ??
+        transportSyncStatus.value.syncDetail ??
+        "Refresh sync evidence or re-import a snapshot before trusting the current board.",
+      actionId:
+        transportSyncStatus.value.hasPersistedSnapshot ? "sync-refresh" : "sync-import",
+      actionLabel: transportSyncStatus.value.hasPersistedSnapshot
+        ? "Refresh sync"
+        : "Import snapshot",
+    });
+  }
+
+  if (
+    routeConnectionState.value === "fallback" ||
+    routeConnectionState.value === "stale"
+  ) {
+    cues.push({
+      title: "Route detail is not fully live",
+      detail:
+        routeDetailErrorMessage.value ??
+        `Reload ${routeDetail.value.reference} before using it for support or optimization decisions.`,
+      actionId: "route-refresh",
+      actionLabel: "Refresh route",
+    });
+  }
+
+  if (
+    routeOptimizationConnectionState.value === "fallback" ||
+    routeOptimizationConnectionState.value === "stale"
+  ) {
+    cues.push({
+      title: "Optimization review should be refreshed",
+      detail:
+        routeOptimizationErrorMessage.value ??
+        "The current optimization snapshot may not match the latest route state.",
+      actionId: "optimization-refresh",
+      actionLabel: "Re-run optimization",
+    });
+  }
+
+  if (
+    transportSyncStatus.value.hasPersistedSnapshot &&
+    !transportSyncStatus.value.importedRouteReferences.includes(routeDetail.value.reference) &&
+    latestImportedRoute.value
+  ) {
+    cues.push({
+      title: "Selected route is outside the latest import",
+      detail: `${routeDetail.value.reference} is still visible in the board, but ${latestImportedRoute.value.reference} is the nearest confirmed route from the latest imported snapshot.`,
+      actionId: "route-focus-import",
+      actionLabel: `Focus ${latestImportedRoute.value.reference}`,
+    });
+  }
+
+  return cues;
+});
+const selectedRouteStoryHighlights = computed(() => {
+  const highlights: Array<{ title: string; detail: string }> = [];
+  const routeReference = routeDetail.value.reference;
+  const importedRefs = new Set(transportSyncStatus.value.importedRouteReferences);
+  const pendingDeliveries = routeDetail.value.deliveries.filter(
+    (delivery) => delivery.status !== "Completed"
+  ).length;
+
+  highlights.push({
+    title: importedRefs.has(routeReference) ? "Present in latest import" : "Not present in latest import",
+    detail: importedRefs.has(routeReference)
+      ? `${routeReference} is part of the latest imported transport snapshot.`
+      : `${routeReference} is visible in the current board but missing from the latest imported snapshot.`,
+  });
+
+  highlights.push({
+    title: "Delivery progress",
+    detail: `${routeDetail.completedDeliveryCount} completed and ${pendingDeliveries} still pending across ${routeDetail.stopCount} stops.`,
+  });
+
+  highlights.push({
+    title: "Sync freshness",
+    detail: transportSyncStatus.value.lastImportedAtLabel
+      ? `Latest transport snapshot imported ${transportSyncStatus.value.lastImportedAtLabel}.`
+      : "No transport snapshot has been imported yet for this tenant.",
+  });
+
+  const latestSyncRun = transportSyncHistory.value[0];
+  if (latestSyncRun) {
+    highlights.push({
+      title: "Latest sync note",
+      detail: latestSyncRun.summary,
+    });
+  }
+
+  return highlights;
+});
 const tenantSummary = computed(() => {
   if (overviewConnectionState.value === "api") {
     return "API-backed control tower";
@@ -385,6 +559,28 @@ function toggleSimulation(): void {
 
 function setSimulationSpeed(speed: (typeof simulationSpeeds)[number]): void {
   selectedSpeed.value = speed;
+}
+
+function runTransportSupportAction(actionId: TransportSupportActionId): void {
+  switch (actionId) {
+    case "sync-import":
+      void triggerTransportSync();
+      return;
+    case "sync-refresh":
+      void refreshTransportSyncStatus(false);
+      return;
+    case "route-refresh":
+      void refreshTransportProjection(selectedRouteId.value, false);
+      return;
+    case "route-focus-import":
+      if (latestImportedRoute.value) {
+        selectedRouteId.value = latestImportedRoute.value.routeId;
+      }
+      return;
+    case "optimization-refresh":
+      void refreshRouteOptimization(false);
+      return;
+  }
 }
 
 function syncProviderDrafts(catalog: ProviderCatalogView): void {
@@ -1485,6 +1681,119 @@ onBeforeUnmount(() => {
               </div>
             </div>
           </article>
+
+          <div class="transport-support-grid">
+            <article class="transport-story-card">
+              <div class="catalog-editor-heading">
+                <div>
+                  <span class="panel-label">Operator actions</span>
+                  <h3>Transport support shortcuts</h3>
+                </div>
+                <span class="mini-badge">{{
+                  transportSupportActions.length
+                }}</span>
+              </div>
+
+              <div class="transport-support-actions">
+                <button
+                  v-for="action in transportSupportActions"
+                  :key="action.id"
+                  type="button"
+                  class="transport-support-action"
+                  :disabled="action.disabled"
+                  @click="runTransportSupportAction(action.id)"
+                >
+                  <strong>{{ action.label }}</strong>
+                  <span>{{ action.detail }}</span>
+                </button>
+              </div>
+            </article>
+
+            <article class="transport-story-card">
+              <div class="catalog-editor-heading">
+                <div>
+                  <span class="panel-label">Recovery cues</span>
+                  <h3>What to check next</h3>
+                </div>
+                <span class="mini-badge">{{ transportRecoveryCues.length }}</span>
+              </div>
+
+              <ul class="transport-story-list">
+                <li
+                  v-for="cue in transportRecoveryCues"
+                  :key="`${cue.title}-${cue.actionId}`"
+                  class="transport-recovery-item"
+                >
+                  <strong>{{ cue.title }}</strong>
+                  <span>{{ cue.detail }}</span>
+                  <button
+                    type="button"
+                    class="catalog-save-button"
+                    @click="runTransportSupportAction(cue.actionId)"
+                  >
+                    {{ cue.actionLabel }}
+                  </button>
+                </li>
+                <li v-if="transportRecoveryCues.length === 0">
+                  <strong>Transport posture looks healthy</strong>
+                  <span>
+                    Sync, route detail, and optimization are aligned enough for a
+                    clean operator demo.
+                  </span>
+                </li>
+              </ul>
+            </article>
+          </div>
+
+          <div class="transport-story-grid">
+            <article class="transport-story-card">
+              <div class="catalog-editor-heading">
+                <div>
+                  <span class="panel-label">Route storyline</span>
+                  <h3>{{ routeDetail.reference }}</h3>
+                </div>
+                <span class="mini-badge">{{ routeDetail.status }}</span>
+              </div>
+
+              <ul class="transport-story-list">
+                <li
+                  v-for="highlight in selectedRouteStoryHighlights"
+                  :key="`${routeDetail.routeId}-${highlight.title}`"
+                >
+                  <strong>{{ highlight.title }}</strong>
+                  <span>{{ highlight.detail }}</span>
+                </li>
+              </ul>
+            </article>
+
+            <article class="transport-story-card">
+              <div class="catalog-editor-heading">
+                <div>
+                  <span class="panel-label">Sync timeline</span>
+                  <h3>Recent imports</h3>
+                </div>
+                <span class="mini-badge">{{ transportSyncHistory.length }}</span>
+              </div>
+
+              <ul class="transport-story-list">
+                <li
+                  v-for="run in transportSyncHistory"
+                  :key="run.id"
+                >
+                  <strong>{{ run.createdAtLabel }}</strong>
+                  <span>{{ run.summary }}</span>
+                  <span>{{ run.status }} via {{ run.source }}</span>
+                </li>
+                <li v-if="transportSyncHistory.length === 0">
+                  <strong>No import history yet</strong>
+                  <span>
+                    Trigger an import to start building a transport sync timeline
+                    for this tenant.
+                  </span>
+                </li>
+              </ul>
+            </article>
+          </div>
 
           <div class="transport-detail-grid">
             <article class="route-detail-card">
@@ -2797,8 +3106,9 @@ onBeforeUnmount(() => {
 
 .workspace-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(360px, 1fr);
+  grid-template-columns: minmax(420px, 0.95fr) minmax(520px, 1.15fr);
   gap: 16px;
+  align-items: start;
 }
 
 .surface {
@@ -2998,7 +3308,7 @@ onBeforeUnmount(() => {
 
 .transport-sync-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 12px;
 }
 
@@ -3027,6 +3337,110 @@ onBeforeUnmount(() => {
 
 .transport-sync-delta p {
   color: #cbd5e1;
+}
+
+.transport-story-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.transport-support-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+}
+
+.transport-story-card {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 8px;
+  background: rgba(8, 17, 31, 0.55);
+}
+
+.transport-story-card h3,
+.transport-story-list strong,
+.transport-story-list span {
+  margin: 0;
+}
+
+.transport-story-card h3,
+.transport-story-list strong {
+  color: #f8fafc;
+}
+
+.transport-story-list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.transport-story-list li {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.82);
+}
+
+.transport-story-list span {
+  color: #cbd5e1;
+}
+
+.transport-support-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 12px;
+}
+
+.transport-support-action {
+  display: grid;
+  gap: 6px;
+  padding: 14px;
+  text-align: left;
+  color: #e2e8f0;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.82);
+  cursor: pointer;
+  transition:
+    border-color 140ms ease,
+    background 140ms ease,
+    transform 140ms ease;
+}
+
+.transport-support-action strong,
+.transport-support-action span {
+  margin: 0;
+}
+
+.transport-support-action strong {
+  color: #f8fafc;
+}
+
+.transport-support-action span {
+  color: #cbd5e1;
+}
+
+.transport-support-action:hover:not(:disabled) {
+  border-color: rgba(96, 165, 250, 0.4);
+  background: rgba(30, 41, 59, 0.9);
+  transform: translateY(-1px);
+}
+
+.transport-support-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.transport-recovery-item {
+  align-items: start;
 }
 
 .zone-tile {
@@ -3285,7 +3699,7 @@ onBeforeUnmount(() => {
 
 .transport-detail-columns {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: 12px;
 }
 
@@ -3736,6 +4150,14 @@ onBeforeUnmount(() => {
     grid-template-columns: 1fr;
   }
 
+  .transport-story-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .transport-support-grid {
+    grid-template-columns: 1fr;
+  }
+
   .catalog-editor-grid {
     grid-template-columns: 1fr;
   }
@@ -3794,7 +4216,8 @@ onBeforeUnmount(() => {
 
   .connection-grid,
   .transport-detail-columns,
-  .transport-sync-grid {
+  .transport-sync-grid,
+  .transport-story-grid {
     grid-template-columns: 1fr;
   }
 
