@@ -20,10 +20,17 @@ Protected operational API routes expect:
 Useful local warehouse endpoints once the API is running:
 
 - `GET /api/control-tower/overview`
+- `GET /observability/event-backbone`
+- `GET /api/simulation/scenarios`
+- `POST /api/simulation/scenarios/demo-events`
+- `GET /api/gps/positions`
+- `POST /api/gps/positions/publish`
 - `GET /api/warehouses`
 - `GET /api/warehouses/{warehouseId}`
 - `GET /api/transport/routes`
 - `GET /api/transport/routes/{routeId}`
+- `GET /api/transport/sync-status`
+- `POST /api/transport/sync`
 - `POST /api/ai/recommendations`
 - `POST /api/transport/routes/{routeId}/optimization`
 - `GET /api/providers/catalog`
@@ -35,6 +42,53 @@ The API now allows local Vite origins on `127.0.0.1` and `localhost` for develop
 The AI workflow endpoint proxies the current control-tower overview into the Python AI service, so the browser only needs to ask a question and the backend supplies the grounded projection context.
 The operational persistence layer stores snapshots and workflow runs in `backend/src/Orkystra.Api/output/persistence/orkystra-operations.db` by default, which makes recent backend state queryable without reading ad hoc JSON files.
 The REST transport connector can now switch from demo fallback to live upstream reads when its local runtime configuration contains a valid `baseUrl`; placeholder hosts such as `.invalid` intentionally remain in fallback mode so local demos do not start failing on outbound calls.
+
+### MQTT event backbone
+
+The API now activates the first real MQTT event flow through Mosquitto. The current slice is intentionally narrow: demo simulation events are published onto MQTT, consumed back into the API, then projected into `ScenarioSummaryReadModel` instances through the existing idempotent projection runner.
+
+Useful local event-backbone checks:
+
+```powershell
+# Publish a demo scenario sequence onto MQTT via the API
+curl -X POST http://127.0.0.1:5043/api/simulation/scenarios/demo-events `
+  -H "X-Api-Key: your-dev-key" `
+  -H "Content-Type: application/json" `
+  -d '{"name":"MQTT Demo","seed":42,"advanceMinutes":15,"includeDisruption":true,"completeScenario":true}'
+
+# Inspect the current MQTT-backed scenario projections
+curl http://127.0.0.1:5043/api/simulation/scenarios `
+  -H "X-Api-Key: your-dev-key"
+
+# Inspect publish/consume telemetry for the backbone itself
+curl http://127.0.0.1:5043/observability/event-backbone `
+  -H "X-Api-Key: your-dev-key"
+```
+
+The MQTT broker URL is configured through `EventBackbone:BrokerUrl` in `backend/src/Orkystra.Api/appsettings.json` and defaults to the local Mosquitto container on `mqtt://localhost:1883`.
+
+### GPS telematics stream
+
+The first connector-originated MQTT slice now uses the GPS provider. The workflow is:
+
+1. `GpsTelematicsProvider` returns canonical `GpsPositionSnapshot` data.
+2. `POST /api/gps/positions/publish` publishes those snapshots to the configured GPS stream topic.
+3. The MQTT consumer subscribes to that stream topic and dispatches each telemetry event through the idempotent projection runner.
+4. `GET /api/gps/positions` returns the latest projected truck positions.
+
+Useful local GPS checks:
+
+```powershell
+# Publish the latest provider GPS positions into MQTT
+curl -X POST http://127.0.0.1:5043/api/gps/positions/publish `
+  -H "X-Api-Key: your-dev-key"
+
+# Read the latest projected GPS positions
+curl http://127.0.0.1:5043/api/gps/positions `
+  -H "X-Api-Key: your-dev-key"
+```
+
+The GPS stream topic comes from `ProviderRuntime:Providers[gps-telematics-adapter].Settings.streamTopic` and defaults to `fleet/gps/demo` in the local demo configuration.
 
 ### Live provider authentication
 
@@ -85,6 +139,27 @@ The optimization workflow panel now sends the selected route and scenario contex
 The backend now persists key snapshots and workflow envelopes centrally, so `GET /observability/persistence/projections` and `GET /observability/persistence/workflows` are useful when tracing recent state transitions during local debugging.
 The frontend now exposes those same observability feeds through an `Operational trace` surface, which makes recent persisted runs and audit evidence visible during local demos without opening backend files.
 The provider catalog remains the right place to edit non-secret transport runtime settings locally; once a real `baseUrl` is saved, the backend transport provider can hydrate route summaries and route details from `/routes` and `/routes/details` on the configured upstream.
+
+### Transport snapshot sync
+
+The transport slice now has an explicit import step that persists a reusable snapshot for the current tenant.
+
+Useful local transport-sync checks:
+
+```powershell
+# Import the current transport snapshot from the configured provider
+curl -X POST http://127.0.0.1:5043/api/transport/sync `
+  -H "X-Api-Key: your-dev-key" `
+  -H "X-Tenant-Id: local-demo-tenant"
+
+# Inspect the latest sync evidence
+curl http://127.0.0.1:5043/api/transport/sync-status `
+  -H "X-Api-Key: your-dev-key" `
+  -H "X-Tenant-Id: local-demo-tenant"
+```
+
+When a persisted transport snapshot exists, `GET /api/transport/routes` and `GET /api/transport/routes/{routeId}` can reuse that tenant snapshot instead of forcing a fresh upstream read every time. This makes local demos and future support flows more stable, and it gives later sprints a clearer synchronization boundary.
+The operator workspace now surfaces that same transport sync evidence directly in the transport board, including source posture, imported route count, last import freshness, and a local `Import snapshot` action for the current tenant.
 
 ## Python Services
 

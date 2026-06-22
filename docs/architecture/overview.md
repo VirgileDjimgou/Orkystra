@@ -255,3 +255,36 @@ Sprint 25 starts the transition from demo-only connectors toward real upstream t
 - backend tests now cover both successful live reads and safe fallback behavior
 
 This is still an early integration slice rather than a full enterprise connector, but it is the first real bridge between Orkystra's canonical transport projections and an external provider surface.
+
+## MQTT Event Backbone Activation
+
+Sprint 27 turns the earlier event-backbone scaffolding into a real brokered runtime path:
+
+- `Orkystra.Api` now hosts an MQTT-backed publisher and consumer around the existing event envelope contracts
+- simulation events can be published through MQTT, consumed back into the API, and dispatched through `IdempotentProjectionRunner`
+- `ScenarioSummaryProjection` is now used as a singleton runtime projection that can be queried through `GET /api/simulation/scenarios`
+- the backbone itself now exposes a small observability surface through `GET /observability/event-backbone`
+
+This is still a narrow first slice rather than the final event architecture, but it proves the broker path end to end without bypassing the existing contract and projection abstractions.
+
+## GPS Telematics Stream Activation
+
+Sprint 28 extends that broker path to the first connector-originated telemetry flow:
+
+- `GpsTelematicsProvider` now feeds canonical `GpsPositionSnapshot` payloads into MQTT through an integration-event envelope factory
+- the API consumer subscribes to the configured GPS stream topic alongside simulation event traffic
+- `GpsPositionProjection` keeps the latest known position per truck and exposes those positions through `GET /api/gps/positions`
+- `POST /api/gps/positions/publish` provides a bounded workflow for publishing the latest provider positions into the broker
+
+This is still demo-backed telemetry rather than a true live telematics vendor, but it proves that provider-originated MQTT traffic can now enter the platform and come back out as stable read-model projections.
+
+## Transport Live Sync Snapshot Import
+
+Sprint 29 connects the live REST transport path to the durable projection layer:
+
+- `POST /api/transport/sync` imports the current transport route snapshot from the configured transport provider
+- imported route summaries and route details are persisted into the operational SQLite store and can be served back without immediately re-pulling the upstream
+- `GET /api/transport/sync-status` exposes the latest sync evidence, including imported route count, route references, source posture, and provider health
+- `TransportProjectionService` now prefers the most recent persisted transport snapshot for a tenant when one exists
+
+This gives the transport slice its first explicit synchronization boundary, which is a better long-term bridge between live connector reads, operational evidence, and future writeback or scheduling workflows.

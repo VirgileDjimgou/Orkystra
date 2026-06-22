@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Orkystra.Contracts.Eventing;
 using Orkystra.Contracts.Simulation;
 using Orkystra.Domain.Simulation.Events;
@@ -6,7 +7,7 @@ namespace Orkystra.Application.Eventing;
 
 public sealed class ScenarioSummaryProjection : IEventProjection
 {
-    private readonly Dictionary<Guid, ScenarioSummaryReadModel> _scenarios = [];
+    private readonly ConcurrentDictionary<Guid, ScenarioSummaryReadModel> _scenarios = new();
 
     public string ProjectionName => "scenario-summary";
 
@@ -85,5 +86,12 @@ public sealed class ScenarioSummaryProjection : IEventProjection
         var found = _scenarios.TryGetValue(scenarioId, out var current);
         readModel = current;
         return found;
+    }
+
+    public IReadOnlyCollection<ScenarioSummaryReadModel> ListAll()
+    {
+        return _scenarios.Values
+            .OrderByDescending(static scenario => scenario.CurrentTime)
+            .ToArray();
     }
 }

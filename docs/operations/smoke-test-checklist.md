@@ -14,12 +14,19 @@ Use this checklist before a demo, a local release candidate, or a staging handof
 - `GET /health/ready` returns 200
 - `GET /observability/metrics` returns counters
 - `GET /observability/context` returns 200 when `X-Api-Key` and `X-Tenant-Id` are present
+- `GET /observability/event-backbone` returns MQTT publish/consume telemetry and the latest dispatch result
 - Missing API key returns 401 on protected routes
 - Missing tenant header only fails when tenant-header enforcement is enabled
+- `POST /api/simulation/scenarios/demo-events` returns 202 and records a simulation-event publish workflow run
+- `GET /api/simulation/scenarios` returns scenario summaries populated from the MQTT-backed projection flow
+- `POST /api/gps/positions/publish` returns 202 and records a GPS telemetry publish workflow run
+- `GET /api/gps/positions` returns latest projected `GpsPositionSnapshot` entries fed by the MQTT-backed GPS stream
 - `GET /api/warehouses` returns warehouse summaries with 200
 - `GET /api/warehouses/{warehouseId}` returns detailed zones and docks with 200
 - `GET /api/transport/routes` returns route summaries with 200
 - `GET /api/transport/routes/{routeId}` returns detailed stops, shipments, and deliveries with 200
+- `GET /api/transport/sync-status` returns the latest transport sync evidence for the tenant
+- `POST /api/transport/sync` returns 200, persists a transport-sync workflow run, and updates the tenant's route snapshot
 - `POST /api/ai/recommendations` returns a grounded response with evidence, assumptions, and missing-data fields
 - `POST /api/transport/routes/{routeId}/optimization` returns a bounded optimization review with route order, explanation, and alternatives
 - `GET /observability/persistence/projections` returns persisted projection snapshots for the active tenant
@@ -43,12 +50,15 @@ Use this checklist before a demo, a local release candidate, or a staging handof
 - Warehouse selector swaps between at least two API-backed warehouse detail views
 - Warehouse 3D placeholder renders and rotates
 - Route selector swaps between at least two API-backed route detail views
+- Transport board shows a transport sync card with source posture, health badge, imported route count, and imported route references
+- The `Import snapshot` action refreshes the sync card and keeps the transport board readable without layout overlap
 - Transport board and detail panels render without overlap on desktop and mobile-width viewports
 - AI workflow panel renders a grounded recommendation, shows confidence, and exposes evidence and missing-data context
 - Optimization workflow panel renders the current remaining order, a recommended plan, and at least one explanation or fallback trade-off note
 - Operational trace surface renders recent workflow runs, persisted snapshots, and recent audit entries without layout overlap
 - Provider runtime editor stays enabled only when the catalog is API-backed and shows save feedback after a local configuration update
 - Provider catalog and overview health posture make it obvious when transport is using live upstream data versus demo fallback
+- Transport sync status makes it obvious whether the last imported route snapshot came from a live upstream or a demo fallback path
 
 ## 4. Python services
 
@@ -71,3 +81,6 @@ Use this checklist before a demo, a local release candidate, or a staging handof
 - Verify at least one protected API call produces an audit log entry
 - Verify request counters increase after exercising the stack
 - Verify at least one recent projection snapshot and one recent workflow run are visible through the persistence observability endpoints
+- Verify a `transport-sync-import` workflow run appears after triggering `POST /api/transport/sync`
+- Verify the event-backbone telemetry shows at least one published event and one consumed event after triggering a demo scenario event sequence
+- Verify the event-backbone telemetry updates again after publishing GPS positions and that the last topic matches the configured GPS stream topic

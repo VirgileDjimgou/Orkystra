@@ -5,12 +5,14 @@ import {
   buildFallbackOverview,
   buildFallbackRouteDetail,
   buildFallbackRouteOptimization,
+  buildFallbackTransportSyncStatus,
   buildFallbackWarehouseDetail,
   buildFallbackProviderCatalog,
   simulationSpeeds,
   type ControlTowerOverviewView,
   type RouteDetailView,
   type RouteOptimizationView,
+  type TransportSyncStatusView,
   type WarehouseDetailView,
   type ProviderCatalogView,
   type ProviderCatalogItemView,
@@ -33,6 +35,10 @@ import {
 } from "./services/providerCatalogApi";
 import { loadWarehouseProjection } from "./services/warehouseApi";
 import { loadTransportProjection } from "./services/transportApi";
+import {
+  loadTransportSyncStatus,
+  runTransportSync,
+} from "./services/transportSyncApi";
 
 type DataConnectionState = "loading" | "api" | "fallback" | "stale";
 
@@ -59,6 +65,12 @@ const warehouseDetailErrorMessage = ref<string | null>(null);
 const warehouseConnectionState = ref<DataConnectionState>("loading");
 const routeDetailErrorMessage = ref<string | null>(null);
 const routeConnectionState = ref<DataConnectionState>("loading");
+const transportSyncStatus = ref<TransportSyncStatusView>(
+  buildFallbackTransportSyncStatus()
+);
+const transportSyncErrorMessage = ref<string | null>(null);
+const transportSyncConnectionState = ref<DataConnectionState>("loading");
+const isSyncingTransport = ref(false);
 const providerCatalog = ref<ProviderCatalogView>(
   buildFallbackProviderCatalog()
 );
@@ -193,6 +205,9 @@ const warehouseProjectionTone = computed(() =>
 const transportProjectionTone = computed(() =>
   toneForConnectionState(routeConnectionState.value)
 );
+const transportSyncTone = computed(() =>
+  toneForConnectionState(transportSyncConnectionState.value)
+);
 const overviewConnectionLabel = computed(() =>
   labelForConnectionState(
     overviewConnectionState.value,
@@ -212,6 +227,13 @@ const transportProjectionLabel = computed(() =>
     routeConnectionState.value,
     "Transport API live",
     "Transport fallback"
+  )
+);
+const transportSyncLabel = computed(() =>
+  labelForConnectionState(
+    transportSyncConnectionState.value,
+    "Transport sync live",
+    "Transport sync fallback"
   )
 );
 const catalogConnectionLabel = computed(() =>
@@ -269,6 +291,58 @@ const currentRemainingRouteOrder = computed(() => {
     ? pendingStops
     : routeDetail.value.stops.map((stop) => stop.name);
 });
+const transportSyncSourceLabel = computed(() => {
+  switch (transportSyncStatus.value.source) {
+    case "live":
+      return "Live snapshot";
+    case "configuration-incomplete":
+      return "Configuration incomplete";
+    case "disabled":
+      return "Sync disabled";
+    default:
+      return "Demo fallback snapshot";
+  }
+});
+const transportSyncHealthClass = computed(() => {
+  switch (transportSyncStatus.value.healthStatus) {
+    case "Unhealthy":
+      return "severity-unhealthy";
+    case "Degraded":
+      return "severity-degraded";
+    default:
+      return "severity-healthy";
+  }
+});
+const transportSyncDeltaSummary = computed(() => {
+  const imported = new Set(transportSyncStatus.value.importedRouteReferences);
+  const current = new Set(overview.value.routes.map((route) => route.reference));
+
+  const newRoutes = transportSyncStatus.value.importedRouteReferences.filter(
+    (reference) => !current.has(reference)
+  );
+  const missingRoutes = overview.value.routes
+    .map((route) => route.reference)
+    .filter((reference) => !imported.has(reference));
+
+  if (!transportSyncStatus.value.hasPersistedSnapshot) {
+    return "No persisted transport snapshot has been imported yet.";
+  }
+
+  if (newRoutes.length === 0 && missingRoutes.length === 0) {
+    return "Current route board matches the latest imported snapshot.";
+  }
+
+  const parts: string[] = [];
+  if (newRoutes.length > 0) {
+    parts.push(`${newRoutes.length} new route${newRoutes.length > 1 ? "s" : ""}`);
+  }
+
+  if (missingRoutes.length > 0) {
+    parts.push(`${missingRoutes.length} route${missingRoutes.length > 1 ? "s" : ""} no longer present`);
+  }
+
+  return `${parts.join(" and ")} versus the current route board.`;
+});
 const tenantSummary = computed(() => {
   if (overviewConnectionState.value === "api") {
     return "API-backed control tower";
@@ -289,6 +363,7 @@ const connectionMessage = computed(() => {
     loadErrorMessage.value ??
     warehouseDetailErrorMessage.value ??
     routeDetailErrorMessage.value ??
+    transportSyncErrorMessage.value ??
     providerCatalogErrorMessage.value ??
     aiRecommendationErrorMessage.value ??
     operationalActivityErrorMessage.value ??
@@ -481,6 +556,32 @@ function applyTransportProjectionResult(
       : result.errorMessage;
 }
 
+function applyTransportSyncResult(
+  result: Awaited<ReturnType<typeof loadTransportSyncStatus>>,
+  preserveExisting: boolean
+): void {
+  const keepCurrentSnapshot =
+    preserveExisting &&
+    result.source === "fallback" &&
+    transportSyncStatus.value.hasPersistedSnapshot &&
+    (transportSyncConnectionState.value === "api" ||
+      transportSyncConnectionState.value === "stale");
+
+  if (!keepCurrentSnapshot) {
+    transportSyncStatus.value = result.status;
+  }
+
+  transportSyncConnectionState.value = keepCurrentSnapshot
+    ? "stale"
+    : result.source === "api"
+    ? "api"
+    : "fallback";
+  transportSyncErrorMessage.value =
+    keepCurrentSnapshot && result.errorMessage
+      ? `${result.errorMessage} Keeping the last successful transport sync evidence.`
+      : result.errorMessage;
+}
+
 function applyAiRecommendationResult(
   result: Awaited<ReturnType<typeof loadAiRecommendation>>,
   preserveExisting: boolean
@@ -581,6 +682,17 @@ async function refreshTransportProjection(
   applyTransportProjectionResult(result, preserveExisting, routeId);
 }
 
+async function refreshTransportSyncStatus(
+  preserveExisting = true
+): Promise<void> {
+  if (!preserveExisting) {
+    transportSyncConnectionState.value = "loading";
+  }
+
+  const result = await loadTransportSyncStatus();
+  applyTransportSyncResult(result, preserveExisting);
+}
+
 async function refreshAiRecommendation(
   preserveExisting = true,
   syncOperationalTrace = true
@@ -659,6 +771,7 @@ async function refreshWorkspace(preserveExisting = true): Promise<void> {
     overviewConnectionState.value = "loading";
     warehouseConnectionState.value = "loading";
     routeConnectionState.value = "loading";
+    transportSyncConnectionState.value = "loading";
     providerCatalogConnectionState.value = "loading";
     aiConnectionState.value = "loading";
     operationalConnectionState.value = "loading";
@@ -673,6 +786,7 @@ async function refreshWorkspace(preserveExisting = true): Promise<void> {
   applyCatalogResult(catalogResult, preserveExisting);
   await refreshWarehouseProjection(selectedWarehouseId.value, preserveExisting);
   await refreshTransportProjection(selectedRouteId.value, preserveExisting);
+  await refreshTransportSyncStatus(preserveExisting);
   await refreshRouteOptimization(preserveExisting, false);
   await refreshAiRecommendation(preserveExisting, false);
   await refreshOperationalActivity(preserveExisting);
@@ -683,6 +797,7 @@ async function refreshWorkspace(preserveExisting = true): Promise<void> {
       overviewConnectionState.value,
       warehouseConnectionState.value,
       routeConnectionState.value,
+      transportSyncConnectionState.value,
       providerCatalogConnectionState.value,
       aiConnectionState.value,
       operationalConnectionState.value,
@@ -692,6 +807,7 @@ async function refreshWorkspace(preserveExisting = true): Promise<void> {
       overviewConnectionState.value,
       warehouseConnectionState.value,
       routeConnectionState.value,
+      transportSyncConnectionState.value,
       providerCatalogConnectionState.value,
       aiConnectionState.value,
       operationalConnectionState.value,
@@ -703,6 +819,25 @@ async function refreshWorkspace(preserveExisting = true): Promise<void> {
     connectionRecoveryHandle = window.setTimeout(() => {
       void refreshWorkspace(true);
     }, 1500);
+  }
+}
+
+async function triggerTransportSync(): Promise<void> {
+  isSyncingTransport.value = true;
+
+  try {
+    if (transportSyncConnectionState.value !== "stale") {
+      transportSyncConnectionState.value = "loading";
+    }
+
+    const result = await runTransportSync();
+    applyTransportSyncResult(result, true);
+
+    if (result.source === "api") {
+      await refreshWorkspace(true);
+    }
+  } finally {
+    isSyncingTransport.value = false;
   }
 }
 
@@ -1040,6 +1175,28 @@ onBeforeUnmount(() => {
           <article class="connection-card">
             <div class="connection-card-head">
               <div>
+                <strong>Transport synchronization</strong>
+                <p>
+                  Last imported transport snapshot, source posture, and sync
+                  evidence.
+                </p>
+              </div>
+              <span class="status-pill" :class="transportSyncTone">{{
+                transportSyncLabel
+              }}</span>
+            </div>
+            <p>
+              {{
+                transportSyncErrorMessage ??
+                transportSyncStatus.syncDetail ??
+                `Latest transport sync is tracking ${transportSyncStatus.importedRouteCount} imported routes.`
+              }}
+            </p>
+          </article>
+
+          <article class="connection-card">
+            <div class="connection-card-head">
+              <div>
                 <strong>Provider catalog</strong>
                 <p>
                   Connector inventory, runtime posture, and local editing flow.
@@ -1245,6 +1402,89 @@ onBeforeUnmount(() => {
               </div>
             </button>
           </div>
+
+          <article class="transport-sync-card">
+            <div class="catalog-editor-heading">
+              <div>
+                <span class="panel-label">Transport sync</span>
+                <h3>Imported snapshot posture</h3>
+              </div>
+              <div class="catalog-heading-meta">
+                <span class="status-pill" :class="transportSyncTone">
+                  {{ transportSyncLabel }}
+                </span>
+                <button
+                  type="button"
+                  class="catalog-save-button"
+                  :disabled="isSyncingTransport"
+                  @click="triggerTransportSync"
+                >
+                  {{ isSyncingTransport ? "Syncing..." : "Import snapshot" }}
+                </button>
+              </div>
+            </div>
+
+            <p class="catalog-summary">
+              {{
+                transportSyncErrorMessage ??
+                transportSyncStatus.syncDetail ??
+                transportSyncStatus.healthSummary
+              }}
+            </p>
+
+            <div class="transport-sync-grid">
+              <div class="transport-sync-metric">
+                <span class="panel-label">Source</span>
+                <strong>{{ transportSyncSourceLabel }}</strong>
+                <span
+                  class="status-pill"
+                  :class="transportSyncHealthClass"
+                >
+                  {{ transportSyncStatus.healthStatus }}
+                </span>
+              </div>
+
+              <div class="transport-sync-metric">
+                <span class="panel-label">Imported routes</span>
+                <strong>{{ transportSyncStatus.importedRouteCount }}</strong>
+                <span>{{
+                  transportSyncStatus.lastImportedAtLabel
+                    ? `Imported ${transportSyncStatus.lastImportedAtLabel}`
+                    : "No imported snapshot yet"
+                }}</span>
+              </div>
+
+              <div class="transport-sync-metric">
+                <span class="panel-label">Sync posture</span>
+                <strong>{{ transportSyncStatus.syncStatusLabel }}</strong>
+                <span>{{ transportSyncStatus.lastActivityLabel }}</span>
+              </div>
+            </div>
+
+            <div class="transport-sync-delta">
+              <span class="panel-label">Route delta</span>
+              <p>{{ transportSyncDeltaSummary }}</p>
+            </div>
+
+            <div class="catalog-block">
+              <span class="panel-label">Imported route references</span>
+              <div class="chip-row">
+                <span
+                  v-for="reference in transportSyncStatus.importedRouteReferences"
+                  :key="`sync-route-${reference}`"
+                  class="catalog-chip"
+                >
+                  {{ reference }}
+                </span>
+                <span
+                  v-if="transportSyncStatus.importedRouteReferences.length === 0"
+                  class="catalog-chip is-muted"
+                >
+                  No imported routes yet
+                </span>
+              </div>
+            </div>
+          </article>
 
           <div class="transport-detail-grid">
             <article class="route-detail-card">
@@ -2735,6 +2975,60 @@ onBeforeUnmount(() => {
   gap: 12px;
 }
 
+.transport-sync-card {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 8px;
+  background: rgba(8, 17, 31, 0.55);
+}
+
+.transport-sync-card h3,
+.transport-sync-delta p,
+.transport-sync-metric strong,
+.transport-sync-metric span {
+  margin: 0;
+}
+
+.transport-sync-card h3,
+.transport-sync-metric strong {
+  color: #f8fafc;
+}
+
+.transport-sync-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.transport-sync-metric {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.82);
+}
+
+.transport-sync-metric span {
+  color: #cbd5e1;
+}
+
+.transport-sync-delta {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.82);
+}
+
+.transport-sync-delta p {
+  color: #cbd5e1;
+}
+
 .zone-tile {
   display: grid;
   gap: 10px;
@@ -3438,6 +3732,10 @@ onBeforeUnmount(() => {
     grid-template-columns: 1fr;
   }
 
+  .transport-sync-grid {
+    grid-template-columns: 1fr;
+  }
+
   .catalog-editor-grid {
     grid-template-columns: 1fr;
   }
@@ -3495,7 +3793,8 @@ onBeforeUnmount(() => {
   }
 
   .connection-grid,
-  .transport-detail-columns {
+  .transport-detail-columns,
+  .transport-sync-grid {
     grid-template-columns: 1fr;
   }
 

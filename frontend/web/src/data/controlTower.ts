@@ -92,6 +92,23 @@ export type RouteDetailView = {
   deliveries: RouteDeliveryView[]
 }
 
+export type TransportSyncStatusView = {
+  providerId: string
+  source: 'live' | 'demo-fallback' | 'configuration-incomplete' | 'disabled'
+  liveImport: boolean
+  hasPersistedSnapshot: boolean
+  importedRouteCount: number
+  importedRouteIds: string[]
+  importedRouteReferences: string[]
+  lastImportedAtLabel: string | null
+  lastActivityLabel: string
+  syncStatus: string
+  syncStatusLabel: string
+  syncDetail: string | null
+  healthStatus: 'Healthy' | 'Degraded' | 'Unhealthy'
+  healthSummary: string
+}
+
 export type RouteOptimizationAlternativeView = {
   label: string
   orderedStopReferences: string[]
@@ -304,6 +321,29 @@ type ApiRouteDetail = {
   stops: ApiRouteStop[]
   shipments: ApiRouteShipment[]
   deliveries: ApiRouteDelivery[]
+}
+
+type ApiTransportSyncStatus = {
+  providerId: string
+  source: string
+  liveImport: boolean
+  hasPersistedSnapshot: boolean
+  importedRouteCount: number
+  importedRouteIds: string[]
+  importedRouteReferences: string[]
+  lastImportedAtUtc: string | null
+  lastSuccessfulSyncAt: string | null
+  lastAttemptedSyncAt: string | null
+  syncStatus: string
+  syncDetail: string | null
+  health: {
+    providerId: string
+    providerName: string
+    status: string
+    checkedAt: string
+    summary: string
+    signals: string[]
+  }
 }
 
 type ApiRouteOptimizationAlternative = {
@@ -657,6 +697,19 @@ function normalizeProviderHealthStatus(status: string): ProviderStatusView['heal
   return 'Healthy'
 }
 
+function normalizeTransportSyncSource(source: string): TransportSyncStatusView['source'] {
+  if (
+    source === 'live' ||
+    source === 'demo-fallback' ||
+    source === 'configuration-incomplete' ||
+    source === 'disabled'
+  ) {
+    return source
+  }
+
+  return 'demo-fallback'
+}
+
 function formatUtcLabel(value: string): string {
   const date = new Date(value)
   return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')} ${String(date.getUTCHours()).padStart(2, '0')}:${String(date.getUTCMinutes()).padStart(2, '0')} UTC`
@@ -917,6 +970,25 @@ export function buildFallbackRouteDetail(routeId: string): RouteDetailView {
     ?? fallbackRouteDetails['5024fa82-f658-46c8-88bf-aece07d56f09']
 }
 
+export function buildFallbackTransportSyncStatus(): TransportSyncStatusView {
+  return {
+    providerId: 'rest-transport-adapter',
+    source: 'demo-fallback',
+    liveImport: false,
+    hasPersistedSnapshot: false,
+    importedRouteCount: 0,
+    importedRouteIds: [],
+    importedRouteReferences: [],
+    lastImportedAtLabel: null,
+    lastActivityLabel: 'Last attempt 2026-06-20 10:15 UTC',
+    syncStatus: 'degraded-live-snapshot',
+    syncStatusLabel: 'Degraded Live Snapshot',
+    syncDetail: 'Demo transport projection is available while upstream configuration remains partial.',
+    healthStatus: 'Degraded',
+    healthSummary: 'REST transport remains in demo fallback until a valid upstream endpoint and credentials are available.',
+  }
+}
+
 export function buildFallbackRouteOptimization(detail: RouteDetailView): RouteOptimizationView {
   const pendingStops = pendingRouteStops(detail)
   const currentOrder = pendingStops.map((stop) => stop.name)
@@ -1031,6 +1103,25 @@ export function mapApiRouteDetailToView(apiRoute: ApiRouteDetail): RouteDetailVi
       shipmentReference: delivery.shipmentReference,
       status: delivery.status as RouteDeliveryView['status'],
     })),
+  }
+}
+
+export function mapApiTransportSyncStatusToView(apiStatus: ApiTransportSyncStatus): TransportSyncStatusView {
+  return {
+    providerId: apiStatus.providerId,
+    source: normalizeTransportSyncSource(apiStatus.source),
+    liveImport: apiStatus.liveImport,
+    hasPersistedSnapshot: apiStatus.hasPersistedSnapshot,
+    importedRouteCount: apiStatus.importedRouteCount,
+    importedRouteIds: apiStatus.importedRouteIds,
+    importedRouteReferences: apiStatus.importedRouteReferences,
+    lastImportedAtLabel: apiStatus.lastImportedAtUtc ? formatUtcLabel(apiStatus.lastImportedAtUtc) : null,
+    lastActivityLabel: formatRelativeSyncLabel(apiStatus.lastSuccessfulSyncAt, apiStatus.lastAttemptedSyncAt),
+    syncStatus: apiStatus.syncStatus,
+    syncStatusLabel: formatSyncStatusLabel(apiStatus.syncStatus),
+    syncDetail: apiStatus.syncDetail,
+    healthStatus: normalizeProviderHealthStatus(apiStatus.health.status),
+    healthSummary: apiStatus.health.summary,
   }
 }
 

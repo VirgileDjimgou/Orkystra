@@ -4,15 +4,20 @@ using Microsoft.Extensions.Options;
 using Orkystra.Api.AI;
 using Orkystra.Api.Connectors;
 using Orkystra.Api.ControlTower;
+using Orkystra.Api.Eventing;
+using Orkystra.Api.Gps;
 using Orkystra.Api.Observability;
 using Orkystra.Api.Optimization;
 using Orkystra.Api.Persistence;
 using Orkystra.Api.Security;
+using Orkystra.Api.Simulation;
 using Orkystra.Api.Tenancy;
+using Orkystra.Application.Eventing;
 using Orkystra.Contracts.Ai;
 using Orkystra.Contracts.Connectors;
 using Orkystra.Contracts.ControlTower;
 using Orkystra.Contracts.Optimization;
+using Orkystra.Contracts.Simulation;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
@@ -45,11 +50,29 @@ builder.Services.Configure<ProviderRuntimeOptions>(builder.Configuration.GetSect
 builder.Services.Configure<AiServiceOptions>(builder.Configuration.GetSection(AiServiceOptions.SectionName));
 builder.Services.Configure<OptimizationServiceOptions>(builder.Configuration.GetSection(OptimizationServiceOptions.SectionName));
 builder.Services.Configure<OperationalPersistenceOptions>(builder.Configuration.GetSection(OperationalPersistenceOptions.SectionName));
+builder.Services.Configure<EventBackboneOptions>(options =>
+{
+    builder.Configuration.GetSection(EventBackboneOptions.SectionName).Bind(options);
+
+    if (string.IsNullOrWhiteSpace(options.BrokerUrl))
+    {
+        options.BrokerUrl = builder.Configuration["Dependencies:Mqtt"] ?? "mqtt://localhost:1883";
+    }
+});
 
 builder.Services.AddSingleton<ApiKeyValidator>();
 builder.Services.AddSingleton<TenantResolutionService>();
 builder.Services.AddSingleton<RequestMetricsStore>();
 builder.Services.AddSingleton<IAuditStore, FileAuditStore>();
+builder.Services.AddSingleton<EventBackboneTelemetryStore>();
+builder.Services.AddSingleton<MqttEnvelopeSerializer>();
+builder.Services.AddSingleton<IInboxStateStore, InMemoryInboxStateStore>();
+builder.Services.AddSingleton<ScenarioSummaryProjection>();
+builder.Services.AddSingleton<IEventProjection>(provider => provider.GetRequiredService<ScenarioSummaryProjection>());
+builder.Services.AddSingleton<GpsPositionProjection>();
+builder.Services.AddSingleton<IEventProjection>(provider => provider.GetRequiredService<GpsPositionProjection>());
+builder.Services.AddSingleton<IdempotentProjectionRunner>();
+builder.Services.AddSingleton<EventBackboneMessageDispatcher>();
 builder.Services.AddSingleton(provider => new ProviderRuntimeStore(
     provider.GetRequiredService<IOptions<ProviderRuntimeOptions>>(),
     Path.Combine(builder.Environment.ContentRootPath, "appsettings.Local.json")));
@@ -75,10 +98,17 @@ builder.Services.AddHttpClient<RouteOptimizationWorkflowService>((provider, clie
     client.Timeout = TimeSpan.FromSeconds(options.TimeoutSeconds);
 });
 builder.Services.AddSingleton<ProviderRegistryFactory>();
+builder.Services.AddSingleton<IEventBackbonePublisher, MqttEventPublisher>();
+builder.Services.AddHostedService<MqttEventConsumerService>();
 builder.Services.AddSingleton<ProviderCatalogService>();
 builder.Services.AddSingleton<ControlTowerOverviewService>();
 builder.Services.AddSingleton<WarehouseProjectionService>();
 builder.Services.AddSingleton<TransportProjectionService>();
+builder.Services.AddSingleton<TransportSyncWorkflowService>();
+builder.Services.AddSingleton<SimulationProjectionService>();
+builder.Services.AddSingleton<ScenarioEventWorkflowService>();
+builder.Services.AddSingleton<GpsProjectionService>();
+builder.Services.AddSingleton<GpsTelemetryWorkflowService>();
 builder.Services.AddScoped<RequestTenantContext>();
 
 var app = builder.Build();
@@ -120,6 +150,10 @@ app.MapGet("/health/ready", (IConfiguration configuration) => Results.Ok(new
 app.MapGet("/observability/metrics", (RequestMetricsStore metricsStore) => Results.Ok(metricsStore.Snapshot()))
 .AllowAnonymous()
 .WithName("GetMetrics");
+
+app.MapGet("/observability/event-backbone", (EventBackboneTelemetryStore telemetryStore) => Results.Ok(telemetryStore.Snapshot()))
+.RequireAuthorization()
+.WithName("GetEventBackboneTelemetry");
 
 app.MapGet("/observability/context", (HttpContext httpContext, RequestTenantContext tenantContext) => Results.Ok(new
 {
@@ -222,6 +256,97 @@ app.MapGet("/api/control-tower/overview", async (
 .RequireAuthorization()
 .WithName("GetControlTowerOverview");
 
+app.MapGet("/api/simulation/scenarios", async (
+    RequestTenantContext tenantContext,
+    SimulationProjectionService simulationProjectionService,
+    OperationalPersistenceStore persistenceStore,
+    CancellationToken cancellationToken) =>
+{
+    var tenantId = tenantContext.TenantId ?? "local-demo-tenant";
+    var scenarios = await simulationProjectionService.ListAsync(cancellationToken);
+    await persistenceStore.UpsertProjectionAsync(tenantId, "scenario-summaries", "mqtt-live", "mqtt", scenarios, cancellationToken);
+    return Results.Ok(scenarios);
+})
+.RequireAuthorization()
+.WithName("ListSimulationScenarioProjections");
+
+app.MapPost("/api/simulation/scenarios/demo-events", async (
+    PublishScenarioEventsRequest? request,
+    RequestTenantContext tenantContext,
+    ScenarioEventWorkflowService scenarioEventWorkflowService,
+    OperationalPersistenceStore persistenceStore,
+    CancellationToken cancellationToken) =>
+{
+    var tenantId = tenantContext.TenantId ?? "local-demo-tenant";
+    var effectiveRequest = request ?? PublishScenarioEventsRequest.Default;
+
+    if (string.IsNullOrWhiteSpace(effectiveRequest.Name))
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["name"] = ["A scenario name is required."]
+        });
+    }
+
+    if (effectiveRequest.AdvanceMinutes <= 0)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["advanceMinutes"] = ["Advance minutes must be greater than zero."]
+        });
+    }
+
+    var result = await scenarioEventWorkflowService.PublishDemoScenarioAsync(tenantId, effectiveRequest, cancellationToken);
+    await persistenceStore.AppendWorkflowRunAsync(
+        tenantId,
+        "simulation-event-publish",
+        result.ScenarioId.ToString("D"),
+        result.ScenarioId.ToString("D"),
+        "mqtt",
+        "published",
+        result,
+        cancellationToken);
+    return Results.Accepted($"/api/simulation/scenarios/{result.ScenarioId:D}", result);
+})
+.RequireAuthorization()
+.WithName("PublishSimulationScenarioEvents");
+
+app.MapGet("/api/gps/positions", async (
+    RequestTenantContext tenantContext,
+    GpsProjectionService gpsProjectionService,
+    OperationalPersistenceStore persistenceStore,
+    CancellationToken cancellationToken) =>
+{
+    var tenantId = tenantContext.TenantId ?? "local-demo-tenant";
+    var positions = await gpsProjectionService.ListAsync(cancellationToken);
+    await persistenceStore.UpsertProjectionAsync(tenantId, "gps-positions", "latest", "mqtt", positions, cancellationToken);
+    return Results.Ok(positions);
+})
+.RequireAuthorization()
+.WithName("ListGpsPositions");
+
+app.MapPost("/api/gps/positions/publish", async (
+    RequestTenantContext tenantContext,
+    GpsTelemetryWorkflowService gpsTelemetryWorkflowService,
+    OperationalPersistenceStore persistenceStore,
+    CancellationToken cancellationToken) =>
+{
+    var tenantId = tenantContext.TenantId ?? "local-demo-tenant";
+    var result = await gpsTelemetryWorkflowService.PublishLatestPositionsAsync(tenantId, cancellationToken);
+    await persistenceStore.AppendWorkflowRunAsync(
+        tenantId,
+        "gps-position-publish",
+        result.Topic,
+        null,
+        "mqtt",
+        "published",
+        result,
+        cancellationToken);
+    return Results.Accepted("/api/gps/positions", result);
+})
+.RequireAuthorization()
+.WithName("PublishGpsPositions");
+
 app.MapGet("/api/warehouses", async (
     RequestTenantContext tenantContext,
     WarehouseProjectionService warehouseProjectionService,
@@ -277,7 +402,7 @@ app.MapGet("/api/transport/routes", async (
     CancellationToken cancellationToken) =>
 {
     var tenantId = tenantContext.TenantId ?? "local-demo-tenant";
-    var routes = await transportProjectionService.ListAsync(cancellationToken);
+    var routes = await transportProjectionService.ListAsync(tenantId, cancellationToken);
     await persistenceStore.UpsertProjectionAsync(tenantId, "route-summaries", "all", "api", routes, cancellationToken);
     return Results.Ok(routes);
 })
@@ -292,7 +417,7 @@ app.MapGet("/api/transport/routes/{routeId:guid}", async (
     CancellationToken cancellationToken) =>
 {
     var tenantId = tenantContext.TenantId ?? "local-demo-tenant";
-    var route = await transportProjectionService.GetByIdAsync(routeId, cancellationToken);
+    var route = await transportProjectionService.GetByIdAsync(routeId, tenantId, cancellationToken);
     if (route is null)
     {
         return Results.NotFound();
@@ -304,6 +429,40 @@ app.MapGet("/api/transport/routes/{routeId:guid}", async (
 .RequireAuthorization()
 .WithName("GetTransportProjection");
 
+app.MapGet("/api/transport/sync-status", async (
+    RequestTenantContext tenantContext,
+    TransportSyncWorkflowService transportSyncWorkflowService,
+    CancellationToken cancellationToken) =>
+{
+    var tenantId = tenantContext.TenantId ?? "local-demo-tenant";
+    var status = await transportSyncWorkflowService.GetLatestStatusAsync(tenantId, cancellationToken);
+    return Results.Ok(status);
+})
+.RequireAuthorization()
+.WithName("GetTransportSyncStatus");
+
+app.MapPost("/api/transport/sync", async (
+    RequestTenantContext tenantContext,
+    TransportSyncWorkflowService transportSyncWorkflowService,
+    OperationalPersistenceStore persistenceStore,
+    CancellationToken cancellationToken) =>
+{
+    var tenantId = tenantContext.TenantId ?? "local-demo-tenant";
+    var result = await transportSyncWorkflowService.ImportSnapshotAsync(tenantId, cancellationToken);
+    await persistenceStore.AppendWorkflowRunAsync(
+        tenantId,
+        "transport-sync-import",
+        result.ProviderId,
+        null,
+        result.Source,
+        result.SyncStatus,
+        result,
+        cancellationToken);
+    return Results.Ok(result);
+})
+.RequireAuthorization()
+.WithName("ImportTransportSnapshot");
+
 app.MapPost("/api/transport/routes/{routeId:guid}/optimization", async (
     Guid routeId,
     RouteOptimizationRunRequest request,
@@ -313,13 +472,13 @@ app.MapPost("/api/transport/routes/{routeId:guid}/optimization", async (
     OperationalPersistenceStore persistenceStore,
     CancellationToken cancellationToken) =>
 {
-    var route = await transportProjectionService.GetByIdAsync(routeId, cancellationToken);
+    var tenantId = tenantContext.TenantId ?? "local-demo-tenant";
+    var route = await transportProjectionService.GetByIdAsync(routeId, tenantId, cancellationToken);
     if (route is null)
     {
         return Results.NotFound();
     }
 
-    var tenantId = tenantContext.TenantId ?? "local-demo-tenant";
     var workflowResult = await optimizationWorkflowService.BuildOptimizationAsync(tenantId, route, request, cancellationToken);
     await persistenceStore.AppendWorkflowRunAsync(
         tenantId,

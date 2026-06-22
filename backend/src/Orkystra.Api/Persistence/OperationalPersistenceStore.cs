@@ -180,6 +180,50 @@ public sealed class OperationalPersistenceStore
         return snapshots;
     }
 
+    public async Task<PersistedProjectionSnapshot?> ReadProjectionSnapshotAsync(
+        string tenantId,
+        string projectionName,
+        string projectionKey,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(projectionName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(projectionKey);
+
+        await EnsureInitializedAsync(cancellationToken);
+
+        await using var connection = CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+
+        await using var command = connection.CreateCommand();
+        command.CommandText =
+            """
+            SELECT tenant_id, projection_name, projection_key, source, captured_at_utc, payload_json
+            FROM projection_snapshots
+            WHERE tenant_id = $tenantId
+              AND projection_name = $projectionName
+              AND projection_key = $projectionKey
+            LIMIT 1;
+            """;
+        command.Parameters.AddWithValue("$tenantId", tenantId);
+        command.Parameters.AddWithValue("$projectionName", projectionName);
+        command.Parameters.AddWithValue("$projectionKey", projectionKey);
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken))
+        {
+            return null;
+        }
+
+        return new PersistedProjectionSnapshot(
+            reader.GetString(0),
+            reader.GetString(1),
+            reader.GetString(2),
+            reader.GetString(3),
+            DateTimeOffset.Parse(reader.GetString(4)),
+            reader.GetString(5));
+    }
+
     public async Task<IReadOnlyCollection<PersistedWorkflowRun>> ReadWorkflowRunsAsync(
         string tenantId,
         string? workflowKind,

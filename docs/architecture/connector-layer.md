@@ -33,11 +33,12 @@ Domain-specific adapters additionally expose canonical reads:
 - `RestTransportProvider`
 - `GpsTelematicsProvider`
 
-These are skeletons, not live integrations. Their job in this sprint is to prove that:
+These started as skeletons, but the transport slice has now crossed into a first disciplined live-read workflow:
 
 - the registry can swap providers by contract
 - health and capability discovery are uniform
 - canonical DTOs stay stable above the adapter boundary
+- the REST transport adapter can read a live upstream when runtime configuration is valid
 
 ## Connector Catalog Visibility
 
@@ -58,8 +59,29 @@ Sprint 17 adds a local configuration-editing workflow for non-secret provider se
 
 ## Current limitations
 
-- no live vendor authentication
-- no real network calls
-- no remote connector persistence
-- no event publication from adapters yet
-- no secret-management workflow for provider credentials yet
+- no connector writeback flow yet
+- no centralized remote connector persistence or fleet-wide secret manager yet
+- only the GPS provider currently feeds connector-originated telemetry through MQTT; the transport adapter still imports snapshots through pull sync
+- no durable inbox/outbox persistence for the event backbone yet
+
+## MQTT-backed connector telemetry
+
+The connector layer now has its first brokered telemetry path:
+
+- the GPS provider returns canonical `GpsPositionSnapshot` payloads
+- the API publishes those payloads to the configured GPS stream topic through the shared event-envelope model
+- the MQTT consumer dispatches those telemetry events through the projection runner
+- operators can read the latest projected truck positions through `GET /api/gps/positions`
+
+This keeps connector-originated events aligned with the same routing and projection infrastructure used by simulation traffic.
+
+## Transport live snapshot import
+
+Sprint 29 adds the first explicit transport import workflow on top of the live REST adapter:
+
+- `POST /api/transport/sync` imports the current transport route snapshot through the provider registry
+- imported route summaries and route details are persisted into the operational store and become reusable by later API reads
+- `GET /api/transport/sync-status` exposes the latest sync evidence, including route count, imported references, live-vs-fallback source, and provider health
+- the transport slice now has a clear distinction between "current provider posture" and "last imported operational snapshot"
+
+This is still a narrow first synchronization workflow rather than a full CDC or webhook integration, but it creates a durable handoff between live provider reads and operator-facing projections.
