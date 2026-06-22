@@ -5,6 +5,7 @@ import {
   buildFallbackOverview,
   buildFallbackRouteDetail,
   buildFallbackRouteOptimization,
+  buildFallbackTransportExceptionWorkbench,
   buildFallbackTransportSyncDiff,
   buildFallbackTransportSyncHistory,
   buildFallbackTransportSyncStatus,
@@ -15,6 +16,7 @@ import {
   type ControlTowerOverviewView,
   type RouteDetailView,
   type RouteOptimizationView,
+  type TransportExceptionWorkbenchView,
   type TransportSyncDiffView,
   type TransportSyncHistoryView,
   type TransportSyncStatusView,
@@ -45,6 +47,8 @@ import {
   runTransportSync,
 } from "./services/transportSyncApi";
 import { loadTransportSyncDiff } from "./services/transportSyncDiffApi";
+import { loadTransportExceptionWorkbench } from "./services/transportExceptionWorkbenchApi";
+import { saveTransportExceptionResolution } from "./services/transportExceptionResolutionApi";
 import { loadTransportSyncHistory } from "./services/transportSyncHistoryApi";
 
 type DataConnectionState = "loading" | "api" | "fallback" | "stale";
@@ -58,6 +62,13 @@ type TransportFreshnessActionId =
   | TransportSupportActionId
   | "selected-diff"
   | "focus-route";
+type TransportExceptionActionId =
+  | TransportSupportActionId
+  | "selected-diff"
+  | "focus-route"
+  | "focus-route-diff"
+  | "review-history";
+type TransportExceptionFilter = "all" | "unreviewed" | string;
 type TransportDiffFilter = "all" | "changed" | "added" | "removed" | "selected";
 
 const navigationItems = [
@@ -99,6 +110,16 @@ const transportSyncHistoryFeed = ref<TransportSyncHistoryView>(
 );
 const transportSyncHistoryConnectionState = ref<DataConnectionState>("loading");
 const transportSyncHistoryErrorMessage = ref<string | null>(null);
+const transportExceptionWorkbench = ref<TransportExceptionWorkbenchView>(
+  buildFallbackTransportExceptionWorkbench()
+);
+const transportExceptionWorkbenchConnectionState = ref<DataConnectionState>(
+  "loading"
+);
+const transportExceptionWorkbenchErrorMessage = ref<string | null>(null);
+const transportExceptionResolutionDrafts = ref<Record<string, string>>({});
+const savingTransportExceptionResolutionId = ref<string | null>(null);
+const transportExceptionResolutionNotice = ref<Record<string, string>>({});
 const providerCatalog = ref<ProviderCatalogView>(
   buildFallbackProviderCatalog()
 );
@@ -136,6 +157,8 @@ const secretSaveNotice = ref<Record<string, string>>({});
 const selectedScenarioId = ref(fallbackOverview.scenarios[0].scenarioId);
 const selectedWarehouseId = ref(fallbackOverview.warehouses[0].warehouseId);
 const selectedRouteId = ref(fallbackOverview.routes[0].routeId);
+const selectedTransportExceptionFilter = ref<TransportExceptionFilter>("unreviewed");
+const reviewedTransportExceptionIds = ref<string[]>([]);
 const selectedTransportDiffFilter = ref<TransportDiffFilter>("changed");
 const syncFreshnessClock = ref(Date.now());
 const simulationState = ref<"Running" | "Paused">("Running");
@@ -444,6 +467,55 @@ const transportSyncDeltaSummary = computed(() => {
   return `${parts.join(" and ")} versus the current route board.`;
 });
 const transportSyncHistory = computed(() => transportSyncHistoryFeed.value.entries);
+const transportExceptionItems = computed(
+  () => transportExceptionWorkbench.value.items
+);
+const unreviewedTransportExceptionItems = computed(() =>
+  transportExceptionItems.value.filter(
+    (item) =>
+      item.resolutionStatus === null &&
+      !reviewedTransportExceptionIds.value.includes(item.id)
+  )
+);
+const visibleTransportExceptionItems = computed(() => {
+  const source =
+    selectedTransportExceptionFilter.value === "all"
+      ? transportExceptionItems.value
+      : selectedTransportExceptionFilter.value === "unreviewed"
+      ? unreviewedTransportExceptionItems.value
+      : transportExceptionItems.value.filter(
+          (item) => item.category === selectedTransportExceptionFilter.value
+        );
+
+  return source;
+});
+const nextTransportExceptionItem = computed(
+  () => visibleTransportExceptionItems.value[0] ?? null
+);
+const transportExceptionFilterOptions = computed(() => [
+  {
+    key: "unreviewed",
+    label: "Unreviewed",
+    count: unreviewedTransportExceptionItems.value.length,
+  },
+  ...transportExceptionWorkbench.value.groups.map((group) => ({
+    key: group.label,
+    label: group.label,
+    count: transportExceptionItems.value.filter(
+      (item) => item.category === group.label
+    ).length,
+  })),
+  {
+    key: "all",
+    label: "All",
+    count: transportExceptionItems.value.length,
+  },
+]);
+const reviewedTransportExceptionCount = computed(
+  () =>
+    transportExceptionItems.value.length -
+    unreviewedTransportExceptionItems.value.length
+);
 const selectedRouteDiff = computed(
   () =>
     transportSyncDiff.value.routeDiffs.find(
@@ -1488,6 +1560,7 @@ const connectionMessage = computed(() => {
     warehouseDetailErrorMessage.value ??
     routeDetailErrorMessage.value ??
     transportSyncErrorMessage.value ??
+    transportExceptionWorkbenchErrorMessage.value ??
     providerCatalogErrorMessage.value ??
     aiRecommendationErrorMessage.value ??
     operationalActivityErrorMessage.value ??
@@ -1533,6 +1606,118 @@ function runTransportSupportAction(actionId: TransportSupportActionId): void {
   }
 }
 
+function runTransportExceptionAction(
+  actionId: TransportExceptionActionId,
+  routeId?: string | null,
+  routeReference?: string | null
+): void {
+  switch (actionId) {
+    case "focus-route":
+      if (routeId) {
+        selectedRouteId.value = routeId;
+      } else if (routeReference) {
+        focusTransportDiffRoute(routeReference);
+      }
+      return;
+    case "focus-route-diff":
+      if (routeId) {
+        selectedRouteId.value = routeId;
+      }
+      if (routeReference) {
+        focusTransportDiffRoute(routeReference);
+      } else {
+        selectedTransportDiffFilter.value = "selected";
+      }
+      return;
+    case "review-history":
+      jumpToTransportSection("transport-sync-history-card");
+      return;
+    case "selected-diff":
+      focusTransportSelectedDiff();
+      return;
+    default:
+      runTransportSupportAction(actionId);
+  }
+}
+
+function markTransportExceptionReviewed(exceptionId: string): void {
+  if (reviewedTransportExceptionIds.value.includes(exceptionId)) {
+    return;
+  }
+
+  reviewedTransportExceptionIds.value = [
+    ...reviewedTransportExceptionIds.value,
+    exceptionId,
+  ];
+}
+
+function transportExceptionResolutionDraft(exceptionId: string): string {
+  return transportExceptionResolutionDrafts.value[exceptionId] ?? "";
+}
+
+function resetTransportExceptionReviewQueue(): void {
+  reviewedTransportExceptionIds.value = [];
+  selectedTransportExceptionFilter.value = "unreviewed";
+}
+
+function reviewNextTransportException(): void {
+  const nextItem = nextTransportExceptionItem.value;
+  if (!nextItem) {
+    return;
+  }
+
+  runTransportExceptionAction(
+    nextItem.recommendedAction,
+    nextItem.routeId,
+    nextItem.routeReference
+  );
+  markTransportExceptionReviewed(nextItem.id);
+}
+
+async function saveResolvedTransportException(
+  exceptionId: string,
+  status: "Reviewed" | "Resolved" | "Deferred"
+): Promise<void> {
+  transportExceptionResolutionNotice.value = {
+    ...transportExceptionResolutionNotice.value,
+    [exceptionId]: "",
+  };
+  savingTransportExceptionResolutionId.value = exceptionId;
+
+  try {
+    await saveTransportExceptionResolution({
+      exceptionId,
+      status,
+      note: transportExceptionResolutionDraft(exceptionId),
+    });
+    await refreshTransportExceptionWorkbench(true);
+    transportExceptionResolutionDrafts.value = {
+      ...transportExceptionResolutionDrafts.value,
+      [exceptionId]: "",
+    };
+    transportExceptionResolutionNotice.value = {
+      ...transportExceptionResolutionNotice.value,
+      [exceptionId]:
+        status === "Resolved"
+          ? "Resolved and saved."
+          : status === "Deferred"
+          ? "Deferred and saved."
+          : "Review note saved.",
+    };
+    markTransportExceptionReviewed(exceptionId);
+  } catch (error) {
+    transportExceptionResolutionNotice.value = {
+      ...transportExceptionResolutionNotice.value,
+      [exceptionId]:
+        error instanceof Error
+          ? error.message
+          : "Exception resolution could not be saved.",
+    };
+  } finally {
+    savingTransportExceptionResolutionId.value = null;
+  }
+}
+
 function focusTransportSelectedDiff(): void {
   selectedTransportDiffFilter.value = "selected";
 }
@@ -1546,6 +1731,15 @@ function focusTransportDiffRoute(routeReference: string): void {
     selectedRouteId.value = route.routeId;
     selectedTransportDiffFilter.value = "selected";
   }
+}
+
+function jumpToTransportSection(sectionId: string): void {
+  const element = document.getElementById(sectionId);
+  if (!element) {
+    return;
+  }
+
+  element.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function syncProviderDrafts(catalog: ProviderCatalogView): void {
@@ -1794,6 +1988,35 @@ function applyTransportSyncHistoryResult(
       : result.errorMessage;
 }
 
+function applyTransportExceptionWorkbenchResult(
+  result: Awaited<ReturnType<typeof loadTransportExceptionWorkbench>>,
+  preserveExisting: boolean
+): void {
+  const keepCurrentSnapshot =
+    preserveExisting &&
+    result.source === "fallback" &&
+    transportExceptionWorkbench.value.items.length > 0 &&
+    (transportExceptionWorkbenchConnectionState.value === "api" ||
+      transportExceptionWorkbenchConnectionState.value === "stale");
+
+  if (!keepCurrentSnapshot) {
+    transportExceptionWorkbench.value = result.workbench;
+    reviewedTransportExceptionIds.value = reviewedTransportExceptionIds.value.filter(
+      (id) => result.workbench.items.some((item) => item.id === id)
+    );
+  }
+
+  transportExceptionWorkbenchConnectionState.value = keepCurrentSnapshot
+    ? "stale"
+    : result.source === "api"
+    ? "api"
+    : "fallback";
+  transportExceptionWorkbenchErrorMessage.value =
+    keepCurrentSnapshot && result.errorMessage
+      ? `${result.errorMessage} Keeping the last successful transport exception workbench.`
+      : result.errorMessage;
+}
+
 function applyAiRecommendationResult(
   result: Awaited<ReturnType<typeof loadAiRecommendation>>,
   preserveExisting: boolean
@@ -1927,12 +2150,24 @@ async function refreshTransportSyncHistory(
   applyTransportSyncHistoryResult(result, preserveExisting);
 }
 
+async function refreshTransportExceptionWorkbench(
+  preserveExisting = true
+): Promise<void> {
+  if (!preserveExisting) {
+    transportExceptionWorkbenchConnectionState.value = "loading";
+  }
+
+  const result = await loadTransportExceptionWorkbench();
+  applyTransportExceptionWorkbenchResult(result, preserveExisting);
+}
+
 async function refreshTransportSyncEvidenceBundle(
   preserveExisting = true
 ): Promise<void> {
   await refreshTransportSyncStatus(preserveExisting);
   await refreshTransportSyncDiff(preserveExisting);
   await refreshTransportSyncHistory(preserveExisting);
+  await refreshTransportExceptionWorkbench(preserveExisting);
 }
 
 async function refreshAiRecommendation(
@@ -2016,6 +2251,7 @@ async function refreshWorkspace(preserveExisting = true): Promise<void> {
     transportSyncConnectionState.value = "loading";
     transportSyncDiffConnectionState.value = "loading";
     transportSyncHistoryConnectionState.value = "loading";
+    transportExceptionWorkbenchConnectionState.value = "loading";
     providerCatalogConnectionState.value = "loading";
     aiConnectionState.value = "loading";
     operationalConnectionState.value = "loading";
@@ -2044,6 +2280,7 @@ async function refreshWorkspace(preserveExisting = true): Promise<void> {
       transportSyncConnectionState.value,
       transportSyncDiffConnectionState.value,
       transportSyncHistoryConnectionState.value,
+      transportExceptionWorkbenchConnectionState.value,
       providerCatalogConnectionState.value,
       aiConnectionState.value,
       operationalConnectionState.value,
@@ -2056,6 +2293,7 @@ async function refreshWorkspace(preserveExisting = true): Promise<void> {
       transportSyncConnectionState.value,
       transportSyncDiffConnectionState.value,
       transportSyncHistoryConnectionState.value,
+      transportExceptionWorkbenchConnectionState.value,
       providerCatalogConnectionState.value,
       aiConnectionState.value,
       operationalConnectionState.value,
@@ -2084,6 +2322,8 @@ async function triggerTransportSync(): Promise<void> {
     applyTransportSyncDiffResult(diffResult, true);
     const historyResult = await loadTransportSyncHistory();
     applyTransportSyncHistoryResult(historyResult, true);
+    const exceptionWorkbenchResult = await loadTransportExceptionWorkbench();
+    applyTransportExceptionWorkbenchResult(exceptionWorkbenchResult, true);
 
     if (result.source === "api") {
       await refreshWorkspace(true);
@@ -3300,6 +3540,144 @@ onBeforeUnmount(() => {
             <article class="transport-story-card">
               <div class="catalog-editor-heading">
                 <div>
+                  <span class="panel-label">Exception workbench</span>
+                  <h3>Routes and sync issues to review first</h3>
+                </div>
+                <span class="mini-badge">{{
+                  transportExceptionWorkbench.exceptionCount
+                }}</span>
+              </div>
+
+              <p class="catalog-summary">
+                {{
+                  transportExceptionWorkbenchErrorMessage ??
+                  transportExceptionWorkbench.summary
+                }}
+              </p>
+
+              <div class="chip-row transport-diff-filter-row">
+                <button
+                  v-for="filterOption in transportExceptionFilterOptions"
+                  :key="filterOption.key"
+                  type="button"
+                  class="catalog-chip transport-diff-filter-chip"
+                  :class="{
+                    'is-muted':
+                      selectedTransportExceptionFilter !== filterOption.key,
+                    'is-active':
+                      selectedTransportExceptionFilter === filterOption.key,
+                  }"
+                  @click="selectedTransportExceptionFilter = filterOption.key"
+                >
+                  {{ filterOption.label }} ({{ filterOption.count }})
+                </button>
+              </div>
+
+              <div class="transport-sync-grid">
+                <div class="transport-sync-metric">
+                  <span class="panel-label">Queue</span>
+                  <strong>{{ unreviewedTransportExceptionItems.length }}</strong>
+                  <span>unreviewed exceptions</span>
+                </div>
+
+                <div class="transport-sync-metric">
+                  <span class="panel-label">Reviewed</span>
+                  <strong>{{ reviewedTransportExceptionCount }}</strong>
+                  <span>cleared in this local review pass</span>
+                </div>
+
+                <div class="transport-sync-metric">
+                  <span class="panel-label">Next up</span>
+                  <strong>{{
+                    nextTransportExceptionItem?.routeReference ??
+                    nextTransportExceptionItem?.category ??
+                    "Clear"
+                  }}</strong>
+                  <span>{{
+                    nextTransportExceptionItem?.actionLabel ??
+                    "No remaining exception in this view"
+                  }}</span>
+                </div>
+              </div>
+
+              <div class="transport-support-actions">
+                <button
+                  type="button"
+                  class="transport-support-action"
+                  :disabled="nextTransportExceptionItem === null"
+                  @click="reviewNextTransportException"
+                >
+                  <strong>Review next exception</strong>
+                  <span>
+                    Advance through the current filtered queue one exception at
+                    a time.
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  class="transport-support-action"
+                  :disabled="reviewedTransportExceptionCount === 0"
+                  @click="resetTransportExceptionReviewQueue"
+                >
+                  <strong>Reset review queue</strong>
+                  <span>
+                    Put all exceptions back into the local review list.
+                  </span>
+                </button>
+              </div>
+
+              <ul class="transport-story-list">
+                <li
+                  v-for="item in visibleTransportExceptionItems"
+                  :key="item.id"
+                  class="transport-recovery-item"
+                >
+                  <strong>{{ item.title }}</strong>
+                  <span>{{ item.detail }}</span>
+                  <span>
+                    {{ item.severity }} - {{ item.category }}
+                    <template v-if="item.routeReference">
+                      - {{ item.routeReference }}
+                    </template>
+                  </span>
+                  <span v-if="item.evidence.length > 0">
+                    {{ item.evidence.join(" • ") }}
+                  </span>
+                  <button
+                    type="button"
+                    class="catalog-save-button"
+                    @click="
+                      runTransportExceptionAction(
+                        item.recommendedAction,
+                        item.routeId,
+                        item.routeReference
+                      )
+                    "
+                  >
+                    {{ item.actionLabel }}
+                  </button>
+                  <button
+                    type="button"
+                    class="catalog-save-button"
+                    @click="markTransportExceptionReviewed(item.id)"
+                  >
+                    Mark reviewed
+                  </button>
+                </li>
+                <li v-if="visibleTransportExceptionItems.length === 0">
+                  <strong>No exceptions in this view</strong>
+                  <span>
+                    This filter is clear for now. Reset the queue or switch
+                    groups to continue reviewing transport posture.
+                  </span>
+                </li>
+              </ul>
+            </article>
+
+            <article class="transport-story-card">
+              <div class="catalog-editor-heading">
+                <div>
                   <span class="panel-label">Route storyline</span>
                   <h3>{{ routeDetail.reference }}</h3>
                 </div>
@@ -3317,7 +3695,10 @@ onBeforeUnmount(() => {
               </ul>
             </article>
 
-            <article class="transport-story-card">
+            <article
+              id="transport-sync-history-card"
+              class="transport-story-card"
+            >
               <div class="catalog-editor-heading">
                 <div>
                   <span class="panel-label">Sync timeline</span>

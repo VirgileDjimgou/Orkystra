@@ -107,6 +107,8 @@ builder.Services.AddSingleton<WarehouseProjectionService>();
 builder.Services.AddSingleton<TransportProjectionService>();
 builder.Services.AddSingleton<TransportSyncWorkflowService>();
 builder.Services.AddSingleton<TransportSyncHistoryService>();
+builder.Services.AddSingleton<TransportExceptionResolutionLedgerService>();
+builder.Services.AddSingleton<TransportExceptionWorkbenchService>();
 builder.Services.AddSingleton<SimulationProjectionService>();
 builder.Services.AddSingleton<ScenarioEventWorkflowService>();
 builder.Services.AddSingleton<GpsProjectionService>();
@@ -497,6 +499,45 @@ app.MapGet("/api/transport/sync-history", async (
 })
 .RequireAuthorization()
 .WithName("GetTransportSyncHistory");
+
+app.MapGet("/api/transport/exceptions-workbench", async (
+    RequestTenantContext tenantContext,
+    TransportExceptionWorkbenchService transportExceptionWorkbenchService,
+    OperationalPersistenceStore persistenceStore,
+    CancellationToken cancellationToken) =>
+{
+    var tenantId = tenantContext.TenantId ?? "local-demo-tenant";
+    var workbench = await transportExceptionWorkbenchService.BuildAsync(tenantId, cancellationToken);
+    await persistenceStore.UpsertProjectionAsync(tenantId, "transport-exceptions-workbench", "active", "api", workbench, cancellationToken);
+    return Results.Ok(workbench);
+})
+.RequireAuthorization()
+.WithName("GetTransportExceptionWorkbench");
+
+app.MapGet("/api/transport/exceptions-workbench/resolutions", async (
+    RequestTenantContext tenantContext,
+    TransportExceptionResolutionLedgerService resolutionLedgerService,
+    CancellationToken cancellationToken) =>
+{
+    var tenantId = tenantContext.TenantId ?? "local-demo-tenant";
+    var ledger = await resolutionLedgerService.GetAsync(tenantId, cancellationToken);
+    return Results.Ok(ledger);
+})
+.RequireAuthorization()
+.WithName("GetTransportExceptionResolutionLedger");
+
+app.MapPut("/api/transport/exceptions-workbench/resolutions", async (
+    TransportExceptionResolutionWriteRequest request,
+    RequestTenantContext tenantContext,
+    TransportExceptionResolutionLedgerService resolutionLedgerService,
+    CancellationToken cancellationToken) =>
+{
+    var tenantId = tenantContext.TenantId ?? "local-demo-tenant";
+    var ledger = await resolutionLedgerService.SaveAsync(tenantId, request, cancellationToken);
+    return Results.Ok(ledger);
+})
+.RequireAuthorization()
+.WithName("SaveTransportExceptionResolution");
 
 app.MapPost("/api/transport/routes/{routeId:guid}/optimization", async (
     Guid routeId,

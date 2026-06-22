@@ -28,6 +28,9 @@ Use this checklist before a demo, a local release candidate, or a staging handof
 - `GET /api/transport/sync-status` returns the latest transport sync evidence for the tenant
 - `POST /api/transport/sync` returns 200, persists a transport-sync workflow run, and updates the tenant's route snapshot
 - `GET /api/transport/sync-diff` returns latest-vs-previous route-level diff evidence (added/removed/changed) when at least two imports exist
+- `GET /api/transport/exceptions-workbench` returns prioritized transport exceptions with action hints and route references when transport evidence exists
+- `GET /api/transport/exceptions-workbench/resolutions` returns the current tenant's persisted exception review ledger
+- `PUT /api/transport/exceptions-workbench/resolutions` accepts a short note plus `Reviewed`, `Resolved`, or `Deferred` status and persists it locally
 - `POST /api/ai/recommendations` returns a grounded response with evidence, assumptions, and missing-data fields
 - `POST /api/transport/routes/{routeId}/optimization` returns a bounded optimization review with route order, explanation, and alternatives
 - `GET /observability/persistence/projections` returns persisted projection snapshots for the active tenant
@@ -75,6 +78,11 @@ Use this checklist before a demo, a local release candidate, or a staging handof
 - The priority panel shows a short urgency label, a concise concern title, and a one-line action reason without wrapping into unreadable stacks
 - The recommended action and `Go to ...` navigation label remain consistent with the current freshness posture
 - Transport board shows a route storyline card for the selected route plus a recent sync timeline that reflects `transport-sync-import` workflow runs
+- Transport board shows a transport exception workbench that highlights delayed routes, diff-heavy imports, and sync posture issues with direct action buttons
+- Exception workbench actions can jump to route focus, selected diff evidence, sync refresh, optimization rerun, or recent import history without breaking layout
+- Exception workbench supports grouped filtering so `Unreviewed`, `Route`, `Sync`, `Import Delta`, and other active groups can be isolated quickly
+- `Review next exception` advances through the currently filtered exception queue, and `Reset review queue` restores the local review list cleanly
+- Exception rows can save a short resolution note and persist `Reviewed` or `Resolved` posture without breaking the current transport review flow
 - The historical diff panel supports filter-based triage for changed, added, removed, selected-route, and all route deltas
 - Diff rows can focus the corresponding current route when that route still exists in the latest transport board
 - On a wide desktop viewport, the transport sync metrics, storyline, timeline, and route-detail lists remain readable without collapsing into cramped multi-column blocks

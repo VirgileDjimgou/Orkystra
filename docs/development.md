@@ -175,6 +175,16 @@ curl http://127.0.0.1:5043/api/transport/sync-status `
 curl http://127.0.0.1:5043/api/transport/sync-diff `
   -H "X-Api-Key: your-dev-key" `
   -H "X-Tenant-Id: local-demo-tenant"
+
+# Review transport exception workbench
+curl http://127.0.0.1:5043/api/transport/exceptions-workbench `
+  -H "X-Api-Key: your-dev-key" `
+  -H "X-Tenant-Id: local-demo-tenant"
+
+# Read persisted exception resolutions
+curl http://127.0.0.1:5043/api/transport/exceptions-workbench/resolutions `
+  -H "X-Api-Key: your-dev-key" `
+  -H "X-Tenant-Id: local-demo-tenant"
 ```
 
 When a persisted transport snapshot exists, `GET /api/transport/routes` and `GET /api/transport/routes/{routeId}` can reuse that tenant snapshot instead of forcing a fresh upstream read every time. This makes local demos and future support flows more stable, and it gives later sprints a clearer synchronization boundary.
@@ -184,6 +194,9 @@ The transport board now includes a compact support layer for operator recovery: 
 The historical diff panel now supports operator triage as well: you can filter deltas by changed, added, removed, selected-route, or all evidence, and jump directly from a diff row back into the current route detail when that route still exists in the latest board.
 The transport sync card now shows a freshness state with an approximate age for the latest persisted snapshot, and the board surfaces escalation cues that tell the operator when the import is getting old enough that it should no longer be trusted at face value.
 The transport board now includes a historical diff drill-down that compares the latest two imported snapshots, including route counts, added/removed/changed totals, and route-level change summaries.
+The transport board now also includes a dedicated exception workbench that turns sync posture, delayed routes, missing imported routes, and recent import deltas into a prioritized operator shortlist with direct jump actions.
+The exception workbench now also supports grouped review: operators can filter by exception family, review the next outstanding exception in sequence, and locally mark items as reviewed during a support pass without losing the underlying transport evidence.
+The review loop is now auditable as well: exception items can carry a persisted resolution status, timestamp, and short support note, and the local tenant can save reviewed or resolved posture through the exception-resolution ledger API.
 The latest freshness warning now drills through to a dedicated evidence panel that ties the snapshot age back to the last import time, sync posture, historical diff, selected route, and latest sync note, so the operator can move from symptom to cause without leaving the transport board.
 The freshness story now extends one step further with a lineage card, a sync cadence card, a trust badge, a selected-route spotlight, and a short operator checklist so the next action is obvious when the snapshot starts to age.
 Chrome-driven browser QA confirmed that the five-card transport freshness cluster stays readable together at desktop width.

@@ -161,6 +161,40 @@ export type TransportSyncHistoryView = {
   entries: TransportSyncHistoryEntryView[]
 }
 
+export type TransportExceptionWorkbenchItemView = {
+  id: string
+  severity: 'Critical' | 'Warning' | 'Info'
+  category: string
+  title: string
+  detail: string
+  routeId: string | null
+  routeReference: string | null
+  recommendedAction: 'sync-import' | 'sync-refresh' | 'focus-route' | 'focus-route-diff' | 'optimization-refresh' | 'selected-diff' | 'review-history'
+  actionLabel: string
+  resolutionStatus: 'Reviewed' | 'Resolved' | 'Deferred' | null
+  resolutionNote: string | null
+  resolutionUpdatedAtLabel: string | null
+  evidence: string[]
+}
+
+export type TransportExceptionWorkbenchGroupView = {
+  groupKey: string
+  label: string
+  highestSeverity: 'Critical' | 'Warning' | 'Info'
+  count: number
+  summary: string
+  recommendedAction: 'sync-import' | 'sync-refresh' | 'focus-route' | 'focus-route-diff' | 'optimization-refresh' | 'selected-diff' | 'review-history'
+  actionLabel: string
+}
+
+export type TransportExceptionWorkbenchView = {
+  generatedAtLabel: string
+  exceptionCount: number
+  summary: string
+  groups: TransportExceptionWorkbenchGroupView[]
+  items: TransportExceptionWorkbenchItemView[]
+}
+
 export type RouteOptimizationAlternativeView = {
   label: string
   orderedStopReferences: string[]
@@ -1309,6 +1343,38 @@ type ApiTransportSyncHistory = {
   entries: ApiTransportSyncHistoryEntry[]
 }
 
+type ApiTransportExceptionWorkbenchItem = {
+  exceptionId: string
+  severity: string
+  category: string
+  title: string
+  detail: string
+  routeId: string | null
+  routeReference: string | null
+  recommendedAction: string
+  actionLabel: string
+  resolutionStatus: string | null
+  resolutionNote: string | null
+  resolutionUpdatedAtUtc: string | null
+  evidence: string[]
+}
+
+type ApiTransportExceptionWorkbench = {
+  generatedAtUtc: string
+  exceptionCount: number
+  summary: string
+  groups: Array<{
+    groupKey: string
+    label: string
+    highestSeverity: string
+    count: number
+    summary: string
+    recommendedAction: string
+    actionLabel: string
+  }>
+  items: ApiTransportExceptionWorkbenchItem[]
+}
+
 export function mapApiTransportSyncHistoryToView(apiHistory: ApiTransportSyncHistory): TransportSyncHistoryView {
   return {
     count: apiHistory.count,
@@ -1327,6 +1393,107 @@ export function mapApiTransportSyncHistoryToView(apiHistory: ApiTransportSyncHis
       removedRouteCount: entry.removedRouteCount,
       changedRouteCount: entry.changedRouteCount,
       routeReferencePreview: entry.importedRouteReferences.slice(0, 3),
+    })),
+  }
+}
+
+export function buildFallbackTransportExceptionWorkbench(): TransportExceptionWorkbenchView {
+  return {
+    generatedAtLabel: 'Local fallback',
+    exceptionCount: 1,
+    summary: 'Transport exception workbench is unavailable in fallback mode.',
+    groups: [
+      {
+        groupKey: 'fallback',
+        label: 'Fallback',
+        highestSeverity: 'Warning',
+        count: 1,
+        summary: 'Fallback exception posture is active.',
+        recommendedAction: 'sync-import',
+        actionLabel: 'Import snapshot',
+      },
+    ],
+    items: [
+      {
+        id: 'fallback-transport-exception',
+        severity: 'Warning',
+        category: 'Fallback',
+        title: 'Transport exceptions are not available yet',
+        detail: 'The workbench needs live transport sync, diff, and route evidence before it can prioritize operator exceptions.',
+        routeId: null,
+        routeReference: null,
+        recommendedAction: 'sync-import',
+        actionLabel: 'Import snapshot',
+        resolutionStatus: null,
+        resolutionNote: null,
+        resolutionUpdatedAtLabel: null,
+        evidence: ['Fallback data is active', 'No dedicated exception projection is available'],
+      },
+    ],
+  }
+}
+
+function normalizeTransportExceptionSeverity(status: string): TransportExceptionWorkbenchItemView['severity'] {
+  if (status === 'Critical' || status === 'Warning') {
+    return status
+  }
+
+  return 'Info'
+}
+
+function normalizeTransportExceptionAction(action: string): TransportExceptionWorkbenchItemView['recommendedAction'] {
+  switch (action) {
+    case 'sync-import':
+    case 'sync-refresh':
+    case 'focus-route':
+    case 'focus-route-diff':
+    case 'optimization-refresh':
+    case 'selected-diff':
+    case 'review-history':
+      return action
+    default:
+      return 'focus-route'
+  }
+}
+
+function normalizeTransportExceptionResolutionStatus(
+  status: string | null
+): TransportExceptionWorkbenchItemView['resolutionStatus'] {
+  if (status === 'Reviewed' || status === 'Resolved' || status === 'Deferred') {
+    return status
+  }
+
+  return null
+}
+
+export function mapApiTransportExceptionWorkbenchToView(apiWorkbench: ApiTransportExceptionWorkbench): TransportExceptionWorkbenchView {
+  return {
+    generatedAtLabel: formatUtcLabel(apiWorkbench.generatedAtUtc),
+    exceptionCount: apiWorkbench.exceptionCount,
+    summary: apiWorkbench.summary,
+    groups: apiWorkbench.groups.map((group) => ({
+      groupKey: group.groupKey,
+      label: group.label,
+      highestSeverity: normalizeTransportExceptionSeverity(group.highestSeverity),
+      count: group.count,
+      summary: group.summary,
+      recommendedAction: normalizeTransportExceptionAction(group.recommendedAction),
+      actionLabel: group.actionLabel,
+    })),
+    items: apiWorkbench.items.map((item) => ({
+      id: item.exceptionId,
+      severity: normalizeTransportExceptionSeverity(item.severity),
+      category: item.category,
+      title: item.title,
+      detail: item.detail,
+      routeId: item.routeId,
+      routeReference: item.routeReference,
+      recommendedAction: normalizeTransportExceptionAction(item.recommendedAction),
+      actionLabel: item.actionLabel,
+      resolutionStatus: normalizeTransportExceptionResolutionStatus(item.resolutionStatus),
+      resolutionNote: item.resolutionNote,
+      resolutionUpdatedAtLabel: item.resolutionUpdatedAtUtc ? formatUtcLabel(item.resolutionUpdatedAtUtc) : null,
+      evidence: item.evidence,
     })),
   }
 }
