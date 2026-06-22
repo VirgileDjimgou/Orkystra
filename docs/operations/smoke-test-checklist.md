@@ -62,6 +62,18 @@ Use this checklist before a demo, a local release candidate, or a staging handof
 - Transport board shows a freshness lineage card, sync cadence card, trust badge, selected-route spotlight, and operator checklist for the current transport snapshot
 - Chrome-driven browser QA should confirm the five freshness cards remain readable together at desktop width
 - On mobile-width viewports, the freshness actions stack cleanly and keep consistent spacing and height
+- Freshness action cards expose visible keyboard focus and meet a 48px touch-target baseline
+- Freshness drill-through, spotlight, and checklist actions expose meaningful accessible labels
+- The freshness cluster starts with a posture banner that clearly states whether the current snapshot is reliable, drifting, fallback-only, or illustrative
+- Diff and route-focus freshness shortcuts disable themselves when import history or route evidence is missing, and the disabled copy explains why
+- The freshness header shows a compact timeline for import, last success, last attempt, and selected-route posture without wrapping into unreadable tiles
+- The digest chip row for trust, cadence, source, and route posture remains readable on desktop and mobile-width viewports
+- Quick-link buttons jump to cadence, trust, route, and checklist sections without breaking the page layout
+- The freshness header exposes a clearly readable primary-concern panel with one recommended action and one target section
+- Exactly one freshness card receives the priority emphasis styling when the cluster is under stress, and the emphasized card matches the promoted quick link
+- The promoted quick link jumps to the same emphasized priority card without causing layout overlap or broken scroll behavior
+- The priority panel shows a short urgency label, a concise concern title, and a one-line action reason without wrapping into unreadable stacks
+- The recommended action and `Go to ...` navigation label remain consistent with the current freshness posture
 - Transport board shows a route storyline card for the selected route plus a recent sync timeline that reflects `transport-sync-import` workflow runs
 - The historical diff panel supports filter-based triage for changed, added, removed, selected-route, and all route deltas
 - Diff rows can focus the corresponding current route when that route still exists in the latest transport board

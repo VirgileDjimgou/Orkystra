@@ -159,4 +159,123 @@ public sealed class TransportSyncHistoryServiceTests
       tempDirectory.Delete(true);
     }
   }
+
+  [Fact]
+  public async Task BuildRecentHistoryAsync_returns_structured_recent_import_entries()
+  {
+    var tempDirectory = Directory.CreateTempSubdirectory("orkystra-transport-sync-history-tests");
+
+    try
+    {
+      var store = new OperationalPersistenceStore(
+          Options.Create(new OperationalPersistenceOptions
+          {
+            DatabasePath = Path.Combine("data", "operations.db")
+          }),
+          tempDirectory.FullName);
+
+      var firstStatus = new TransportSyncStatusReadModel(
+          "rest-transport-adapter",
+          "live",
+          true,
+          true,
+          1,
+          [Guid.Parse("11111111-1111-1111-1111-111111111111")],
+          ["RT-100"],
+          DateTimeOffset.Parse("2026-06-22T08:00:00Z"),
+          DateTimeOffset.Parse("2026-06-22T08:00:00Z"),
+          DateTimeOffset.Parse("2026-06-22T08:00:00Z"),
+          "live-configured",
+          null,
+          new Orkystra.Contracts.Connectors.ProviderHealthReport(
+              "rest-transport-adapter",
+              "REST Transport Adapter",
+              Orkystra.Contracts.Connectors.ProviderHealthStatus.Healthy,
+              DateTimeOffset.Parse("2026-06-22T08:00:00Z"),
+              "Healthy",
+              ["live-endpoint-configured"]));
+
+      await store.AppendWorkflowRunAsync(
+          "tenant-a",
+          "transport-sync-import",
+          "rest-transport-adapter",
+          null,
+          "live",
+          "live-configured",
+          new TransportSyncImportEvidenceReadModel(
+              firstStatus,
+              [
+                  new RouteSummaryReadModel(
+                      Guid.Parse("11111111-1111-1111-1111-111111111111"),
+                      "RT-100",
+                      Guid.NewGuid(),
+                      "TRK-100",
+                      "On time",
+                      3,
+                      5,
+                      1)
+              ]));
+
+      var secondStatus = firstStatus with
+      {
+        ImportedRouteCount = 2,
+        ImportedRouteIds = [Guid.Parse("11111111-1111-1111-1111-111111111111"), Guid.Parse("22222222-2222-2222-2222-222222222222")],
+        ImportedRouteReferences = ["RT-100", "RT-200"],
+        LastImportedAtUtc = DateTimeOffset.Parse("2026-06-22T09:00:00Z")
+      };
+
+      await store.AppendWorkflowRunAsync(
+          "tenant-a",
+          "transport-sync-import",
+          "rest-transport-adapter",
+          null,
+          "live",
+          "live-configured",
+          new TransportSyncImportEvidenceReadModel(
+              secondStatus,
+              [
+                  new RouteSummaryReadModel(
+                      Guid.Parse("11111111-1111-1111-1111-111111111111"),
+                      "RT-100",
+                      Guid.NewGuid(),
+                      "TRK-100",
+                      "Delayed",
+                      4,
+                      5,
+                      1),
+                  new RouteSummaryReadModel(
+                      Guid.Parse("22222222-2222-2222-2222-222222222222"),
+                      "RT-200",
+                      Guid.NewGuid(),
+                      "TRK-200",
+                      "On time",
+                      2,
+                      2,
+                      0)
+              ]));
+
+      var service = new TransportSyncHistoryService(store);
+      var history = await service.BuildRecentHistoryAsync("tenant-a", 6);
+
+      Assert.Equal(2, history.Count);
+      Assert.Equal(2, history.Entries.Count);
+
+      var latest = history.Entries.First();
+      Assert.True(latest.HasComparablePrevious);
+      Assert.Equal(1, latest.AddedRouteCount);
+      Assert.Equal(0, latest.RemovedRouteCount);
+      Assert.Equal(1, latest.ChangedRouteCount);
+      Assert.Contains("2 routes imported from live", latest.Summary);
+
+      var oldest = history.Entries.Last();
+      Assert.False(oldest.HasComparablePrevious);
+      Assert.Equal(0, oldest.AddedRouteCount);
+      Assert.Equal(0, oldest.RemovedRouteCount);
+      Assert.Equal(0, oldest.ChangedRouteCount);
+    }
+    finally
+    {
+      tempDirectory.Delete(true);
+    }
+  }
 }

@@ -139,6 +139,28 @@ export type TransportSyncDiffView = {
   routeDiffs: TransportSyncRouteDiffItemView[]
 }
 
+export type TransportSyncHistoryEntryView = {
+  id: string
+  createdAtLabel: string
+  importedAtLabel: string | null
+  source: string
+  status: string
+  importedRouteCount: number
+  healthStatus: 'Healthy' | 'Degraded' | 'Unhealthy'
+  summary: string
+  hasComparablePrevious: boolean
+  addedRouteCount: number
+  removedRouteCount: number
+  changedRouteCount: number
+  routeReferencePreview: string[]
+}
+
+export type TransportSyncHistoryView = {
+  count: number
+  summary: string
+  entries: TransportSyncHistoryEntryView[]
+}
+
 export type RouteOptimizationAlternativeView = {
   label: string
   orderedStopReferences: string[]
@@ -1237,6 +1259,75 @@ export function buildFallbackTransportSyncDiff(): TransportSyncDiffView {
     removedRouteCount: 0,
     changedRouteCount: 0,
     routeDiffs: [],
+  }
+}
+
+export function buildFallbackTransportSyncHistory(): TransportSyncHistoryView {
+  return {
+    count: 1,
+    summary: 'Transport sync history is unavailable in fallback mode.',
+    entries: [
+      {
+        id: 'fallback-sync-history-1',
+        createdAtLabel: 'Local fallback',
+        importedAtLabel: null,
+        source: 'fallback',
+        status: 'unavailable',
+        importedRouteCount: 0,
+        healthStatus: 'Degraded',
+        summary: 'Recent import history is unavailable, so only the current transport snapshot can be inspected.',
+        hasComparablePrevious: false,
+        addedRouteCount: 0,
+        removedRouteCount: 0,
+        changedRouteCount: 0,
+        routeReferencePreview: [],
+      },
+    ],
+  }
+}
+
+type ApiTransportSyncHistoryEntry = {
+  runId: number
+  providerId: string
+  source: string
+  status: string
+  createdAtUtc: string
+  importedAtUtc: string | null
+  importedRouteCount: number
+  importedRouteReferences: string[]
+  healthStatus: string
+  summary: string
+  hasComparablePrevious: boolean
+  addedRouteCount: number
+  removedRouteCount: number
+  changedRouteCount: number
+}
+
+type ApiTransportSyncHistory = {
+  count: number
+  summary: string
+  entries: ApiTransportSyncHistoryEntry[]
+}
+
+export function mapApiTransportSyncHistoryToView(apiHistory: ApiTransportSyncHistory): TransportSyncHistoryView {
+  return {
+    count: apiHistory.count,
+    summary: apiHistory.summary,
+    entries: apiHistory.entries.map((entry) => ({
+      id: String(entry.runId),
+      createdAtLabel: formatUtcLabel(entry.createdAtUtc),
+      importedAtLabel: entry.importedAtUtc ? formatUtcLabel(entry.importedAtUtc) : null,
+      source: entry.source,
+      status: entry.status,
+      importedRouteCount: entry.importedRouteCount,
+      healthStatus: normalizeProviderHealthStatus(entry.healthStatus),
+      summary: entry.summary,
+      hasComparablePrevious: entry.hasComparablePrevious,
+      addedRouteCount: entry.addedRouteCount,
+      removedRouteCount: entry.removedRouteCount,
+      changedRouteCount: entry.changedRouteCount,
+      routeReferencePreview: entry.importedRouteReferences.slice(0, 3),
+    })),
   }
 }
 

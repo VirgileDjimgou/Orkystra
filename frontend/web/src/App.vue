@@ -6,6 +6,7 @@ import {
   buildFallbackRouteDetail,
   buildFallbackRouteOptimization,
   buildFallbackTransportSyncDiff,
+  buildFallbackTransportSyncHistory,
   buildFallbackTransportSyncStatus,
   buildFallbackWarehouseDetail,
   buildFallbackProviderCatalog,
@@ -15,6 +16,7 @@ import {
   type RouteDetailView,
   type RouteOptimizationView,
   type TransportSyncDiffView,
+  type TransportSyncHistoryView,
   type TransportSyncStatusView,
   type WarehouseDetailView,
   type ProviderCatalogView,
@@ -43,6 +45,7 @@ import {
   runTransportSync,
 } from "./services/transportSyncApi";
 import { loadTransportSyncDiff } from "./services/transportSyncDiffApi";
+import { loadTransportSyncHistory } from "./services/transportSyncHistoryApi";
 
 type DataConnectionState = "loading" | "api" | "fallback" | "stale";
 type TransportSupportActionId =
@@ -51,6 +54,10 @@ type TransportSupportActionId =
   | "route-refresh"
   | "route-focus-import"
   | "optimization-refresh";
+type TransportFreshnessActionId =
+  | TransportSupportActionId
+  | "selected-diff"
+  | "focus-route";
 type TransportDiffFilter = "all" | "changed" | "added" | "removed" | "selected";
 
 const navigationItems = [
@@ -87,6 +94,11 @@ const transportSyncDiff = ref<TransportSyncDiffView>(
 );
 const transportSyncDiffConnectionState = ref<DataConnectionState>("loading");
 const transportSyncDiffErrorMessage = ref<string | null>(null);
+const transportSyncHistoryFeed = ref<TransportSyncHistoryView>(
+  buildFallbackTransportSyncHistory()
+);
+const transportSyncHistoryConnectionState = ref<DataConnectionState>("loading");
+const transportSyncHistoryErrorMessage = ref<string | null>(null);
 const providerCatalog = ref<ProviderCatalogView>(
   buildFallbackProviderCatalog()
 );
@@ -431,11 +443,7 @@ const transportSyncDeltaSummary = computed(() => {
 
   return `${parts.join(" and ")} versus the current route board.`;
 });
-const transportSyncHistory = computed(() =>
-  operationalActivity.value.workflowRuns.filter(
-    (run) => run.workflowKind === "transport-sync-import"
-  )
-);
+const transportSyncHistory = computed(() => transportSyncHistoryFeed.value.entries);
 const selectedRouteDiff = computed(
   () =>
     transportSyncDiff.value.routeDiffs.find(
@@ -999,6 +1007,425 @@ const transportFreshnessChecklist = computed(() => {
     ],
   };
 });
+const transportSnapshotAction = computed(() => ({
+  label: transportSyncStatus.value.source === "live" ? "Refresh sync" : "Import snapshot",
+  detail:
+    transportSyncStatus.value.source === "live"
+      ? "Pull a fresh transport snapshot from the live provider."
+      : "Create or refresh the persisted transport snapshot for this tenant.",
+}));
+const transportSelectedDiffAction = computed(() => {
+  if (!transportSyncStatus.value.hasPersistedSnapshot) {
+    return {
+      label: "Show selected diff",
+      detail: "Import a transport snapshot before comparing the selected route.",
+      disabled: true,
+    };
+  }
+
+  if (!transportSyncDiff.value.hasComparableHistory) {
+    return {
+      label: "Show selected diff",
+      detail:
+        "A second imported snapshot is still needed before the selected route can be compared.",
+      disabled: true,
+    };
+  }
+
+  if (!selectedRouteDiff.value) {
+    return {
+      label: "Show selected diff",
+      detail:
+        "The selected route is outside the latest comparable import pair, so there is no route-level diff to show yet.",
+      disabled: true,
+    };
+  }
+
+  return {
+    label: "Show selected diff",
+    detail: "Focus the selected route in the latest comparable import pair.",
+    disabled: false,
+  };
+});
+const transportFocusRouteAction = computed(() => {
+  if (routeConnectionState.value === "loading") {
+    return {
+      label: "Focus current route",
+      detail: "Wait for the selected route projection to finish loading first.",
+      disabled: true,
+    };
+  }
+
+  if (!routeDetail.value.reference) {
+    return {
+      label: "Focus current route",
+      detail: "No selected route is available yet in the transport board.",
+      disabled: true,
+    };
+  }
+
+  return {
+    label: "Focus current route",
+    detail: `Jump back into ${routeDetail.value.reference} and compare it with the latest imported snapshot.`,
+    disabled: false,
+  };
+});
+const transportFreshnessPostureBanner = computed(() => {
+  if (!transportSyncStatus.value.hasPersistedSnapshot) {
+    return {
+      tone: "severity-warning" as const,
+      title: "Freshness is still running on fallback posture",
+      detail:
+        "No persisted transport snapshot exists yet, so the cluster can guide setup but not confirm a route-by-route baseline.",
+      nextStep: "Import the first snapshot to unlock route-level comparison and trust signals.",
+    };
+  }
+
+  if (
+    transportSyncFreshness.value.label === "Expired" ||
+    transportSyncStatus.value.healthStatus === "Unhealthy"
+  ) {
+    return {
+      tone: "severity-unhealthy" as const,
+      title: "Freshness posture is not safe to trust",
+      detail:
+        "The latest snapshot is expired or the sync health is unhealthy, so the transport board should be treated as illustrative.",
+      nextStep: "Refresh the snapshot before using this route board for decisions or support calls.",
+    };
+  }
+
+  if (
+    transportSyncFreshness.value.label === "Stale" ||
+    transportSyncConnectionState.value === "fallback" ||
+    transportSyncConnectionState.value === "stale"
+  ) {
+    return {
+      tone: "severity-degraded" as const,
+      title: "Freshness posture is drifting",
+      detail:
+        "The cluster still explains what changed, but the latest imported baseline is no longer recent enough for confident transport supervision.",
+      nextStep: "Refresh the snapshot soon and confirm the selected route still appears in the latest import.",
+    };
+  }
+
+  if (
+    transportSyncFreshness.value.label === "Aging" ||
+    transportSyncStatus.value.healthStatus === "Degraded"
+  ) {
+    return {
+      tone: "severity-warning" as const,
+      title: "Freshness posture is usable with caution",
+      detail:
+        "The baseline is still operational, but the sync rhythm is slowing or health posture needs a closer read.",
+      nextStep: "Use the cadence and spotlight cards to decide whether the next sync should happen before the next operator handoff.",
+    };
+  }
+
+  return {
+    tone: "severity-healthy" as const,
+    title: "Freshness posture is currently reliable",
+    detail:
+      "The latest transport snapshot is recent enough to support normal route review and diff investigation.",
+    nextStep: "Keep monitoring cadence drift and import again before the next major route change window.",
+  };
+});
+const transportFreshnessTimeline = computed(() => {
+  const items: Array<{
+    label: string;
+    value: string;
+    tone: "severity-healthy" | "severity-warning" | "severity-degraded" | "severity-unhealthy";
+  }> = [];
+
+  items.push({
+    label: "Imported",
+    value:
+      transportSyncStatus.value.lastImportedAtLabel ??
+      "No persisted snapshot",
+    tone: transportSyncFreshness.value.tone,
+  });
+
+  items.push({
+    label: "Last success",
+    value: transportSyncStatus.value.lastSuccessfulSyncAtUtc
+      ? formatUtcLabel(transportSyncStatus.value.lastSuccessfulSyncAtUtc)
+      : "No successful sync",
+    tone:
+      transportSyncStatus.value.lastSuccessfulSyncAtUtc !== null
+        ? "severity-healthy"
+        : "severity-warning",
+  });
+
+  items.push({
+    label: "Last attempt",
+    value: transportSyncStatus.value.lastAttemptedSyncAtUtc
+      ? formatUtcLabel(transportSyncStatus.value.lastAttemptedSyncAtUtc)
+      : "No sync attempt",
+    tone:
+      transportSyncStatus.value.lastAttemptedSyncAtUtc !== null
+        ? "severity-degraded"
+        : "severity-warning",
+  });
+
+  items.push({
+    label: "Selected route",
+    value: transportRouteFreshnessSpotlight.value.label,
+    tone: transportRouteFreshnessSpotlight.value.tone,
+  });
+
+  return items;
+});
+const transportFreshnessDigest = computed(() => [
+  {
+    label: "Trust",
+    value: transportFreshnessTrust.value.label,
+    tone: transportFreshnessTrust.value.tone,
+  },
+  {
+    label: "Cadence",
+    value: transportSyncCadence.value.label,
+    tone: transportSyncCadence.value.tone,
+  },
+  {
+    label: "Source",
+    value: transportSyncSourceLabel.value,
+    tone:
+      transportSyncStatus.value.healthStatus === "Healthy"
+        ? ("severity-healthy" as const)
+        : transportSyncStatus.value.healthStatus === "Degraded"
+        ? ("severity-warning" as const)
+        : ("severity-unhealthy" as const),
+  },
+  {
+    label: "Route",
+    value: transportRouteFreshnessSpotlight.value.label,
+    tone: transportRouteFreshnessSpotlight.value.tone,
+  },
+]);
+const transportFreshnessQuickLinks = computed(() => [
+  {
+    id: "transport-freshness-drillthrough",
+    label: "Drill-through",
+  },
+  {
+    id: "transport-freshness-lineage",
+    label: "Lineage",
+  },
+  {
+    id: "transport-sync-cadence",
+    label: "Cadence",
+  },
+  {
+    id: "transport-freshness-trust",
+    label: "Trust",
+  },
+  {
+    id: "transport-route-freshness-spotlight",
+    label: "Route",
+  },
+  {
+    id: "transport-freshness-checklist",
+    label: "Checklist",
+  },
+]);
+const transportFreshnessPrimaryConcern = computed(() => {
+  if (!transportSyncStatus.value.hasPersistedSnapshot) {
+    return {
+      urgencyLabel: "Set the baseline",
+      title: "No transport baseline yet",
+      detail:
+        "The board is still running on fallback evidence, so the first saved import matters more than any deeper investigation.",
+      tone: "severity-warning" as const,
+      actionId: "sync-import" as TransportFreshnessActionId,
+      actionLabel: "Import snapshot",
+      actionReason: "Create the first persisted transport view before trusting route-level freshness.",
+      sectionId: "transport-freshness-drillthrough",
+      sectionLabel: "Drill-through",
+    };
+  }
+
+  if (transportSyncStatus.value.healthStatus === "Unhealthy") {
+    return {
+      urgencyLabel: "Repair first",
+      title: "Sync health is the blocker",
+      detail:
+        "The latest sync health is unhealthy, so every downstream freshness cue should be treated as illustrative until recovery.",
+      tone: "severity-unhealthy" as const,
+      actionId:
+        transportSyncStatus.value.source === "live"
+          ? ("sync-refresh" as TransportFreshnessActionId)
+          : ("sync-import" as TransportFreshnessActionId),
+      actionLabel:
+        transportSyncStatus.value.source === "live"
+          ? "Refresh sync"
+          : "Import snapshot",
+      actionReason:
+        transportSyncStatus.value.source === "live"
+          ? "Recheck live sync posture before reading trust or cadence."
+          : "Rebuild the snapshot before trusting the transport board again.",
+      sectionId: "transport-freshness-trust",
+      sectionLabel: "Trust",
+    };
+  }
+
+  if (transportSyncFreshness.value.label === "Expired") {
+    return {
+      urgencyLabel: "Act now",
+      title: "The snapshot is expired",
+      detail:
+        "The saved baseline is now too old for confident operator use, even if the rest of the board still looks internally consistent.",
+      tone: "severity-unhealthy" as const,
+      actionId:
+        transportSyncStatus.value.source === "live"
+          ? ("sync-refresh" as TransportFreshnessActionId)
+          : ("sync-import" as TransportFreshnessActionId),
+      actionLabel:
+        transportSyncStatus.value.source === "live"
+          ? "Refresh sync"
+          : "Import snapshot",
+      actionReason: "Replace the expired baseline before making route or support decisions.",
+      sectionId: "transport-freshness-drillthrough",
+      sectionLabel: "Drill-through",
+    };
+  }
+
+  if (
+    transportSyncFreshness.value.label === "Stale" ||
+    transportSyncConnectionState.value === "fallback" ||
+    transportSyncConnectionState.value === "stale"
+  ) {
+    return {
+      urgencyLabel: "Refresh soon",
+      title: "Freshness has gone stale",
+      detail:
+        "The board is still readable, but snapshot age is now the main limit on trusting transport decisions.",
+      tone: "severity-degraded" as const,
+      actionId:
+        transportSyncStatus.value.source === "live"
+          ? ("sync-refresh" as TransportFreshnessActionId)
+          : ("sync-import" as TransportFreshnessActionId),
+      actionLabel:
+        transportSyncStatus.value.source === "live"
+          ? "Refresh sync"
+          : "Import snapshot",
+      actionReason: "Update the baseline before stale cadence turns into expired trust.",
+      sectionId: "transport-sync-cadence",
+      sectionLabel: "Cadence",
+    };
+  }
+
+  if (
+    transportSyncStatus.value.hasPersistedSnapshot &&
+    !transportSyncStatus.value.importedRouteReferences.includes(
+      routeDetail.value.reference
+    ) &&
+    latestImportedRoute.value
+  ) {
+    return {
+      urgencyLabel: "Investigate route drift",
+      title: "The selected route has drifted",
+      detail:
+        "The active route is outside the latest imported snapshot, so route alignment matters more than global freshness right now.",
+      tone: "severity-warning" as const,
+      actionId: "route-focus-import" as TransportFreshnessActionId,
+      actionLabel: `Focus ${latestImportedRoute.value.reference}`,
+      actionReason: "Jump to the nearest confirmed imported route and compare the drift directly.",
+      sectionId: "transport-route-freshness-spotlight",
+      sectionLabel: "Route",
+    };
+  }
+
+  if (transportSelectedDiffAction.value.disabled) {
+    return {
+      urgencyLabel: "Open the comparison loop",
+      title: "Diff evidence is still incomplete",
+      detail:
+        "The board has a baseline, but route-by-route comparison is not ready yet, so the freshness investigation loop is only partially open.",
+      tone: "severity-warning" as const,
+      actionId:
+        transportSyncStatus.value.source === "live"
+          ? ("sync-refresh" as TransportFreshnessActionId)
+          : ("sync-import" as TransportFreshnessActionId),
+      actionLabel:
+        transportSyncStatus.value.source === "live"
+          ? "Refresh sync"
+          : "Import snapshot",
+      actionReason: "Land enough snapshot history to unlock selected-route diff evidence.",
+      sectionId: "transport-freshness-checklist",
+      sectionLabel: "Checklist",
+    };
+  }
+
+  return {
+    urgencyLabel: "Monitor",
+    title: "Freshness is clear enough to proceed",
+    detail:
+      "The main freshness signals are aligned, so the operator can move from posture into route-level review without a recovery step first.",
+    tone: "severity-healthy" as const,
+    actionId: "focus-route" as TransportFreshnessActionId,
+    actionLabel: "Focus route",
+    actionReason: "Use the current route as the next decision surface while freshness remains stable.",
+    sectionId: "transport-route-freshness-spotlight",
+    sectionLabel: "Route",
+  };
+});
+const transportFreshnessPrioritySectionId = computed(
+  () => transportFreshnessPrimaryConcern.value.sectionId
+);
+const transportFreshnessQuickLinksWithPriority = computed(() =>
+  transportFreshnessQuickLinks.value.map((link) => ({
+    ...link,
+    isPrimary: link.id === transportFreshnessPrioritySectionId.value,
+  }))
+);
+const transportFreshnessClusterStatus = computed(() => {
+  const disabledActions = [
+    transportSnapshotAction.value.label && isSyncingTransport.value,
+    transportSelectedDiffAction.value.disabled,
+    transportFocusRouteAction.value.disabled,
+  ].filter(Boolean).length;
+
+  if (isSyncingTransport.value || routeConnectionState.value === "loading") {
+    return {
+      label: "Updating evidence",
+      detail:
+        "Some freshness actions are temporarily paused while the transport board refreshes its current state.",
+    };
+  }
+
+  if (disabledActions > 0) {
+    return {
+      label: "Partial action availability",
+      detail:
+        "Some shortcuts are intentionally paused until there is enough snapshot or route evidence to use them safely.",
+    };
+  }
+
+  return {
+    label: "All freshness actions available",
+    detail:
+      "The cluster has enough imported and route-level context to support a full freshness investigation loop.",
+  };
+});
+function jumpToTransportFreshnessSection(sectionId: string) {
+  const element = document.getElementById(sectionId);
+  if (!element) {
+    return;
+  }
+
+  element.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+function runTransportFreshnessAction(actionId: TransportFreshnessActionId): void {
+  switch (actionId) {
+    case "selected-diff":
+      focusTransportSelectedDiff();
+      return;
+    case "focus-route":
+      focusTransportDiffRoute(routeDetail.value.reference);
+      return;
+    default:
+      runTransportSupportAction(actionId);
+  }
+}
 const selectedRouteStoryHighlights = computed(() => {
   const highlights: Array<{ title: string; detail: string }> = [];
   const routeReference = routeDetail.value.reference;
@@ -1090,7 +1517,7 @@ function runTransportSupportAction(actionId: TransportSupportActionId): void {
       void triggerTransportSync();
       return;
     case "sync-refresh":
-      void refreshTransportSyncStatus(false);
+      void refreshTransportSyncEvidenceBundle(false);
       return;
     case "route-refresh":
       void refreshTransportProjection(selectedRouteId.value, false);
@@ -1341,6 +1768,32 @@ function applyTransportSyncDiffResult(
       : result.errorMessage;
 }
 
+function applyTransportSyncHistoryResult(
+  result: Awaited<ReturnType<typeof loadTransportSyncHistory>>,
+  preserveExisting: boolean
+): void {
+  const keepCurrentSnapshot =
+    preserveExisting &&
+    result.source === "fallback" &&
+    transportSyncHistoryFeed.value.entries.length > 0 &&
+    (transportSyncHistoryConnectionState.value === "api" ||
+      transportSyncHistoryConnectionState.value === "stale");
+
+  if (!keepCurrentSnapshot) {
+    transportSyncHistoryFeed.value = result.history;
+  }
+
+  transportSyncHistoryConnectionState.value = keepCurrentSnapshot
+    ? "stale"
+    : result.source === "api"
+    ? "api"
+    : "fallback";
+  transportSyncHistoryErrorMessage.value =
+    keepCurrentSnapshot && result.errorMessage
+      ? `${result.errorMessage} Keeping the last successful transport sync history.`
+      : result.errorMessage;
+}
+
 function applyAiRecommendationResult(
   result: Awaited<ReturnType<typeof loadAiRecommendation>>,
   preserveExisting: boolean
@@ -1463,6 +1916,25 @@ async function refreshTransportSyncDiff(
   applyTransportSyncDiffResult(result, preserveExisting);
 }
 
+async function refreshTransportSyncHistory(
+  preserveExisting = true
+): Promise<void> {
+  if (!preserveExisting) {
+    transportSyncHistoryConnectionState.value = "loading";
+  }
+
+  const result = await loadTransportSyncHistory();
+  applyTransportSyncHistoryResult(result, preserveExisting);
+}
+
+async function refreshTransportSyncEvidenceBundle(
+  preserveExisting = true
+): Promise<void> {
+  await refreshTransportSyncStatus(preserveExisting);
+  await refreshTransportSyncDiff(preserveExisting);
+  await refreshTransportSyncHistory(preserveExisting);
+}
+
 async function refreshAiRecommendation(
   preserveExisting = true,
   syncOperationalTrace = true
@@ -1543,6 +2015,7 @@ async function refreshWorkspace(preserveExisting = true): Promise<void> {
     routeConnectionState.value = "loading";
     transportSyncConnectionState.value = "loading";
     transportSyncDiffConnectionState.value = "loading";
+    transportSyncHistoryConnectionState.value = "loading";
     providerCatalogConnectionState.value = "loading";
     aiConnectionState.value = "loading";
     operationalConnectionState.value = "loading";
@@ -1557,8 +2030,7 @@ async function refreshWorkspace(preserveExisting = true): Promise<void> {
   applyCatalogResult(catalogResult, preserveExisting);
   await refreshWarehouseProjection(selectedWarehouseId.value, preserveExisting);
   await refreshTransportProjection(selectedRouteId.value, preserveExisting);
-  await refreshTransportSyncStatus(preserveExisting);
-  await refreshTransportSyncDiff(preserveExisting);
+  await refreshTransportSyncEvidenceBundle(preserveExisting);
   await refreshRouteOptimization(preserveExisting, false);
   await refreshAiRecommendation(preserveExisting, false);
   await refreshOperationalActivity(preserveExisting);
@@ -1571,6 +2043,7 @@ async function refreshWorkspace(preserveExisting = true): Promise<void> {
       routeConnectionState.value,
       transportSyncConnectionState.value,
       transportSyncDiffConnectionState.value,
+      transportSyncHistoryConnectionState.value,
       providerCatalogConnectionState.value,
       aiConnectionState.value,
       operationalConnectionState.value,
@@ -1582,6 +2055,7 @@ async function refreshWorkspace(preserveExisting = true): Promise<void> {
       routeConnectionState.value,
       transportSyncConnectionState.value,
       transportSyncDiffConnectionState.value,
+      transportSyncHistoryConnectionState.value,
       providerCatalogConnectionState.value,
       aiConnectionState.value,
       operationalConnectionState.value,
@@ -1608,6 +2082,8 @@ async function triggerTransportSync(): Promise<void> {
     applyTransportSyncResult(result, true);
     const diffResult = await loadTransportSyncDiff();
     applyTransportSyncDiffResult(diffResult, true);
+    const historyResult = await loadTransportSyncHistory();
+    applyTransportSyncHistoryResult(historyResult, true);
 
     if (result.source === "api") {
       await refreshWorkspace(true);
@@ -2294,11 +2770,117 @@ onBeforeUnmount(() => {
             <article
               class="transport-story-card"
               id="transport-freshness-drillthrough"
+              aria-labelledby="transport-freshness-drillthrough-title"
+              :class="{
+                'is-priority-card':
+                  transportFreshnessPrioritySectionId === 'transport-freshness-drillthrough',
+              }"
             >
+              <div class="transport-freshness-posture-banner">
+                <span
+                  class="status-pill"
+                  :class="transportFreshnessPostureBanner.tone"
+                  role="status"
+                  aria-live="polite"
+                >
+                  {{ transportFreshnessPostureBanner.title }}
+                </span>
+                <p>{{ transportFreshnessPostureBanner.detail }}</p>
+                <strong>{{ transportFreshnessPostureBanner.nextStep }}</strong>
+                <div class="transport-freshness-priority-panel">
+                  <div class="transport-freshness-priority-copy">
+                    <span class="panel-label">Primary concern</span>
+                    <span
+                      class="status-pill"
+                      :class="transportFreshnessPrimaryConcern.tone"
+                    >
+                      {{ transportFreshnessPrimaryConcern.urgencyLabel }}
+                    </span>
+                    <strong>{{ transportFreshnessPrimaryConcern.title }}</strong>
+                    <p>{{ transportFreshnessPrimaryConcern.detail }}</p>
+                    <span class="transport-freshness-priority-target">
+                      Priority section: {{ transportFreshnessPrimaryConcern.sectionLabel }}
+                    </span>
+                  </div>
+                  <div class="transport-freshness-priority-actions">
+                    <span
+                      class="status-pill"
+                      :class="transportFreshnessPrimaryConcern.tone"
+                    >
+                      {{ transportFreshnessPrimaryConcern.tone.replace("severity-", "") }}
+                    </span>
+                    <button
+                      type="button"
+                      class="catalog-save-button"
+                      @click="runTransportFreshnessAction(transportFreshnessPrimaryConcern.actionId)"
+                    >
+                      {{ transportFreshnessPrimaryConcern.actionLabel }}
+                    </button>
+                    <p class="transport-freshness-priority-reason">
+                      {{ transportFreshnessPrimaryConcern.actionReason }}
+                    </p>
+                    <button
+                      type="button"
+                      class="transport-freshness-link is-primary"
+                      @click="jumpToTransportFreshnessSection(transportFreshnessPrimaryConcern.sectionId)"
+                    >
+                      Go to {{ transportFreshnessPrimaryConcern.sectionLabel }}
+                    </button>
+                  </div>
+                </div>
+                <div class="transport-freshness-timeline" aria-label="Freshness timeline summary">
+                  <article
+                    v-for="item in transportFreshnessTimeline"
+                    :key="item.label"
+                    class="transport-freshness-timeline-item"
+                    :class="{
+                      'is-priority':
+                        item.label === 'Selected route' &&
+                        transportFreshnessPrimaryConcern.sectionId ===
+                          'transport-route-freshness-spotlight',
+                    }"
+                  >
+                    <span class="panel-label">{{ item.label }}</span>
+                    <strong>{{ item.value }}</strong>
+                    <span class="status-pill" :class="item.tone">
+                      {{ item.tone.replace("severity-", "") }}
+                    </span>
+                  </article>
+                </div>
+                <div class="transport-freshness-digest" aria-label="Freshness digest">
+                  <span
+                    v-for="item in transportFreshnessDigest"
+                    :key="item.label"
+                    class="catalog-chip"
+                    :class="item.tone"
+                  >
+                    {{ item.label }}: {{ item.value }}
+                  </span>
+                </div>
+                <div class="transport-freshness-quick-links" aria-label="Freshness quick navigation">
+                  <button
+                    v-for="link in transportFreshnessQuickLinksWithPriority"
+                    :key="link.id"
+                    type="button"
+                    class="transport-freshness-link"
+                    :class="{ 'is-primary': link.isPrimary }"
+                    @click="jumpToTransportFreshnessSection(link.id)"
+                  >
+                    {{ link.label }}
+                  </button>
+                </div>
+                <span>{{ transportFreshnessClusterStatus.label }}</span>
+                <p class="transport-freshness-action-note">
+                  {{ transportFreshnessClusterStatus.detail }}
+                </p>
+              </div>
+
               <div class="catalog-editor-heading">
                 <div>
                   <span class="panel-label">Freshness drill-through</span>
-                  <h3>Why the snapshot looks that way</h3>
+                  <h3 id="transport-freshness-drillthrough-title">
+                    Why the snapshot looks that way
+                  </h3>
                 </div>
                 <span class="mini-badge">{{
                   transportFreshnessDrillThrough.length
@@ -2308,15 +2890,21 @@ onBeforeUnmount(() => {
               <p class="catalog-summary">
                 {{
                   transportSyncStatus.hasPersistedSnapshot
-                    ? "Follow the evidence chain below when freshness stops looking trustworthy."
-                    : "There is no persisted snapshot yet, so the board is still on fallback evidence."
+                    ? "Use this card for the short cause chain behind the current posture."
+                    : "No persisted snapshot yet, so this evidence chain is still operating in fallback mode."
                 }}
               </p>
 
-              <div class="transport-freshness-actions">
+              <div
+                class="transport-freshness-actions"
+                aria-label="Freshness drill-through actions"
+              >
                 <button
                   type="button"
                   class="transport-freshness-action"
+                  :disabled="isSyncingTransport"
+                  :aria-label="`${transportSnapshotAction.label}. ${transportSnapshotAction.detail}`"
+                  :title="transportSnapshotAction.detail"
                   @click="
                     runTransportSupportAction(
                       transportSyncStatus.source === 'live'
@@ -2325,42 +2913,32 @@ onBeforeUnmount(() => {
                     )
                   "
                 >
-                  <strong>{{
-                    transportSyncStatus.source === "live"
-                      ? "Refresh sync"
-                      : "Import snapshot"
-                  }}</strong>
-                  <span>
-                    {{
-                      transportSyncStatus.source === "live"
-                        ? "Pull a fresh transport snapshot from the live provider."
-                        : "Create the first persisted transport snapshot for this tenant."
-                    }}
-                  </span>
+                  <strong>{{ transportSnapshotAction.label }}</strong>
+                  <span>{{ transportSnapshotAction.detail }}</span>
                 </button>
 
                 <button
                   type="button"
                   class="transport-freshness-action"
+                  :disabled="transportSelectedDiffAction.disabled"
+                  :aria-label="`${transportSelectedDiffAction.label}. ${transportSelectedDiffAction.detail}`"
+                  :title="transportSelectedDiffAction.detail"
                   @click="focusTransportSelectedDiff"
                 >
-                  <strong>Show selected diff</strong>
-                  <span>
-                    Focus the selected route in the latest comparable import
-                    pair.
-                  </span>
+                  <strong>{{ transportSelectedDiffAction.label }}</strong>
+                  <span>{{ transportSelectedDiffAction.detail }}</span>
                 </button>
 
                 <button
                   type="button"
                   class="transport-freshness-action"
+                  :disabled="transportFocusRouteAction.disabled"
+                  :aria-label="`${transportFocusRouteAction.label}. ${transportFocusRouteAction.detail}`"
+                  :title="transportFocusRouteAction.detail"
                   @click="focusTransportDiffRoute(routeDetail.reference)"
                 >
-                  <strong>Focus current route</strong>
-                  <span>
-                    Jump back into the selected route's detail and compare it
-                    with the latest import.
-                  </span>
+                  <strong>{{ transportFocusRouteAction.label }}</strong>
+                  <span>{{ transportFocusRouteAction.detail }}</span>
                 </button>
               </div>
 
@@ -2378,11 +2956,16 @@ onBeforeUnmount(() => {
             <article
               class="transport-story-card"
               id="transport-freshness-lineage"
+              aria-labelledby="transport-freshness-lineage-title"
+              :class="{
+                'is-priority-card':
+                  transportFreshnessPrioritySectionId === 'transport-freshness-lineage',
+              }"
             >
               <div class="catalog-editor-heading">
                 <div>
                   <span class="panel-label">Freshness lineage</span>
-                  <h3>How the snapshot aged</h3>
+                  <h3 id="transport-freshness-lineage-title">How the snapshot aged</h3>
                 </div>
                 <span class="mini-badge">{{
                   transportFreshnessLineage.length
@@ -2390,8 +2973,7 @@ onBeforeUnmount(() => {
               </div>
 
               <p class="catalog-summary">
-                The lineage below shows whether the current age comes from a
-                quiet period, a missing sync success, or a more recent retry.
+                Read the compressed chronology below to see whether age comes from quiet time, missing success, or retry lag.
               </p>
 
               <ul class="transport-story-list">
@@ -2402,13 +2984,28 @@ onBeforeUnmount(() => {
               </ul>
             </article>
 
-            <article class="transport-story-card" id="transport-sync-cadence">
+            <article
+              class="transport-story-card"
+              id="transport-sync-cadence"
+              aria-labelledby="transport-sync-cadence-title"
+              :class="{
+                'is-priority-card':
+                  transportFreshnessPrioritySectionId === 'transport-sync-cadence',
+              }"
+            >
               <div class="catalog-editor-heading">
                 <div>
                   <span class="panel-label">Sync cadence</span>
-                  <h3>How fast freshness is changing</h3>
+                  <h3 id="transport-sync-cadence-title">
+                    How fast freshness is changing
+                  </h3>
                 </div>
-                <span class="status-pill" :class="transportSyncCadence.tone">
+                <span
+                  class="status-pill"
+                  :class="transportSyncCadence.tone"
+                  role="status"
+                  aria-live="polite"
+                >
                   {{ transportSyncCadence.label }}
                 </span>
               </div>
@@ -2431,13 +3028,28 @@ onBeforeUnmount(() => {
               </div>
             </article>
 
-            <article class="transport-story-card" id="transport-freshness-trust">
+            <article
+              class="transport-story-card"
+              id="transport-freshness-trust"
+              aria-labelledby="transport-freshness-trust-title"
+              :class="{
+                'is-priority-card':
+                  transportFreshnessPrioritySectionId === 'transport-freshness-trust',
+              }"
+            >
               <div class="catalog-editor-heading">
                 <div>
                   <span class="panel-label">Trust badge</span>
-                  <h3>How much confidence to place in the snapshot</h3>
+                  <h3 id="transport-freshness-trust-title">
+                    How much confidence to place in the snapshot
+                  </h3>
                 </div>
-                <span class="status-pill" :class="transportFreshnessTrust.tone">
+                <span
+                  class="status-pill"
+                  :class="transportFreshnessTrust.tone"
+                  role="status"
+                  aria-live="polite"
+                >
                   {{ transportFreshnessTrust.label }}
                 </span>
               </div>
@@ -2465,11 +3077,18 @@ onBeforeUnmount(() => {
             <article
               class="transport-story-card"
               id="transport-route-freshness-spotlight"
+              aria-labelledby="transport-route-freshness-spotlight-title"
+              :class="{
+                'is-priority-card':
+                  transportFreshnessPrioritySectionId === 'transport-route-freshness-spotlight',
+              }"
             >
               <div class="catalog-editor-heading">
                 <div>
                   <span class="panel-label">Route spotlight</span>
-                  <h3>Where the selected route stands in the latest import</h3>
+                  <h3 id="transport-route-freshness-spotlight-title">
+                    Where the selected route stands in the latest import
+                  </h3>
                 </div>
                 <span class="status-pill" :class="transportRouteFreshnessSpotlight.tone">
                   {{ transportRouteFreshnessSpotlight.label }}
@@ -2480,23 +3099,32 @@ onBeforeUnmount(() => {
                 {{ transportRouteFreshnessSpotlight.detail }}
               </p>
 
-              <div class="transport-freshness-actions">
+              <div
+                class="transport-freshness-actions"
+                aria-label="Route spotlight actions"
+              >
                 <button
                   type="button"
                   class="transport-freshness-action"
+                  :disabled="transportSelectedDiffAction.disabled"
+                  :aria-label="`${transportSelectedDiffAction.label}. ${transportSelectedDiffAction.detail}`"
+                  :title="transportSelectedDiffAction.detail"
                   @click="focusTransportSelectedDiff"
                 >
-                  <strong>Show selected diff</strong>
-                  <span>Jump straight to the selected route's import comparison.</span>
+                  <strong>{{ transportSelectedDiffAction.label }}</strong>
+                  <span>{{ transportSelectedDiffAction.detail }}</span>
                 </button>
 
                 <button
                   type="button"
                   class="transport-freshness-action"
+                  :disabled="transportFocusRouteAction.disabled"
+                  :aria-label="`${transportFocusRouteAction.label}. ${transportFocusRouteAction.detail}`"
+                  :title="transportFocusRouteAction.detail"
                   @click="focusTransportDiffRoute(routeDetail.reference)"
                 >
-                  <strong>Focus route</strong>
-                  <span>Recenter the transport board on the selected route.</span>
+                  <strong>{{ transportFocusRouteAction.label }}</strong>
+                  <span>{{ transportFocusRouteAction.detail }}</span>
                 </button>
               </div>
             </article>
@@ -2504,11 +3132,18 @@ onBeforeUnmount(() => {
             <article
               class="transport-story-card"
               id="transport-freshness-checklist"
+              aria-labelledby="transport-freshness-checklist-title"
+              :class="{
+                'is-priority-card':
+                  transportFreshnessPrioritySectionId === 'transport-freshness-checklist',
+              }"
             >
               <div class="catalog-editor-heading">
                 <div>
                   <span class="panel-label">Operator checklist</span>
-                  <h3>What to do next when freshness matters</h3>
+                  <h3 id="transport-freshness-checklist-title">
+                    What to do next when freshness matters
+                  </h3>
                 </div>
                 <span class="mini-badge">{{
                   transportFreshnessChecklist.items.length
@@ -2526,10 +3161,16 @@ onBeforeUnmount(() => {
                 </li>
               </ul>
 
-              <div class="transport-freshness-actions">
+              <div
+                class="transport-freshness-actions"
+                aria-label="Operator checklist actions"
+              >
                 <button
                   type="button"
                   class="transport-freshness-action"
+                  :disabled="isSyncingTransport"
+                  :aria-label="`${transportFreshnessChecklist.items[0].actionLabel}. ${transportFreshnessChecklist.items[0].detail}`"
+                  :title="transportFreshnessChecklist.items[0].detail"
                   @click="
                     runTransportSupportAction(
                       transportSyncStatus.source === 'live'
@@ -2545,19 +3186,25 @@ onBeforeUnmount(() => {
                 <button
                   type="button"
                   class="transport-freshness-action"
+                  :disabled="transportSelectedDiffAction.disabled"
+                  :aria-label="`${transportSelectedDiffAction.label}. ${transportSelectedDiffAction.detail}`"
+                  :title="transportSelectedDiffAction.detail"
                   @click="focusTransportSelectedDiff"
                 >
-                  <strong>{{ transportFreshnessChecklist.items[1].actionLabel }}</strong>
-                  <span>{{ transportFreshnessChecklist.items[1].detail }}</span>
+                  <strong>{{ transportSelectedDiffAction.label }}</strong>
+                  <span>{{ transportSelectedDiffAction.detail }}</span>
                 </button>
 
                 <button
                   type="button"
                   class="transport-freshness-action"
+                  :disabled="transportFocusRouteAction.disabled"
+                  :aria-label="`${transportFocusRouteAction.label}. ${transportFocusRouteAction.detail}`"
+                  :title="transportFocusRouteAction.detail"
                   @click="focusTransportDiffRoute(routeDetail.reference)"
                 >
-                  <strong>{{ transportFreshnessChecklist.items[2].actionLabel }}</strong>
-                  <span>{{ transportFreshnessChecklist.items[2].detail }}</span>
+                  <strong>{{ transportFocusRouteAction.label }}</strong>
+                  <span>{{ transportFocusRouteAction.detail }}</span>
                 </button>
               </div>
             </article>
@@ -2677,15 +3324,41 @@ onBeforeUnmount(() => {
                   <h3>Recent imports</h3>
                 </div>
                 <span class="mini-badge">{{
-                  transportSyncHistory.length
+                  transportSyncHistoryFeed.count
                 }}</span>
               </div>
+
+              <p class="catalog-summary">
+                {{
+                  transportSyncHistoryErrorMessage ??
+                  transportSyncHistoryFeed.summary
+                }}
+              </p>
 
               <ul class="transport-story-list">
                 <li v-for="run in transportSyncHistory" :key="run.id">
                   <strong>{{ run.createdAtLabel }}</strong>
                   <span>{{ run.summary }}</span>
-                  <span>{{ run.status }} via {{ run.source }}</span>
+                  <span>
+                    {{ run.importedRouteCount }} routes, {{ run.status }} via
+                    {{ run.source }}
+                  </span>
+                  <span v-if="run.hasComparablePrevious">
+                    {{ run.changedRouteCount }} changed,
+                    {{ run.addedRouteCount }} added,
+                    {{ run.removedRouteCount }} removed versus the previous
+                    import
+                  </span>
+                  <span v-else>
+                    Baseline import for this history window.
+                  </span>
+                  <span v-if="run.routeReferencePreview.length > 0">
+                    Routes:
+                    {{ run.routeReferencePreview.join(", ") }}
+                  </span>
+                  <span v-if="run.importedAtLabel">
+                    Imported {{ run.importedAtLabel }}
+                  </span>
                 </li>
                 <li v-if="transportSyncHistory.length === 0">
                   <strong>No import history yet</strong>
@@ -4473,17 +5146,156 @@ onBeforeUnmount(() => {
   gap: 12px;
 }
 
+.transport-freshness-posture-banner {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 14px;
+  padding: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.7);
+}
+
+.transport-freshness-posture-banner p,
+.transport-freshness-posture-banner strong,
+.transport-freshness-posture-banner span {
+  margin: 0;
+}
+
+.transport-freshness-posture-banner strong {
+  color: #f8fafc;
+}
+
+.transport-freshness-posture-banner p,
+.transport-freshness-posture-banner span {
+  color: #cbd5e1;
+}
+
+.transport-freshness-timeline {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+}
+
+.transport-freshness-priority-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(220px, 0.7fr);
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid rgba(96, 165, 250, 0.18);
+  border-radius: 8px;
+  background: rgba(30, 41, 59, 0.58);
+}
+
+.transport-freshness-priority-copy,
+.transport-freshness-priority-actions {
+  display: grid;
+  gap: 8px;
+}
+
+.transport-freshness-priority-copy p,
+.transport-freshness-priority-copy strong,
+.transport-freshness-priority-copy span,
+.transport-freshness-priority-actions span {
+  margin: 0;
+}
+
+.transport-freshness-priority-copy strong {
+  color: #f8fafc;
+}
+
+.transport-freshness-priority-copy p,
+.transport-freshness-priority-copy span {
+  color: #cbd5e1;
+}
+
+.transport-freshness-priority-reason {
+  margin: 0;
+  color: #94a3b8;
+  line-height: 1.45;
+}
+
+.transport-freshness-priority-target {
+  color: #93c5fd;
+}
+
+.transport-freshness-timeline-item {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 8px;
+  background: rgba(8, 17, 31, 0.45);
+}
+
+.transport-freshness-timeline-item strong,
+.transport-freshness-timeline-item span {
+  margin: 0;
+}
+
+.transport-freshness-timeline-item.is-priority,
+.transport-story-card.is-priority-card {
+  border-color: rgba(96, 165, 250, 0.42);
+  box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.12);
+}
+
+.transport-freshness-digest {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.transport-freshness-quick-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.transport-freshness-link {
+  min-height: 40px;
+  padding: 0 12px;
+  color: #e2e8f0;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.68);
+  cursor: pointer;
+}
+
+.transport-freshness-link:hover {
+  border-color: rgba(96, 165, 250, 0.4);
+  background: rgba(30, 41, 59, 0.9);
+}
+
+.transport-freshness-link.is-primary {
+  color: #f8fafc;
+  border-color: rgba(96, 165, 250, 0.42);
+  background: rgba(37, 99, 235, 0.22);
+}
+
+.transport-freshness-link:focus-visible {
+  outline: 2px solid rgba(96, 165, 250, 0.85);
+  outline-offset: 2px;
+  border-color: rgba(96, 165, 250, 0.6);
+}
+
 .transport-freshness-action {
   display: grid;
   gap: 6px;
   padding: 14px;
   min-height: 100%;
+  min-block-size: 48px;
   text-align: left;
   color: #e2e8f0;
   border: 1px solid rgba(148, 163, 184, 0.16);
   border-radius: 8px;
   background: rgba(15, 23, 42, 0.82);
   cursor: pointer;
+  transition:
+    border-color 140ms ease,
+    background-color 140ms ease,
+    transform 140ms ease,
+    box-shadow 140ms ease,
+    opacity 140ms ease;
 }
 
 .transport-freshness-action strong,
@@ -4499,9 +5311,34 @@ onBeforeUnmount(() => {
   color: #cbd5e1;
 }
 
-.transport-freshness-action:hover {
+.transport-freshness-action:hover:not(:disabled) {
   border-color: rgba(96, 165, 250, 0.4);
   background: rgba(30, 41, 59, 0.9);
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.2);
+}
+
+.transport-freshness-action:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+.transport-freshness-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+  border-style: dashed;
+  background: rgba(15, 23, 42, 0.58);
+}
+
+.transport-freshness-action:focus-visible,
+.catalog-save-button:focus-visible {
+  outline: 2px solid rgba(96, 165, 250, 0.85);
+  outline-offset: 2px;
+  border-color: rgba(96, 165, 250, 0.6);
+}
+
+.transport-freshness-action-note {
+  color: #94a3b8;
 }
 
 .transport-recovery-item {
@@ -4951,7 +5788,7 @@ onBeforeUnmount(() => {
 }
 
 .catalog-save-button {
-  min-height: 40px;
+  min-height: 48px;
   padding: 0 14px;
   color: #f8fafc;
   background: rgba(37, 99, 235, 0.24);
@@ -5315,6 +6152,18 @@ onBeforeUnmount(() => {
 
   .transport-story-card {
     padding: 14px;
+  }
+
+  .transport-freshness-posture-banner {
+    padding: 12px;
+  }
+
+  .transport-freshness-priority-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .transport-freshness-timeline {
+    grid-template-columns: 1fr;
   }
 
   .transport-freshness-action {

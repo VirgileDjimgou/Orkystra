@@ -188,6 +188,14 @@ The latest freshness warning now drills through to a dedicated evidence panel th
 The freshness story now extends one step further with a lineage card, a sync cadence card, a trust badge, a selected-route spotlight, and a short operator checklist so the next action is obvious when the snapshot starts to age.
 Chrome-driven browser QA confirmed that the five-card transport freshness cluster stays readable together at desktop width.
 The mobile viewport polish pass tightened the freshness action cards so they stack cleanly on narrow screens, and the freshness actions now share a consistent height and spacing rhythm.
+The latest accessibility pass added 48px touch targets, visible keyboard focus, and explicit accessible labels across the transport freshness action cluster.
+The cluster now opens with a posture banner that summarizes whether the current transport snapshot is reliable, drifting, fallback-only, or illustrative, and the diff and route-focus shortcuts now disable themselves with explicit reason text whenever the required import evidence is not available yet.
+The freshness header is now denser and easier to scan: it starts with a compact four-step timeline, a digest chip row for trust/cadence/source/route posture, and quick links that jump directly into drill-through, lineage, cadence, trust, route, or checklist sections.
+The freshness card summaries were also tightened so the operator can read the shared timeline once and use the lower cards for explanation rather than re-reading the same timestamps in slightly different wording.
+The latest hierarchy pass adds a dedicated primary-concern panel inside the freshness header, pairing the main risk with one recommended action and one priority section target so degraded or fallback states no longer force the operator to infer what matters most.
+The priority section is now visually emphasized in the cluster itself, and the matching quick link is promoted in the header so the user can move from posture to the most decision-critical card in one step.
+The priority layer now speaks more crisply as well: each state has a shorter urgency label, a tighter main title, and a one-line action reason that explains why the recommended move is the right next step.
+The navigation copy inside the priority layer was normalized around `Go to ...`, which keeps the action rail and quick-link language more consistent when operators bounce between the header and the detailed freshness cards.
 
 ## Python Services
 

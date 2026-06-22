@@ -482,6 +482,22 @@ app.MapGet("/api/transport/sync-diff", async (
 .RequireAuthorization()
 .WithName("GetTransportSyncDiff");
 
+app.MapGet("/api/transport/sync-history", async (
+    int? count,
+    RequestTenantContext tenantContext,
+    TransportSyncHistoryService transportSyncHistoryService,
+    OperationalPersistenceStore persistenceStore,
+    CancellationToken cancellationToken) =>
+{
+    var tenantId = tenantContext.TenantId ?? "local-demo-tenant";
+    var boundedCount = Math.Clamp(count ?? 6, 1, 12);
+    var history = await transportSyncHistoryService.BuildRecentHistoryAsync(tenantId, boundedCount, cancellationToken);
+    await persistenceStore.UpsertProjectionAsync(tenantId, "transport-sync-history", "recent", "api", history, cancellationToken);
+    return Results.Ok(history);
+})
+.RequireAuthorization()
+.WithName("GetTransportSyncHistory");
+
 app.MapPost("/api/transport/routes/{routeId:guid}/optimization", async (
     Guid routeId,
     RouteOptimizationRunRequest request,
