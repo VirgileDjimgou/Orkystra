@@ -53,6 +53,7 @@ import {
 import { loadTransportSyncDiff } from "./services/transportSyncDiffApi";
 import { loadTransportExceptionWorkbench } from "./services/transportExceptionWorkbenchApi";
 import { loadTransportExceptionFollowUpQueue } from "./services/transportExceptionFollowUpQueueApi";
+import { transitionTransportExceptionFollowUp } from "./services/transportExceptionFollowUpTransitionApi";
 import { loadTransportExceptionResolutionHistory } from "./services/transportExceptionResolutionHistoryApi";
 import { saveTransportExceptionResolution } from "./services/transportExceptionResolutionApi";
 import { loadTransportSyncHistory } from "./services/transportSyncHistoryApi";
@@ -81,6 +82,14 @@ type TransportExceptionResolutionFilter =
   | "resolved"
   | "deferred"
   | "all";
+type TransportFollowUpFilter =
+  | "all"
+  | "active"
+  | "at-risk"
+  | "overdue"
+  | "ownerless"
+  | "retired"
+  | "watchlist";
 type TransportDiffFilter = "all" | "changed" | "added" | "removed" | "selected";
 
 const navigationItems = [
@@ -187,6 +196,8 @@ const selectedRouteId = ref(fallbackOverview.routes[0].routeId);
 const selectedTransportExceptionFilter = ref<TransportExceptionFilter>("unreviewed");
 const selectedTransportExceptionResolutionFilter =
   ref<TransportExceptionResolutionFilter>("open");
+const selectedTransportFollowUpFilter = ref<TransportFollowUpFilter>("all");
+const selectedTransportFollowUpExceptionId = ref<string | null>(null);
 const reviewedTransportExceptionIds = ref<string[]>([]);
 const selectedTransportDiffFilter = ref<TransportDiffFilter>("changed");
 const syncFreshnessClock = ref(Date.now());
@@ -598,6 +609,117 @@ const recentTransportExceptionHistoryEntries = computed(() => {
 
   return entries.slice(0, 6);
 });
+const transportFollowUpFilterOptions = computed(() => [
+  {
+    key: "all" as const,
+    label: "All",
+    count: transportExceptionFollowUpQueue.value.items.length,
+  },
+  {
+    key: "active" as const,
+    label: "Active",
+    count: transportExceptionFollowUpQueue.value.items.filter(
+      (item) => item.followUpStatus === "Active"
+    ).length,
+  },
+  {
+    key: "at-risk" as const,
+    label: "At risk",
+    count: transportExceptionFollowUpQueue.value.items.filter(
+      (item) => item.slaPosture === "At Risk"
+    ).length,
+  },
+  {
+    key: "overdue" as const,
+    label: "Overdue",
+    count: transportExceptionFollowUpQueue.value.items.filter(
+      (item) => item.slaPosture === "Overdue"
+    ).length,
+  },
+  {
+    key: "ownerless" as const,
+    label: "Ownerless",
+    count: transportExceptionFollowUpQueue.value.items.filter(
+      (item) => item.isOwnerMissing
+    ).length,
+  },
+  {
+    key: "retired" as const,
+    label: "Retired",
+    count: transportExceptionFollowUpQueue.value.items.filter(
+      (item) => item.followUpStatus === "Retired"
+    ).length,
+  },
+  {
+    key: "watchlist" as const,
+    label: "Watchlist",
+    count: transportExceptionFollowUpQueue.value.items.filter(
+      (item) => !item.isStillActive
+    ).length,
+  },
+]);
+const visibleTransportFollowUpItems = computed(() => {
+  switch (selectedTransportFollowUpFilter.value) {
+    case "active":
+      return transportExceptionFollowUpQueue.value.items.filter(
+        (item) => item.followUpStatus === "Active"
+      );
+    case "at-risk":
+      return transportExceptionFollowUpQueue.value.items.filter(
+        (item) => item.slaPosture === "At Risk"
+      );
+    case "overdue":
+      return transportExceptionFollowUpQueue.value.items.filter(
+        (item) => item.slaPosture === "Overdue"
+      );
+    case "ownerless":
+      return transportExceptionFollowUpQueue.value.items.filter(
+        (item) => item.isOwnerMissing
+      );
+    case "retired":
+      return transportExceptionFollowUpQueue.value.items.filter(
+        (item) => item.followUpStatus === "Retired"
+      );
+    case "watchlist":
+      return transportExceptionFollowUpQueue.value.items.filter(
+        (item) => !item.isStillActive
+      );
+    default:
+      return transportExceptionFollowUpQueue.value.items;
+  }
+});
+const focusedTransportFollowUpItem = computed(() => {
+  const selected = selectedTransportFollowUpExceptionId.value;
+  if (selected) {
+    const selectedItem = visibleTransportFollowUpItems.value.find(
+      (item) => item.exceptionId === selected
+    );
+    if (selectedItem) {
+      return selectedItem;
+    }
+  }
+
+  return visibleTransportFollowUpItems.value[0] ?? null;
+});
+const focusedTransportFollowUpHistoryEntries = computed(() => {
+  const exceptionId = focusedTransportFollowUpItem.value?.exceptionId;
+  if (!exceptionId) {
+    return [];
+  }
+
+  return transportExceptionResolutionHistory.value.entries.filter(
+    (entry) => entry.exceptionId === exceptionId
+  );
+});
+const latestTransportFollowUpHistoryEntry = computed(
+  () => focusedTransportFollowUpHistoryEntries.value[0] ?? null
+);
+const previousTransportFollowUpHistoryEntries = computed(() =>
+  focusedTransportFollowUpHistoryEntries.value.slice(1, 4)
+);
+const prioritizedFollowUpOwnerSummaries = computed(() =>
+  transportExceptionFollowUpQueue.value.ownerSummaries.slice(0, 4)
+);
 const activeTransportExceptionHistoryStatus = computed(() => {
   if (latestFocusedTransportExceptionHistoryEntry.value !== null) {
     return latestFocusedTransportExceptionHistoryEntry.value.status;
@@ -1840,6 +1962,46 @@ function updateTransportExceptionCommitmentDraft(
   };
 }
 
+function selectTransportFollowUpItem(exceptionId: string): void {
+  selectedTransportFollowUpExceptionId.value = exceptionId;
+}
+
+function followUpPostureClass(
+  posture: "Healthy" | "At Risk" | "Overdue" | "Retired"
+): string {
+  switch (posture) {
+    case "Overdue":
+      return "severity-critical";
+    case "At Risk":
+      return "severity-warning";
+    default:
+      return "severity-healthy";
+  }
+}
+
+function formatFollowUpCountdown(hoursUntilTarget: number | null): string {
+  if (hoursUntilTarget === null) {
+    return "No target return window";
+  }
+
+  if (hoursUntilTarget < 0) {
+    const overdueHours = Math.abs(hoursUntilTarget);
+    return overdueHours < 24
+      ? `${overdueHours}h overdue`
+      : `${Math.ceil(overdueHours / 24)}d overdue`;
+  }
+
+  if (hoursUntilTarget < 24) {
+    return `${hoursUntilTarget}h remaining`;
+  }
+
+  return `${Math.ceil(hoursUntilTarget / 24)}d remaining`;
+}
+
+function normalizeInterpunctText(value: string): string {
+  return value.replaceAll("Â·", "·");
+}
+
 function resetTransportExceptionReviewQueue(): void {
   reviewedTransportExceptionIds.value = [];
   selectedTransportExceptionFilter.value = "unreviewed";
@@ -1864,6 +2026,7 @@ async function saveResolvedTransportException(
   exceptionId: string,
   status: "Reviewed" | "Resolved" | "Deferred"
 ): Promise<void> {
+  selectTransportFollowUpItem(exceptionId);
   transportExceptionResolutionNotice.value = {
     ...transportExceptionResolutionNotice.value,
     [exceptionId]: "",
@@ -1911,6 +2074,46 @@ async function saveResolvedTransportException(
         error instanceof Error
           ? error.message
           : "Exception resolution could not be saved.",
+    };
+  } finally {
+    savingTransportExceptionResolutionId.value = null;
+  }
+}
+
+async function transitionTransportExceptionFollowUpState(
+  exceptionId: string,
+  action: "retire" | "reopen"
+): Promise<void> {
+  selectTransportFollowUpItem(exceptionId);
+  transportExceptionResolutionNotice.value = {
+    ...transportExceptionResolutionNotice.value,
+    [exceptionId]: "",
+  };
+  savingTransportExceptionResolutionId.value = exceptionId;
+
+  try {
+    await transitionTransportExceptionFollowUp({
+      action,
+      exceptionId,
+      note: transportExceptionResolutionDraft(exceptionId),
+    });
+    await refreshTransportExceptionWorkbench(true);
+    await refreshTransportExceptionResolutionHistory(true);
+    await refreshTransportExceptionFollowUpQueue(true);
+    transportExceptionResolutionNotice.value = {
+      ...transportExceptionResolutionNotice.value,
+      [exceptionId]:
+        action === "retire"
+          ? "Follow-up retired."
+          : "Follow-up reopened.",
+    };
+  } catch (error) {
+    transportExceptionResolutionNotice.value = {
+      ...transportExceptionResolutionNotice.value,
+      [exceptionId]:
+        error instanceof Error
+          ? error.message
+          : "Follow-up transition could not be saved.",
     };
   } finally {
     savingTransportExceptionResolutionId.value = null;
@@ -3960,6 +4163,13 @@ onBeforeUnmount(() => {
                       - return {{ item.resolutionTargetReturnAtLabel }}
                     </template>
                   </span>
+                  <button
+                    type="button"
+                    class="catalog-save-button"
+                    @click="selectTransportFollowUpItem(item.exceptionId)"
+                  >
+                    Focus follow-up
+                  </button>
                   <label class="provider-field">
                     <span>Resolution note</span>
                     <input
@@ -4152,6 +4362,132 @@ onBeforeUnmount(() => {
             <article class="transport-story-card">
               <div class="catalog-editor-heading">
                 <div>
+                  <span class="panel-label">Shift handoff</span>
+                  <h3>Active deferred handoff pack</h3>
+                </div>
+                <span class="mini-badge">{{
+                  transportExceptionFollowUpQueue.handoffPack.activeItemCount
+                }}</span>
+              </div>
+
+              <p class="catalog-summary">
+                {{ transportExceptionFollowUpQueue.handoffPack.summary }}
+              </p>
+              <p class="catalog-summary">
+                {{ transportExceptionFollowUpQueue.handoffPack.shiftSummary }}
+              </p>
+              <p class="catalog-summary">
+                {{ transportExceptionFollowUpQueue.handoffPack.ownerHeadline }}
+              </p>
+
+              <div class="transport-sync-grid">
+                <div class="transport-sync-metric">
+                  <span class="panel-label">Immediate</span>
+                  <strong>{{
+                    transportExceptionFollowUpQueue.handoffPack.immediateCount
+                  }}</strong>
+                  <span>items to call out explicitly in the next handoff</span>
+                </div>
+                <div class="transport-sync-metric">
+                  <span class="panel-label">This shift</span>
+                  <strong>{{
+                    transportExceptionFollowUpQueue.handoffPack.thisShiftCount
+                  }}</strong>
+                  <span>items due inside the current shift window</span>
+                </div>
+                <div class="transport-sync-metric">
+                  <span class="panel-label">Next shift</span>
+                  <strong>{{
+                    transportExceptionFollowUpQueue.handoffPack.nextShiftCount
+                  }}</strong>
+                  <span>items landing just after the current handoff</span>
+                </div>
+                <div class="transport-sync-metric">
+                  <span class="panel-label">Readiness gaps</span>
+                  <strong>{{
+                    transportExceptionFollowUpQueue.handoffPack.missingOwnerCount +
+                    transportExceptionFollowUpQueue.handoffPack.missingNoteCount +
+                    transportExceptionFollowUpQueue.handoffPack.missingRouteContextCount
+                  }}</strong>
+                  <span>owner, note, or route context still missing</span>
+                </div>
+              </div>
+
+              <ul class="transport-story-list">
+                <li
+                  v-for="item in transportExceptionFollowUpQueue.handoffPack.items"
+                  :key="`handoff-${item.exceptionId}`"
+                >
+                  <strong>{{ item.title }}</strong>
+                  <span>{{
+                    normalizeInterpunctText(item.handoffSummary)
+                  }}</span>
+                  <span>
+                    {{ item.readinessPosture }} · {{ item.readinessSummary }}
+                  </span>
+                  <span>{{
+                    item.note ?? "No deferred note captured for the next shift."
+                  }}</span>
+                  <span v-if="item.targetReturnAtLabel">
+                    Return window · {{ item.targetReturnAtLabel }}
+                  </span>
+                  <button
+                    type="button"
+                    class="catalog-save-button"
+                    @click="selectTransportFollowUpItem(item.exceptionId)"
+                  >
+                    Focus handoff
+                  </button>
+                  <button
+                    type="button"
+                    class="catalog-save-button"
+                    @click="
+                      runTransportExceptionAction(
+                        item.recommendedAction,
+                        transportExceptionFollowUpQueue.items.find(
+                          (candidate) => candidate.exceptionId === item.exceptionId
+                        )?.routeId ?? null,
+                        item.routeReference
+                      )
+                    "
+                  >
+                    {{ item.actionLabel }}
+                  </button>
+                </li>
+                <li
+                  v-if="transportExceptionFollowUpQueue.handoffPack.items.length === 0"
+                >
+                  <strong>No active handoff pack right now</strong>
+                  <span>
+                    Active deferred follow-up will appear here once something
+                    needs to be passed into the next shift.
+                  </span>
+                </li>
+              </ul>
+
+              <ul
+                v-if="transportExceptionFollowUpQueue.handoffPack.briefingLines.length > 0"
+                class="transport-story-list"
+              >
+                <li>
+                  <strong>Briefing lines</strong>
+                  <span>
+                    Reuse these compact lines when the next operator handoff
+                    needs a short but concrete summary.
+                  </span>
+                </li>
+                <li
+                  v-for="(line, index) in transportExceptionFollowUpQueue.handoffPack.briefingLines"
+                  :key="`handoff-line-${index}`"
+                >
+                  <span>{{ normalizeInterpunctText(line) }}</span>
+                </li>
+              </ul>
+            </article>
+
+            <article class="transport-story-card">
+              <div class="catalog-editor-heading">
+                <div>
                   <span class="panel-label">Follow-up queue</span>
                   <h3>Deferred exception return work</h3>
                 </div>
@@ -4170,6 +4506,53 @@ onBeforeUnmount(() => {
               <p class="catalog-summary">
                 {{ transportExceptionFollowUpQueue.alertSummary }}
               </p>
+              <p class="catalog-summary">
+                {{ transportExceptionFollowUpQueue.escalationDigest.summary }}
+              </p>
+              <div class="transport-support-actions">
+                <button
+                  type="button"
+                  class="transport-support-action"
+                  :disabled="focusedTransportFollowUpItem === null"
+                  @click="
+                    focusedTransportFollowUpItem &&
+                    runTransportExceptionAction(
+                      focusedTransportFollowUpItem.recommendedAction,
+                      focusedTransportFollowUpItem.routeId,
+                      focusedTransportFollowUpItem.routeReference
+                    )
+                  "
+                >
+                  <strong>
+                    {{
+                      focusedTransportFollowUpItem?.title ??
+                      'No active focus target'
+                    }}
+                  </strong>
+                  <span>{{
+                    focusedTransportFollowUpItem
+                      ? `${focusedTransportFollowUpItem.slaPosture} posture · ${formatFollowUpCountdown(
+                          focusedTransportFollowUpItem.hoursUntilTarget
+                        )}`
+                      : transportExceptionFollowUpQueue.focusSummary
+                  }}</span>
+                </button>
+              </div>
+
+              <div class="chip-row transport-diff-filter-row">
+                <button
+                  v-for="option in transportFollowUpFilterOptions"
+                  :key="option.key"
+                  type="button"
+                  class="catalog-chip transport-diff-filter-chip"
+                  :class="{
+                    'is-active': selectedTransportFollowUpFilter === option.key,
+                  }"
+                  @click="selectedTransportFollowUpFilter = option.key"
+                >
+                  {{ option.label }} · {{ option.count }}
+                </button>
+              </div>
 
               <div class="transport-sync-grid">
                 <div class="transport-sync-metric">
@@ -4189,25 +4572,135 @@ onBeforeUnmount(() => {
                 </div>
 
                 <div class="transport-sync-metric">
-                  <span class="panel-label">Healthy</span>
+                  <span class="panel-label">At risk</span>
                   <strong>{{
-                    transportExceptionFollowUpQueue.healthyCommitmentCount
+                    transportExceptionFollowUpQueue.atRiskCount
                   }}</strong>
-                  <span>assigned and still inside their return window</span>
+                  <span>commitments inside the next escalation window</span>
                 </div>
+
+                <div class="transport-sync-metric">
+                  <span class="panel-label">Retired</span>
+                  <strong>{{
+                    transportExceptionFollowUpQueue.retiredFollowUpCount
+                  }}</strong>
+                  <span>commitments removed from active follow-up</span>
+                </div>
+              </div>
+
+              <div
+                v-if="prioritizedFollowUpOwnerSummaries.length > 0"
+                class="transport-sync-grid"
+              >
+                <div
+                  v-for="ownerSummary in prioritizedFollowUpOwnerSummaries"
+                  :key="ownerSummary.owner"
+                  class="transport-sync-metric"
+                >
+                  <span class="panel-label">{{
+                    ownerSummary.isUnassigned
+                      ? "Unassigned lane"
+                      : ownerSummary.owner
+                  }}</span>
+                  <strong>{{ ownerSummary.followUpCount }} item(s)</strong>
+                  <span>
+                    {{ ownerSummary.overdueCount }} overdue,
+                    {{ ownerSummary.atRiskCount }} at risk,
+                    {{ ownerSummary.retiredCount }} retired
+                  </span>
+                </div>
+              </div>
+
+              <div
+                v-if="focusedTransportFollowUpItem"
+                class="transport-freshness-posture-banner"
+              >
+                <strong>
+                  Follow-up spotlight: {{ focusedTransportFollowUpItem.title }}
+                </strong>
+                <span
+                  class="mini-badge"
+                  :class="followUpPostureClass(focusedTransportFollowUpItem.slaPosture)"
+                >
+                  {{ focusedTransportFollowUpItem.slaPosture }}
+                </span>
+                <p>
+                  {{
+                    focusedTransportFollowUpItem.note ??
+                    "No deferred note was saved for this follow-up item."
+                  }}
+                </p>
+                <span>
+                  {{
+                    focusedTransportFollowUpItem.followUpOwner ??
+                    "Unassigned owner"
+                  }}
+                  ·
+                  {{ formatFollowUpCountdown(focusedTransportFollowUpItem.hoursUntilTarget) }}
+                  <template v-if="focusedTransportFollowUpItem.targetReturnAtLabel">
+                    · return
+                    {{ focusedTransportFollowUpItem.targetReturnAtLabel }}
+                  </template>
+                </span>
+                <ul
+                  v-if="focusedTransportFollowUpHistoryEntries.length > 0"
+                  class="transport-story-list"
+                >
+                  <li>
+                    <strong>
+                      {{
+                        latestTransportFollowUpHistoryEntry?.updatedAtLabel ??
+                        "Latest update"
+                      }}
+                    </strong>
+                    <span>
+                      {{
+                        latestTransportFollowUpHistoryEntry?.status ??
+                        focusedTransportFollowUpItem.status
+                      }}
+                      ·
+                      {{
+                        latestTransportFollowUpHistoryEntry?.followUpStatus ??
+                        focusedTransportFollowUpItem.followUpStatus
+                      }}
+                    </span>
+                    <span>
+                      {{
+                        latestTransportFollowUpHistoryEntry?.note ??
+                        "No operator note saved in history yet."
+                      }}
+                    </span>
+                  </li>
+                  <li
+                    v-for="entry in previousTransportFollowUpHistoryEntries"
+                    :key="entry.id"
+                  >
+                    <strong>{{ entry.updatedAtLabel }}</strong>
+                    <span>{{ entry.status }} · {{ entry.followUpStatus }}</span>
+                    <span>{{
+                      entry.note ?? "No operator note saved on this update."
+                    }}</span>
+                  </li>
+                </ul>
               </div>
 
               <ul class="transport-story-list">
                 <li
-                  v-for="item in transportExceptionFollowUpQueue.items"
+                  v-for="item in visibleTransportFollowUpItems"
                   :key="`follow-up-${item.exceptionId}`"
                 >
                   <strong>{{ item.title }}</strong>
                   <span>{{ item.alertSeverity }} - {{ item.alertSummary }}</span>
                   <span>
-                    {{ item.status }} -
-                    {{ item.isStillActive ? "Still active" : "Watchlist" }}
+                    {{ item.status }} · {{ item.followUpStatus }} follow-up ·
+                    {{ item.slaPosture }} ·
+                    {{ formatFollowUpCountdown(item.hoursUntilTarget) }}
                   </span>
+                  <span>{{
+                    item.isStillActive
+                      ? "Exception still active"
+                      : "Exception not active in workbench"
+                  }}</span>
                   <span>{{ item.detail }}</span>
                   <span>
                     {{
@@ -4219,16 +4712,16 @@ onBeforeUnmount(() => {
                     Owner:
                     {{ item.followUpOwner ?? "Unassigned" }}
                     <template v-if="item.targetReturnAtLabel">
-                      - return {{ item.targetReturnAtLabel }}
+                      · return {{ item.targetReturnAtLabel }}
                     </template>
                   </span>
                   <span>
-                    Last updated {{ item.updatedAtLabel }} -
+                    Last updated {{ item.updatedAtLabel }} ·
                     {{ item.updateCount }} saved update{{
                       item.updateCount === 1 ? "" : "s"
                     }}
                     <template v-if="item.previousStatus">
-                      - previous {{ item.previousStatus }}
+                      · previous {{ item.previousStatus }}
                     </template>
                   </span>
                   <span v-if="item.routeReference">
@@ -4308,15 +4801,32 @@ onBeforeUnmount(() => {
                   >
                     Save commitment
                   </button>
+                  <button
+                    type="button"
+                    class="catalog-save-button"
+                    :disabled="savingTransportExceptionResolutionId === item.exceptionId"
+                    @click="
+                      transitionTransportExceptionFollowUpState(
+                        item.exceptionId,
+                        item.followUpStatus === 'Retired' ? 'reopen' : 'retire'
+                      )
+                    "
+                  >
+                    {{
+                      item.followUpStatus === "Retired"
+                        ? "Reopen follow-up"
+                        : "Retire follow-up"
+                    }}
+                  </button>
                   <span v-if="transportExceptionResolutionNotice[item.exceptionId]">
                     {{ transportExceptionResolutionNotice[item.exceptionId] }}
                   </span>
                 </li>
-                <li v-if="transportExceptionFollowUpQueue.items.length === 0">
+                <li v-if="visibleTransportFollowUpItems.length === 0">
                   <strong>No follow-up queue right now</strong>
                   <span>
-                    Deferred exception outcomes will appear here once the team
-                    starts saving explicit return work.
+                    This filtered follow-up lane is clear for now. Switch the
+                    lane or save more deferred commitment work to continue.
                   </span>
                 </li>
               </ul>
@@ -7248,3 +7758,4 @@ onBeforeUnmount(() => {
   }
 }
 </style>
+

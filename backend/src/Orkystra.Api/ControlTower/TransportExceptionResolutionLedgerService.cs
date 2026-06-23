@@ -99,6 +99,9 @@ public sealed class TransportExceptionResolutionLedgerService
             ? null
             : request.FollowUpOwner.Trim();
         var normalizedTargetReturnAtUtc = request.TargetReturnAtUtc;
+        var normalizedFollowUpStatus = string.Equals(normalizedStatus, "Deferred", StringComparison.OrdinalIgnoreCase)
+            ? "Active"
+            : null;
 
         if (!string.Equals(normalizedStatus, "Deferred", StringComparison.OrdinalIgnoreCase))
         {
@@ -110,6 +113,7 @@ public sealed class TransportExceptionResolutionLedgerService
             request.ExceptionId,
             normalizedStatus,
             string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim(),
+            normalizedFollowUpStatus,
             normalizedOwner,
             normalizedTargetReturnAtUtc,
             updatedAtUtc));
@@ -127,8 +131,100 @@ public sealed class TransportExceptionResolutionLedgerService
                 request.ExceptionId,
                 normalizedStatus,
                 string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim(),
+                normalizedFollowUpStatus,
                 normalizedOwner,
                 normalizedTargetReturnAtUtc,
+                updatedAtUtc))
+            .OrderByDescending(entry => entry.UpdatedAtUtc)
+            .Take(MaxHistoryEntries)
+            .ToArray();
+
+        var nextHistory = new TransportExceptionResolutionHistoryReadModel(
+            updatedAtUtc,
+            nextHistoryEntries.Length,
+            nextHistoryEntries);
+
+        await _persistenceStore.UpsertProjectionAsync(
+            tenantId,
+            CurrentProjectionName,
+            CurrentProjectionKey,
+            "api",
+            nextLedger,
+            cancellationToken);
+
+        await _persistenceStore.UpsertProjectionAsync(
+            tenantId,
+            HistoryProjectionName,
+            HistoryProjectionKey,
+            "api",
+            nextHistory,
+            cancellationToken);
+
+        return nextLedger;
+    }
+
+    public async ValueTask<TransportExceptionResolutionLedgerReadModel> TransitionFollowUpAsync(
+        string tenantId,
+        string exceptionId,
+        TransportExceptionFollowUpTransitionRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(exceptionId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(request.Action);
+
+        var normalizedAction = request.Action.Trim();
+        if (!string.Equals(normalizedAction, "retire", StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(normalizedAction, "reopen", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ArgumentException("Action must be retire or reopen.", nameof(request));
+        }
+
+        var current = await GetAsync(tenantId, cancellationToken);
+        var currentEntry = current.Entries.FirstOrDefault(
+            entry => string.Equals(entry.ExceptionId, exceptionId, StringComparison.OrdinalIgnoreCase));
+
+        if (currentEntry is null || !string.Equals(currentEntry.Status, "Deferred", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("Only deferred follow-up items can be transitioned.");
+        }
+
+        var currentHistory = await GetFullHistoryAsync(tenantId, cancellationToken);
+        var nextEntries = current.Entries
+            .Where(entry => !string.Equals(entry.ExceptionId, exceptionId, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        var updatedAtUtc = DateTimeOffset.UtcNow;
+        var nextFollowUpStatus = string.Equals(normalizedAction, "retire", StringComparison.OrdinalIgnoreCase)
+            ? "Retired"
+            : "Active";
+        var nextNote = string.IsNullOrWhiteSpace(request.Note)
+            ? currentEntry.Note
+            : request.Note.Trim();
+
+        nextEntries.Add(new TransportExceptionResolutionEntryReadModel(
+            currentEntry.ExceptionId,
+            currentEntry.Status,
+            nextNote,
+            nextFollowUpStatus,
+            currentEntry.FollowUpOwner,
+            currentEntry.TargetReturnAtUtc,
+            updatedAtUtc));
+
+        var nextLedger = new TransportExceptionResolutionLedgerReadModel(
+            updatedAtUtc,
+            nextEntries.Count,
+            nextEntries
+                .OrderByDescending(entry => entry.UpdatedAtUtc)
+                .ToArray());
+
+        var nextHistoryEntries = currentHistory.Entries
+            .Prepend(new TransportExceptionResolutionHistoryEntryReadModel(
+                Guid.NewGuid().ToString("N"),
+                currentEntry.ExceptionId,
+                currentEntry.Status,
+                nextNote,
+                nextFollowUpStatus,
+                currentEntry.FollowUpOwner,
+                currentEntry.TargetReturnAtUtc,
                 updatedAtUtc))
             .OrderByDescending(entry => entry.UpdatedAtUtc)
             .Take(MaxHistoryEntries)

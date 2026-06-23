@@ -173,6 +173,7 @@ export type TransportExceptionWorkbenchItemView = {
   actionLabel: string
   resolutionStatus: 'Reviewed' | 'Resolved' | 'Deferred' | null
   resolutionNote: string | null
+  resolutionFollowUpStatus: 'Active' | 'Retired' | null
   resolutionFollowUpOwner: string | null
   resolutionTargetReturnAtUtc: string | null
   resolutionTargetReturnAtLabel: string | null
@@ -204,6 +205,7 @@ export type TransportExceptionResolutionHistoryEntryView = {
   status: 'Reviewed' | 'Resolved' | 'Deferred'
   note: string | null
   followUpOwner: string | null
+  followUpStatus: 'Active' | 'Retired'
   targetReturnAtLabel: string | null
   updatedAtLabel: string
 }
@@ -212,6 +214,64 @@ export type TransportExceptionResolutionHistoryView = {
   count: number
   summary: string
   entries: TransportExceptionResolutionHistoryEntryView[]
+}
+
+export type TransportExceptionFollowUpSlaPosture =
+  | 'Healthy'
+  | 'At Risk'
+  | 'Overdue'
+  | 'Retired'
+
+export type TransportExceptionFollowUpOwnerSummaryView = {
+  owner: string
+  isUnassigned: boolean
+  followUpCount: number
+  activeCount: number
+  overdueCount: number
+  atRiskCount: number
+  retiredCount: number
+}
+
+export type TransportExceptionFollowUpEscalationDigestView = {
+  overdueCount: number
+  atRiskCount: number
+  ownerlessCount: number
+  dueWithin24HoursCount: number
+  dueWithin72HoursCount: number
+  retiredCount: number
+  summary: string
+}
+
+export type TransportExceptionFollowUpHandoffItemView = {
+  exceptionId: string
+  title: string
+  routeReference: string | null
+  followUpOwner: string | null
+  targetReturnAtUtc: string | null
+  targetReturnAtLabel: string | null
+  slaPosture: TransportExceptionFollowUpSlaPosture
+  hoursUntilTarget: number | null
+  note: string | null
+  handoffSummary: string
+  readinessPosture: string
+  readinessSummary: string
+  recommendedAction: 'sync-import' | 'sync-refresh' | 'focus-route' | 'focus-route-diff' | 'optimization-refresh' | 'selected-diff' | 'review-history'
+  actionLabel: string
+}
+
+export type TransportExceptionFollowUpHandoffPackView = {
+  activeItemCount: number
+  immediateCount: number
+  thisShiftCount: number
+  nextShiftCount: number
+  missingOwnerCount: number
+  missingNoteCount: number
+  missingRouteContextCount: number
+  summary: string
+  shiftSummary: string
+  ownerHeadline: string
+  briefingLines: string[]
+  items: TransportExceptionFollowUpHandoffItemView[]
 }
 
 export type TransportExceptionFollowUpQueueItemView = {
@@ -223,9 +283,12 @@ export type TransportExceptionFollowUpQueueItemView = {
   routeReference: string | null
   status: 'Deferred'
   note: string | null
+  followUpStatus: 'Active' | 'Retired'
   followUpOwner: string | null
   targetReturnAtUtc: string | null
   targetReturnAtLabel: string | null
+  slaPosture: TransportExceptionFollowUpSlaPosture
+  hoursUntilTarget: number | null
   updatedAtLabel: string
   isStillActive: boolean
   isOwnerMissing: boolean
@@ -242,12 +305,19 @@ export type TransportExceptionFollowUpQueueItemView = {
 export type TransportExceptionFollowUpQueueView = {
   followUpCount: number
   activeDeferredCount: number
-  watchlistCount: number
+  retiredFollowUpCount: number
   ownerlessCount: number
+  atRiskCount: number
   overdueCount: number
   healthyCommitmentCount: number
+  focusExceptionId: string | null
+  focusTitle: string | null
+  focusSummary: string
   alertSummary: string
   summary: string
+  escalationDigest: TransportExceptionFollowUpEscalationDigestView
+  handoffPack: TransportExceptionFollowUpHandoffPackView
+  ownerSummaries: TransportExceptionFollowUpOwnerSummaryView[]
   items: TransportExceptionFollowUpQueueItemView[]
 }
 
@@ -1411,6 +1481,7 @@ type ApiTransportExceptionWorkbenchItem = {
   actionLabel: string
   resolutionStatus: string | null
   resolutionNote: string | null
+  resolutionFollowUpStatus: string | null
   resolutionFollowUpOwner: string | null
   resolutionTargetReturnAtUtc: string | null
   resolutionUpdatedAtUtc: string | null
@@ -1438,6 +1509,7 @@ type ApiTransportExceptionResolutionHistoryEntry = {
   exceptionId: string
   status: string
   note: string | null
+  followUpStatus: string
   followUpOwner: string | null
   targetReturnAtUtc: string | null
   updatedAtUtc: string
@@ -1458,8 +1530,11 @@ type ApiTransportExceptionFollowUpQueueItem = {
   routeReference: string | null
   status: string
   note: string | null
+  followUpStatus: string
   followUpOwner: string | null
   targetReturnAtUtc: string | null
+  slaPosture: string
+  hoursUntilTarget: number | null
   updatedAtUtc: string
   isStillActive: boolean
   isOwnerMissing: boolean
@@ -1477,12 +1552,62 @@ type ApiTransportExceptionFollowUpQueue = {
   generatedAtUtc: string
   followUpCount: number
   activeDeferredCount: number
-  watchlistCount: number
+  retiredFollowUpCount: number
   ownerlessCount: number
+  atRiskCount: number
   overdueCount: number
   healthyCommitmentCount: number
+  focusExceptionId: string | null
+  focusTitle: string | null
+  focusSummary: string
   alertSummary: string
   summary: string
+  escalationDigest: {
+    overdueCount: number
+    atRiskCount: number
+    ownerlessCount: number
+    dueWithin24HoursCount: number
+    dueWithin72HoursCount: number
+    retiredCount: number
+    summary: string
+  }
+  handoffPack: {
+    activeItemCount: number
+    immediateCount: number
+    thisShiftCount: number
+    nextShiftCount: number
+    missingOwnerCount: number
+    missingNoteCount: number
+    missingRouteContextCount: number
+    summary: string
+    shiftSummary: string
+    ownerHeadline: string
+    briefingLines: string[]
+    items: Array<{
+      exceptionId: string
+      title: string
+      routeReference: string | null
+      followUpOwner: string | null
+      targetReturnAtUtc: string | null
+      slaPosture: string
+      hoursUntilTarget: number | null
+      note: string | null
+      handoffSummary: string
+      readinessPosture: string
+      readinessSummary: string
+      recommendedAction: string
+      actionLabel: string
+    }>
+  }
+  ownerSummaries: Array<{
+    owner: string
+    isUnassigned: boolean
+    followUpCount: number
+    activeCount: number
+    overdueCount: number
+    atRiskCount: number
+    retiredCount: number
+  }>
   items: ApiTransportExceptionFollowUpQueueItem[]
 }
 
@@ -1537,6 +1662,7 @@ export function buildFallbackTransportExceptionWorkbench(): TransportExceptionWo
         actionLabel: 'Import snapshot',
         resolutionStatus: null,
         resolutionNote: null,
+        resolutionFollowUpStatus: null,
         resolutionFollowUpOwner: null,
         resolutionTargetReturnAtUtc: null,
         resolutionTargetReturnAtLabel: null,
@@ -1559,12 +1685,40 @@ export function buildFallbackTransportExceptionFollowUpQueue(): TransportExcepti
   return {
     followUpCount: 0,
     activeDeferredCount: 0,
-    watchlistCount: 0,
+    retiredFollowUpCount: 0,
     ownerlessCount: 0,
+    atRiskCount: 0,
     overdueCount: 0,
     healthyCommitmentCount: 0,
+    focusExceptionId: null,
+    focusTitle: null,
+    focusSummary: 'No deferred follow-up needs focus right now.',
     alertSummary: 'No follow-up commitment alerts are active.',
     summary: 'Deferred exception follow-up is unavailable in fallback mode.',
+    escalationDigest: {
+      overdueCount: 0,
+      atRiskCount: 0,
+      ownerlessCount: 0,
+      dueWithin24HoursCount: 0,
+      dueWithin72HoursCount: 0,
+      retiredCount: 0,
+      summary: 'No follow-up escalation digest is available in fallback mode.',
+    },
+    handoffPack: {
+      activeItemCount: 0,
+      immediateCount: 0,
+      thisShiftCount: 0,
+      nextShiftCount: 0,
+      missingOwnerCount: 0,
+      missingNoteCount: 0,
+      missingRouteContextCount: 0,
+      summary: 'No active follow-up handoff is available in fallback mode.',
+      shiftSummary: 'No current shift handoff window is active in fallback mode.',
+      ownerHeadline: 'No active owner handoff lane is available in fallback mode.',
+      briefingLines: [],
+      items: [],
+    },
+    ownerSummaries: [],
     items: [],
   }
 }
@@ -1602,6 +1756,20 @@ function normalizeTransportExceptionResolutionStatus(
   return null
 }
 
+function normalizeTransportExceptionFollowUpLifecycle(
+  status: string | null
+): 'Active' | 'Retired' | null {
+  if (status === 'Retired') {
+    return 'Retired'
+  }
+
+  if (status === 'Active') {
+    return 'Active'
+  }
+
+  return null
+}
+
 function normalizeTransportExceptionHistoryStatus(
   status: string
 ): TransportExceptionResolutionHistoryEntryView['status'] {
@@ -1626,6 +1794,19 @@ function normalizeTransportExceptionFollowUpAlertSeverity(
   }
 
   return 'Healthy'
+}
+
+function normalizeTransportExceptionSlaPosture(
+  posture: string
+): TransportExceptionFollowUpSlaPosture {
+  switch (posture) {
+    case 'Retired':
+    case 'Overdue':
+    case 'At Risk':
+      return posture
+    default:
+      return 'Healthy'
+  }
 }
 
 export function mapApiTransportExceptionWorkbenchToView(apiWorkbench: ApiTransportExceptionWorkbench): TransportExceptionWorkbenchView {
@@ -1654,6 +1835,7 @@ export function mapApiTransportExceptionWorkbenchToView(apiWorkbench: ApiTranspo
       actionLabel: item.actionLabel,
       resolutionStatus: normalizeTransportExceptionResolutionStatus(item.resolutionStatus),
       resolutionNote: item.resolutionNote,
+      resolutionFollowUpStatus: normalizeTransportExceptionFollowUpLifecycle(item.resolutionFollowUpStatus),
       resolutionFollowUpOwner: item.resolutionFollowUpOwner,
       resolutionTargetReturnAtUtc: item.resolutionTargetReturnAtUtc,
       resolutionTargetReturnAtLabel: item.resolutionTargetReturnAtUtc ? formatUtcLabel(item.resolutionTargetReturnAtUtc) : null,
@@ -1671,6 +1853,7 @@ export function mapApiTransportExceptionResolutionHistoryToView(
     exceptionId: entry.exceptionId,
     status: normalizeTransportExceptionHistoryStatus(entry.status),
     note: entry.note,
+    followUpStatus: normalizeTransportExceptionFollowUpLifecycle(entry.followUpStatus) ?? 'Active',
     followUpOwner: entry.followUpOwner,
     targetReturnAtLabel: entry.targetReturnAtUtc ? formatUtcLabel(entry.targetReturnAtUtc) : null,
     updatedAtLabel: formatUtcLabel(entry.updatedAtUtc),
@@ -1692,12 +1875,63 @@ export function mapApiTransportExceptionFollowUpQueueToView(
   return {
     followUpCount: apiQueue.followUpCount,
     activeDeferredCount: apiQueue.activeDeferredCount,
-    watchlistCount: apiQueue.watchlistCount,
+    retiredFollowUpCount: apiQueue.retiredFollowUpCount,
     ownerlessCount: apiQueue.ownerlessCount,
+    atRiskCount: apiQueue.atRiskCount,
     overdueCount: apiQueue.overdueCount,
     healthyCommitmentCount: apiQueue.healthyCommitmentCount,
+    focusExceptionId: apiQueue.focusExceptionId,
+    focusTitle: apiQueue.focusTitle,
+    focusSummary: apiQueue.focusSummary,
     alertSummary: apiQueue.alertSummary,
     summary: apiQueue.summary,
+    escalationDigest: {
+      overdueCount: apiQueue.escalationDigest.overdueCount,
+      atRiskCount: apiQueue.escalationDigest.atRiskCount,
+      ownerlessCount: apiQueue.escalationDigest.ownerlessCount,
+      dueWithin24HoursCount: apiQueue.escalationDigest.dueWithin24HoursCount,
+      dueWithin72HoursCount: apiQueue.escalationDigest.dueWithin72HoursCount,
+      retiredCount: apiQueue.escalationDigest.retiredCount,
+      summary: apiQueue.escalationDigest.summary,
+    },
+    handoffPack: {
+      activeItemCount: apiQueue.handoffPack.activeItemCount,
+      immediateCount: apiQueue.handoffPack.immediateCount,
+      thisShiftCount: apiQueue.handoffPack.thisShiftCount,
+      nextShiftCount: apiQueue.handoffPack.nextShiftCount,
+      missingOwnerCount: apiQueue.handoffPack.missingOwnerCount,
+      missingNoteCount: apiQueue.handoffPack.missingNoteCount,
+      missingRouteContextCount: apiQueue.handoffPack.missingRouteContextCount,
+      summary: apiQueue.handoffPack.summary,
+      shiftSummary: apiQueue.handoffPack.shiftSummary,
+      ownerHeadline: apiQueue.handoffPack.ownerHeadline,
+      briefingLines: apiQueue.handoffPack.briefingLines,
+      items: apiQueue.handoffPack.items.map((item) => ({
+        exceptionId: item.exceptionId,
+        title: item.title,
+        routeReference: item.routeReference,
+        followUpOwner: item.followUpOwner,
+        targetReturnAtUtc: item.targetReturnAtUtc,
+        targetReturnAtLabel: item.targetReturnAtUtc ? formatUtcLabel(item.targetReturnAtUtc) : null,
+        slaPosture: normalizeTransportExceptionSlaPosture(item.slaPosture),
+        hoursUntilTarget: item.hoursUntilTarget,
+        note: item.note,
+        handoffSummary: item.handoffSummary,
+        readinessPosture: item.readinessPosture,
+        readinessSummary: item.readinessSummary,
+        recommendedAction: normalizeTransportExceptionAction(item.recommendedAction),
+        actionLabel: item.actionLabel,
+      })),
+    },
+    ownerSummaries: apiQueue.ownerSummaries.map((summary) => ({
+      owner: summary.owner,
+      isUnassigned: summary.isUnassigned,
+      followUpCount: summary.followUpCount,
+      activeCount: summary.activeCount,
+      overdueCount: summary.overdueCount,
+      atRiskCount: summary.atRiskCount,
+      retiredCount: summary.retiredCount,
+    })),
     items: apiQueue.items.map((item) => ({
       exceptionId: item.exceptionId,
       title: item.title,
@@ -1707,9 +1941,12 @@ export function mapApiTransportExceptionFollowUpQueueToView(
       routeReference: item.routeReference,
       status: normalizeTransportExceptionFollowUpStatus(item.status),
       note: item.note,
+      followUpStatus: normalizeTransportExceptionFollowUpLifecycle(item.followUpStatus) ?? 'Active',
       followUpOwner: item.followUpOwner,
       targetReturnAtUtc: item.targetReturnAtUtc,
       targetReturnAtLabel: item.targetReturnAtUtc ? formatUtcLabel(item.targetReturnAtUtc) : null,
+      slaPosture: normalizeTransportExceptionSlaPosture(item.slaPosture),
+      hoursUntilTarget: item.hoursUntilTarget,
       updatedAtLabel: formatUtcLabel(item.updatedAtUtc),
       isStillActive: item.isStillActive,
       isOwnerMissing: item.isOwnerMissing,

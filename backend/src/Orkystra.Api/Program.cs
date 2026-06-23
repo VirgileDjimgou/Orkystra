@@ -555,6 +555,24 @@ app.MapGet("/api/transport/exceptions-workbench/follow-up-queue", async (
 .RequireAuthorization()
 .WithName("GetTransportExceptionFollowUpQueue");
 
+app.MapPut("/api/transport/exceptions-workbench/follow-up-queue/{exceptionId}", async (
+    string exceptionId,
+    TransportExceptionFollowUpTransitionRequest request,
+    RequestTenantContext tenantContext,
+    TransportExceptionResolutionLedgerService resolutionLedgerService,
+    CancellationToken cancellationToken) =>
+{
+    var tenantId = tenantContext.TenantId ?? "local-demo-tenant";
+    var ledger = await resolutionLedgerService.TransitionFollowUpAsync(
+        tenantId,
+        exceptionId,
+        request,
+        cancellationToken);
+    return Results.Ok(ledger);
+})
+.RequireAuthorization()
+.WithName("TransitionTransportExceptionFollowUp");
+
 app.MapPut("/api/transport/exceptions-workbench/resolutions", async (
     TransportExceptionResolutionWriteRequest request,
     RequestTenantContext tenantContext,

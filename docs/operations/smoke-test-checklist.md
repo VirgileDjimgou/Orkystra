@@ -94,7 +94,19 @@ Use this checklist before a demo, a local release candidate, or a staging handof
 - Deferred saves can also persist a follow-up owner and a target return window without breaking the existing review loop
 - The exception workbench and follow-up queue both surface the saved owner and target return commitment when one exists
 - The follow-up queue exposes compact `Overdue`, `Ownerless`, and `Healthy` commitment metrics
+- The follow-up queue also exposes an `At risk` commitment metric and an escalation digest summary that changes when overdue, at-risk, ownerless, or retired posture changes
 - Deferred commitments with a missing owner or a past target return window surface an explicit alert summary in the follow-up queue
+- The follow-up queue orders risky commitments ahead of healthy ones, with overdue items first and ownerless items next
+- The follow-up queue exposes a focused escalation target that points to the next commitment the operator should handle
+- The follow-up queue lets operators retire an active deferred commitment or reopen a retired one without losing history
+- Retired follow-up commitments remain visible as retired records and do not count as active follow-up until reopened
+- The follow-up queue exposes lane filters for `All`, `Active`, `At risk`, `Overdue`, `Ownerless`, `Retired`, and `Watchlist`
+- The follow-up queue exposes top owner summary lanes so it is obvious which operator or unassigned pool carries the heaviest deferred return load
+- Focusing a follow-up item shows a small spotlight panel with its current SLA posture, countdown, latest note, and recent saved history entries
+- Transport board shows a dedicated `Shift handoff` card derived from active deferred follow-up items
+- The handoff card exposes `Immediate`, `This shift`, and `Next shift` counts plus owner/note/route readiness gaps
+- Each handoff item surfaces a readiness posture such as missing owner, missing note, missing route, missing target, or ready
+- The handoff card exposes short briefing lines that can be reused when the next operator pass needs a concise support summary
 - The historical diff panel supports filter-based triage for changed, added, removed, selected-route, and all route deltas
 - Diff rows can focus the corresponding current route when that route still exists in the latest transport board
 - On a wide desktop viewport, the transport sync metrics, storyline, timeline, and route-detail lists remain readable without collapsing into cramped multi-column blocks

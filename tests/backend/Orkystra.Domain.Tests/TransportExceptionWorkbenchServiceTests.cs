@@ -177,7 +177,7 @@ public sealed class TransportExceptionWorkbenchServiceTests
                     "Deferred",
                     "Waiting for upstream confirmation.",
                     "Ops Alice",
-                    DateTimeOffset.Parse("2026-06-23T16:00:00Z")));
+                    DateTimeOffset.Parse("2026-06-30T16:00:00Z")));
 
             await resolutionLedgerService.SaveAsync(
                 "tenant-a",
@@ -206,7 +206,7 @@ public sealed class TransportExceptionWorkbenchServiceTests
             Assert.Equal("Deferred", latestResolution.Status);
             Assert.Equal("Waiting for upstream confirmation.", latestResolution.Note);
             Assert.Equal("Ops Alice", latestResolution.FollowUpOwner);
-            Assert.Equal(DateTimeOffset.Parse("2026-06-23T16:00:00Z"), latestResolution.TargetReturnAtUtc);
+            Assert.Equal(DateTimeOffset.Parse("2026-06-30T16:00:00Z"), latestResolution.TargetReturnAtUtc);
 
             var followUpQueueService = new TransportExceptionFollowUpQueueService(
                 workbenchService,
@@ -214,36 +214,94 @@ public sealed class TransportExceptionWorkbenchServiceTests
             var followUpQueue = await followUpQueueService.BuildAsync("tenant-a");
 
             Assert.Equal(2, followUpQueue.FollowUpCount);
-            Assert.Equal(1, followUpQueue.ActiveDeferredCount);
-            Assert.Equal(1, followUpQueue.WatchlistCount);
+            Assert.Equal(2, followUpQueue.ActiveDeferredCount);
+            Assert.Equal(0, followUpQueue.RetiredFollowUpCount);
             Assert.Equal(1, followUpQueue.OwnerlessCount);
+            Assert.Equal(0, followUpQueue.AtRiskCount);
             Assert.Equal(1, followUpQueue.OverdueCount);
             Assert.Equal(1, followUpQueue.HealthyCommitmentCount);
+            Assert.Equal("sync-posture-attention", followUpQueue.FocusExceptionId);
+            Assert.Equal("sync-posture-attention", followUpQueue.FocusTitle);
+            Assert.Contains("Escalate", followUpQueue.FocusSummary, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("overdue", followUpQueue.EscalationDigest.Summary, StringComparison.OrdinalIgnoreCase);
+            Assert.Equal(2, followUpQueue.HandoffPack.ActiveItemCount);
+            Assert.Equal(1, followUpQueue.HandoffPack.ImmediateCount);
+            Assert.Equal(1, followUpQueue.HandoffPack.MissingOwnerCount);
+            Assert.Equal(0, followUpQueue.HandoffPack.MissingNoteCount);
+            Assert.Equal(2, followUpQueue.HandoffPack.MissingRouteContextCount);
+            Assert.True(followUpQueue.HandoffPack.BriefingLines.Count >= 2);
+            Assert.Contains("handoff", followUpQueue.HandoffPack.Summary, StringComparison.OrdinalIgnoreCase);
+            Assert.Equal(2, followUpQueue.OwnerSummaries.Count);
+            Assert.Contains(
+                followUpQueue.OwnerSummaries,
+                summary => summary.Owner == "Ops Alice"
+                           && summary.FollowUpCount == 1
+                           && summary.ActiveCount == 1
+                           && summary.OverdueCount == 0);
+            Assert.Contains(
+                followUpQueue.OwnerSummaries,
+                summary => summary.IsUnassigned
+                           && summary.FollowUpCount == 1
+                           && summary.OverdueCount == 1);
 
             var followUpItem = followUpQueue.Items.Single(item => item.ExceptionId == "latest-import-delta");
             Assert.Equal("latest-import-delta", followUpItem.ExceptionId);
             Assert.Equal("Deferred", followUpItem.Status);
             Assert.Equal("Waiting for upstream confirmation.", followUpItem.Note);
             Assert.Equal("Ops Alice", followUpItem.FollowUpOwner);
-            Assert.Equal(DateTimeOffset.Parse("2026-06-23T16:00:00Z"), followUpItem.TargetReturnAtUtc);
+            Assert.Equal(DateTimeOffset.Parse("2026-06-30T16:00:00Z"), followUpItem.TargetReturnAtUtc);
             Assert.True(followUpItem.IsStillActive);
             Assert.False(followUpItem.IsOwnerMissing);
             Assert.False(followUpItem.IsOverdue);
             Assert.Equal("Healthy", followUpItem.AlertSeverity);
+            Assert.Equal("Healthy", followUpItem.SlaPosture);
             Assert.Equal(2, followUpItem.UpdateCount);
             Assert.Equal("Resolved", followUpItem.PreviousStatus);
+            var handoffHealthyItem = followUpQueue.HandoffPack.Items.Single(item => item.ExceptionId == "latest-import-delta");
+            Assert.Equal("Missing route", handoffHealthyItem.ReadinessPosture);
+            Assert.Contains("Ops Alice", handoffHealthyItem.HandoffSummary, StringComparison.OrdinalIgnoreCase);
 
             var overdueItem = followUpQueue.Items.Single(item => item.ExceptionId == "sync-posture-attention");
             Assert.False(overdueItem.IsStillActive);
             Assert.True(overdueItem.IsOwnerMissing);
             Assert.True(overdueItem.IsOverdue);
             Assert.Equal("Critical", overdueItem.AlertSeverity);
+            Assert.Equal("Overdue", overdueItem.SlaPosture);
             Assert.Contains("passed", overdueItem.AlertSummary, StringComparison.OrdinalIgnoreCase);
+            Assert.Equal("sync-posture-attention", followUpQueue.Items.First().ExceptionId);
+            var handoffOverdueItem = followUpQueue.HandoffPack.Items.Single(item => item.ExceptionId == "sync-posture-attention");
+            Assert.Equal("Missing owner", handoffOverdueItem.ReadinessPosture);
+            Assert.Contains("Assign an owner", handoffOverdueItem.ReadinessSummary, StringComparison.OrdinalIgnoreCase);
 
             var refreshedWorkbenchWithCommitment = await workbenchService.BuildAsync("tenant-a");
             var deferredItem = refreshedWorkbenchWithCommitment.Items.First(item => item.ExceptionId == "latest-import-delta");
+            Assert.Equal("Active", deferredItem.ResolutionFollowUpStatus);
             Assert.Equal("Ops Alice", deferredItem.ResolutionFollowUpOwner);
-            Assert.Equal(DateTimeOffset.Parse("2026-06-23T16:00:00Z"), deferredItem.ResolutionTargetReturnAtUtc);
+            Assert.Equal(DateTimeOffset.Parse("2026-06-30T16:00:00Z"), deferredItem.ResolutionTargetReturnAtUtc);
+
+            await resolutionLedgerService.TransitionFollowUpAsync(
+                "tenant-a",
+                "latest-import-delta",
+                new TransportExceptionFollowUpTransitionRequest("retire", "Follow-up retired after manual confirmation."));
+
+            var retiredQueue = await followUpQueueService.BuildAsync("tenant-a");
+            var retiredItem = retiredQueue.Items.Single(item => item.ExceptionId == "latest-import-delta");
+            Assert.Equal("Retired", retiredItem.FollowUpStatus);
+            Assert.Equal(1, retiredQueue.RetiredFollowUpCount);
+
+            var retiredWorkbench = await workbenchService.BuildAsync("tenant-a");
+            var retiredWorkbenchItem = retiredWorkbench.Items.First(item => item.ExceptionId == "latest-import-delta");
+            Assert.Equal("Retired", retiredWorkbenchItem.ResolutionFollowUpStatus);
+
+            await resolutionLedgerService.TransitionFollowUpAsync(
+                "tenant-a",
+                "latest-import-delta",
+                new TransportExceptionFollowUpTransitionRequest("reopen", "Issue resurfaced after closure."));
+
+            var reopenedQueue = await followUpQueueService.BuildAsync("tenant-a");
+            var reopenedItem = reopenedQueue.Items.Single(item => item.ExceptionId == "latest-import-delta");
+            Assert.Equal("Active", reopenedItem.FollowUpStatus);
+            Assert.Equal(0, reopenedQueue.RetiredFollowUpCount);
         }
         finally
         {
