@@ -117,19 +117,22 @@ const transportSyncHistoryErrorMessage = ref<string | null>(null);
 const transportExceptionWorkbench = ref<TransportExceptionWorkbenchView>(
   buildFallbackTransportExceptionWorkbench()
 );
-const transportExceptionWorkbenchConnectionState = ref<DataConnectionState>(
-  "loading"
-);
+const transportExceptionWorkbenchConnectionState =
+  ref<DataConnectionState>("loading");
 const transportExceptionWorkbenchErrorMessage = ref<string | null>(null);
-const transportExceptionResolutionHistory = ref<TransportExceptionResolutionHistoryView>(
-  buildFallbackTransportExceptionResolutionHistory()
-);
+const transportExceptionResolutionHistory =
+  ref<TransportExceptionResolutionHistoryView>(
+    buildFallbackTransportExceptionResolutionHistory()
+  );
 const transportExceptionResolutionHistoryConnectionState =
   ref<DataConnectionState>("loading");
-const transportExceptionResolutionHistoryErrorMessage = ref<string | null>(null);
-const transportExceptionFollowUpQueue = ref<TransportExceptionFollowUpQueueView>(
-  buildFallbackTransportExceptionFollowUpQueue()
+const transportExceptionResolutionHistoryErrorMessage = ref<string | null>(
+  null
 );
+const transportExceptionFollowUpQueue =
+  ref<TransportExceptionFollowUpQueueView>(
+    buildFallbackTransportExceptionFollowUpQueue()
+  );
 const transportExceptionFollowUpQueueConnectionState =
   ref<DataConnectionState>("loading");
 const transportExceptionFollowUpQueueErrorMessage = ref<string | null>(null);
@@ -176,7 +179,8 @@ const secretSaveNotice = ref<Record<string, string>>({});
 const selectedScenarioId = ref(fallbackOverview.scenarios[0].scenarioId);
 const selectedWarehouseId = ref(fallbackOverview.warehouses[0].warehouseId);
 const selectedRouteId = ref(fallbackOverview.routes[0].routeId);
-const selectedTransportExceptionFilter = ref<TransportExceptionFilter>("unreviewed");
+const selectedTransportExceptionFilter =
+  ref<TransportExceptionFilter>("unreviewed");
 const selectedTransportExceptionResolutionFilter =
   ref<TransportExceptionResolutionFilter>("open");
 const selectedTransportFollowUpFilter = ref<TransportFollowUpFilter>("all");
@@ -189,11 +193,10 @@ const selectedSpeed = ref(simulationSpeeds[1]);
 let connectionRecoveryHandle = 0;
 let freshnessTickerHandle = 0;
 
-const currentScenario = computed(
-  () =>
-    overview.value.scenarios.find(
-      (scenario) => scenario.scenarioId === selectedScenarioId.value
-    )
+const currentScenario = computed(() =>
+  overview.value.scenarios.find(
+    (scenario) => scenario.scenarioId === selectedScenarioId.value
+  )
 );
 const activeAlertCount = computed(
   () =>
@@ -405,7 +408,9 @@ const transportSyncFreshness = computed(() => {
   if (ageMinutes < 30) {
     return {
       label: "Fresh",
-      detail: `Imported ${ageMinutes} minute${ageMinutes === 1 ? "" : "s"} ago.`,
+      detail: `Imported ${ageMinutes} minute${
+        ageMinutes === 1 ? "" : "s"
+      } ago.`,
       tone: "severity-healthy",
       ageMinutes,
     };
@@ -414,7 +419,9 @@ const transportSyncFreshness = computed(() => {
   if (ageMinutes < 360) {
     return {
       label: "Aging",
-      detail: `Imported ${ageMinutes} minute${ageMinutes === 1 ? "" : "s"} ago.`,
+      detail: `Imported ${ageMinutes} minute${
+        ageMinutes === 1 ? "" : "s"
+      } ago.`,
       tone: "severity-warning",
       ageMinutes,
     };
@@ -423,7 +430,9 @@ const transportSyncFreshness = computed(() => {
   if (ageMinutes < 1440) {
     return {
       label: "Stale",
-      detail: `Imported about ${Math.round(ageMinutes / 60)} hour${Math.round(ageMinutes / 60) === 1 ? "" : "s"} ago.`,
+      detail: `Imported about ${Math.round(ageMinutes / 60)} hour${
+        Math.round(ageMinutes / 60) === 1 ? "" : "s"
+      } ago.`,
       tone: "severity-degraded",
       ageMinutes,
     };
@@ -431,7 +440,9 @@ const transportSyncFreshness = computed(() => {
 
   return {
     label: "Expired",
-    detail: `Imported about ${Math.round(ageMinutes / 1440)} day${Math.round(ageMinutes / 1440) === 1 ? "" : "s"} ago.`,
+    detail: `Imported about ${Math.round(ageMinutes / 1440)} day${
+      Math.round(ageMinutes / 1440) === 1 ? "" : "s"
+    } ago.`,
     tone: "severity-unhealthy",
     ageMinutes,
   };
@@ -474,7 +485,9 @@ const transportSyncDeltaSummary = computed(() => {
 
   return `${parts.join(" and ")} versus the current route board.`;
 });
-const transportSyncHistory = computed(() => transportSyncHistoryFeed.value.entries);
+const transportSyncHistory = computed(
+  () => transportSyncHistoryFeed.value.entries
+);
 const transportExceptionItems = computed(
   () => transportExceptionWorkbench.value.items
 );
@@ -541,15 +554,17 @@ const nextTransportExceptionItem = computed(
   () => visibleTransportExceptionItems.value[0] ?? null
 );
 const transportExceptionHistoryTitleById = computed(() => {
-  const entries = transportExceptionWorkbench.value.items.map((item) => [
-    item.id,
-    item.title,
-  ] as const);
+  const entries = transportExceptionWorkbench.value.items.map(
+    (item) => [item.id, item.title] as const
+  );
 
   return new Map(entries);
 });
 const transportExceptionHistoryTarget = computed(
-  () => nextTransportExceptionItem.value ?? visibleTransportExceptionItems.value[0] ?? null
+  () =>
+    nextTransportExceptionItem.value ??
+    visibleTransportExceptionItems.value[0] ??
+    null
 );
 const focusedTransportExceptionHistoryEntries = computed(() => {
   const target = transportExceptionHistoryTarget.value;
@@ -694,8 +709,9 @@ const activeTransportExceptionHistoryStatus = computed(() => {
   }
 
   return transportExceptionHistoryTarget.value
-    ? effectiveTransportExceptionResolutionStatus(transportExceptionHistoryTarget.value) ??
-        "Open"
+    ? effectiveTransportExceptionResolutionStatus(
+        transportExceptionHistoryTarget.value
+      ) ?? "Open"
     : "Clear";
 });
 const transportExceptionFilterOptions = computed(() => [
@@ -718,7 +734,11 @@ const transportExceptionFilterOptions = computed(() => [
   },
 ]);
 const transportExceptionResolutionFilterOptions = computed(() => [
-  { key: "open", label: "Open", count: openTransportExceptionItems.value.length },
+  {
+    key: "open",
+    label: "Open",
+    count: openTransportExceptionItems.value.length,
+  },
   {
     key: "reviewed",
     label: "Reviewed",
@@ -762,7 +782,9 @@ const selectedRouteDiffSummary = computed(() => {
   }
 
   return {
-    title: `${diff.routeReference} is ${diff.changeType.toLowerCase()} in the latest diff`,
+    title: `${
+      diff.routeReference
+    } is ${diff.changeType.toLowerCase()} in the latest diff`,
     detail: diff.summary,
   };
 });
@@ -789,7 +811,9 @@ const transportDiffFilterOptions = computed(() => {
     {
       value: "selected" as const,
       label: selectedReference,
-      count: routeDiffs.some((item) => item.routeReference === selectedReference)
+      count: routeDiffs.some(
+        (item) => item.routeReference === selectedReference
+      )
         ? 1
         : 0,
     },
@@ -880,7 +904,11 @@ const transportRecoveryCues = computed(() => {
     detail: string;
     actionId: TransportSupportActionId;
     actionLabel: string;
-    tone: "severity-healthy" | "severity-warning" | "severity-degraded" | "severity-unhealthy";
+    tone:
+      | "severity-healthy"
+      | "severity-warning"
+      | "severity-degraded"
+      | "severity-unhealthy";
   }> = [];
 
   if (!transportSyncStatus.value.hasPersistedSnapshot) {
@@ -1146,7 +1174,8 @@ const transportSyncCadence = computed(() => {
   if (successTime === null && attemptTime === null) {
     return {
       label: "Cadence unknown",
-      detail: "No successful or attempted sync timestamp has been recorded yet.",
+      detail:
+        "No successful or attempted sync timestamp has been recorded yet.",
       tone: "severity-warning" as const,
     };
   }
@@ -1168,16 +1197,22 @@ const transportSyncCadence = computed(() => {
       detail: `The latest attempt landed ${gapHours.toFixed(1)} hour${
         gapHours === 1 ? "" : "s"
       } after the last success.`,
-      tone: gapHours > 24 ? ("severity-degraded" as const) : ("severity-healthy" as const),
+      tone:
+        gapHours > 24
+          ? ("severity-degraded" as const)
+          : ("severity-healthy" as const),
     };
   }
 
   return {
     label: gapHours > 24 ? "Slow cadence" : "Steady cadence",
-    detail: `The last attempt and the last success are ${gapHours.toFixed(1)} hour${
-      gapHours === 1 ? "" : "s"
-    } apart.`,
-    tone: gapHours > 24 ? ("severity-warning" as const) : ("severity-healthy" as const),
+    detail: `The last attempt and the last success are ${gapHours.toFixed(
+      1
+    )} hour${gapHours === 1 ? "" : "s"} apart.`,
+    tone:
+      gapHours > 24
+        ? ("severity-warning" as const)
+        : ("severity-healthy" as const),
   };
 });
 const transportFreshnessTrust = computed(() => {
@@ -1243,7 +1278,9 @@ const transportRouteFreshnessSpotlight = computed(() => {
 
   const selectedReference = routeDetail.value.reference;
   const isPresentInLatestImport =
-    transportSyncStatus.value.importedRouteReferences.includes(selectedReference);
+    transportSyncStatus.value.importedRouteReferences.includes(
+      selectedReference
+    );
 
   if (isPresentInLatestImport) {
     return {
@@ -1253,7 +1290,8 @@ const transportRouteFreshnessSpotlight = computed(() => {
     };
   }
 
-  const nearestReference = latestImportedRoute.value?.reference ?? "the latest import";
+  const nearestReference =
+    latestImportedRoute.value?.reference ?? "the latest import";
 
   return {
     label: "Route outside snapshot",
@@ -1263,7 +1301,9 @@ const transportRouteFreshnessSpotlight = computed(() => {
 });
 const transportFreshnessChecklist = computed(() => {
   const refreshActionLabel =
-    transportSyncStatus.value.source === "live" ? "Refresh sync" : "Import snapshot";
+    transportSyncStatus.value.source === "live"
+      ? "Refresh sync"
+      : "Import snapshot";
   const refreshActionDetail =
     transportSyncStatus.value.source === "live"
       ? "Pull a fresh transport snapshot before trusting the current board."
@@ -1300,7 +1340,10 @@ const transportFreshnessChecklist = computed(() => {
   };
 });
 const transportSnapshotAction = computed(() => ({
-  label: transportSyncStatus.value.source === "live" ? "Refresh sync" : "Import snapshot",
+  label:
+    transportSyncStatus.value.source === "live"
+      ? "Refresh sync"
+      : "Import snapshot",
   detail:
     transportSyncStatus.value.source === "live"
       ? "Pull a fresh transport snapshot from the live provider."
@@ -1310,7 +1353,8 @@ const transportSelectedDiffAction = computed(() => {
   if (!transportSyncStatus.value.hasPersistedSnapshot) {
     return {
       label: "Show selected diff",
-      detail: "Import a transport snapshot before comparing the selected route.",
+      detail:
+        "Import a transport snapshot before comparing the selected route.",
       disabled: true,
     };
   }
@@ -1369,7 +1413,8 @@ const transportFreshnessPostureBanner = computed(() => {
       title: "Freshness is still running on fallback posture",
       detail:
         "No persisted transport snapshot exists yet, so the cluster can guide setup but not confirm a route-by-route baseline.",
-      nextStep: "Import the first snapshot to unlock route-level comparison and trust signals.",
+      nextStep:
+        "Import the first snapshot to unlock route-level comparison and trust signals.",
     };
   }
 
@@ -1382,7 +1427,8 @@ const transportFreshnessPostureBanner = computed(() => {
       title: "Freshness posture is not safe to trust",
       detail:
         "The latest snapshot is expired or the sync health is unhealthy, so the transport board should be treated as illustrative.",
-      nextStep: "Refresh the snapshot before using this route board for decisions or support calls.",
+      nextStep:
+        "Refresh the snapshot before using this route board for decisions or support calls.",
     };
   }
 
@@ -1396,7 +1442,8 @@ const transportFreshnessPostureBanner = computed(() => {
       title: "Freshness posture is drifting",
       detail:
         "The cluster still explains what changed, but the latest imported baseline is no longer recent enough for confident transport supervision.",
-      nextStep: "Refresh the snapshot soon and confirm the selected route still appears in the latest import.",
+      nextStep:
+        "Refresh the snapshot soon and confirm the selected route still appears in the latest import.",
     };
   }
 
@@ -1409,7 +1456,8 @@ const transportFreshnessPostureBanner = computed(() => {
       title: "Freshness posture is usable with caution",
       detail:
         "The baseline is still operational, but the sync rhythm is slowing or health posture needs a closer read.",
-      nextStep: "Use the cadence and spotlight cards to decide whether the next sync should happen before the next operator handoff.",
+      nextStep:
+        "Use the cadence and spotlight cards to decide whether the next sync should happen before the next operator handoff.",
     };
   }
 
@@ -1418,21 +1466,25 @@ const transportFreshnessPostureBanner = computed(() => {
     title: "Freshness posture is currently reliable",
     detail:
       "The latest transport snapshot is recent enough to support normal route review and diff investigation.",
-    nextStep: "Keep monitoring cadence drift and import again before the next major route change window.",
+    nextStep:
+      "Keep monitoring cadence drift and import again before the next major route change window.",
   };
 });
 const transportFreshnessTimeline = computed(() => {
   const items: Array<{
     label: string;
     value: string;
-    tone: "severity-healthy" | "severity-warning" | "severity-degraded" | "severity-unhealthy";
+    tone:
+      | "severity-healthy"
+      | "severity-warning"
+      | "severity-degraded"
+      | "severity-unhealthy";
   }> = [];
 
   items.push({
     label: "Imported",
     value:
-      transportSyncStatus.value.lastImportedAtLabel ??
-      "No persisted snapshot",
+      transportSyncStatus.value.lastImportedAtLabel ?? "No persisted snapshot",
     tone: transportSyncFreshness.value.tone,
   });
 
@@ -1529,7 +1581,8 @@ const transportFreshnessPrimaryConcern = computed(() => {
       tone: "severity-warning" as const,
       actionId: "sync-import" as TransportFreshnessActionId,
       actionLabel: "Import snapshot",
-      actionReason: "Create the first persisted transport view before trusting route-level freshness.",
+      actionReason:
+        "Create the first persisted transport view before trusting route-level freshness.",
       sectionId: "transport-freshness-drillthrough",
       sectionLabel: "Drill-through",
     };
@@ -1574,7 +1627,8 @@ const transportFreshnessPrimaryConcern = computed(() => {
         transportSyncStatus.value.source === "live"
           ? "Refresh sync"
           : "Import snapshot",
-      actionReason: "Replace the expired baseline before making route or support decisions.",
+      actionReason:
+        "Replace the expired baseline before making route or support decisions.",
       sectionId: "transport-freshness-drillthrough",
       sectionLabel: "Drill-through",
     };
@@ -1599,7 +1653,8 @@ const transportFreshnessPrimaryConcern = computed(() => {
         transportSyncStatus.value.source === "live"
           ? "Refresh sync"
           : "Import snapshot",
-      actionReason: "Update the baseline before stale cadence turns into expired trust.",
+      actionReason:
+        "Update the baseline before stale cadence turns into expired trust.",
       sectionId: "transport-sync-cadence",
       sectionLabel: "Cadence",
     };
@@ -1620,7 +1675,8 @@ const transportFreshnessPrimaryConcern = computed(() => {
       tone: "severity-warning" as const,
       actionId: "route-focus-import" as TransportFreshnessActionId,
       actionLabel: `Focus ${latestImportedRoute.value.reference}`,
-      actionReason: "Jump to the nearest confirmed imported route and compare the drift directly.",
+      actionReason:
+        "Jump to the nearest confirmed imported route and compare the drift directly.",
       sectionId: "transport-route-freshness-spotlight",
       sectionLabel: "Route",
     };
@@ -1641,7 +1697,8 @@ const transportFreshnessPrimaryConcern = computed(() => {
         transportSyncStatus.value.source === "live"
           ? "Refresh sync"
           : "Import snapshot",
-      actionReason: "Land enough snapshot history to unlock selected-route diff evidence.",
+      actionReason:
+        "Land enough snapshot history to unlock selected-route diff evidence.",
       sectionId: "transport-freshness-checklist",
       sectionLabel: "Checklist",
     };
@@ -1655,7 +1712,8 @@ const transportFreshnessPrimaryConcern = computed(() => {
     tone: "severity-healthy" as const,
     actionId: "focus-route" as TransportFreshnessActionId,
     actionLabel: "Focus route",
-    actionReason: "Use the current route as the next decision surface while freshness remains stable.",
+    actionReason:
+      "Use the current route as the next decision surface while freshness remains stable.",
     sectionId: "transport-route-freshness-spotlight",
     sectionLabel: "Route",
   };
@@ -1706,7 +1764,9 @@ function jumpToTransportFreshnessSection(sectionId: string) {
 
   element.scrollIntoView({ behavior: "smooth", block: "start" });
 }
-function runTransportFreshnessAction(actionId: TransportFreshnessActionId): void {
+function runTransportFreshnessAction(
+  actionId: TransportFreshnessActionId
+): void {
   switch (actionId) {
     case "selected-diff":
       focusTransportSelectedDiff();
@@ -1875,7 +1935,9 @@ function transportExceptionResolutionDraft(
   exceptionId: string,
   currentNote: string | null = null
 ): string {
-  return transportExceptionResolutionDrafts.value[exceptionId] ?? currentNote ?? "";
+  return (
+    transportExceptionResolutionDrafts.value[exceptionId] ?? currentNote ?? ""
+  );
 }
 
 function toDatetimeLocalValue(value: string | null): string {
@@ -2071,9 +2133,7 @@ async function transitionTransportExceptionFollowUpState(
     transportExceptionResolutionNotice.value = {
       ...transportExceptionResolutionNotice.value,
       [exceptionId]:
-        action === "retire"
-          ? "Follow-up retired."
-          : "Follow-up reopened.",
+        action === "retire" ? "Follow-up retired." : "Follow-up reopened.",
     };
   } catch (error) {
     transportExceptionResolutionNotice.value = {
@@ -2410,9 +2470,10 @@ function applyTransportExceptionWorkbenchResult(
 
   if (!keepCurrentSnapshot) {
     transportExceptionWorkbench.value = result.workbench;
-    reviewedTransportExceptionIds.value = reviewedTransportExceptionIds.value.filter(
-      (id) => result.workbench.items.some((item) => item.id === id)
-    );
+    reviewedTransportExceptionIds.value =
+      reviewedTransportExceptionIds.value.filter((id) =>
+        result.workbench.items.some((item) => item.id === id)
+      );
   }
 
   transportExceptionWorkbenchConnectionState.value = keepCurrentSnapshot
@@ -3440,7 +3501,9 @@ onBeforeUnmount(() => {
                   <span class="panel-label">Escalation cues</span>
                   <h3>When to stop trusting the snapshot</h3>
                 </div>
-                <span class="mini-badge">{{ transportRecoveryCues.length }}</span>
+                <span class="mini-badge">{{
+                  transportRecoveryCues.length
+                }}</span>
               </div>
 
               <ul class="transport-story-list">
@@ -3452,7 +3515,7 @@ onBeforeUnmount(() => {
                   <div class="transport-route-diff-head">
                     <strong>{{ cue.title }}</strong>
                     <span class="status-pill" :class="cue.tone">
-                      {{ cue.tone.replace('severity-', '') }}
+                      {{ cue.tone.replace("severity-", "") }}
                     </span>
                   </div>
                   <span>{{ cue.detail }}</span>
@@ -3480,7 +3543,8 @@ onBeforeUnmount(() => {
               aria-labelledby="transport-freshness-drillthrough-title"
               :class="{
                 'is-priority-card':
-                  transportFreshnessPrioritySectionId === 'transport-freshness-drillthrough',
+                  transportFreshnessPrioritySectionId ===
+                  'transport-freshness-drillthrough',
               }"
             >
               <div class="transport-freshness-posture-banner">
@@ -3503,10 +3567,13 @@ onBeforeUnmount(() => {
                     >
                       {{ transportFreshnessPrimaryConcern.urgencyLabel }}
                     </span>
-                    <strong>{{ transportFreshnessPrimaryConcern.title }}</strong>
+                    <strong>{{
+                      transportFreshnessPrimaryConcern.title
+                    }}</strong>
                     <p>{{ transportFreshnessPrimaryConcern.detail }}</p>
                     <span class="transport-freshness-priority-target">
-                      Priority section: {{ transportFreshnessPrimaryConcern.sectionLabel }}
+                      Priority section:
+                      {{ transportFreshnessPrimaryConcern.sectionLabel }}
                     </span>
                   </div>
                   <div class="transport-freshness-priority-actions">
@@ -3514,12 +3581,21 @@ onBeforeUnmount(() => {
                       class="status-pill"
                       :class="transportFreshnessPrimaryConcern.tone"
                     >
-                      {{ transportFreshnessPrimaryConcern.tone.replace("severity-", "") }}
+                      {{
+                        transportFreshnessPrimaryConcern.tone.replace(
+                          "severity-",
+                          ""
+                        )
+                      }}
                     </span>
                     <button
                       type="button"
                       class="catalog-save-button"
-                      @click="runTransportFreshnessAction(transportFreshnessPrimaryConcern.actionId)"
+                      @click="
+                        runTransportFreshnessAction(
+                          transportFreshnessPrimaryConcern.actionId
+                        )
+                      "
                     >
                       {{ transportFreshnessPrimaryConcern.actionLabel }}
                     </button>
@@ -3529,13 +3605,20 @@ onBeforeUnmount(() => {
                     <button
                       type="button"
                       class="transport-freshness-link is-primary"
-                      @click="jumpToTransportFreshnessSection(transportFreshnessPrimaryConcern.sectionId)"
+                      @click="
+                        jumpToTransportFreshnessSection(
+                          transportFreshnessPrimaryConcern.sectionId
+                        )
+                      "
                     >
                       Go to {{ transportFreshnessPrimaryConcern.sectionLabel }}
                     </button>
                   </div>
                 </div>
-                <div class="transport-freshness-timeline" aria-label="Freshness timeline summary">
+                <div
+                  class="transport-freshness-timeline"
+                  aria-label="Freshness timeline summary"
+                >
                   <article
                     v-for="item in transportFreshnessTimeline"
                     :key="item.label"
@@ -3554,7 +3637,10 @@ onBeforeUnmount(() => {
                     </span>
                   </article>
                 </div>
-                <div class="transport-freshness-digest" aria-label="Freshness digest">
+                <div
+                  class="transport-freshness-digest"
+                  aria-label="Freshness digest"
+                >
                   <span
                     v-for="item in transportFreshnessDigest"
                     :key="item.label"
@@ -3564,7 +3650,10 @@ onBeforeUnmount(() => {
                     {{ item.label }}: {{ item.value }}
                   </span>
                 </div>
-                <div class="transport-freshness-quick-links" aria-label="Freshness quick navigation">
+                <div
+                  class="transport-freshness-quick-links"
+                  aria-label="Freshness quick navigation"
+                >
                   <button
                     v-for="link in transportFreshnessQuickLinksWithPriority"
                     :key="link.id"
@@ -3666,13 +3755,16 @@ onBeforeUnmount(() => {
               aria-labelledby="transport-freshness-lineage-title"
               :class="{
                 'is-priority-card':
-                  transportFreshnessPrioritySectionId === 'transport-freshness-lineage',
+                  transportFreshnessPrioritySectionId ===
+                  'transport-freshness-lineage',
               }"
             >
               <div class="catalog-editor-heading">
                 <div>
                   <span class="panel-label">Freshness lineage</span>
-                  <h3 id="transport-freshness-lineage-title">How the snapshot aged</h3>
+                  <h3 id="transport-freshness-lineage-title">
+                    How the snapshot aged
+                  </h3>
                 </div>
                 <span class="mini-badge">{{
                   transportFreshnessLineage.length
@@ -3680,7 +3772,8 @@ onBeforeUnmount(() => {
               </div>
 
               <p class="catalog-summary">
-                Read the compressed chronology below to see whether age comes from quiet time, missing success, or retry lag.
+                Read the compressed chronology below to see whether age comes
+                from quiet time, missing success, or retry lag.
               </p>
 
               <ul class="transport-story-list">
@@ -3697,7 +3790,8 @@ onBeforeUnmount(() => {
               aria-labelledby="transport-sync-cadence-title"
               :class="{
                 'is-priority-card':
-                  transportFreshnessPrioritySectionId === 'transport-sync-cadence',
+                  transportFreshnessPrioritySectionId ===
+                  'transport-sync-cadence',
               }"
             >
               <div class="catalog-editor-heading">
@@ -3741,7 +3835,8 @@ onBeforeUnmount(() => {
               aria-labelledby="transport-freshness-trust-title"
               :class="{
                 'is-priority-card':
-                  transportFreshnessPrioritySectionId === 'transport-freshness-trust',
+                  transportFreshnessPrioritySectionId ===
+                  'transport-freshness-trust',
               }"
             >
               <div class="catalog-editor-heading">
@@ -3768,15 +3863,24 @@ onBeforeUnmount(() => {
               <ul class="transport-story-list">
                 <li>
                   <strong>Freshness posture</strong>
-                  <span>{{ transportSyncFreshness.label }} - {{ transportSyncFreshness.detail }}</span>
+                  <span
+                    >{{ transportSyncFreshness.label }} -
+                    {{ transportSyncFreshness.detail }}</span
+                  >
                 </li>
                 <li>
                   <strong>Health posture</strong>
-                  <span>{{ transportSyncStatus.healthStatus }} - {{ transportSyncStatus.healthSummary }}</span>
+                  <span
+                    >{{ transportSyncStatus.healthStatus }} -
+                    {{ transportSyncStatus.healthSummary }}</span
+                  >
                 </li>
                 <li>
                   <strong>Cadence posture</strong>
-                  <span>{{ transportSyncCadence.label }} - {{ transportSyncCadence.detail }}</span>
+                  <span
+                    >{{ transportSyncCadence.label }} -
+                    {{ transportSyncCadence.detail }}</span
+                  >
                 </li>
               </ul>
             </article>
@@ -3787,7 +3891,8 @@ onBeforeUnmount(() => {
               aria-labelledby="transport-route-freshness-spotlight-title"
               :class="{
                 'is-priority-card':
-                  transportFreshnessPrioritySectionId === 'transport-route-freshness-spotlight',
+                  transportFreshnessPrioritySectionId ===
+                  'transport-route-freshness-spotlight',
               }"
             >
               <div class="catalog-editor-heading">
@@ -3797,7 +3902,10 @@ onBeforeUnmount(() => {
                     Where the selected route stands in the latest import
                   </h3>
                 </div>
-                <span class="status-pill" :class="transportRouteFreshnessSpotlight.tone">
+                <span
+                  class="status-pill"
+                  :class="transportRouteFreshnessSpotlight.tone"
+                >
                   {{ transportRouteFreshnessSpotlight.label }}
                 </span>
               </div>
@@ -3842,7 +3950,8 @@ onBeforeUnmount(() => {
               aria-labelledby="transport-freshness-checklist-title"
               :class="{
                 'is-priority-card':
-                  transportFreshnessPrioritySectionId === 'transport-freshness-checklist',
+                  transportFreshnessPrioritySectionId ===
+                  'transport-freshness-checklist',
               }"
             >
               <div class="catalog-editor-heading">
@@ -3862,7 +3971,10 @@ onBeforeUnmount(() => {
               </p>
 
               <ul class="transport-story-list">
-                <li v-for="item in transportFreshnessChecklist.items" :key="item.title">
+                <li
+                  v-for="item in transportFreshnessChecklist.items"
+                  :key="item.title"
+                >
                   <strong>{{ item.title }}</strong>
                   <span>{{ item.detail }}</span>
                 </li>
@@ -3886,7 +3998,9 @@ onBeforeUnmount(() => {
                     )
                   "
                 >
-                  <strong>{{ transportFreshnessChecklist.items[0].actionLabel }}</strong>
+                  <strong>{{
+                    transportFreshnessChecklist.items[0].actionLabel
+                  }}</strong>
                   <span>{{ transportFreshnessChecklist.items[0].detail }}</span>
                 </button>
 
@@ -4037,7 +4151,8 @@ onBeforeUnmount(() => {
                       filterOption.key,
                   }"
                   @click="
-                    selectedTransportExceptionResolutionFilter = filterOption.key
+                    selectedTransportExceptionResolutionFilter =
+                      filterOption.key
                   "
                 >
                   {{ filterOption.label }} ({{ filterOption.count }})
@@ -4132,14 +4247,18 @@ onBeforeUnmount(() => {
                   <span v-if="item.evidence.length > 0">
                     {{ item.evidence.join(" · ") }}
                   </span>
-                  <span v-if="effectiveTransportExceptionResolutionStatus(item)">
+                  <span
+                    v-if="effectiveTransportExceptionResolutionStatus(item)"
+                  >
                     Resolution:
                     {{ effectiveTransportExceptionResolutionStatus(item) }}
                     <template v-if="item.resolutionUpdatedAtLabel">
                       - {{ item.resolutionUpdatedAtLabel }}
                     </template>
                   </span>
-                  <span v-if="item.resolutionNote">{{ item.resolutionNote }}</span>
+                  <span v-if="item.resolutionNote">{{
+                    item.resolutionNote
+                  }}</span>
                   <span
                     v-if="
                       item.resolutionFollowUpOwner ||
@@ -4327,9 +4446,7 @@ onBeforeUnmount(() => {
                     {{ run.removedRouteCount }} removed versus the previous
                     import
                   </span>
-                  <span v-else>
-                    Baseline import for this history window.
-                  </span>
+                  <span v-else> Baseline import for this history window. </span>
                   <span v-if="run.routeReferencePreview.length > 0">
                     Routes:
                     {{ run.routeReferencePreview.join(", ") }}
@@ -4369,7 +4486,10 @@ onBeforeUnmount(() => {
                 {{ transportExceptionFollowUpQueue.handoffPack.ownerHeadline }}
               </p>
               <p class="catalog-summary">
-                {{ transportExceptionFollowUpQueue.handoffPack.acknowledgementHeadline }}
+                {{
+                  transportExceptionFollowUpQueue.handoffPack
+                    .acknowledgementHeadline
+                }}
               </p>
 
               <div class="transport-sync-grid">
@@ -4397,9 +4517,12 @@ onBeforeUnmount(() => {
                 <div class="transport-sync-metric">
                   <span class="panel-label">Readiness gaps</span>
                   <strong>{{
-                    transportExceptionFollowUpQueue.handoffPack.missingOwnerCount +
-                    transportExceptionFollowUpQueue.handoffPack.missingNoteCount +
-                    transportExceptionFollowUpQueue.handoffPack.missingRouteContextCount
+                    transportExceptionFollowUpQueue.handoffPack
+                      .missingOwnerCount +
+                    transportExceptionFollowUpQueue.handoffPack
+                      .missingNoteCount +
+                    transportExceptionFollowUpQueue.handoffPack
+                      .missingRouteContextCount
                   }}</strong>
                   <span>owner, note, or route context still missing</span>
                 </div>
@@ -4407,7 +4530,8 @@ onBeforeUnmount(() => {
 
               <ul class="transport-story-list">
                 <li
-                  v-for="item in transportExceptionFollowUpQueue.handoffPack.items"
+                  v-for="item in transportExceptionFollowUpQueue.handoffPack
+                    .items"
                   :key="`handoff-${item.exceptionId}`"
                 >
                   <strong>{{ item.title }}</strong>
@@ -4422,7 +4546,10 @@ onBeforeUnmount(() => {
                     {{ item.acknowledgementSummary }}
                   </span>
                   <span>
-                    {{ item.note ?? "No deferred note captured for the next shift." }}
+                    {{
+                      item.note ??
+                      "No deferred note captured for the next shift."
+                    }}
                   </span>
                   <span v-if="item.targetReturnAtLabel">
                     Return window · {{ item.targetReturnAtLabel }}
@@ -4441,7 +4568,8 @@ onBeforeUnmount(() => {
                       runTransportExceptionAction(
                         item.recommendedAction,
                         transportExceptionFollowUpQueue.items.find(
-                          (candidate) => candidate.exceptionId === item.exceptionId
+                          (candidate) =>
+                            candidate.exceptionId === item.exceptionId
                         )?.routeId ?? null,
                         item.routeReference
                       )
@@ -4453,7 +4581,9 @@ onBeforeUnmount(() => {
                     v-if="item.acknowledgementStatus === 'Unacknowledged'"
                     type="button"
                     class="catalog-save-button"
-                    :disabled="savingTransportExceptionResolutionId === item.exceptionId"
+                    :disabled="
+                      savingTransportExceptionResolutionId === item.exceptionId
+                    "
                     @click="
                       acknowledgeTransportExceptionFollowUp(
                         item.exceptionId,
@@ -4466,7 +4596,10 @@ onBeforeUnmount(() => {
                   </button>
                 </li>
                 <li
-                  v-if="transportExceptionFollowUpQueue.handoffPack.items.length === 0"
+                  v-if="
+                    transportExceptionFollowUpQueue.handoffPack.items.length ===
+                    0
+                  "
                 >
                   <strong>No active handoff pack right now</strong>
                   <span>
@@ -4477,7 +4610,10 @@ onBeforeUnmount(() => {
               </ul>
 
               <ul
-                v-if="transportExceptionFollowUpQueue.handoffPack.briefingLines.length > 0"
+                v-if="
+                  transportExceptionFollowUpQueue.handoffPack.briefingLines
+                    .length > 0
+                "
                 class="transport-story-list"
               >
                 <li>
@@ -4488,7 +4624,8 @@ onBeforeUnmount(() => {
                   </span>
                 </li>
                 <li
-                  v-for="(line, index) in transportExceptionFollowUpQueue.handoffPack.briefingLines"
+                  v-for="(line, index) in transportExceptionFollowUpQueue
+                    .handoffPack.briefingLines"
                   :key="`handoff-line-${index}`"
                 >
                   <span>{{ normalizeInterpunctText(line) }}</span>
@@ -4527,22 +4664,24 @@ onBeforeUnmount(() => {
                   :disabled="focusedTransportFollowUpItem === null"
                   @click="
                     focusedTransportFollowUpItem &&
-                    runTransportExceptionAction(
-                      focusedTransportFollowUpItem.recommendedAction,
-                      focusedTransportFollowUpItem.routeId,
-                      focusedTransportFollowUpItem.routeReference
-                    )
+                      runTransportExceptionAction(
+                        focusedTransportFollowUpItem.recommendedAction,
+                        focusedTransportFollowUpItem.routeId,
+                        focusedTransportFollowUpItem.routeReference
+                      )
                   "
                 >
                   <strong>
                     {{
                       focusedTransportFollowUpItem?.title ??
-                      'No active focus target'
+                      "No active focus target"
                     }}
                   </strong>
                   <span>{{
                     focusedTransportFollowUpItem
-                      ? `${focusedTransportFollowUpItem.slaPosture} posture · ${formatFollowUpCountdown(
+                      ? `${
+                          focusedTransportFollowUpItem.slaPosture
+                        } posture · ${formatFollowUpCountdown(
                           focusedTransportFollowUpItem.hoursUntilTarget
                         )}`
                       : transportExceptionFollowUpQueue.focusSummary
@@ -4631,7 +4770,11 @@ onBeforeUnmount(() => {
                 </strong>
                 <span
                   class="mini-badge"
-                  :class="followUpPostureClass(focusedTransportFollowUpItem.slaPosture)"
+                  :class="
+                    followUpPostureClass(
+                      focusedTransportFollowUpItem.slaPosture
+                    )
+                  "
                 >
                   {{ focusedTransportFollowUpItem.slaPosture }}
                 </span>
@@ -4647,8 +4790,14 @@ onBeforeUnmount(() => {
                     "Unassigned owner"
                   }}
                   ·
-                  {{ formatFollowUpCountdown(focusedTransportFollowUpItem.hoursUntilTarget) }}
-                  <template v-if="focusedTransportFollowUpItem.targetReturnAtLabel">
+                  {{
+                    formatFollowUpCountdown(
+                      focusedTransportFollowUpItem.hoursUntilTarget
+                    )
+                  }}
+                  <template
+                    v-if="focusedTransportFollowUpItem.targetReturnAtLabel"
+                  >
                     · return
                     {{ focusedTransportFollowUpItem.targetReturnAtLabel }}
                   </template>
@@ -4701,7 +4850,9 @@ onBeforeUnmount(() => {
                   :key="`follow-up-${item.exceptionId}`"
                 >
                   <strong>{{ item.title }}</strong>
-                  <span>{{ item.alertSeverity }} - {{ item.alertSummary }}</span>
+                  <span
+                    >{{ item.alertSeverity }} - {{ item.alertSummary }}</span
+                  >
                   <span>
                     {{ item.status }} · {{ item.followUpStatus }} follow-up ·
                     {{ item.slaPosture }} ·
@@ -4742,7 +4893,7 @@ onBeforeUnmount(() => {
                     {{ item.evidence.join(" · ") }}
                   </span>
                   <span>
-                    {{ item.acknowledgementStatus ?? 'Unacknowledged' }}
+                    {{ item.acknowledgementStatus ?? "Unacknowledged" }}
                     <template v-if="item.acknowledgedBy">
                       · {{ item.acknowledgedBy }}
                     </template>
@@ -4815,7 +4966,9 @@ onBeforeUnmount(() => {
                     v-if="item.acknowledgementStatus !== 'Acknowledged'"
                     type="button"
                     class="catalog-save-button"
-                    :disabled="savingTransportExceptionResolutionId === item.exceptionId"
+                    :disabled="
+                      savingTransportExceptionResolutionId === item.exceptionId
+                    "
                     @click="
                       acknowledgeTransportExceptionFollowUp(
                         item.exceptionId,
@@ -4829,9 +4982,14 @@ onBeforeUnmount(() => {
                   <button
                     type="button"
                     class="catalog-save-button"
-                    :disabled="savingTransportExceptionResolutionId === item.exceptionId"
+                    :disabled="
+                      savingTransportExceptionResolutionId === item.exceptionId
+                    "
                     @click="
-                      saveResolvedTransportException(item.exceptionId, 'Deferred')
+                      saveResolvedTransportException(
+                        item.exceptionId,
+                        'Deferred'
+                      )
                     "
                   >
                     Save commitment
@@ -4839,7 +4997,9 @@ onBeforeUnmount(() => {
                   <button
                     type="button"
                     class="catalog-save-button"
-                    :disabled="savingTransportExceptionResolutionId === item.exceptionId"
+                    :disabled="
+                      savingTransportExceptionResolutionId === item.exceptionId
+                    "
                     @click="
                       transitionTransportExceptionFollowUpState(
                         item.exceptionId,
@@ -4853,7 +5013,9 @@ onBeforeUnmount(() => {
                         : "Retire follow-up"
                     }}
                   </button>
-                  <span v-if="transportExceptionResolutionNotice[item.exceptionId]">
+                  <span
+                    v-if="transportExceptionResolutionNotice[item.exceptionId]"
+                  >
                     {{ transportExceptionResolutionNotice[item.exceptionId] }}
                   </span>
                 </li>
@@ -4873,7 +5035,9 @@ onBeforeUnmount(() => {
                   <span class="panel-label">Historical diff</span>
                   <h3>Latest vs previous import</h3>
                 </div>
-                <span class="mini-badge">{{ filteredTransportDiffs.length }}</span>
+                <span class="mini-badge">{{
+                  filteredTransportDiffs.length
+                }}</span>
               </div>
 
               <p class="catalog-summary">
@@ -4926,8 +5090,10 @@ onBeforeUnmount(() => {
                   type="button"
                   class="catalog-chip transport-diff-filter-chip"
                   :class="{
-                    'is-muted': selectedTransportDiffFilter !== filterOption.value,
-                    'is-active': selectedTransportDiffFilter === filterOption.value,
+                    'is-muted':
+                      selectedTransportDiffFilter !== filterOption.value,
+                    'is-active':
+                      selectedTransportDiffFilter === filterOption.value,
                   }"
                   @click="selectedTransportDiffFilter = filterOption.value"
                 >
@@ -4991,13 +5157,17 @@ onBeforeUnmount(() => {
               <div class="transport-sync-grid">
                 <div class="transport-sync-metric">
                   <span class="panel-label">Recent updates</span>
-                  <strong>{{ transportExceptionResolutionHistory.count }}</strong>
+                  <strong>{{
+                    transportExceptionResolutionHistory.count
+                  }}</strong>
                   <span>persisted operator resolution events</span>
                 </div>
 
                 <div class="transport-sync-metric">
                   <span class="panel-label">Focused trail</span>
-                  <strong>{{ focusedTransportExceptionHistoryEntries.length }}</strong>
+                  <strong>{{
+                    focusedTransportExceptionHistoryEntries.length
+                  }}</strong>
                   <span>
                     {{
                       transportExceptionHistoryTarget?.title ??
@@ -5029,7 +5199,9 @@ onBeforeUnmount(() => {
                   </strong>
                   <span>
                     {{ latestFocusedTransportExceptionHistoryEntry.status }} -
-                    {{ latestFocusedTransportExceptionHistoryEntry.updatedAtLabel }}
+                    {{
+                      latestFocusedTransportExceptionHistoryEntry.updatedAtLabel
+                    }}
                   </span>
                   <span>
                     {{
@@ -5060,8 +5232,9 @@ onBeforeUnmount(() => {
                 >
                   <strong>
                     {{
-                      transportExceptionHistoryTitleById.get(entry.exceptionId) ??
-                      entry.exceptionId
+                      transportExceptionHistoryTitleById.get(
+                        entry.exceptionId
+                      ) ?? entry.exceptionId
                     }}
                   </strong>
                   <span>{{ entry.status }} - {{ entry.updatedAtLabel }}</span>
@@ -6896,12 +7069,8 @@ onBeforeUnmount(() => {
   border-radius: 8px;
   background: rgba(15, 23, 42, 0.82);
   cursor: pointer;
-  transition:
-    border-color 140ms ease,
-    background-color 140ms ease,
-    transform 140ms ease,
-    box-shadow 140ms ease,
-    opacity 140ms ease;
+  transition: border-color 140ms ease, background-color 140ms ease,
+    transform 140ms ease, box-shadow 140ms ease, opacity 140ms ease;
 }
 
 .transport-freshness-action strong,
