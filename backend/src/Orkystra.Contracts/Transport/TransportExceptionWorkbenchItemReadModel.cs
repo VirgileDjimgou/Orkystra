@@ -12,5 +12,7 @@ public sealed record TransportExceptionWorkbenchItemReadModel(
     string ActionLabel,
     string? ResolutionStatus,
     string? ResolutionNote,
+    string? ResolutionFollowUpOwner,
+    DateTimeOffset? ResolutionTargetReturnAtUtc,
     DateTimeOffset? ResolutionUpdatedAtUtc,
     IReadOnlyCollection<string> Evidence);

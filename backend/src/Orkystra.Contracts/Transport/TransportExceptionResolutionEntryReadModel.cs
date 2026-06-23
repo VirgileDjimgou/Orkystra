@@ -4,4 +4,6 @@ public sealed record TransportExceptionResolutionEntryReadModel(
     string ExceptionId,
     string Status,
     string? Note,
+    string? FollowUpOwner,
+    DateTimeOffset? TargetReturnAtUtc,
     DateTimeOffset UpdatedAtUtc);

@@ -95,11 +95,23 @@ public sealed class TransportExceptionResolutionLedgerService
             .Where(entry => !string.Equals(entry.ExceptionId, request.ExceptionId, StringComparison.OrdinalIgnoreCase))
             .ToList();
         var updatedAtUtc = DateTimeOffset.UtcNow;
+        var normalizedOwner = string.IsNullOrWhiteSpace(request.FollowUpOwner)
+            ? null
+            : request.FollowUpOwner.Trim();
+        var normalizedTargetReturnAtUtc = request.TargetReturnAtUtc;
+
+        if (!string.Equals(normalizedStatus, "Deferred", StringComparison.OrdinalIgnoreCase))
+        {
+            normalizedOwner = null;
+            normalizedTargetReturnAtUtc = null;
+        }
 
         nextEntries.Add(new TransportExceptionResolutionEntryReadModel(
             request.ExceptionId,
             normalizedStatus,
             string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim(),
+            normalizedOwner,
+            normalizedTargetReturnAtUtc,
             updatedAtUtc));
 
         var nextLedger = new TransportExceptionResolutionLedgerReadModel(
@@ -115,6 +127,8 @@ public sealed class TransportExceptionResolutionLedgerService
                 request.ExceptionId,
                 normalizedStatus,
                 string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim(),
+                normalizedOwner,
+                normalizedTargetReturnAtUtc,
                 updatedAtUtc))
             .OrderByDescending(entry => entry.UpdatedAtUtc)
             .Take(MaxHistoryEntries)

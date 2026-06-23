@@ -158,7 +158,12 @@ public sealed class TransportExceptionWorkbenchServiceTests
 
             await resolutionLedgerService.SaveAsync(
                 "tenant-a",
-                new TransportExceptionResolutionWriteRequest("latest-import-delta", "Resolved", "Reviewed during support pass."));
+                new TransportExceptionResolutionWriteRequest(
+                    "latest-import-delta",
+                    "Resolved",
+                    "Reviewed during support pass.",
+                    null,
+                    null));
 
             var refreshedWorkbench = await workbenchService.BuildAsync("tenant-a");
             var resolvedItem = refreshedWorkbench.Items.First(item => item.ExceptionId == "latest-import-delta");
@@ -167,20 +172,78 @@ public sealed class TransportExceptionWorkbenchServiceTests
 
             await resolutionLedgerService.SaveAsync(
                 "tenant-a",
-                new TransportExceptionResolutionWriteRequest("latest-import-delta", "Deferred", "Waiting for upstream confirmation."));
+                new TransportExceptionResolutionWriteRequest(
+                    "latest-import-delta",
+                    "Deferred",
+                    "Waiting for upstream confirmation.",
+                    "Ops Alice",
+                    DateTimeOffset.Parse("2026-06-23T16:00:00Z")));
+
+            await resolutionLedgerService.SaveAsync(
+                "tenant-a",
+                new TransportExceptionResolutionWriteRequest(
+                    "sync-posture-attention",
+                    "Deferred",
+                    "Needs escalation owner assignment.",
+                    null,
+                    DateTimeOffset.Parse("2020-01-01T10:00:00Z")));
 
             var resolutionHistory = await resolutionLedgerService.GetHistoryAsync("tenant-a", 10);
-            Assert.Equal(2, resolutionHistory.EntryCount);
-            Assert.Equal("Deferred", resolutionHistory.Entries.First().Status);
-            Assert.Equal("Waiting for upstream confirmation.", resolutionHistory.Entries.First().Note);
-            Assert.All(
+            Assert.Equal(3, resolutionHistory.EntryCount);
+            Assert.Contains(
                 resolutionHistory.Entries,
-                entry => Assert.Equal("latest-import-delta", entry.ExceptionId));
+                entry => entry.ExceptionId == "latest-import-delta"
+                         && entry.Status == "Deferred"
+                         && entry.FollowUpOwner == "Ops Alice");
+            Assert.Contains(
+                resolutionHistory.Entries,
+                entry => entry.ExceptionId == "sync-posture-attention"
+                         && entry.Status == "Deferred"
+                         && entry.FollowUpOwner is null);
 
             var latestLedger = await resolutionLedgerService.GetAsync("tenant-a");
             var latestResolution = latestLedger.Entries.Single(entry => entry.ExceptionId == "latest-import-delta");
             Assert.Equal("Deferred", latestResolution.Status);
             Assert.Equal("Waiting for upstream confirmation.", latestResolution.Note);
+            Assert.Equal("Ops Alice", latestResolution.FollowUpOwner);
+            Assert.Equal(DateTimeOffset.Parse("2026-06-23T16:00:00Z"), latestResolution.TargetReturnAtUtc);
+
+            var followUpQueueService = new TransportExceptionFollowUpQueueService(
+                workbenchService,
+                resolutionLedgerService);
+            var followUpQueue = await followUpQueueService.BuildAsync("tenant-a");
+
+            Assert.Equal(2, followUpQueue.FollowUpCount);
+            Assert.Equal(1, followUpQueue.ActiveDeferredCount);
+            Assert.Equal(1, followUpQueue.WatchlistCount);
+            Assert.Equal(1, followUpQueue.OwnerlessCount);
+            Assert.Equal(1, followUpQueue.OverdueCount);
+            Assert.Equal(1, followUpQueue.HealthyCommitmentCount);
+
+            var followUpItem = followUpQueue.Items.Single(item => item.ExceptionId == "latest-import-delta");
+            Assert.Equal("latest-import-delta", followUpItem.ExceptionId);
+            Assert.Equal("Deferred", followUpItem.Status);
+            Assert.Equal("Waiting for upstream confirmation.", followUpItem.Note);
+            Assert.Equal("Ops Alice", followUpItem.FollowUpOwner);
+            Assert.Equal(DateTimeOffset.Parse("2026-06-23T16:00:00Z"), followUpItem.TargetReturnAtUtc);
+            Assert.True(followUpItem.IsStillActive);
+            Assert.False(followUpItem.IsOwnerMissing);
+            Assert.False(followUpItem.IsOverdue);
+            Assert.Equal("Healthy", followUpItem.AlertSeverity);
+            Assert.Equal(2, followUpItem.UpdateCount);
+            Assert.Equal("Resolved", followUpItem.PreviousStatus);
+
+            var overdueItem = followUpQueue.Items.Single(item => item.ExceptionId == "sync-posture-attention");
+            Assert.False(overdueItem.IsStillActive);
+            Assert.True(overdueItem.IsOwnerMissing);
+            Assert.True(overdueItem.IsOverdue);
+            Assert.Equal("Critical", overdueItem.AlertSeverity);
+            Assert.Contains("passed", overdueItem.AlertSummary, StringComparison.OrdinalIgnoreCase);
+
+            var refreshedWorkbenchWithCommitment = await workbenchService.BuildAsync("tenant-a");
+            var deferredItem = refreshedWorkbenchWithCommitment.Items.First(item => item.ExceptionId == "latest-import-delta");
+            Assert.Equal("Ops Alice", deferredItem.ResolutionFollowUpOwner);
+            Assert.Equal(DateTimeOffset.Parse("2026-06-23T16:00:00Z"), deferredItem.ResolutionTargetReturnAtUtc);
         }
         finally
         {

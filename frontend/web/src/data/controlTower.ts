@@ -173,6 +173,9 @@ export type TransportExceptionWorkbenchItemView = {
   actionLabel: string
   resolutionStatus: 'Reviewed' | 'Resolved' | 'Deferred' | null
   resolutionNote: string | null
+  resolutionFollowUpOwner: string | null
+  resolutionTargetReturnAtUtc: string | null
+  resolutionTargetReturnAtLabel: string | null
   resolutionUpdatedAtLabel: string | null
   evidence: string[]
 }
@@ -200,6 +203,8 @@ export type TransportExceptionResolutionHistoryEntryView = {
   exceptionId: string
   status: 'Reviewed' | 'Resolved' | 'Deferred'
   note: string | null
+  followUpOwner: string | null
+  targetReturnAtLabel: string | null
   updatedAtLabel: string
 }
 
@@ -207,6 +212,43 @@ export type TransportExceptionResolutionHistoryView = {
   count: number
   summary: string
   entries: TransportExceptionResolutionHistoryEntryView[]
+}
+
+export type TransportExceptionFollowUpQueueItemView = {
+  exceptionId: string
+  title: string
+  category: string
+  detail: string
+  routeId: string | null
+  routeReference: string | null
+  status: 'Deferred'
+  note: string | null
+  followUpOwner: string | null
+  targetReturnAtUtc: string | null
+  targetReturnAtLabel: string | null
+  updatedAtLabel: string
+  isStillActive: boolean
+  isOwnerMissing: boolean
+  isOverdue: boolean
+  alertSeverity: 'Healthy' | 'Warning' | 'Critical'
+  alertSummary: string
+  updateCount: number
+  previousStatus: 'Reviewed' | 'Resolved' | 'Deferred' | null
+  recommendedAction: 'sync-import' | 'sync-refresh' | 'focus-route' | 'focus-route-diff' | 'optimization-refresh' | 'selected-diff' | 'review-history'
+  actionLabel: string
+  evidence: string[]
+}
+
+export type TransportExceptionFollowUpQueueView = {
+  followUpCount: number
+  activeDeferredCount: number
+  watchlistCount: number
+  ownerlessCount: number
+  overdueCount: number
+  healthyCommitmentCount: number
+  alertSummary: string
+  summary: string
+  items: TransportExceptionFollowUpQueueItemView[]
 }
 
 export type RouteOptimizationAlternativeView = {
@@ -1369,6 +1411,8 @@ type ApiTransportExceptionWorkbenchItem = {
   actionLabel: string
   resolutionStatus: string | null
   resolutionNote: string | null
+  resolutionFollowUpOwner: string | null
+  resolutionTargetReturnAtUtc: string | null
   resolutionUpdatedAtUtc: string | null
   evidence: string[]
 }
@@ -1394,6 +1438,8 @@ type ApiTransportExceptionResolutionHistoryEntry = {
   exceptionId: string
   status: string
   note: string | null
+  followUpOwner: string | null
+  targetReturnAtUtc: string | null
   updatedAtUtc: string
 }
 
@@ -1401,6 +1447,43 @@ type ApiTransportExceptionResolutionHistory = {
   updatedAtUtc: string
   entryCount: number
   entries: ApiTransportExceptionResolutionHistoryEntry[]
+}
+
+type ApiTransportExceptionFollowUpQueueItem = {
+  exceptionId: string
+  title: string
+  category: string
+  detail: string
+  routeId: string | null
+  routeReference: string | null
+  status: string
+  note: string | null
+  followUpOwner: string | null
+  targetReturnAtUtc: string | null
+  updatedAtUtc: string
+  isStillActive: boolean
+  isOwnerMissing: boolean
+  isOverdue: boolean
+  alertSeverity: string
+  alertSummary: string
+  updateCount: number
+  previousStatus: string | null
+  recommendedAction: string
+  actionLabel: string
+  evidence: string[]
+}
+
+type ApiTransportExceptionFollowUpQueue = {
+  generatedAtUtc: string
+  followUpCount: number
+  activeDeferredCount: number
+  watchlistCount: number
+  ownerlessCount: number
+  overdueCount: number
+  healthyCommitmentCount: number
+  alertSummary: string
+  summary: string
+  items: ApiTransportExceptionFollowUpQueueItem[]
 }
 
 export function mapApiTransportSyncHistoryToView(apiHistory: ApiTransportSyncHistory): TransportSyncHistoryView {
@@ -1454,6 +1537,9 @@ export function buildFallbackTransportExceptionWorkbench(): TransportExceptionWo
         actionLabel: 'Import snapshot',
         resolutionStatus: null,
         resolutionNote: null,
+        resolutionFollowUpOwner: null,
+        resolutionTargetReturnAtUtc: null,
+        resolutionTargetReturnAtLabel: null,
         resolutionUpdatedAtLabel: null,
         evidence: ['Fallback data is active', 'No dedicated exception projection is available'],
       },
@@ -1466,6 +1552,20 @@ export function buildFallbackTransportExceptionResolutionHistory(): TransportExc
     count: 0,
     summary: 'Resolution history is unavailable in fallback mode.',
     entries: [],
+  }
+}
+
+export function buildFallbackTransportExceptionFollowUpQueue(): TransportExceptionFollowUpQueueView {
+  return {
+    followUpCount: 0,
+    activeDeferredCount: 0,
+    watchlistCount: 0,
+    ownerlessCount: 0,
+    overdueCount: 0,
+    healthyCommitmentCount: 0,
+    alertSummary: 'No follow-up commitment alerts are active.',
+    summary: 'Deferred exception follow-up is unavailable in fallback mode.',
+    items: [],
   }
 }
 
@@ -1512,6 +1612,22 @@ function normalizeTransportExceptionHistoryStatus(
   return 'Reviewed'
 }
 
+function normalizeTransportExceptionFollowUpStatus(
+  status: string
+): TransportExceptionFollowUpQueueItemView['status'] {
+  return status === 'Deferred' ? 'Deferred' : 'Deferred'
+}
+
+function normalizeTransportExceptionFollowUpAlertSeverity(
+  severity: string
+): TransportExceptionFollowUpQueueItemView['alertSeverity'] {
+  if (severity === 'Critical' || severity === 'Warning') {
+    return severity
+  }
+
+  return 'Healthy'
+}
+
 export function mapApiTransportExceptionWorkbenchToView(apiWorkbench: ApiTransportExceptionWorkbench): TransportExceptionWorkbenchView {
   return {
     generatedAtLabel: formatUtcLabel(apiWorkbench.generatedAtUtc),
@@ -1538,6 +1654,9 @@ export function mapApiTransportExceptionWorkbenchToView(apiWorkbench: ApiTranspo
       actionLabel: item.actionLabel,
       resolutionStatus: normalizeTransportExceptionResolutionStatus(item.resolutionStatus),
       resolutionNote: item.resolutionNote,
+      resolutionFollowUpOwner: item.resolutionFollowUpOwner,
+      resolutionTargetReturnAtUtc: item.resolutionTargetReturnAtUtc,
+      resolutionTargetReturnAtLabel: item.resolutionTargetReturnAtUtc ? formatUtcLabel(item.resolutionTargetReturnAtUtc) : null,
       resolutionUpdatedAtLabel: item.resolutionUpdatedAtUtc ? formatUtcLabel(item.resolutionUpdatedAtUtc) : null,
       evidence: item.evidence,
     })),
@@ -1552,6 +1671,8 @@ export function mapApiTransportExceptionResolutionHistoryToView(
     exceptionId: entry.exceptionId,
     status: normalizeTransportExceptionHistoryStatus(entry.status),
     note: entry.note,
+    followUpOwner: entry.followUpOwner,
+    targetReturnAtLabel: entry.targetReturnAtUtc ? formatUtcLabel(entry.targetReturnAtUtc) : null,
     updatedAtLabel: formatUtcLabel(entry.updatedAtUtc),
   }))
 
@@ -1562,6 +1683,47 @@ export function mapApiTransportExceptionResolutionHistoryToView(
         ? 'No persisted exception resolution history is available yet.'
         : `${entries.length} recent resolution update(s) are available for operator review.`,
     entries,
+  }
+}
+
+export function mapApiTransportExceptionFollowUpQueueToView(
+  apiQueue: ApiTransportExceptionFollowUpQueue
+): TransportExceptionFollowUpQueueView {
+  return {
+    followUpCount: apiQueue.followUpCount,
+    activeDeferredCount: apiQueue.activeDeferredCount,
+    watchlistCount: apiQueue.watchlistCount,
+    ownerlessCount: apiQueue.ownerlessCount,
+    overdueCount: apiQueue.overdueCount,
+    healthyCommitmentCount: apiQueue.healthyCommitmentCount,
+    alertSummary: apiQueue.alertSummary,
+    summary: apiQueue.summary,
+    items: apiQueue.items.map((item) => ({
+      exceptionId: item.exceptionId,
+      title: item.title,
+      category: item.category,
+      detail: item.detail,
+      routeId: item.routeId,
+      routeReference: item.routeReference,
+      status: normalizeTransportExceptionFollowUpStatus(item.status),
+      note: item.note,
+      followUpOwner: item.followUpOwner,
+      targetReturnAtUtc: item.targetReturnAtUtc,
+      targetReturnAtLabel: item.targetReturnAtUtc ? formatUtcLabel(item.targetReturnAtUtc) : null,
+      updatedAtLabel: formatUtcLabel(item.updatedAtUtc),
+      isStillActive: item.isStillActive,
+      isOwnerMissing: item.isOwnerMissing,
+      isOverdue: item.isOverdue,
+      alertSeverity: normalizeTransportExceptionFollowUpAlertSeverity(item.alertSeverity),
+      alertSummary: item.alertSummary,
+      updateCount: item.updateCount,
+      previousStatus: item.previousStatus
+        ? normalizeTransportExceptionHistoryStatus(item.previousStatus)
+        : null,
+      recommendedAction: normalizeTransportExceptionAction(item.recommendedAction),
+      actionLabel: item.actionLabel,
+      evidence: item.evidence,
+    })),
   }
 }
 

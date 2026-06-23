@@ -290,6 +290,8 @@ public sealed class TransportExceptionWorkbenchService
             actionLabel,
             resolution?.Status,
             resolution?.Note,
+            resolution?.FollowUpOwner,
+            resolution?.TargetReturnAtUtc,
             resolution?.UpdatedAtUtc,
             evidence);
     }

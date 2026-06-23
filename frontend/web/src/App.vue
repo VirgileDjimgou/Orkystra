@@ -7,6 +7,7 @@ import {
   buildFallbackRouteOptimization,
   buildFallbackTransportExceptionWorkbench,
   buildFallbackTransportExceptionResolutionHistory,
+  buildFallbackTransportExceptionFollowUpQueue,
   buildFallbackTransportSyncDiff,
   buildFallbackTransportSyncHistory,
   buildFallbackTransportSyncStatus,
@@ -19,6 +20,7 @@ import {
   type RouteOptimizationView,
   type TransportExceptionWorkbenchView,
   type TransportExceptionResolutionHistoryView,
+  type TransportExceptionFollowUpQueueView,
   type TransportSyncDiffView,
   type TransportSyncHistoryView,
   type TransportSyncStatusView,
@@ -50,6 +52,7 @@ import {
 } from "./services/transportSyncApi";
 import { loadTransportSyncDiff } from "./services/transportSyncDiffApi";
 import { loadTransportExceptionWorkbench } from "./services/transportExceptionWorkbenchApi";
+import { loadTransportExceptionFollowUpQueue } from "./services/transportExceptionFollowUpQueueApi";
 import { loadTransportExceptionResolutionHistory } from "./services/transportExceptionResolutionHistoryApi";
 import { saveTransportExceptionResolution } from "./services/transportExceptionResolutionApi";
 import { loadTransportSyncHistory } from "./services/transportSyncHistoryApi";
@@ -132,7 +135,16 @@ const transportExceptionResolutionHistory = ref<TransportExceptionResolutionHist
 const transportExceptionResolutionHistoryConnectionState =
   ref<DataConnectionState>("loading");
 const transportExceptionResolutionHistoryErrorMessage = ref<string | null>(null);
+const transportExceptionFollowUpQueue = ref<TransportExceptionFollowUpQueueView>(
+  buildFallbackTransportExceptionFollowUpQueue()
+);
+const transportExceptionFollowUpQueueConnectionState =
+  ref<DataConnectionState>("loading");
+const transportExceptionFollowUpQueueErrorMessage = ref<string | null>(null);
 const transportExceptionResolutionDrafts = ref<Record<string, string>>({});
+const transportExceptionCommitmentDrafts = ref<
+  Record<string, { owner: string; targetReturnAt: string }>
+>({});
 const savingTransportExceptionResolutionId = ref<string | null>(null);
 const transportExceptionResolutionNotice = ref<Record<string, string>>({});
 const providerCatalog = ref<ProviderCatalogView>(
@@ -1769,8 +1781,63 @@ function markTransportExceptionReviewed(exceptionId: string): void {
   ];
 }
 
-function transportExceptionResolutionDraft(exceptionId: string): string {
-  return transportExceptionResolutionDrafts.value[exceptionId] ?? "";
+function transportExceptionResolutionDraft(
+  exceptionId: string,
+  currentNote: string | null = null
+): string {
+  return transportExceptionResolutionDrafts.value[exceptionId] ?? currentNote ?? "";
+}
+
+function toDatetimeLocalValue(value: string | null): string {
+  if (!value) {
+    return "";
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  const pad = (part: number) => String(part).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
+    date.getDate()
+  )}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function commitmentTargetReturnToUtc(value: string): string | null {
+  if (!value.trim()) {
+    return null;
+  }
+
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+
+function transportExceptionCommitmentDraft(
+  exceptionId: string,
+  currentOwner: string | null = null,
+  currentTargetReturnAtUtc: string | null = null
+): { owner: string; targetReturnAt: string } {
+  const draft = transportExceptionCommitmentDrafts.value[exceptionId];
+  return {
+    owner: draft?.owner ?? currentOwner ?? "",
+    targetReturnAt:
+      draft?.targetReturnAt ?? toDatetimeLocalValue(currentTargetReturnAtUtc),
+  };
+}
+
+function updateTransportExceptionCommitmentDraft(
+  exceptionId: string,
+  patch: Partial<{ owner: string; targetReturnAt: string }>
+): void {
+  const current = transportExceptionCommitmentDraft(exceptionId);
+  transportExceptionCommitmentDrafts.value = {
+    ...transportExceptionCommitmentDrafts.value,
+    [exceptionId]: {
+      owner: patch.owner ?? current.owner,
+      targetReturnAt: patch.targetReturnAt ?? current.targetReturnAt,
+    },
+  };
 }
 
 function resetTransportExceptionReviewQueue(): void {
@@ -1808,12 +1875,24 @@ async function saveResolvedTransportException(
       exceptionId,
       status,
       note: transportExceptionResolutionDraft(exceptionId),
+      followUpOwner: transportExceptionCommitmentDraft(exceptionId).owner,
+      targetReturnAtUtc: commitmentTargetReturnToUtc(
+        transportExceptionCommitmentDraft(exceptionId).targetReturnAt
+      ),
     });
     await refreshTransportExceptionWorkbench(true);
     await refreshTransportExceptionResolutionHistory(true);
+    await refreshTransportExceptionFollowUpQueue(true);
     transportExceptionResolutionDrafts.value = {
       ...transportExceptionResolutionDrafts.value,
       [exceptionId]: "",
+    };
+    transportExceptionCommitmentDrafts.value = {
+      ...transportExceptionCommitmentDrafts.value,
+      [exceptionId]: {
+        owner: "",
+        targetReturnAt: "",
+      },
     };
     transportExceptionResolutionNotice.value = {
       ...transportExceptionResolutionNotice.value,
@@ -1821,7 +1900,7 @@ async function saveResolvedTransportException(
         status === "Resolved"
           ? "Resolved and saved."
           : status === "Deferred"
-          ? "Deferred and saved."
+          ? "Deferred commitment saved."
           : "Review note saved.",
     };
     markTransportExceptionReviewed(exceptionId);
@@ -2163,6 +2242,32 @@ function applyTransportExceptionResolutionHistoryResult(
       : result.errorMessage;
 }
 
+function applyTransportExceptionFollowUpQueueResult(
+  result: Awaited<ReturnType<typeof loadTransportExceptionFollowUpQueue>>,
+  preserveExisting: boolean
+): void {
+  const keepCurrentSnapshot =
+    preserveExisting &&
+    result.source === "fallback" &&
+    transportExceptionFollowUpQueue.value.items.length > 0 &&
+    (transportExceptionFollowUpQueueConnectionState.value === "api" ||
+      transportExceptionFollowUpQueueConnectionState.value === "stale");
+
+  if (!keepCurrentSnapshot) {
+    transportExceptionFollowUpQueue.value = result.queue;
+  }
+
+  transportExceptionFollowUpQueueConnectionState.value = keepCurrentSnapshot
+    ? "stale"
+    : result.source === "api"
+    ? "api"
+    : "fallback";
+  transportExceptionFollowUpQueueErrorMessage.value =
+    keepCurrentSnapshot && result.errorMessage
+      ? `${result.errorMessage} Keeping the last successful transport exception follow-up queue.`
+      : result.errorMessage;
+}
+
 function applyAiRecommendationResult(
   result: Awaited<ReturnType<typeof loadAiRecommendation>>,
   preserveExisting: boolean
@@ -2318,6 +2423,17 @@ async function refreshTransportExceptionResolutionHistory(
   applyTransportExceptionResolutionHistoryResult(result, preserveExisting);
 }
 
+async function refreshTransportExceptionFollowUpQueue(
+  preserveExisting = true
+): Promise<void> {
+  if (!preserveExisting) {
+    transportExceptionFollowUpQueueConnectionState.value = "loading";
+  }
+
+  const result = await loadTransportExceptionFollowUpQueue();
+  applyTransportExceptionFollowUpQueueResult(result, preserveExisting);
+}
+
 async function refreshTransportSyncEvidenceBundle(
   preserveExisting = true
 ): Promise<void> {
@@ -2326,6 +2442,7 @@ async function refreshTransportSyncEvidenceBundle(
   await refreshTransportSyncHistory(preserveExisting);
   await refreshTransportExceptionWorkbench(preserveExisting);
   await refreshTransportExceptionResolutionHistory(preserveExisting);
+  await refreshTransportExceptionFollowUpQueue(preserveExisting);
 }
 
 async function refreshAiRecommendation(
@@ -3831,10 +3948,27 @@ onBeforeUnmount(() => {
                     </template>
                   </span>
                   <span v-if="item.resolutionNote">{{ item.resolutionNote }}</span>
+                  <span
+                    v-if="
+                      item.resolutionFollowUpOwner ||
+                      item.resolutionTargetReturnAtLabel
+                    "
+                  >
+                    Commitment:
+                    {{ item.resolutionFollowUpOwner ?? "Owner pending" }}
+                    <template v-if="item.resolutionTargetReturnAtLabel">
+                      - return {{ item.resolutionTargetReturnAtLabel }}
+                    </template>
+                  </span>
                   <label class="provider-field">
                     <span>Resolution note</span>
                     <input
-                      :value="transportExceptionResolutionDraft(item.id)"
+                      :value="
+                        transportExceptionResolutionDraft(
+                          item.id,
+                          item.resolutionNote
+                        )
+                      "
                       class="provider-input"
                       type="text"
                       maxlength="160"
@@ -3843,6 +3977,48 @@ onBeforeUnmount(() => {
                         transportExceptionResolutionDrafts[item.id] = (
                           $event.target as HTMLInputElement
                         ).value
+                      "
+                    />
+                  </label>
+                  <label class="provider-field">
+                    <span>Follow-up owner</span>
+                    <input
+                      :value="
+                        transportExceptionCommitmentDraft(
+                          item.id,
+                          item.resolutionFollowUpOwner,
+                          item.resolutionTargetReturnAtUtc
+                        ).owner
+                      "
+                      class="provider-input"
+                      type="text"
+                      maxlength="80"
+                      placeholder="Who owns the return pass?"
+                      @input="
+                        updateTransportExceptionCommitmentDraft(item.id, {
+                          owner: ($event.target as HTMLInputElement).value,
+                        })
+                      "
+                    />
+                  </label>
+                  <label class="provider-field">
+                    <span>Target return</span>
+                    <input
+                      :value="
+                        transportExceptionCommitmentDraft(
+                          item.id,
+                          item.resolutionFollowUpOwner,
+                          item.resolutionTargetReturnAtUtc
+                        ).targetReturnAt
+                      "
+                      class="provider-input"
+                      type="datetime-local"
+                      @input="
+                        updateTransportExceptionCommitmentDraft(item.id, {
+                          targetReturnAt: (
+                            $event.target as HTMLInputElement
+                          ).value,
+                        })
                       "
                     />
                   </label>
@@ -3968,6 +4144,179 @@ onBeforeUnmount(() => {
                   <span>
                     Trigger an import to start building a transport sync
                     timeline for this tenant.
+                  </span>
+                </li>
+              </ul>
+            </article>
+
+            <article class="transport-story-card">
+              <div class="catalog-editor-heading">
+                <div>
+                  <span class="panel-label">Follow-up queue</span>
+                  <h3>Deferred exception return work</h3>
+                </div>
+                <span class="mini-badge">{{
+                  transportExceptionFollowUpQueue.followUpCount
+                }}</span>
+              </div>
+
+              <p class="catalog-summary">
+                {{
+                  transportExceptionFollowUpQueueErrorMessage ??
+                  transportExceptionFollowUpQueue.summary
+                }}
+              </p>
+
+              <p class="catalog-summary">
+                {{ transportExceptionFollowUpQueue.alertSummary }}
+              </p>
+
+              <div class="transport-sync-grid">
+                <div class="transport-sync-metric">
+                  <span class="panel-label">Overdue</span>
+                  <strong>{{
+                    transportExceptionFollowUpQueue.overdueCount
+                  }}</strong>
+                  <span>commitments past their target return window</span>
+                </div>
+
+                <div class="transport-sync-metric">
+                  <span class="panel-label">Ownerless</span>
+                  <strong>{{
+                    transportExceptionFollowUpQueue.ownerlessCount
+                  }}</strong>
+                  <span>commitments still missing an explicit owner</span>
+                </div>
+
+                <div class="transport-sync-metric">
+                  <span class="panel-label">Healthy</span>
+                  <strong>{{
+                    transportExceptionFollowUpQueue.healthyCommitmentCount
+                  }}</strong>
+                  <span>assigned and still inside their return window</span>
+                </div>
+              </div>
+
+              <ul class="transport-story-list">
+                <li
+                  v-for="item in transportExceptionFollowUpQueue.items"
+                  :key="`follow-up-${item.exceptionId}`"
+                >
+                  <strong>{{ item.title }}</strong>
+                  <span>{{ item.alertSeverity }} - {{ item.alertSummary }}</span>
+                  <span>
+                    {{ item.status }} -
+                    {{ item.isStillActive ? "Still active" : "Watchlist" }}
+                  </span>
+                  <span>{{ item.detail }}</span>
+                  <span>
+                    {{
+                      item.note ??
+                      "No deferred note was saved for this follow-up item."
+                    }}
+                  </span>
+                  <span>
+                    Owner:
+                    {{ item.followUpOwner ?? "Unassigned" }}
+                    <template v-if="item.targetReturnAtLabel">
+                      - return {{ item.targetReturnAtLabel }}
+                    </template>
+                  </span>
+                  <span>
+                    Last updated {{ item.updatedAtLabel }} -
+                    {{ item.updateCount }} saved update{{
+                      item.updateCount === 1 ? "" : "s"
+                    }}
+                    <template v-if="item.previousStatus">
+                      - previous {{ item.previousStatus }}
+                    </template>
+                  </span>
+                  <span v-if="item.routeReference">
+                    Route {{ item.routeReference }}
+                  </span>
+                  <span v-if="item.evidence.length > 0">
+                    {{ item.evidence.join(" · ") }}
+                  </span>
+                  <label class="provider-field">
+                    <span>Commitment owner</span>
+                    <input
+                      :value="
+                        transportExceptionCommitmentDraft(
+                          item.exceptionId,
+                          item.followUpOwner,
+                          item.targetReturnAtUtc
+                        ).owner
+                      "
+                      class="provider-input"
+                      type="text"
+                      maxlength="80"
+                      placeholder="Assign owner"
+                      @input="
+                        updateTransportExceptionCommitmentDraft(
+                          item.exceptionId,
+                          {
+                            owner: ($event.target as HTMLInputElement).value,
+                          }
+                        )
+                      "
+                    />
+                  </label>
+                  <label class="provider-field">
+                    <span>Return window</span>
+                    <input
+                      :value="
+                        transportExceptionCommitmentDraft(
+                          item.exceptionId,
+                          item.followUpOwner,
+                          item.targetReturnAtUtc
+                        ).targetReturnAt
+                      "
+                      class="provider-input"
+                      type="datetime-local"
+                      @input="
+                        updateTransportExceptionCommitmentDraft(
+                          item.exceptionId,
+                          {
+                            targetReturnAt: (
+                              $event.target as HTMLInputElement
+                            ).value,
+                          }
+                        )
+                      "
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    class="catalog-save-button"
+                    @click="
+                      runTransportExceptionAction(
+                        item.recommendedAction,
+                        item.routeId,
+                        item.routeReference
+                      )
+                    "
+                  >
+                    {{ item.actionLabel }}
+                  </button>
+                  <button
+                    type="button"
+                    class="catalog-save-button"
+                    :disabled="savingTransportExceptionResolutionId === item.exceptionId"
+                    @click="
+                      saveResolvedTransportException(item.exceptionId, 'Deferred')
+                    "
+                  >
+                    Save commitment
+                  </button>
+                  <span v-if="transportExceptionResolutionNotice[item.exceptionId]">
+                    {{ transportExceptionResolutionNotice[item.exceptionId] }}
+                  </span>
+                </li>
+                <li v-if="transportExceptionFollowUpQueue.items.length === 0">
+                  <strong>No follow-up queue right now</strong>
+                  <span>
+                    Deferred exception outcomes will appear here once the team
+                    starts saving explicit return work.
                   </span>
                 </li>
               </ul>

@@ -31,6 +31,7 @@ Use this checklist before a demo, a local release candidate, or a staging handof
 - `GET /api/transport/exceptions-workbench` returns prioritized transport exceptions with action hints and route references when transport evidence exists
 - `GET /api/transport/exceptions-workbench/resolutions` returns the current tenant's persisted exception review ledger
 - `GET /api/transport/exceptions-workbench/resolution-history` returns recent persisted exception resolution events in reverse chronological order
+- `GET /api/transport/exceptions-workbench/follow-up-queue` returns deferred exception follow-up items with active-versus-watchlist posture
 - `PUT /api/transport/exceptions-workbench/resolutions` accepts a short note plus `Reviewed`, `Resolved`, or `Deferred` status and persists it locally
 - `POST /api/ai/recommendations` returns a grounded response with evidence, assumptions, and missing-data fields
 - `POST /api/transport/routes/{routeId}/optimization` returns a bounded optimization review with route order, explanation, and alternatives
@@ -88,6 +89,12 @@ Use this checklist before a demo, a local release candidate, or a staging handof
 - Open, reviewed, resolved, and deferred counts stay coherent with the visible exception list after saving a review, deferring an item, resolving an item, or resetting the queue
 - Transport board shows a dedicated resolution-history card that separates the focused exception's current posture from previous saved updates
 - Saving `Reviewed`, `Resolved`, or `Deferred` posture updates the recent history card without breaking the current exception workbench context
+- Transport board shows a dedicated follow-up queue card that lists deferred exception commitments separately from resolved items
+- The follow-up queue card distinguishes `Still active` deferred items from `Watchlist` items that are deferred but not currently visible in the active exception workbench
+- Deferred saves can also persist a follow-up owner and a target return window without breaking the existing review loop
+- The exception workbench and follow-up queue both surface the saved owner and target return commitment when one exists
+- The follow-up queue exposes compact `Overdue`, `Ownerless`, and `Healthy` commitment metrics
+- Deferred commitments with a missing owner or a past target return window surface an explicit alert summary in the follow-up queue
 - The historical diff panel supports filter-based triage for changed, added, removed, selected-route, and all route deltas
 - Diff rows can focus the corresponding current route when that route still exists in the latest transport board
 - On a wide desktop viewport, the transport sync metrics, storyline, timeline, and route-detail lists remain readable without collapsing into cramped multi-column blocks

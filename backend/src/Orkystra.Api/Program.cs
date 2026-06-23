@@ -109,6 +109,7 @@ builder.Services.AddSingleton<TransportSyncWorkflowService>();
 builder.Services.AddSingleton<TransportSyncHistoryService>();
 builder.Services.AddSingleton<TransportExceptionResolutionLedgerService>();
 builder.Services.AddSingleton<TransportExceptionWorkbenchService>();
+builder.Services.AddSingleton<TransportExceptionFollowUpQueueService>();
 builder.Services.AddSingleton<SimulationProjectionService>();
 builder.Services.AddSingleton<ScenarioEventWorkflowService>();
 builder.Services.AddSingleton<GpsProjectionService>();
@@ -541,6 +542,18 @@ app.MapGet("/api/transport/exceptions-workbench/resolution-history", async (
 })
 .RequireAuthorization()
 .WithName("GetTransportExceptionResolutionHistory");
+
+app.MapGet("/api/transport/exceptions-workbench/follow-up-queue", async (
+    RequestTenantContext tenantContext,
+    TransportExceptionFollowUpQueueService followUpQueueService,
+    CancellationToken cancellationToken) =>
+{
+    var tenantId = tenantContext.TenantId ?? "local-demo-tenant";
+    var queue = await followUpQueueService.BuildAsync(tenantId, cancellationToken);
+    return Results.Ok(queue);
+})
+.RequireAuthorization()
+.WithName("GetTransportExceptionFollowUpQueue");
 
 app.MapPut("/api/transport/exceptions-workbench/resolutions", async (
     TransportExceptionResolutionWriteRequest request,

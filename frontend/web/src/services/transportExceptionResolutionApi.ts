@@ -4,6 +4,8 @@ export type SaveTransportExceptionResolutionInput = {
   exceptionId: string
   status: 'Reviewed' | 'Resolved' | 'Deferred'
   note: string
+  followUpOwner: string
+  targetReturnAtUtc: string | null
 }
 
 export async function saveTransportExceptionResolution(
@@ -19,6 +21,8 @@ export async function saveTransportExceptionResolution(
       exceptionId: input.exceptionId,
       status: input.status,
       note: input.note,
+      followUpOwner: input.followUpOwner,
+      targetReturnAtUtc: input.targetReturnAtUtc,
     }),
   })
 

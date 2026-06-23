@@ -5,4 +5,6 @@ public sealed record TransportExceptionResolutionHistoryEntryReadModel(
     string ExceptionId,
     string Status,
     string? Note,
+    string? FollowUpOwner,
+    DateTimeOffset? TargetReturnAtUtc,
     DateTimeOffset UpdatedAtUtc);
