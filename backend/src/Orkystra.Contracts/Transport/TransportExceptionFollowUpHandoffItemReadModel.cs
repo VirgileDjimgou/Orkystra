@@ -12,5 +12,7 @@ public sealed record TransportExceptionFollowUpHandoffItemReadModel(
     string HandoffSummary,
     string ReadinessPosture,
     string ReadinessSummary,
+    string AcknowledgementStatus,
+    string AcknowledgementSummary,
     string RecommendedAction,
     string ActionLabel);

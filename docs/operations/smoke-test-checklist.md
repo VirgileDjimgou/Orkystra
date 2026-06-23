@@ -32,7 +32,9 @@ Use this checklist before a demo, a local release candidate, or a staging handof
 - `GET /api/transport/exceptions-workbench/resolutions` returns the current tenant's persisted exception review ledger
 - `GET /api/transport/exceptions-workbench/resolution-history` returns recent persisted exception resolution events in reverse chronological order
 - `GET /api/transport/exceptions-workbench/follow-up-queue` returns deferred exception follow-up items with active-versus-watchlist posture
+- `GET /api/transport/exceptions-workbench/follow-up-queue` also surfaces acknowledgement posture for active deferred handoff items
 - `PUT /api/transport/exceptions-workbench/resolutions` accepts a short note plus `Reviewed`, `Resolved`, or `Deferred` status and persists it locally
+- `PUT /api/transport/exceptions-workbench/follow-up-queue/{exceptionId}` with `action: acknowledge` marks the handoff item as explicitly received without retiring it
 - `POST /api/ai/recommendations` returns a grounded response with evidence, assumptions, and missing-data fields
 - `POST /api/transport/routes/{routeId}/optimization` returns a bounded optimization review with route order, explanation, and alternatives
 - `GET /observability/persistence/projections` returns persisted projection snapshots for the active tenant
@@ -107,6 +109,8 @@ Use this checklist before a demo, a local release candidate, or a staging handof
 - The handoff card exposes `Immediate`, `This shift`, and `Next shift` counts plus owner/note/route readiness gaps
 - Each handoff item surfaces a readiness posture such as missing owner, missing note, missing route, missing target, or ready
 - The handoff card exposes short briefing lines that can be reused when the next operator pass needs a concise support summary
+- The handoff card exposes an `Acknowledge handoff` action and acknowledgement posture for active deferred items
+- Deferred follow-up items show acknowledgement-by context in the queue and spotlight views after they are acknowledged
 - The historical diff panel supports filter-based triage for changed, added, removed, selected-route, and all route deltas
 - Diff rows can focus the corresponding current route when that route still exists in the latest transport board
 - On a wide desktop viewport, the transport sync metrics, storyline, timeline, and route-detail lists remain readable without collapsing into cramped multi-column blocks

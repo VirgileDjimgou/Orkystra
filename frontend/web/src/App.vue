@@ -92,23 +92,6 @@ type TransportFollowUpFilter =
   | "watchlist";
 type TransportDiffFilter = "all" | "changed" | "added" | "removed" | "selected";
 
-const navigationItems = [
-  { label: "Control Tower", short: "CT", active: true },
-  { label: "Warehouse", short: "WH", active: false },
-  { label: "Transport", short: "TR", active: false },
-  { label: "Scenarios", short: "SC", active: false },
-];
-
-const fallbackOverview = buildFallbackOverview();
-const overview = ref<ControlTowerOverviewView>(fallbackOverview);
-const warehouseDetail = ref<WarehouseDetailView>(
-  buildFallbackWarehouseDetail(fallbackOverview.warehouses[0].warehouseId)
-);
-const routeDetail = ref<RouteDetailView>(
-  buildFallbackRouteDetail(fallbackOverview.routes[0].routeId)
-);
-const isApiConnected = ref(false);
-const isRefreshingWorkspace = ref(false);
 const loadErrorMessage = ref<string | null>(null);
 const overviewConnectionState = ref<DataConnectionState>("loading");
 const warehouseDetailErrorMessage = ref<string | null>(null);
@@ -210,24 +193,9 @@ const currentScenario = computed(
   () =>
     overview.value.scenarios.find(
       (scenario) => scenario.scenarioId === selectedScenarioId.value
-    ) ?? overview.value.scenarios[0]
+    )
 );
-
-const currentWarehouse = computed(
-  () =>
-    overview.value.warehouses.find(
-      (warehouse) => warehouse.warehouseId === selectedWarehouseId.value
-    ) ?? overview.value.warehouses[0]
-);
-
-const currentRoute = computed(
-  () =>
-    overview.value.routes.find(
-      (route) => route.routeId === selectedRouteId.value
-    ) ?? overview.value.routes[0]
-);
-
-const currentRiskCount = computed(
+const activeAlertCount = computed(
   () =>
     overview.value.alerts.filter((alert) => alert.severity !== "Info").length
 );
@@ -2120,6 +2088,45 @@ async function transitionTransportExceptionFollowUpState(
   }
 }
 
+async function acknowledgeTransportExceptionFollowUp(
+  exceptionId: string,
+  acknowledgedBy: string | null,
+  note: string
+): Promise<void> {
+  selectTransportFollowUpItem(exceptionId);
+  transportExceptionResolutionNotice.value = {
+    ...transportExceptionResolutionNotice.value,
+    [exceptionId]: "",
+  };
+  savingTransportExceptionResolutionId.value = exceptionId;
+
+  try {
+    await transitionTransportExceptionFollowUp({
+      action: "acknowledge",
+      exceptionId,
+      note,
+      acknowledgedBy,
+    });
+    await refreshTransportExceptionWorkbench(true);
+    await refreshTransportExceptionResolutionHistory(true);
+    await refreshTransportExceptionFollowUpQueue(true);
+    transportExceptionResolutionNotice.value = {
+      ...transportExceptionResolutionNotice.value,
+      [exceptionId]: "Follow-up acknowledged.",
+    };
+  } catch (error) {
+    transportExceptionResolutionNotice.value = {
+      ...transportExceptionResolutionNotice.value,
+      [exceptionId]:
+        error instanceof Error
+          ? error.message
+          : "Follow-up acknowledgement could not be saved.",
+    };
+  } finally {
+    savingTransportExceptionResolutionId.value = null;
+  }
+}
+
 function focusTransportSelectedDiff(): void {
   selectedTransportDiffFilter.value = "selected";
 }
@@ -2966,24 +2973,6 @@ onBeforeUnmount(() => {
           <span>{{ item.label }}</span>
         </a>
       </nav>
-
-      <section class="sidebar-panel">
-        <span class="panel-label">Tenant</span>
-        <strong>{{ overview.tenantId }}</strong>
-        <p>{{ tenantSummary }}</p>
-        <span class="status-pill" :class="dataConnectionTone">
-          {{ overviewConnectionLabel }}
-        </span>
-      </section>
-
-      <section class="sidebar-panel">
-        <span class="panel-label">Pipeline</span>
-        <ul class="sidebar-list">
-          <li>Warehouse summary projection ready</li>
-          <li>Route summary projection ready</li>
-          <li>Control tower overview served by API</li>
-        </ul>
-      </section>
     </aside>
 
     <section class="workspace">
@@ -4379,6 +4368,9 @@ onBeforeUnmount(() => {
               <p class="catalog-summary">
                 {{ transportExceptionFollowUpQueue.handoffPack.ownerHeadline }}
               </p>
+              <p class="catalog-summary">
+                {{ transportExceptionFollowUpQueue.handoffPack.acknowledgementHeadline }}
+              </p>
 
               <div class="transport-sync-grid">
                 <div class="transport-sync-metric">
@@ -4425,9 +4417,13 @@ onBeforeUnmount(() => {
                   <span>
                     {{ item.readinessPosture }} · {{ item.readinessSummary }}
                   </span>
-                  <span>{{
-                    item.note ?? "No deferred note captured for the next shift."
-                  }}</span>
+                  <span>
+                    {{ item.acknowledgementStatus }} ·
+                    {{ item.acknowledgementSummary }}
+                  </span>
+                  <span>
+                    {{ item.note ?? "No deferred note captured for the next shift." }}
+                  </span>
                   <span v-if="item.targetReturnAtLabel">
                     Return window · {{ item.targetReturnAtLabel }}
                   </span>
@@ -4452,6 +4448,21 @@ onBeforeUnmount(() => {
                     "
                   >
                     {{ item.actionLabel }}
+                  </button>
+                  <button
+                    v-if="item.acknowledgementStatus === 'Unacknowledged'"
+                    type="button"
+                    class="catalog-save-button"
+                    :disabled="savingTransportExceptionResolutionId === item.exceptionId"
+                    @click="
+                      acknowledgeTransportExceptionFollowUp(
+                        item.exceptionId,
+                        item.followUpOwner,
+                        item.note ?? ''
+                      )
+                    "
+                  >
+                    Acknowledge handoff
                   </button>
                 </li>
                 <li
@@ -4730,6 +4741,15 @@ onBeforeUnmount(() => {
                   <span v-if="item.evidence.length > 0">
                     {{ item.evidence.join(" · ") }}
                   </span>
+                  <span>
+                    {{ item.acknowledgementStatus ?? 'Unacknowledged' }}
+                    <template v-if="item.acknowledgedBy">
+                      · {{ item.acknowledgedBy }}
+                    </template>
+                    <template v-if="item.acknowledgedAtLabel">
+                      · {{ item.acknowledgedAtLabel }}
+                    </template>
+                  </span>
                   <label class="provider-field">
                     <span>Commitment owner</span>
                     <input
@@ -4790,6 +4810,21 @@ onBeforeUnmount(() => {
                     "
                   >
                     {{ item.actionLabel }}
+                  </button>
+                  <button
+                    v-if="item.acknowledgementStatus !== 'Acknowledged'"
+                    type="button"
+                    class="catalog-save-button"
+                    :disabled="savingTransportExceptionResolutionId === item.exceptionId"
+                    @click="
+                      acknowledgeTransportExceptionFollowUp(
+                        item.exceptionId,
+                        item.followUpOwner,
+                        item.note ?? ''
+                      )
+                    "
+                  >
+                    Acknowledge
                   </button>
                   <button
                     type="button"

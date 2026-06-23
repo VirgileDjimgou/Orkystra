@@ -1,9 +1,10 @@
 import { sendApiRequest } from './apiClient'
 
 export type TransportExceptionFollowUpTransitionInput = {
-  action: 'retire' | 'reopen'
+  action: 'acknowledge' | 'retire' | 'reopen'
   exceptionId: string
   note: string
+  acknowledgedBy?: string | null
 }
 
 export async function transitionTransportExceptionFollowUp(
@@ -20,6 +21,7 @@ export async function transitionTransportExceptionFollowUp(
       body: JSON.stringify({
         action: input.action,
         note: input.note,
+        acknowledgedBy: input.acknowledgedBy,
       }),
     }
   )

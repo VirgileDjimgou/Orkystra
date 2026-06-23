@@ -22,6 +22,9 @@ public sealed record TransportExceptionFollowUpQueueItemReadModel(
     string AlertSummary,
     int UpdateCount,
     string? PreviousStatus,
+    string? AcknowledgementStatus,
+    DateTimeOffset? AcknowledgedAtUtc,
+    string? AcknowledgedBy,
     string RecommendedAction,
     string ActionLabel,
     IReadOnlyCollection<string> Evidence);

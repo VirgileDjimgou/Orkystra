@@ -282,7 +282,7 @@ public sealed class TransportExceptionWorkbenchServiceTests
             await resolutionLedgerService.TransitionFollowUpAsync(
                 "tenant-a",
                 "latest-import-delta",
-                new TransportExceptionFollowUpTransitionRequest("retire", "Follow-up retired after manual confirmation."));
+                new TransportExceptionFollowUpTransitionRequest("retire", "Follow-up retired after manual confirmation.", null));
 
             var retiredQueue = await followUpQueueService.BuildAsync("tenant-a");
             var retiredItem = retiredQueue.Items.Single(item => item.ExceptionId == "latest-import-delta");
@@ -296,7 +296,7 @@ public sealed class TransportExceptionWorkbenchServiceTests
             await resolutionLedgerService.TransitionFollowUpAsync(
                 "tenant-a",
                 "latest-import-delta",
-                new TransportExceptionFollowUpTransitionRequest("reopen", "Issue resurfaced after closure."));
+                new TransportExceptionFollowUpTransitionRequest("reopen", "Issue resurfaced after closure.", null));
 
             var reopenedQueue = await followUpQueueService.BuildAsync("tenant-a");
             var reopenedItem = reopenedQueue.Items.Single(item => item.ExceptionId == "latest-import-delta");

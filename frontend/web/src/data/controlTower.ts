@@ -208,6 +208,9 @@ export type TransportExceptionResolutionHistoryEntryView = {
   followUpStatus: 'Active' | 'Retired'
   targetReturnAtLabel: string | null
   updatedAtLabel: string
+  acknowledgementStatus: 'Unacknowledged' | 'Acknowledged' | null
+  acknowledgedAtLabel: string | null
+  acknowledgedBy: string | null
 }
 
 export type TransportExceptionResolutionHistoryView = {
@@ -255,6 +258,8 @@ export type TransportExceptionFollowUpHandoffItemView = {
   handoffSummary: string
   readinessPosture: string
   readinessSummary: string
+  acknowledgementStatus: 'Unacknowledged' | 'Acknowledged'
+  acknowledgementSummary: string
   recommendedAction: 'sync-import' | 'sync-refresh' | 'focus-route' | 'focus-route-diff' | 'optimization-refresh' | 'selected-diff' | 'review-history'
   actionLabel: string
 }
@@ -270,6 +275,7 @@ export type TransportExceptionFollowUpHandoffPackView = {
   summary: string
   shiftSummary: string
   ownerHeadline: string
+  acknowledgementHeadline: string
   briefingLines: string[]
   items: TransportExceptionFollowUpHandoffItemView[]
 }
@@ -290,6 +296,9 @@ export type TransportExceptionFollowUpQueueItemView = {
   slaPosture: TransportExceptionFollowUpSlaPosture
   hoursUntilTarget: number | null
   updatedAtLabel: string
+  acknowledgementStatus: 'Unacknowledged' | 'Acknowledged' | null
+  acknowledgedAtLabel: string | null
+  acknowledgedBy: string | null
   isStillActive: boolean
   isOwnerMissing: boolean
   isOverdue: boolean
@@ -1513,6 +1522,9 @@ type ApiTransportExceptionResolutionHistoryEntry = {
   followUpOwner: string | null
   targetReturnAtUtc: string | null
   updatedAtUtc: string
+  acknowledgementStatus: string | null
+  acknowledgedAtUtc: string | null
+  acknowledgedBy: string | null
 }
 
 type ApiTransportExceptionResolutionHistory = {
@@ -1536,6 +1548,9 @@ type ApiTransportExceptionFollowUpQueueItem = {
   slaPosture: string
   hoursUntilTarget: number | null
   updatedAtUtc: string
+  acknowledgementStatus: string | null
+  acknowledgedAtUtc: string | null
+  acknowledgedBy: string | null
   isStillActive: boolean
   isOwnerMissing: boolean
   isOverdue: boolean
@@ -1582,6 +1597,7 @@ type ApiTransportExceptionFollowUpQueue = {
     summary: string
     shiftSummary: string
     ownerHeadline: string
+    acknowledgementHeadline: string
     briefingLines: string[]
     items: Array<{
       exceptionId: string
@@ -1595,6 +1611,8 @@ type ApiTransportExceptionFollowUpQueue = {
       handoffSummary: string
       readinessPosture: string
       readinessSummary: string
+      acknowledgementStatus: string
+      acknowledgementSummary: string
       recommendedAction: string
       actionLabel: string
     }>
@@ -1715,6 +1733,7 @@ export function buildFallbackTransportExceptionFollowUpQueue(): TransportExcepti
       summary: 'No active follow-up handoff is available in fallback mode.',
       shiftSummary: 'No current shift handoff window is active in fallback mode.',
       ownerHeadline: 'No active owner handoff lane is available in fallback mode.',
+      acknowledgementHeadline: 'No active handoff item is ready for acknowledgement.',
       briefingLines: [],
       items: [],
     },
@@ -1765,6 +1784,16 @@ function normalizeTransportExceptionFollowUpLifecycle(
 
   if (status === 'Active') {
     return 'Active'
+  }
+
+  return null
+}
+
+function normalizeTransportExceptionAcknowledgementStatus(
+  status: string | null
+): 'Unacknowledged' | 'Acknowledged' | null {
+  if (status === 'Acknowledged' || status === 'Unacknowledged') {
+    return status
   }
 
   return null
@@ -1857,6 +1886,9 @@ export function mapApiTransportExceptionResolutionHistoryToView(
     followUpOwner: entry.followUpOwner,
     targetReturnAtLabel: entry.targetReturnAtUtc ? formatUtcLabel(entry.targetReturnAtUtc) : null,
     updatedAtLabel: formatUtcLabel(entry.updatedAtUtc),
+    acknowledgementStatus: normalizeTransportExceptionAcknowledgementStatus(entry.acknowledgementStatus),
+    acknowledgedAtLabel: entry.acknowledgedAtUtc ? formatUtcLabel(entry.acknowledgedAtUtc) : null,
+    acknowledgedBy: entry.acknowledgedBy,
   }))
 
   return {
@@ -1905,6 +1937,7 @@ export function mapApiTransportExceptionFollowUpQueueToView(
       summary: apiQueue.handoffPack.summary,
       shiftSummary: apiQueue.handoffPack.shiftSummary,
       ownerHeadline: apiQueue.handoffPack.ownerHeadline,
+      acknowledgementHeadline: apiQueue.handoffPack.acknowledgementHeadline,
       briefingLines: apiQueue.handoffPack.briefingLines,
       items: apiQueue.handoffPack.items.map((item) => ({
         exceptionId: item.exceptionId,
@@ -1919,6 +1952,8 @@ export function mapApiTransportExceptionFollowUpQueueToView(
         handoffSummary: item.handoffSummary,
         readinessPosture: item.readinessPosture,
         readinessSummary: item.readinessSummary,
+        acknowledgementStatus: normalizeTransportExceptionAcknowledgementStatus(item.acknowledgementStatus) ?? 'Unacknowledged',
+        acknowledgementSummary: item.acknowledgementSummary,
         recommendedAction: normalizeTransportExceptionAction(item.recommendedAction),
         actionLabel: item.actionLabel,
       })),
@@ -1948,6 +1983,9 @@ export function mapApiTransportExceptionFollowUpQueueToView(
       slaPosture: normalizeTransportExceptionSlaPosture(item.slaPosture),
       hoursUntilTarget: item.hoursUntilTarget,
       updatedAtLabel: formatUtcLabel(item.updatedAtUtc),
+      acknowledgementStatus: normalizeTransportExceptionAcknowledgementStatus(item.acknowledgementStatus),
+      acknowledgedAtLabel: item.acknowledgedAtUtc ? formatUtcLabel(item.acknowledgedAtUtc) : null,
+      acknowledgedBy: item.acknowledgedBy,
       isStillActive: item.isStillActive,
       isOwnerMissing: item.isOwnerMissing,
       isOverdue: item.isOverdue,

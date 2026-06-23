@@ -105,6 +105,9 @@ public sealed class TransportExceptionFollowUpQueueService
                     alertSummary,
                     updateTrail.Length,
                     previousStatus,
+                    entry.AcknowledgementStatus,
+                    entry.AcknowledgedAtUtc,
+                    entry.AcknowledgedBy,
                     workbenchItem?.RecommendedAction ?? "review-history",
                     workbenchItem?.ActionLabel ?? "Review history",
                     BuildEvidence(workbenchItem, entry, updateTrail.Length, previousStatus));
@@ -212,6 +215,14 @@ public sealed class TransportExceptionFollowUpQueueService
                 };
                 var handoffSummary =
                     $"{item.Title} / {(item.RouteReference ?? "No route")} / {(item.FollowUpOwner ?? "Unassigned")} / {FormatHoursLabel(item.HoursUntilTarget)}";
+                var acknowledgementStatus = string.IsNullOrWhiteSpace(item.AcknowledgementStatus)
+                    ? "Unacknowledged"
+                    : item.AcknowledgementStatus;
+                var acknowledgementSummary = acknowledgementStatus switch
+                {
+                    "Acknowledged" => $"Acknowledged by {(item.AcknowledgedBy ?? item.FollowUpOwner ?? "the next shift")}.",
+                    _ => "Awaiting explicit acknowledgement from the next shift."
+                };
 
                 return new TransportExceptionFollowUpHandoffItemReadModel(
                     item.ExceptionId,
@@ -225,6 +236,8 @@ public sealed class TransportExceptionFollowUpQueueService
                     handoffSummary,
                     readinessPosture,
                     readinessSummary,
+                        acknowledgementStatus,
+                        acknowledgementSummary,
                     item.RecommendedAction,
                     item.ActionLabel);
             })
@@ -254,9 +267,10 @@ public sealed class TransportExceptionFollowUpQueueService
         var missingOwnerCount = handoffItems.Count(item => string.IsNullOrWhiteSpace(item.FollowUpOwner));
         var missingNoteCount = handoffItems.Count(item => string.IsNullOrWhiteSpace(item.Note));
         var missingRouteContextCount = handoffItems.Count(item => string.IsNullOrWhiteSpace(item.RouteReference));
+        var acknowledgedCount = handoffItems.Count(item => string.Equals(item.AcknowledgementStatus, "Acknowledged", StringComparison.OrdinalIgnoreCase));
         var briefingLines = handoffItems
             .Select(item =>
-                $"{item.Title}: {(item.RouteReference ?? "No route")} / {(item.FollowUpOwner ?? "Unassigned")} / {item.SlaPosture} / {FormatHoursLabel(item.HoursUntilTarget)} / {(string.IsNullOrWhiteSpace(item.Note) ? "No note" : item.Note)}")
+                $"{item.Title}: {(item.RouteReference ?? "No route")} / {(item.FollowUpOwner ?? "Unassigned")} / {item.SlaPosture} / {FormatHoursLabel(item.HoursUntilTarget)} / {(string.IsNullOrWhiteSpace(item.Note) ? "No note" : item.Note)} / {(string.Equals(item.AcknowledgementStatus, "Acknowledged", StringComparison.OrdinalIgnoreCase) ? "Acknowledged" : "Unacknowledged")}")
             .ToArray();
         var handoffPack = new TransportExceptionFollowUpHandoffPackReadModel(
             activeDeferredCount,
@@ -269,6 +283,7 @@ public sealed class TransportExceptionFollowUpQueueService
             BuildHandoffSummary(activeDeferredCount, immediateCount, handoffItems.Length),
             BuildShiftSummary(thisShiftCount, nextShiftCount),
             handoffOwnerHeadline,
+            BuildAcknowledgementHeadline(acknowledgedCount, handoffItems.Length),
             briefingLines,
             handoffItems);
 
@@ -362,6 +377,23 @@ public sealed class TransportExceptionFollowUpQueueService
         }
 
         return "No active follow-up item is due inside the current or next shift window.";
+    }
+
+    private static string BuildAcknowledgementHeadline(int acknowledgedCount, int handoffItemCount)
+    {
+        if (handoffItemCount == 0)
+        {
+            return "No active handoff item is ready for acknowledgement.";
+        }
+
+        if (acknowledgedCount > 0)
+        {
+            return acknowledgedCount == 1
+                ? "1 handoff item has been explicitly acknowledged by the next shift."
+                : $"{acknowledgedCount} handoff items have been explicitly acknowledged by the next shift.";
+        }
+
+        return "No active handoff item has been acknowledged yet.";
     }
 
     private static string FormatHoursLabel(int? hoursUntilTarget)

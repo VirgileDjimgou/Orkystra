@@ -102,6 +102,9 @@ public sealed class TransportExceptionResolutionLedgerService
         var normalizedFollowUpStatus = string.Equals(normalizedStatus, "Deferred", StringComparison.OrdinalIgnoreCase)
             ? "Active"
             : null;
+        var normalizedAcknowledgementStatus = string.Equals(normalizedStatus, "Deferred", StringComparison.OrdinalIgnoreCase)
+            ? "Unacknowledged"
+            : null;
 
         if (!string.Equals(normalizedStatus, "Deferred", StringComparison.OrdinalIgnoreCase))
         {
@@ -116,7 +119,10 @@ public sealed class TransportExceptionResolutionLedgerService
             normalizedFollowUpStatus,
             normalizedOwner,
             normalizedTargetReturnAtUtc,
-            updatedAtUtc));
+            updatedAtUtc,
+            normalizedAcknowledgementStatus,
+            null,
+            null));
 
         var nextLedger = new TransportExceptionResolutionLedgerReadModel(
             updatedAtUtc,
@@ -134,7 +140,10 @@ public sealed class TransportExceptionResolutionLedgerService
                 normalizedFollowUpStatus,
                 normalizedOwner,
                 normalizedTargetReturnAtUtc,
-                updatedAtUtc))
+                updatedAtUtc,
+                normalizedAcknowledgementStatus,
+                null,
+                null))
             .OrderByDescending(entry => entry.UpdatedAtUtc)
             .Take(MaxHistoryEntries)
             .ToArray();
@@ -174,9 +183,10 @@ public sealed class TransportExceptionResolutionLedgerService
 
         var normalizedAction = request.Action.Trim();
         if (!string.Equals(normalizedAction, "retire", StringComparison.OrdinalIgnoreCase)
-            && !string.Equals(normalizedAction, "reopen", StringComparison.OrdinalIgnoreCase))
+            && !string.Equals(normalizedAction, "reopen", StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(normalizedAction, "acknowledge", StringComparison.OrdinalIgnoreCase))
         {
-            throw new ArgumentException("Action must be retire or reopen.", nameof(request));
+            throw new ArgumentException("Action must be acknowledge, retire, or reopen.", nameof(request));
         }
 
         var current = await GetAsync(tenantId, cancellationToken);
@@ -193,12 +203,24 @@ public sealed class TransportExceptionResolutionLedgerService
             .Where(entry => !string.Equals(entry.ExceptionId, exceptionId, StringComparison.OrdinalIgnoreCase))
             .ToList();
         var updatedAtUtc = DateTimeOffset.UtcNow;
+        var isAcknowledge = string.Equals(normalizedAction, "acknowledge", StringComparison.OrdinalIgnoreCase);
         var nextFollowUpStatus = string.Equals(normalizedAction, "retire", StringComparison.OrdinalIgnoreCase)
             ? "Retired"
             : "Active";
         var nextNote = string.IsNullOrWhiteSpace(request.Note)
             ? currentEntry.Note
             : request.Note.Trim();
+        var nextAcknowledgementStatus = isAcknowledge
+            ? "Acknowledged"
+            : currentEntry.AcknowledgementStatus;
+        var nextAcknowledgedAtUtc = isAcknowledge
+            ? updatedAtUtc
+            : currentEntry.AcknowledgedAtUtc;
+        var nextAcknowledgedBy = isAcknowledge
+            ? string.IsNullOrWhiteSpace(request.AcknowledgedBy)
+                ? currentEntry.FollowUpOwner ?? "Next shift"
+                : request.AcknowledgedBy.Trim()
+            : currentEntry.AcknowledgedBy;
 
         nextEntries.Add(new TransportExceptionResolutionEntryReadModel(
             currentEntry.ExceptionId,
@@ -207,7 +229,10 @@ public sealed class TransportExceptionResolutionLedgerService
             nextFollowUpStatus,
             currentEntry.FollowUpOwner,
             currentEntry.TargetReturnAtUtc,
-            updatedAtUtc));
+            updatedAtUtc,
+            nextAcknowledgementStatus,
+            nextAcknowledgedAtUtc,
+            nextAcknowledgedBy));
 
         var nextLedger = new TransportExceptionResolutionLedgerReadModel(
             updatedAtUtc,
@@ -225,7 +250,10 @@ public sealed class TransportExceptionResolutionLedgerService
                 nextFollowUpStatus,
                 currentEntry.FollowUpOwner,
                 currentEntry.TargetReturnAtUtc,
-                updatedAtUtc))
+                updatedAtUtc,
+                nextAcknowledgementStatus,
+                nextAcknowledgedAtUtc,
+                nextAcknowledgedBy))
             .OrderByDescending(entry => entry.UpdatedAtUtc)
             .Take(MaxHistoryEntries)
             .ToArray();

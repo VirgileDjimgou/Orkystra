@@ -11,5 +11,6 @@ public sealed record TransportExceptionFollowUpHandoffPackReadModel(
     string Summary,
     string ShiftSummary,
     string OwnerHeadline,
+    string AcknowledgementHeadline,
     IReadOnlyCollection<string> BriefingLines,
     IReadOnlyCollection<TransportExceptionFollowUpHandoffItemReadModel> Items);

@@ -8,4 +8,7 @@ public sealed record TransportExceptionResolutionHistoryEntryReadModel(
     string? FollowUpStatus,
     string? FollowUpOwner,
     DateTimeOffset? TargetReturnAtUtc,
-    DateTimeOffset UpdatedAtUtc);
+    DateTimeOffset UpdatedAtUtc,
+    string? AcknowledgementStatus,
+    DateTimeOffset? AcknowledgedAtUtc,
+    string? AcknowledgedBy);
