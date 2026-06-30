@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import WarehouseTwinScene from "./components/WarehouseTwinScene.vue";
 import {
@@ -92,6 +92,12 @@ type TransportFollowUpFilter =
   | "watchlist";
 type TransportDiffFilter = "all" | "changed" | "added" | "removed" | "selected";
 
+const fallbackOverview = buildFallbackOverview();
+const fallbackWarehouseDetail = buildFallbackWarehouseDetail();
+const fallbackRouteDetail = buildFallbackRouteDetail();
+const overview = ref<ControlTowerOverviewView>(fallbackOverview);
+const warehouseDetail = ref<WarehouseDetailView>(fallbackWarehouseDetail);
+const routeDetail = ref<RouteDetailView>(fallbackRouteDetail);
 const loadErrorMessage = ref<string | null>(null);
 const overviewConnectionState = ref<DataConnectionState>("loading");
 const warehouseDetailErrorMessage = ref<string | null>(null);
@@ -192,6 +198,27 @@ const simulationState = ref<"Running" | "Paused">("Running");
 const selectedSpeed = ref(simulationSpeeds[1]);
 let connectionRecoveryHandle = 0;
 let freshnessTickerHandle = 0;
+
+const isRefreshingWorkspace = ref(false);
+
+const currentWarehouse = computed(() =>
+  overview.value.warehouses.find(
+    (w) => w.warehouseId === selectedWarehouseId.value
+  ) ?? overview.value.warehouses[0]
+);
+
+const navigationItems = computed(() => [
+  { label: 'Control Tower', short: 'CT', active: true },
+  { label: 'Warehouses', short: 'WH', active: false },
+  { label: 'Transport', short: 'TP', active: false },
+  { label: 'AI Insights', short: 'AI', active: false },
+  { label: 'Providers', short: 'PR', active: false },
+  { label: 'Audit', short: 'AU', active: false },
+]);
+
+const currentRiskCount = computed(() =>
+  overview.value.alerts.filter((a) => a.severity !== 'Info').length
+);
 
 const currentScenario = computed(() =>
   overview.value.scenarios.find(
@@ -2029,7 +2056,7 @@ function formatFollowUpCountdown(hoursUntilTarget: number | null): string {
 }
 
 function normalizeInterpunctText(value: string): string {
-  return value.replaceAll("Â·", "·");
+  return value.replaceAll("├é┬À", "┬À");
 }
 
 function resetTransportExceptionReviewQueue(): void {
@@ -4245,7 +4272,7 @@ onBeforeUnmount(() => {
                     </template>
                   </span>
                   <span v-if="item.evidence.length > 0">
-                    {{ item.evidence.join(" · ") }}
+                    {{ item.evidence.join(" ┬À ") }}
                   </span>
                   <span
                     v-if="effectiveTransportExceptionResolutionStatus(item)"
@@ -4539,10 +4566,10 @@ onBeforeUnmount(() => {
                     normalizeInterpunctText(item.handoffSummary)
                   }}</span>
                   <span>
-                    {{ item.readinessPosture }} · {{ item.readinessSummary }}
+                    {{ item.readinessPosture }} ┬À {{ item.readinessSummary }}
                   </span>
                   <span>
-                    {{ item.acknowledgementStatus }} ·
+                    {{ item.acknowledgementStatus }} ┬À
                     {{ item.acknowledgementSummary }}
                   </span>
                   <span>
@@ -4552,7 +4579,7 @@ onBeforeUnmount(() => {
                     }}
                   </span>
                   <span v-if="item.targetReturnAtLabel">
-                    Return window · {{ item.targetReturnAtLabel }}
+                    Return window ┬À {{ item.targetReturnAtLabel }}
                   </span>
                   <button
                     type="button"
@@ -4681,7 +4708,7 @@ onBeforeUnmount(() => {
                     focusedTransportFollowUpItem
                       ? `${
                           focusedTransportFollowUpItem.slaPosture
-                        } posture · ${formatFollowUpCountdown(
+                        } posture ┬À ${formatFollowUpCountdown(
                           focusedTransportFollowUpItem.hoursUntilTarget
                         )}`
                       : transportExceptionFollowUpQueue.focusSummary
@@ -4700,7 +4727,7 @@ onBeforeUnmount(() => {
                   }"
                   @click="selectedTransportFollowUpFilter = option.key"
                 >
-                  {{ option.label }} · {{ option.count }}
+                  {{ option.label }} ┬À {{ option.count }}
                 </button>
               </div>
 
@@ -4789,7 +4816,7 @@ onBeforeUnmount(() => {
                     focusedTransportFollowUpItem.followUpOwner ??
                     "Unassigned owner"
                   }}
-                  ·
+                  ┬À
                   {{
                     formatFollowUpCountdown(
                       focusedTransportFollowUpItem.hoursUntilTarget
@@ -4798,7 +4825,7 @@ onBeforeUnmount(() => {
                   <template
                     v-if="focusedTransportFollowUpItem.targetReturnAtLabel"
                   >
-                    · return
+                    ┬À return
                     {{ focusedTransportFollowUpItem.targetReturnAtLabel }}
                   </template>
                 </span>
@@ -4818,7 +4845,7 @@ onBeforeUnmount(() => {
                         latestTransportFollowUpHistoryEntry?.status ??
                         focusedTransportFollowUpItem.status
                       }}
-                      ·
+                      ┬À
                       {{
                         latestTransportFollowUpHistoryEntry?.followUpStatus ??
                         focusedTransportFollowUpItem.followUpStatus
@@ -4836,7 +4863,7 @@ onBeforeUnmount(() => {
                     :key="entry.id"
                   >
                     <strong>{{ entry.updatedAtLabel }}</strong>
-                    <span>{{ entry.status }} · {{ entry.followUpStatus }}</span>
+                    <span>{{ entry.status }} ┬À {{ entry.followUpStatus }}</span>
                     <span>{{
                       entry.note ?? "No operator note saved on this update."
                     }}</span>
@@ -4854,8 +4881,8 @@ onBeforeUnmount(() => {
                     >{{ item.alertSeverity }} - {{ item.alertSummary }}</span
                   >
                   <span>
-                    {{ item.status }} · {{ item.followUpStatus }} follow-up ·
-                    {{ item.slaPosture }} ·
+                    {{ item.status }} ┬À {{ item.followUpStatus }} follow-up ┬À
+                    {{ item.slaPosture }} ┬À
                     {{ formatFollowUpCountdown(item.hoursUntilTarget) }}
                   </span>
                   <span>{{
@@ -4874,31 +4901,31 @@ onBeforeUnmount(() => {
                     Owner:
                     {{ item.followUpOwner ?? "Unassigned" }}
                     <template v-if="item.targetReturnAtLabel">
-                      · return {{ item.targetReturnAtLabel }}
+                      ┬À return {{ item.targetReturnAtLabel }}
                     </template>
                   </span>
                   <span>
-                    Last updated {{ item.updatedAtLabel }} ·
+                    Last updated {{ item.updatedAtLabel }} ┬À
                     {{ item.updateCount }} saved update{{
                       item.updateCount === 1 ? "" : "s"
                     }}
                     <template v-if="item.previousStatus">
-                      · previous {{ item.previousStatus }}
+                      ┬À previous {{ item.previousStatus }}
                     </template>
                   </span>
                   <span v-if="item.routeReference">
                     Route {{ item.routeReference }}
                   </span>
                   <span v-if="item.evidence.length > 0">
-                    {{ item.evidence.join(" · ") }}
+                    {{ item.evidence.join(" ┬À ") }}
                   </span>
                   <span>
                     {{ item.acknowledgementStatus ?? "Unacknowledged" }}
                     <template v-if="item.acknowledgedBy">
-                      · {{ item.acknowledgedBy }}
+                      ┬À {{ item.acknowledgedBy }}
                     </template>
                     <template v-if="item.acknowledgedAtLabel">
-                      · {{ item.acknowledgedAtLabel }}
+                      ┬À {{ item.acknowledgedAtLabel }}
                     </template>
                   </span>
                   <label class="provider-field">
@@ -7962,4 +7989,6 @@ onBeforeUnmount(() => {
   }
 }
 </style>
+
+
 

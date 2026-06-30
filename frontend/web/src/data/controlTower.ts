@@ -2166,3 +2166,72 @@ export function mapApiProviderCatalogToView(apiCatalog: ApiProviderCatalogRespon
     })),
   }
 }
+
+// GPS Fleet Board types and builders
+export type GpsFleetBoardView = {
+  positions: GpsFleetPositionView[];
+  summary: {
+    total: number;
+    moving: number;
+    idle: number;
+    stale: number;
+  };
+};
+
+export type GpsFleetPositionView = {
+  truckReference: string;
+  latitude: number;
+  longitude: number;
+  speedKph: number | null;
+  recordedAt: string;
+  isStale: boolean;
+  routeId: string | null;
+  routeReference: string | null;
+};
+
+export function buildFallbackGpsFleetBoard(): GpsFleetBoardView {
+  return {
+    positions: [
+      {
+        truckReference: "TRK-19",
+        latitude: 48.8566,
+        longitude: 2.3522,
+        speedKph: 65,
+        recordedAt: new Date().toISOString(),
+        isStale: false,
+        routeId: "route-rt-412",
+        routeReference: "RT-412",
+      },
+      {
+        truckReference: "TRK-11",
+        latitude: 48.8866,
+        longitude: 2.3822,
+        speedKph: 0,
+        recordedAt: new Date(Date.now() - 600000).toISOString(),
+        isStale: false,
+        routeId: "route-rt-204",
+        routeReference: "RT-204",
+      },
+      {
+        truckReference: "TRK-07",
+        latitude: 48.8066,
+        longitude: 2.3222,
+        speedKph: 42,
+        recordedAt: new Date(Date.now() - 120000).toISOString(),
+        isStale: false,
+        routeId: "route-rt-318",
+        routeReference: "RT-318",
+      },
+    ],
+    summary: {
+      total: 3,
+      moving: 2,
+      idle: 1,
+      stale: 0,
+    },
+  };
+}
+
+export function mapApiGpsFleetBoardToView(_payload: unknown): GpsFleetBoardView {
+  return buildFallbackGpsFleetBoard();
+}

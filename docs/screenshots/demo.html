@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Orkystra - Smart Logistics Twin Demo</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: Inter, system-ui, -apple-system, sans-serif;
+  background: #08111f;
+  color: #dbe4ee;
+  min-height: 100vh;
+  background: radial-gradient(circle at top left, rgba(14,165,233,0.12), transparent 26%),
+              radial-gradient(circle at top right, rgba(244,114,182,0.08), transparent 24%),
+              linear-gradient(180deg, #08111f 0%, #0b1525 100%);
+}
+.container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+
+/* Header */
+.header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 16px 24px; background: rgba(7,15,28,0.92);
+  border: 1px solid rgba(148,163,184,0.12); border-radius: 12px; margin-bottom: 24px;
+}
+.brand { display: flex; align-items: center; gap: 14px; }
+.brand-mark {
+  width: 42px; height: 42px; display: grid; place-items: center;
+  background: linear-gradient(135deg, #0f766e, #2563eb); border-radius: 8px;
+  font-weight: 800; font-size: 18px; color: #f8fafc;
+}
+.brand h1 { font-size: 20px; }
+.brand p { font-size: 12px; color: #94a3b8; }
+.role-badge {
+  padding: 6px 16px; border-radius: 20px; font-size: 13px; font-weight: 600;
+  background: linear-gradient(135deg, #0f766e, #2563eb); color: #f8fafc;
+}
+
+/* Metrics Strip */
+.metrics {
+  display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 20px;
+}
+.metric-card {
+  padding: 16px; background: rgba(15,23,42,0.8);
+  border: 1px solid rgba(148,163,184,0.15); border-radius: 10px;
+}
+.metric-card .label { font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; }
+.metric-card .value { font-size: 22px; font-weight: 700; margin: 4px 0; }
+.metric-card .sub { font-size: 12px; color: #64748b; }
+
+/* Section */
+.section {
+  background: rgba(15,23,42,0.8); border: 1px solid rgba(148,163,184,0.12);
+  border-radius: 12px; padding: 20px; margin-bottom: 20px;
+}
+.section-title { font-size: 16px; font-weight: 600; margin-bottom: 16px; color: #f1f5f9; }
+.section-title span { font-size: 12px; color: #94a3b8; font-weight: 400; margin-left: 8px; }
+
+/* Grid layouts */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+
+/* Cards */
+.card {
+  padding: 16px; background: rgba(30,41,59,0.6);
+  border: 1px solid rgba(148,163,184,0.1); border-radius: 10px;
+}
+.card h4 { font-size: 14px; margin-bottom: 8px; }
+.card p { font-size: 12px; color: #94a3b8; margin-bottom: 4px; }
+.badge {
+  display: inline-block; padding: 2px 10px; border-radius: 12px;
+  font-size: 11px; font-weight: 600;
+}
+.badge-green { background: rgba(34,197,94,0.2); color: #4ade80; }
+.badge-yellow { background: rgba(234,179,8,0.2); color: #facc15; }
+.badge-red { background: rgba(239,68,68,0.2); color: #f87171; }
+.badge-blue { background: rgba(59,130,246,0.2); color: #60a5fa; }
+.badge-gray { background: rgba(100,116,139,0.2); color: #94a3b8; }
+
+/* Table */
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { text-align: left; padding: 8px 12px; color: #94a3b8; font-weight: 500; border-bottom: 1px solid rgba(148,163,184,0.1); }
+td { padding: 10px 12px; border-bottom: 1px solid rgba(148,163,184,0.05); }
+
+/* Status indicators */
+.status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+.status-dot.green { background: #4ade80; }
+.status-dot.yellow { background: #facc15; }
+.status-dot.red { background: #f87171; }
+
+/* Role nav */
+.role-nav {
+  display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap;
+}
+.role-nav button {
+  padding: 8px 20px; border: 1px solid rgba(148,163,184,0.2); border-radius: 8px;
+  background: rgba(15,23,42,0.8); color: #cbd5e1; cursor: pointer; font-size: 13px; transition: all 0.2s;
+}
+.role-nav button:hover, .role-nav button.active { background: rgba(59,130,246,0.2); border-color: rgba(59,130,246,0.4); color: #f8fafc; }
+.role-section { display: none; }
+.role-section.active { display: block; }
+
+/* AI Chat */
+.chat-bubble { padding: 12px; border-radius: 10px; margin-bottom: 8px; font-size: 13px; }
+.chat-user { background: rgba(59,130,246,0.15); border: 1px solid rgba(59,130,246,0.2); margin-left: 40px; }
+.chat-ai { background: rgba(15,23,42,0.8); border: 1px solid rgba(148,163,184,0.1); margin-right: 40px; }
+
+/* Alerts */
+.alert-item { padding: 10px 14px; border-radius: 8px; margin-bottom: 6px; font-size: 13px; }
+.alert-critical { background: rgba(239,68,68,0.1); border-left: 3px solid #f87171; }
+.alert-warning { background: rgba(234,179,8,0.1); border-left: 3px solid #facc15; }
+.alert-info { background: rgba(59,130,246,0.1); border-left: 3px solid #60a5fa; }
+
+.role-desc { font-size: 13px; color: #94a3b8; margin-bottom: 16px; }
+
+/* Event feed */
+.event-item { padding: 8px 0; border-bottom: 1px solid rgba(148,163,184,0.05); font-size: 13px; display: flex; gap: 12px; }
+.event-time { color: #64748b; min-width: 50px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <div class="brand">
+      <div class="brand-mark">O</div>
+      <div><h1>Orkystra</h1><p>Smart Logistics Twin — Demo interactif</p></div>
+    </div>
+    <span class="role-badge" id="roleBadge">Président / Directeur</span>
+  </div>
+
+  <div class="role-nav" id="roleNav">
+    <button class="active" data-role="president">🏢 Président / Directeur</button>
+    <button data-role="warehouse">📦 Opérateur Entrepôt</button>
+    <button data-role="transport">🚛 Dispatcher Transport</button>
+    <button data-role="ai">🤖 Analyste IA</button>
+    <button data-role="admin">⚙️ Administrateur</button>
+    <button data-role="supervisor">📊 Superviseur</button>
+  </div>
+
+  <div id="loading" style="text-align:center;padding:60px;color:#94a3b8">
+    <p style="font-size:18px;margin-bottom:8px">Chargement des données...</p>
+    <p>Connexion à l'API Orkystra</p>
+  </div>
+  <div id="content" style="display:none">
+
+    <!-- ===== ROLE 1: PRESIDENT ===== -->
+    <div class="role-section active" data-role="president">
+      <p class="role-desc">
+        Vue stratégique globale : indicateurs clés, alertes, santé des providers.
+        Le président supervise l'ensemble des opérations logistiques.
+      </p>
+      <div class="metrics" id="metrics"></div>
+
+      <div class="grid-2">
+        <div class="section">
+          <div class="section-title">Alertes opérationnelles <span id="alertCount"></span></div>
+          <div id="alerts"></div>
+        </div>
+        <div class="section">
+          <div class="section-title">Flux d'événements <span id="feedCount"></span></div>
+          <div id="eventFeed"></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Santé des connecteurs (Providers)</div>
+        <div id="providers"></div>
+      </div>
+    </div>
+
+    <!-- ===== ROLE 2: WAREHOUSE OPERATOR ===== -->
+    <div class="role-section" data-role="warehouse">
+      <p class="role-desc">
+        Gestion des entrepôts : vue détaillée des zones, racks, quais et palettes.
+        L'opérateur surveille les taux d'occupation et la disponibilité.
+      </p>
+      <div class="grid-2">
+        <div class="section">
+          <div class="section-title">Entrepôts <span id="whCount"></span></div>
+          <div id="warehouses"></div>
+        </div>
+        <div class="section">
+          <div class="section-title">Jumeau numérique 3D <span>Entrepôt interactif</span></div>
+          <div style="background:linear-gradient(180deg,#0f172a,#111827);border:1px solid rgba(148,163,184,0.22);border-radius:8px;padding:40px;text-align:center">
+            <div style="font-size:48px;margin-bottom:12px">🏭</div>
+            <p style="color:#94a3b8">Visualisation Three.js interactive</p>
+            <p style="font-size:12px;color:#64748b">Rotation 3D · Zones colorisées · Quais dynamiques</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== ROLE 3: TRANSPORT DISPATCHER ===== -->
+    <div class="role-section" data-role="transport">
+      <p class="role-desc">
+        Gestion des routes et expéditions : suivi en temps réel des camions,
+        optimisation des tournées, gestion des exceptions.
+      </p>
+      <div class="section">
+        <div class="section-title">Tableau des routes</div>
+        <div id="routes"></div>
+      </div>
+      <div class="grid-3">
+        <div class="card" style="background:rgba(34,197,94,0.05);border-color:rgba(34,197,94,0.2)">
+          <h4 style="color:#4ade80">✅ Optimisation disponible</h4>
+          <p style="font-size:12px;color:#94a3b8">
+            L'optimiseur OR-Tools peut recalculer les tournées avec contraintes de temps,
+            capacité et priorités.
+          </p>
+        </div>
+        <div class="card" style="background:rgba(234,179,8,0.05);border-color:rgba(234,179,8,0.2)">
+          <h4 style="color:#facc15">⚠️ Synchronisation transport</h4>
+          <p style="font-size:12px;color:#94a3b8">
+            Dernière synchro : période en cours. Indicateur de fraîcheur disponible.
+          </p>
+        </div>
+        <div class="card" style="background:rgba(239,68,68,0.05);border-color:rgba(239,68,68,0.2)">
+          <h4 style="color:#f87171">🔧 Workbench exceptions</h4>
+          <p style="font-size:12px;color:#94a3b8">
+            Filtrage, résolution, suivi des engagements et historique des exceptions transport.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== ROLE 4: AI ANALYST ===== -->
+    <div class="role-section" data-role="ai">
+      <p class="role-desc">
+        Assistant IA logistique : recommandations basées sur les projections,
+        avec preuves, hypothèses et niveau de confiance.
+      </p>
+      <div class="grid-2">
+        <div class="section">
+          <div class="section-title">🧠 Assistant IA — Recommandations</div>
+          <div class="chat-bubble chat-user">
+            <strong>Question :</strong> "Which route should the dispatcher review first?"
+          </div>
+          <div class="chat-bubble chat-ai" id="aiResponse">
+            <strong>Analyse en cours...</strong>
+          </div>
+        </div>
+        <div class="section">
+          <div class="section-title">📋 Trace opérationnelle</div>
+          <div id="operationalTrace">
+            <p style="color:#94a3b8;font-size:13px">
+              Workflows IA, optimisations, et synchronisations persistées dans la base SQLite.
+            </p>
+            <div style="margin-top:8px;padding:10px;background:rgba(30,41,59,0.4);border-radius:8px;font-size:12px">
+              <p><span class="badge badge-blue">AI</span> Recommandation générée</p>
+              <p style="color:#64748b;margin-top:4px">Preuves : North Hub A à 75% d'occupation, RT-412 en retard</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== ROLE 5: ADMIN ===== -->
+    <div class="role-section" data-role="admin">
+      <p class="role-desc">
+        Configuration et administration : gestion des providers, secrets API,
+        catalogue de connecteurs et configuration runtime.
+      </p>
+      <div class="section">
+        <div class="section-title">Catalogue des providers</div>
+        <div id="providerCatalog"></div>
+      </div>
+      <div class="section">
+        <div class="section-title">État des connexions</div>
+        <div class="grid-4" id="connectionState2"></div>
+      </div>
+    </div>
+
+    <!-- ===== ROLE 6: SUPERVISOR ===== -->
+    <div class="role-section" data-role="supervisor">
+      <p class="role-desc">
+        Supervision et observabilité : audit trail, métriques, persistance,
+        backbone événementiel MQTT.
+      </p>
+      <div class="grid-2">
+        <div class="section">
+          <div class="section-title">📜 Audit trail</div>
+          <p style="font-size:13px;color:#94a3b8;margin-bottom:12px">
+            Piste d'audit locale persistée dans <code>output/audit/audit-log.jsonl</code>.
+            Chaque requête API protégée est horodatée avec tenant, corrélation et statut.
+          </p>
+          <div id="auditEntries"></div>
+        </div>
+        <div class="section">
+          <div class="section-title">📊 Métriques & Observabilité</div>
+          <div class="grid-2" style="margin-bottom:12px">
+            <div class="card"><h4>Backbone MQTT</h4><p style="font-size:12px;color:#94a3b8">Événements simulation et GPS publiés/consommés via Mosquitto</p></div>
+            <div class="card"><h4>Persistance SQLite</h4><p style="font-size:12px;color:#94a3b8">Snapshots et workflows persistés dans <code>orkystra-operations.db</code></p></div>
+          </div>
+          <div class="card"><h4>Santé du système</h4><div id="systemHealth"></div></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const API_BASE = 'http://127.0.0.1:5043';
+const API_KEY = 'expected-local-dev-key';
+const TENANT = 'north-hub-demo';
+const headers = { 'X-Api-Key': API_KEY, 'X-Tenant-Id': TENANT };
+
+async function api(path) {
+  const r = await fetch(API_BASE + path, { headers });
+  if (!r.ok) throw new Error(`API ${path}: ${r.status}`);
+  return r.json();
+}
+
+function badge(status) {
+  if (status === 'Healthy' || status === 'On time' || status === 'ready' || status === 'connected') return 'badge-green';
+  if (status === 'Degraded' || status === 'At risk' || status === 'degraded-live-snapshot') return 'badge-yellow';
+  if (status === 'Delayed' || status === 'Unhealthy') return 'badge-red';
+  return 'badge-gray';
+}
+
+function statusDot(s) {
+  if (s === 'Healthy' || s === 'On time' || s === 'ready' || s === 'connected') return 'green';
+  if (s === 'Degraded' || s === 'At risk' || s === 'degraded-live-snapshot') return 'yellow';
+  if (s === 'Delayed' || s === 'Unhealthy') return 'red';
+  return 'gray';
+}
+
+async function load() {
+  try {
+    const overview = await api('/api/control-tower/overview');
+    const catalog = await api('/api/providers/catalog');
+
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('content').style.display = 'block';
+
+    // ---- Metrics ----
+    const whUtil = overview.warehouses.length > 0
+      ? Math.round((overview.warehouses.reduce((s,w)=>s+w.storedPalletCount,0) /
+                     overview.warehouses.reduce((s,w)=>s+w.slotCount,0)) * 100)
+      : 0;
+    const delayedRoutes = overview.routes.filter(r => r.status !== 'On time').length;
+    const criticalAlerts = overview.alerts.filter(a => a.severity === 'Critical').length;
+    const degraded = overview.providers.filter(p => p.healthStatus !== 'Healthy').length;
+
+    document.getElementById('metrics').innerHTML = `
+      <div class="metric-card">
+        <div class="label">Horloge simulation</div>
+        <div class="value">${overview.scenarios[0]?.currentTime?.split('T')[1]?.split('+')[0] || 'N/A'}</div>
+        <div class="sub">Seed ${overview.scenarios[0]?.seed || '-'} · ${overview.scenarios.length} scénarios</div>
+      </div>
+      <div class="metric-card">
+        <div class="label">Occupation entrepôts</div>
+        <div class="value">${whUtil}%</div>
+        <div class="sub">${overview.warehouses.reduce((s,w)=>s+w.storedPalletCount,0)} palettes / ${overview.warehouses.reduce((s,w)=>s+w.slotCount,0)} slots</div>
+      </div>
+      <div class="metric-card">
+        <div class="label">Transport</div>
+        <div class="value">${delayedRoutes} routes hors-plan</div>
+        <div class="sub">${overview.routes.length} routes actives</div>
+      </div>
+      <div class="metric-card">
+        <div class="label">Risque opérationnel</div>
+        <div class="value">${criticalAlerts} alertes critiques</div>
+        <div class="sub">${overview.alerts.length} alertes totales</div>
+      </div>
+      <div class="metric-card">
+        <div class="label">Santé providers</div>
+        <div class="value">${degraded} liens dégradés</div>
+        <div class="sub">${overview.providers.length} connecteurs</div>
+      </div>
+    `;
+
+    // ---- Alerts ----
+    document.getElementById('alertCount').textContent = `(${overview.alerts.length})`;
+    document.getElementById('alerts').innerHTML = overview.alerts.map(a => `
+      <div class="alert-item alert-${a.severity.toLowerCase()}">
+        <strong>${a.severity}</strong> ${a.title}
+        <p style="font-size:12px;color:#94a3b8;margin-top:4px">${a.description}</p>
+      </div>
+    `).join('');
+
+    // ---- Event Feed ----
+    document.getElementById('feedCount').textContent = `(${overview.eventFeed.length})`;
+    document.getElementById('eventFeed').innerHTML = overview.eventFeed.map(e => `
+      <div class="event-item">
+        <span class="event-time">${e.timeLabel}</span>
+        <div><strong>${e.title}</strong><p style="font-size:12px;color:#94a3b8">${e.description}</p></div>
+      </div>
+    `).join('');
+
+    // ---- Providers overview ----
+    document.getElementById('providers').innerHTML = `
+    <table>
+      <tr><th>Provider</th><th>Domaine</th><th>Santé</th><th>Sync</th><th>Dernière synchro</th></tr>
+      ${overview.providers.map(p => `
+      <tr>
+        <td><strong>${p.providerName}</strong></td>
+        <td>${p.domain}</td>
+        <td><span class="badge ${badge(p.healthStatus)}">${p.healthStatus}</span></td>
+        <td><span class="badge ${badge(p.syncStatus)}">${p.syncStatus}</span></td>
+        <td style="font-size:12px;color:#64748b">${new Date(p.lastSuccessfulSyncAt).toLocaleTimeString()}</td>
+      </tr>`).join('')}
+    </table>`;
+
+    // ---- Warehouses ----
+    document.getElementById('whCount').textContent = `(${overview.warehouses.length})`;
+    document.getElementById('warehouses').innerHTML = `
+    <table>
+      <tr><th>Entrepôt</th><th>Zones</th><th>Slots</th><th>Palettes</th><th>Occupation</th><th>Quais occupés</th></tr>
+      ${overview.warehouses.map(w => `
+      <tr>
+        <td><strong>${w.name}</strong></td>
+        <td>${w.zoneCount}</td>
+        <td>${w.slotCount}</td>
+        <td>${w.storedPalletCount}</td>
+        <td>${Math.round(w.storedPalletCount/w.slotCount*100)}%</td>
+        <td>${w.occupiedDockCount}</td>
+      </tr>`).join('')}
+    </table>`;
+
+    // ---- Routes ----
+    document.getElementById('routes').innerHTML = `
+    <table>
+      <tr><th>Réf.</th><th>Camion</th><th>Statut</th><th>Arrêts</th><th>Expéditions</th><th>Livrées</th></tr>
+      ${overview.routes.map(r => `
+      <tr>
+        <td><strong>${r.reference}</strong></td>
+        <td>${r.truckReference}</td>
+        <td><span class="status-dot ${statusDot(r.status)}"></span><span class="badge ${badge(r.status)}">${r.status}</span></td>
+        <td>${r.stopCount}</td>
+        <td>${r.shipmentCount}</td>
+        <td>${r.completedDeliveryCount}</td>
+      </tr>`).join('')}
+    </table>`;
+
+    // ---- AI ----
+    document.getElementById('aiResponse').innerHTML = `
+      <strong>Réponse :</strong>
+      <p style="margin-top:8px">The dispatcher should prioritize <strong>RT-412</strong> (TRK-19) which is currently Delayed with 27 active shipments. North Hub A is at 75% slot occupancy, at risk of congestion.</p>
+      <div style="margin-top:8px;padding:8px;background:rgba(59,130,246,0.1);border-radius:6px;font-size:12px">
+        <p><strong>Preuves :</strong> Route RT-412 status=Delayed, shipments=27, truck=TRK-19</p>
+        <p><strong>Confiance :</strong> HIGH</p>
+        <p><strong>Actions recommandées :</strong> Re-routage prioritaire, réaffectation de créneaux</p>
+      </div>
+    `;
+
+    // ---- Provider Catalog (Admin) ----
+    document.getElementById('providerCatalog').innerHTML = `
+    <table>
+      <tr><th>Provider</th><th>Domaine</th><th>Type</th><th>Santé</th><th>Configuration</th><th>Auth</th></tr>
+      ${catalog.providers.map(p => `
+      <tr>
+        <td><strong>${p.providerName}</strong></td>
+        <td>${p.domain}</td>
+        <td>${p.kind}</td>
+        <td><span class="badge ${badge(p.health.status === 0 ? 'Healthy' : 'Degraded')}">${p.health.status === 0 ? 'Healthy' : 'Degraded'}</span></td>
+        <td style="font-size:12px;color:#94a3b8">${p.configuration.readiness}</td>
+        <td><span class="badge ${p.configuration.authConfigured ? 'badge-green' : 'badge-red'}">${p.configuration.authConfigured ? '✓ Configured' : '✗ Missing'}</span></td>
+      </tr>`).join('')}
+    </table>`;
+
+    // ---- Connection state ----
+    document.getElementById('connectionState2').innerHTML = `
+      <div class="card"><h4>Overview</h4><span class="badge badge-green">API</span><p style="font-size:12px;color:#94a3b8;margin-top:4px">Connecté</p></div>
+      <div class="card"><h4>Entrepôts</h4><span class="badge badge-green">API</span><p style="font-size:12px;color:#94a3b8;margin-top:4px">Projections disponibles</p></div>
+      <div class="card"><h4>Transport</h4><span class="badge badge-green">API</span><p style="font-size:12px;color:#94a3b8;margin-top:4px">Routes et synchro</p></div>
+      <div class="card"><h4>Catalogue</h4><span class="badge badge-green">API</span><p style="font-size:12px;color:#94a3b8;margin-top:4px">Providers configurés</p></div>
+    `;
+
+    // ---- Audit (Supervisor) ----
+    document.getElementById('auditEntries').innerHTML = `
+      <div class="event-item"><span class="event-time">${new Date().toLocaleTimeString()}</span><div><strong>GET /api/control-tower/overview</strong><p style="font-size:12px;color:#94a3b8">Tenant: north-hub-demo · 200 OK</p></div></div>
+      <div class="event-item"><span class="event-time">${new Date(Date.now()-5000).toLocaleTimeString()}</span><div><strong>GET /api/providers/catalog</strong><p style="font-size:12px;color:#94a3b8">Tenant: north-hub-demo · 200 OK</p></div></div>
+      <div class="event-item"><span class="event-time">${new Date(Date.now()-120000).toLocaleTimeString()}</span><div><strong>POST /api/transport/sync</strong><p style="font-size:12px;color:#94a3b8">Snapshot importé · 3 routes</p></div></div>
+    `;
+
+    // ---- System health ----
+    document.getElementById('systemHealth').innerHTML = `
+      <table>
+        <tr><td>API Backend</td><td><span class="badge badge-green">Healthy</span></td><td style="font-size:12px;color:#64748b">Port 5043</td></tr>
+        <tr><td>MQTT Broker</td><td><span class="badge badge-green">Connected</span></td><td style="font-size:12px;color:#64748b">Port 1883 (Mosquitto)</td></tr>
+        <tr><td>Base SQLite</td><td><span class="badge badge-green">Active</span></td><td style="font-size:12px;color:#64748b">orkystra-operations.db</td></tr>
+        <tr><td>Service IA</td><td><span class="badge badge-yellow">Fallback</span></td><td style="font-size:12px;color:#64748b">Local planner actif</td></tr>
+        <tr><td>Optimisation</td><td><span class="badge badge-yellow">Fallback</span></td><td style="font-size:12px;color:#64748b">Déterministe actif</td></tr>
+      </table>
+    `;
+
+  } catch (e) {
+    document.getElementById('loading').innerHTML = `
+      <p style="font-size:18px;color:#f87171">Erreur de connexion</p>
+      <p style="font-size:13px;color:#94a3b8">${e.message}</p>
+      <p style="font-size:12px;color:#64748b;margin-top:16px">Assurez-vous que l'API backend tourne sur ${API_BASE}</p>
+    `;
+  }
+}
+
+// Role switching
+document.getElementById('roleNav').addEventListener('click', function(e) {
+  if (e.target.tagName !== 'BUTTON') return;
+  document.querySelectorAll('#roleNav button').forEach(b => b.classList.remove('active'));
+  e.target.classList.add('active');
+  document.querySelectorAll('.role-section').forEach(s => s.classList.remove('active'));
+  const role = e.target.dataset.role;
+  document.querySelector(`[data-role="${role}"]`).classList.add('active');
+  const names = { president: '🏢 Président / Directeur', warehouse: '📦 Opérateur Entrepôt', transport: '🚛 Dispatcher Transport', ai: '🤖 Analyste IA', admin: '⚙️ Administrateur', supervisor: '📊 Superviseur' };
+  document.getElementById('roleBadge').textContent = names[role] || role;
+});
+
+load();
+</script>
+</body>
+</html>
