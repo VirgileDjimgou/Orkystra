@@ -12,6 +12,7 @@ import {
   buildFallbackTransportSyncHistory,
   buildFallbackTransportSyncStatus,
   buildFallbackWarehouseDetail,
+  buildFallbackWarehouseWorkbench,
   buildFallbackProviderCatalog,
   formatUtcLabel,
   simulationSpeeds,
@@ -25,6 +26,7 @@ import {
   type TransportSyncHistoryView,
   type TransportSyncStatusView,
   type WarehouseDetailView,
+  type WarehouseWorkbenchView,
   type ProviderCatalogView,
   type ProviderCatalogItemView,
 } from "./data/controlTower";
@@ -45,6 +47,7 @@ import {
   updateProviderSecret,
 } from "./services/providerCatalogApi";
 import { loadWarehouseProjection } from "./services/warehouseApi";
+import { loadWarehouseWorkbench } from "./services/warehouseWorkbenchApi";
 import { loadTransportProjection } from "./services/transportApi";
 import {
   loadTransportSyncStatus,
@@ -94,14 +97,18 @@ type TransportDiffFilter = "all" | "changed" | "added" | "removed" | "selected";
 
 const fallbackOverview = buildFallbackOverview();
 const fallbackWarehouseDetail = buildFallbackWarehouseDetail();
+const fallbackWarehouseWorkbench = buildFallbackWarehouseWorkbench();
 const fallbackRouteDetail = buildFallbackRouteDetail();
 const overview = ref<ControlTowerOverviewView>(fallbackOverview);
 const warehouseDetail = ref<WarehouseDetailView>(fallbackWarehouseDetail);
+const warehouseWorkbench = ref<WarehouseWorkbenchView>(fallbackWarehouseWorkbench);
 const routeDetail = ref<RouteDetailView>(fallbackRouteDetail);
 const loadErrorMessage = ref<string | null>(null);
 const overviewConnectionState = ref<DataConnectionState>("loading");
 const warehouseDetailErrorMessage = ref<string | null>(null);
 const warehouseConnectionState = ref<DataConnectionState>("loading");
+const warehouseWorkbenchErrorMessage = ref<string | null>(null);
+const warehouseWorkbenchConnectionState = ref<DataConnectionState>("loading");
 const routeDetailErrorMessage = ref<string | null>(null);
 const routeConnectionState = ref<DataConnectionState>("loading");
 const transportSyncStatus = ref<TransportSyncStatusView>(
@@ -200,6 +207,7 @@ let connectionRecoveryHandle = 0;
 let freshnessTickerHandle = 0;
 
 const isRefreshingWorkspace = ref(false);
+const isApiConnected = ref(false);
 
 const currentWarehouse = computed(() =>
   overview.value.warehouses.find(
@@ -224,6 +232,11 @@ const currentScenario = computed(() =>
   overview.value.scenarios.find(
     (scenario) => scenario.scenarioId === selectedScenarioId.value
   )
+);
+const currentRoute = computed(() =>
+  overview.value.routes.find(
+    (r) => r.routeId === selectedRouteId.value
+  ) ?? overview.value.routes[0]
 );
 const activeAlertCount = computed(
   () =>
@@ -2380,6 +2393,31 @@ function applyWarehouseProjectionResult(
       : result.errorMessage;
 }
 
+function applyWarehouseWorkbenchResult(
+  result: Awaited<ReturnType<typeof loadWarehouseWorkbench>>,
+  preserveExisting: boolean,
+): void {
+  const keepCurrentSnapshot =
+    preserveExisting &&
+    result.source === "fallback" &&
+    (warehouseWorkbenchConnectionState.value === "api" ||
+      warehouseWorkbenchConnectionState.value === "stale");
+
+  if (!keepCurrentSnapshot) {
+    warehouseWorkbench.value = result.workbench;
+  }
+
+  warehouseWorkbenchConnectionState.value = keepCurrentSnapshot
+    ? "stale"
+    : result.source === "api"
+    ? "api"
+    : "fallback";
+  warehouseWorkbenchErrorMessage.value =
+    keepCurrentSnapshot && result.errorMessage
+      ? `${result.errorMessage} Keeping the last successful warehouse workbench.`
+      : result.errorMessage;
+}
+
 function applyTransportProjectionResult(
   result: Awaited<ReturnType<typeof loadTransportProjection>>,
   preserveExisting: boolean,
@@ -2654,6 +2692,15 @@ async function refreshWarehouseProjection(
   applyWarehouseProjectionResult(result, preserveExisting, warehouseId);
 }
 
+async function refreshWarehouseWorkbench(preserveExisting = true): Promise<void> {
+  if (!preserveExisting) {
+    warehouseWorkbenchConnectionState.value = "loading";
+  }
+
+  const result = await loadWarehouseWorkbench();
+  applyWarehouseWorkbenchResult(result, preserveExisting);
+}
+
 async function refreshTransportProjection(
   routeId: string,
   preserveExisting = true
@@ -2825,6 +2872,7 @@ async function refreshWorkspace(preserveExisting = true): Promise<void> {
     transportSyncDiffConnectionState.value = "loading";
     transportSyncHistoryConnectionState.value = "loading";
     transportExceptionWorkbenchConnectionState.value = "loading";
+    warehouseWorkbenchConnectionState.value = "loading";
     providerCatalogConnectionState.value = "loading";
     aiConnectionState.value = "loading";
     operationalConnectionState.value = "loading";
@@ -2838,6 +2886,7 @@ async function refreshWorkspace(preserveExisting = true): Promise<void> {
   applyOverviewResult(overviewResult, preserveExisting);
   applyCatalogResult(catalogResult, preserveExisting);
   await refreshWarehouseProjection(selectedWarehouseId.value, preserveExisting);
+  await refreshWarehouseWorkbench(preserveExisting);
   await refreshTransportProjection(selectedRouteId.value, preserveExisting);
   await refreshTransportSyncEvidenceBundle(preserveExisting);
   await refreshRouteOptimization(preserveExisting, false);
@@ -2854,6 +2903,7 @@ async function refreshWorkspace(preserveExisting = true): Promise<void> {
       transportSyncDiffConnectionState.value,
       transportSyncHistoryConnectionState.value,
       transportExceptionWorkbenchConnectionState.value,
+      warehouseWorkbenchConnectionState.value,
       providerCatalogConnectionState.value,
       aiConnectionState.value,
       operationalConnectionState.value,
@@ -2867,6 +2917,7 @@ async function refreshWorkspace(preserveExisting = true): Promise<void> {
       transportSyncDiffConnectionState.value,
       transportSyncHistoryConnectionState.value,
       transportExceptionWorkbenchConnectionState.value,
+      warehouseWorkbenchConnectionState.value,
       providerCatalogConnectionState.value,
       aiConnectionState.value,
       operationalConnectionState.value,
@@ -3393,6 +3444,40 @@ onBeforeUnmount(() => {
                   {{ warehouseDetail.updatedAtLabel }}.
                 </p>
               </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="surface warehouse-surface">
+          <div class="surface-heading">
+            <div>
+              <span class="panel-label">Warehouse workbench</span>
+              <h2>Warehouse signals</h2>
+            </div>
+            <div class="warehouse-actions">
+              <span class="status-pill" :class="toneForConnectionState(warehouseWorkbenchConnectionState)">{{ labelForConnectionState(warehouseWorkbenchConnectionState, 'Warehouse workbench live', 'Warehouse workbench fallback') }}</span>
+            </div>
+          </div>
+          <div class="surface-body">
+            <div v-if="warehouseWorkbenchErrorMessage" class="callout is-warning">{{ warehouseWorkbenchErrorMessage }}</div>
+            <div class="exception-strip">
+              <article v-for="item in warehouseWorkbench.items" :key="item.exceptionId" class="exception-card" :class="`severity-${item.severity.toLowerCase()}`">
+                <div class="exception-head">
+                  <div>
+                    <strong>{{ item.title }}</strong>
+                    <p class="exception-detail">{{ item.detail }}</p>
+                    <p v-if="item.zoneCode" class="exception-zone">Zone: {{ item.zoneCode }}</p>
+                  </div>
+                  <span>{{ item.severity }}</span>
+                </div>
+                <div v-if="item.evidence.length > 0" class="exception-evidence">
+                  <p v-for="(evidence, idx) in item.evidence" :key="idx" class="evidence-item">{{ evidence }}</p>
+                </div>
+                <div class="exception-action">
+                  <button type="button" class="action-button" disabled>{{ item.actionLabel }}</button>
+                  <p class="action-hint">{{ item.recommendedAction === 'focus-warehouse' ? 'Navigate to warehouse detail to act on this signal.' : 'Operator review recommended.' }}</p>
+                </div>
+              </article>
             </div>
           </div>
         </section>

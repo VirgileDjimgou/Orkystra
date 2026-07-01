@@ -138,6 +138,7 @@ builder.Services.AddHostedService<MqttEventConsumerService>();
 builder.Services.AddSingleton<ProviderCatalogService>();
 builder.Services.AddSingleton<ControlTowerOverviewService>();
 builder.Services.AddSingleton<WarehouseProjectionService>();
+builder.Services.AddSingleton<WarehouseWorkbenchService>();
 builder.Services.AddSingleton<TransportProjectionService>();
 builder.Services.AddSingleton<TransportSyncWorkflowService>();
 builder.Services.AddSingleton<TransportSyncHistoryService>();
@@ -520,6 +521,17 @@ app.MapGet("/api/warehouses/{warehouseId:guid}", async (
 })
 .RequireAuthorization()
 .WithName("GetWarehouseProjection");
+
+app.MapGet("/api/warehouses/workbench", async (
+    RequestTenantContext tenantContext,
+    WarehouseWorkbenchService warehouseWorkbenchService,
+    CancellationToken cancellationToken) =>
+{
+    var workbench = await warehouseWorkbenchService.BuildAsync(cancellationToken);
+    return Results.Ok(workbench);
+})
+.RequireAuthorization()
+.WithName("GetWarehouseWorkbench");
 
 app.MapGet("/api/providers/catalog", async (
     RequestTenantContext tenantContext,

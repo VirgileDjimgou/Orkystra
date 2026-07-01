@@ -37,6 +37,38 @@ export type WarehouseDetailView = {
   docks: WarehouseDockView[]
 }
 
+export type WarehouseWorkbenchItemView = {
+  exceptionId: string
+  severity: string
+  category: string
+  title: string
+  detail: string
+  warehouseId: string | null
+  warehouseName: string | null
+  zoneCode: string | null
+  recommendedAction: string
+  actionLabel: string
+  evidence: string[]
+}
+
+export type WarehouseWorkbenchGroupView = {
+  groupKey: string
+  label: string
+  highestSeverity: string
+  count: number
+  summary: string
+  recommendedAction: string
+  actionLabel: string
+}
+
+export type WarehouseWorkbenchView = {
+  generatedAtLabel: string
+  exceptionCount: number
+  summary: string
+  groups: WarehouseWorkbenchGroupView[]
+  items: WarehouseWorkbenchItemView[]
+}
+
 export type RouteSummaryView = {
   routeId: string
   reference: string
@@ -490,6 +522,38 @@ type ApiWarehouseDetail = {
   updatedAtUtc: string
   zones: ApiWarehouseZone[]
   docks: ApiWarehouseDock[]
+}
+
+type ApiWarehouseWorkbenchItem = {
+  exceptionId: string
+  severity: string
+  category: string
+  title: string
+  detail: string
+  warehouseId: string | null
+  warehouseName: string | null
+  zoneCode: string | null
+  recommendedAction: string
+  actionLabel: string
+  evidence: string[]
+}
+
+type ApiWarehouseWorkbenchGroup = {
+  groupKey: string
+  label: string
+  highestSeverity: string
+  count: number
+  summary: string
+  recommendedAction: string
+  actionLabel: string
+}
+
+type ApiWarehouseWorkbench = {
+  generatedAtUtc: string
+  exceptionCount: number
+  summary: string
+  groups: ApiWarehouseWorkbenchGroup[]
+  items: ApiWarehouseWorkbenchItem[]
 }
 
 type ApiRoute = {
@@ -1215,6 +1279,23 @@ export function buildFallbackWarehouseDetail(warehouseId: string): WarehouseDeta
     ?? fallbackWarehouseDetails['db9a789f-9df8-45ff-a252-96d4319c2f12']
 }
 
+export function buildFallbackWarehouseWorkbench(): WarehouseWorkbenchView {
+  return {
+    generatedAtLabel: '2026-07-01 12:00 UTC',
+    exceptionCount: 3,
+    summary: '3 warehouse signal(s) need operator review.',
+    groups: [
+      { groupKey: 'zone', label: 'Zone', highestSeverity: 'Critical', count: 2, summary: '2 zone exceptions are active.', recommendedAction: 'focus-warehouse', actionLabel: 'Focus warehouse' },
+      { groupKey: 'occupancy', label: 'Occupancy', highestSeverity: 'Warning', count: 1, summary: '1 occupancy exception is active.', recommendedAction: 'focus-warehouse', actionLabel: 'Focus warehouse' },
+    ],
+    items: [
+      { exceptionId: 'zone-critical-fallback-xdk', severity: 'Critical', category: 'Zone', title: 'Zone XDK in North Hub A is critical', detail: 'Cross-dock zone impacted by late carrier arrival.', warehouseId: 'db9a789f-9df8-45ff-a252-96d4319c2f12', warehouseName: 'North Hub A', zoneCode: 'XDK', recommendedAction: 'focus-warehouse', actionLabel: 'Focus warehouse', evidence: ['Zone: Cross Dock', 'Utilization: 92%', 'Pallets: 167', '12 trucks queued'] },
+      { exceptionId: 'zone-watch-fallback-amb', severity: 'Warning', category: 'Zone', title: 'Zone AMB in North Hub A needs attention', detail: 'Ambient picking wave with rising congestion.', warehouseId: 'db9a789f-9df8-45ff-a252-96d4319c2f12', warehouseName: 'North Hub A', zoneCode: 'AMB', recommendedAction: 'focus-warehouse', actionLabel: 'Focus warehouse', evidence: ['Zone: Ambient Picking', 'Utilization: 81%', 'Pallets: 228', '57 picks/h'] },
+      { exceptionId: 'warehouse-occupancy-fallback-north-hub', severity: 'Warning', category: 'Occupancy', title: 'North Hub A occupancy is elevated', detail: '612 of 820 slots occupied (75%). Monitor capacity headroom.', warehouseId: 'db9a789f-9df8-45ff-a252-96d4319c2f12', warehouseName: 'North Hub A', zoneCode: null, recommendedAction: 'focus-warehouse', actionLabel: 'Focus warehouse', evidence: ['612 pallets stored', '820 total slots', 'Occupancy: 75%'] },
+    ],
+  }
+}
+
 export function buildFallbackRouteDetail(routeId: string): RouteDetailView {
   return fallbackRouteDetails[routeId]
     ?? fallbackRouteDetails['5024fa82-f658-46c8-88bf-aece07d56f09']
@@ -1318,6 +1399,36 @@ export function mapApiWarehouseDetailToView(apiWarehouse: ApiWarehouseDetail): W
       code: dock.code,
       status: normalizeDockStatus(dock.status),
       activityLabel: dock.activityLabel,
+    })),
+  }
+}
+
+export function mapApiWarehouseWorkbenchToView(apiWorkbench: ApiWarehouseWorkbench): WarehouseWorkbenchView {
+  return {
+    generatedAtLabel: formatUtcLabel(apiWorkbench.generatedAtUtc),
+    exceptionCount: apiWorkbench.exceptionCount,
+    summary: apiWorkbench.summary,
+    groups: apiWorkbench.groups.map((group) => ({
+      groupKey: group.groupKey,
+      label: group.label,
+      highestSeverity: group.highestSeverity,
+      count: group.count,
+      summary: group.summary,
+      recommendedAction: group.recommendedAction,
+      actionLabel: group.actionLabel,
+    })),
+    items: apiWorkbench.items.map((item) => ({
+      exceptionId: item.exceptionId,
+      severity: item.severity,
+      category: item.category,
+      title: item.title,
+      detail: item.detail,
+      warehouseId: item.warehouseId,
+      warehouseName: item.warehouseName,
+      zoneCode: item.zoneCode,
+      recommendedAction: item.recommendedAction,
+      actionLabel: item.actionLabel,
+      evidence: item.evidence,
     })),
   }
 }
