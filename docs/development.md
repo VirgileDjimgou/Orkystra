@@ -48,13 +48,61 @@ Useful local warehouse endpoints once the API is running:
 - `POST /api/ai/recommendations`
 - `POST /api/transport/routes/{routeId}/optimization`
 - `GET /api/providers/catalog`
+- `GET /health/sanity` (anonymous — component connectivity check)
+- `POST /api/bootstrap/demo` (protected — one-step seeded demo setup)
 - `GET /observability/persistence/projections`
 - `GET /observability/persistence/workflows`
 
 The development API key is intentionally not committed. Provide it through environment variables or an ignored local configuration file.
 The API now allows local Vite origins on `127.0.0.1` and `localhost` for development workflows, so the operator UI can call the protected backend directly during local browser sessions.
 The AI workflow endpoint proxies the current control-tower overview into the Python AI service, so the browser only needs to ask a question and the backend supplies the grounded projection context.
-The operational persistence layer stores snapshots and workflow runs in `backend/src/Orkystra.Api/output/persistence/orkystra-operations.db` by default, which makes recent backend state queryable without reading ad hoc JSON files.
+The operational persistence layer stores snapshots and workflow runs in `backend/src/Orkystra.Api/output/persistence/orkystra-operations.db` by default (SQLite), which makes recent backend state queryable without reading ad hoc JSON files.
+
+### Postgres operational persistence
+
+The persistence layer supports both SQLite (default, no external dependencies) and PostgreSQL for multi-session self-hosted deployments.
+
+**Configuration:**
+
+The provider is selected through the `OperationalPersistence` section in `appsettings.json`:
+
+```json
+"OperationalPersistence": {
+  "Provider": "sqlite",
+  "DatabasePath": "output/persistence/orkystra-operations.db",
+  "ConnectionString": "Host=localhost;Port=5432;Database=orkystra;Username=orkystra;Password=orkystra",
+  "ReadLimit": 200
+}
+```
+
+- Set `Provider` to `"sqlite"` for local file-based persistence (default, no external services required).
+- Set `Provider` to `"postgres"` to use PostgreSQL. The `ConnectionString` must point to a running PostgreSQL instance.
+
+**Postgres setup:**
+
+1. Start the PostgreSQL container from the infrastructure compose file:
+   ```powershell
+   docker compose -f infrastructure/docker-compose.yml up -d postgres
+   ```
+2. Update `OperationalPersistence:Provider` to `"postgres"` and verify `ConnectionString` matches your Postgres instance.
+3. Tables (`projection_snapshots`, `workflow_runs`) are auto-created on first use. No manual migration scripts are required.
+4. Restart the API. It will use Postgres for all operational persistence operations.
+
+**Migration from SQLite to Postgres:**
+
+Data is not automatically migrated. To preserve existing data when switching from SQLite to Postgres:
+
+1. Stop the API.
+2. Start a Postgres instance and create the `orkystra` database.
+3. Restart the API with `Provider: "postgres"`. New projections and workflow runs will be written to Postgres.
+4. Previous SQLite data remains in `orkystra-operations.db` for reference.
+
+**Postgres schema:**
+
+Tables are created with `IF NOT EXISTS` on first connection:
+
+- `projection_snapshots`: Stores read-model projections with upsert semantics (`ON CONFLICT DO UPDATE`). Columns: `tenant_id`, `projection_name`, `projection_key`, `source`, `captured_at_utc`, `payload_json`.
+- `workflow_runs`: Append-only workflow execution records. Columns: `id` (BIGSERIAL), `tenant_id`, `workflow_kind`, `subject_key`, `scenario_id`, `source`, `status`, `created_at_utc`, `payload_json`. Indexed on `(tenant_id, workflow_kind, created_at_utc DESC)`.
 The REST transport connector can now switch from demo fallback to live upstream reads when its local runtime configuration contains a valid `baseUrl`; placeholder hosts such as `.invalid` intentionally remain in fallback mode so local demos do not start failing on outbound calls.
 
 ### MQTT event backbone
@@ -80,6 +128,32 @@ curl http://127.0.0.1:5043/observability/event-backbone `
 ```
 
 The MQTT broker URL is configured through `EventBackbone:BrokerUrl` in `backend/src/Orkystra.Api/appsettings.json` and defaults to the local Mosquitto container on `mqtt://localhost:1883`.
+
+### Durable outbox and inbox
+
+The inbox state store and outbox are now backed by the operational persistence database instead of in-memory-only state. This means processed message deduplication and published event records survive process restarts.
+
+**Configuration:**
+
+The outbox and inbox share the same database as the operational persistence layer. No additional configuration is needed beyond the `OperationalPersistence` settings described above.
+
+**Protected outbox endpoints:**
+
+```powershell
+# Inspect recent outbox entries (includes pending, published, and failed)
+curl http://127.0.0.1:5043/observability/event-backbone/outbox?count=20 `
+  -H "X-Api-Key: your-dev-key"
+
+# Replay pending or failed outbox entries through the MQTT publisher
+curl -X POST http://127.0.0.1:5043/observability/event-backbone/replay `
+  -H "X-Api-Key: your-dev-key"
+```
+
+The replay endpoint returns `{ replayed, failed, total }` describing how many pending entries were successfully republished.
+
+**Deduplication behavior:**
+
+The durable inbox uses `(consumer_name, message_id)` as a primary key. If a message is received after a restart, the inbox store returns `true` for `HasProcessedAsync`, and the idempotent projection runner skips the duplicate. This ensures exactly-once projection semantics across restarts as long as the same database is used.
 
 ### GPS telematics stream
 
@@ -232,6 +306,79 @@ The priority section is now visually emphasized in the cluster itself, and the m
 The priority layer now speaks more crisply as well: each state has a shorter urgency label, a tighter main title, and a one-line action reason that explains why the recommended move is the right next step.
 The navigation copy inside the priority layer was normalized around `Go to ...`, which keeps the action rail and quick-link language more consistent when operators bounce between the header and the detailed freshness cards.
 
+## Environment Variable Configuration
+
+All `appsettings.json` settings can be overridden with environment variables. The API validates critical settings on startup and will log a clear message if required values are missing.
+
+**Naming convention:**
+
+Use double-underscore (`__`) as the key separator for nested settings. For example, `Security:ApiKey` in JSON becomes `Security__ApiKey` as an environment variable.
+
+**Required setting:**
+
+| Variable | Description |
+|---|---|
+| `Security__ApiKey` | API key for all protected endpoints. Must be non-empty or the API will not start. |
+
+**Optional settings with defaults:**
+
+| Variable | Default | Description |
+|---|---|---|
+| `TenantAccess__DefaultTenantId` | `local-demo-tenant` | Default tenant when header is not required |
+| `TenantAccess__RequireTenantHeader` | `false` | Set to `true` to enforce tenant header |
+| `Observability__AuditLogFilePath` | `output/audit/audit-log.jsonl` | Path for audit log file |
+| `Observability__EnableAuditLogging` | `true` | Enable or disable audit logging |
+| `OperationalPersistence__Provider` | `sqlite` | `sqlite` or `postgres` |
+| `OperationalPersistence__DatabasePath` | `output/persistence/orkystra-operations.db` | SQLite database path |
+| `OperationalPersistence__ConnectionString` | `Host=localhost;...` | Postgres connection string |
+| `EventBackbone__BrokerUrl` | `mqtt://localhost:1883` | MQTT broker URL |
+| `EventBackbone__Enabled` | `true` | Enable or disable MQTT event backbone |
+| `AiService__BaseUrl` | `http://127.0.0.1:8001` | AI recommendation service URL |
+| `AiService__TimeoutSeconds` | `8` | AI service HTTP timeout |
+| `OptimizationService__BaseUrl` | `http://127.0.0.1:8002` | Optimization service URL |
+| `OptimizationService__TimeoutSeconds` | `8` | Optimization service HTTP timeout |
+
+**Provider secrets:**
+
+Provider secrets use a separate naming convention with the `ORKYSTRA_PROVIDER_` prefix:
+
+```
+ORKYSTRA_PROVIDER_{PROVIDER_ID}_{FIELD}
+```
+
+Provider IDs with hyphens are normalized to uppercase with underscores. For example, the REST transport adapter API key:
+
+```powershell
+$env:ORKYSTRA_PROVIDER_REST_TRANSPORT_ADAPTER_APIKEY='your-api-key-here'
+```
+
+**Quick-start (PowerShell):**
+
+```powershell
+$env:Security__ApiKey='my-local-key'
+$env:OperationalPersistence__Provider='sqlite'
+dotnet run --project backend/src/Orkystra.Api
+```
+
+**Quick-start (Linux/macOS):**
+
+```bash
+export Security__ApiKey='my-local-key'
+export OperationalPersistence__Provider='sqlite'
+dotnet run --project backend/src/Orkystra.Api
+```
+
+**Example `.env` file:**
+
+Copy `.env.example` from the repository root and customize as needed:
+
+```powershell
+cp .env.example .env
+# Edit .env with your settings, then export before running the API
+```
+
+The `.env` file itself is not automatically loaded -- you must export the variables or use a tool like `dotenv` in your shell.
+
 ## Python Services
 
 ```powershell
@@ -253,3 +400,28 @@ docker compose -f infrastructure/docker-compose.stack.yml up -d --build
 
 Local infrastructure includes PostgreSQL, Mosquitto MQTT, and Qdrant.
 The stack compose file also brings up the API, frontend, AI service, and optimization service.
+
+## Demo Bring-Up (First-Run)
+
+After starting the API and local infrastructure, bootstrap a complete seeded demo state:
+
+```powershell
+# 1. Verify all components are reachable
+curl http://127.0.0.1:5043/health/sanity
+
+# 2. Bootstrap the demo (deterministic seed, publishes MQTT events, seeds projections)
+curl -X POST http://127.0.0.1:5043/api/bootstrap/demo `
+  -H "X-Api-Key: your-local-key" `
+  -H "Content-Type: application/json" `
+  -d '{"scenarioName":"Demo","seed":42,"advanceMinutes":15,"includeDisruption":true}'
+
+# 3. Confirm scenario was created
+curl http://127.0.0.1:5043/api/simulation/scenarios `
+  -H "X-Api-Key: your-local-key"
+```
+
+The bootstrap endpoint creates:
+- A deterministic scenario with configurable seed (default: 42, `includeDisruption` adds a dock-blocked event)
+- Scenario events published through the MQTT backbone
+- Persisted bootstrap workflow record for auditability
+- Warehouses, routes, and GPS positions accessible through existing API endpoints

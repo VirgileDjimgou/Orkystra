@@ -13,12 +13,12 @@ public sealed class OperationalPersistenceStoreTests
 
         try
         {
-            var store = new OperationalPersistenceStore(
-                Options.Create(new OperationalPersistenceOptions
-                {
-                    DatabasePath = Path.Combine("data", "operations.db")
-                }),
-                tempDirectory.FullName);
+var store = new SqliteOperationalPersistenceStore(
+    Options.Create(new OperationalPersistenceOptions
+    {
+        DatabasePath = Path.Combine("data", "operations.db")
+    }),
+    tempDirectory.FullName);
 
             await store.UpsertProjectionAsync(
                 "tenant-a",
@@ -65,12 +65,12 @@ public sealed class OperationalPersistenceStoreTests
 
         try
         {
-            var store = new OperationalPersistenceStore(
-                Options.Create(new OperationalPersistenceOptions
-                {
-                    DatabasePath = Path.Combine("data", "operations.db")
-                }),
-                tempDirectory.FullName);
+var store = new SqliteOperationalPersistenceStore(
+    Options.Create(new OperationalPersistenceOptions
+    {
+        DatabasePath = Path.Combine("data", "operations.db")
+    }),
+    tempDirectory.FullName);
 
             await store.AppendWorkflowRunAsync(
                 "tenant-a",

@@ -11,20 +11,20 @@ public sealed class TransportProjectionService
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
     private readonly ProviderRegistryFactory? _providerRegistryFactory;
     private readonly ITransportProjectionProviderAdapter? _transportProvider;
-    private readonly OperationalPersistenceStore? _persistenceStore;
+    private readonly IOperationalPersistenceStore? _persistenceStore;
 
     public TransportProjectionService()
     {
         _providerRegistryFactory = new ProviderRegistryFactory();
     }
 
-    public TransportProjectionService(ProviderRegistryFactory providerRegistryFactory, OperationalPersistenceStore persistenceStore)
+    public TransportProjectionService(ProviderRegistryFactory providerRegistryFactory, IOperationalPersistenceStore persistenceStore)
     {
         _providerRegistryFactory = providerRegistryFactory;
         _persistenceStore = persistenceStore;
     }
 
-    public TransportProjectionService(ITransportProjectionProviderAdapter transportProvider, OperationalPersistenceStore persistenceStore)
+    public TransportProjectionService(ITransportProjectionProviderAdapter transportProvider, IOperationalPersistenceStore persistenceStore)
     {
         _transportProvider = transportProvider;
         _persistenceStore = persistenceStore;

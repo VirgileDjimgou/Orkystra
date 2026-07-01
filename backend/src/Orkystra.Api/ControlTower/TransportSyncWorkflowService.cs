@@ -12,11 +12,11 @@ public sealed class TransportSyncWorkflowService
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
     private readonly ProviderRegistryFactory? _providerRegistryFactory;
     private readonly ITransportProjectionProviderAdapter? _transportProvider;
-    private readonly OperationalPersistenceStore _persistenceStore;
+    private readonly IOperationalPersistenceStore _persistenceStore;
 
     public TransportSyncWorkflowService(
         ProviderRegistryFactory providerRegistryFactory,
-        OperationalPersistenceStore persistenceStore)
+        IOperationalPersistenceStore persistenceStore)
     {
         _providerRegistryFactory = providerRegistryFactory;
         _persistenceStore = persistenceStore;
@@ -24,7 +24,7 @@ public sealed class TransportSyncWorkflowService
 
     public TransportSyncWorkflowService(
         ITransportProjectionProviderAdapter transportProvider,
-        OperationalPersistenceStore persistenceStore)
+        IOperationalPersistenceStore persistenceStore)
     {
         _transportProvider = transportProvider;
         _persistenceStore = persistenceStore;

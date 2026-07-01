@@ -2,6 +2,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Options;
 using Orkystra.Api.AI;
+using Orkystra.Api.Bootstrap;
 using Orkystra.Api.Connectors;
 using Orkystra.Api.ControlTower;
 using Orkystra.Api.Eventing;
@@ -14,6 +15,7 @@ using Orkystra.Api.Simulation;
 using Orkystra.Api.Tenancy;
 using Orkystra.Application.Eventing;
 using Orkystra.Contracts.Ai;
+using Orkystra.Contracts.Bootstrap;
 using Orkystra.Contracts.Connectors;
 using Orkystra.Contracts.ControlTower;
 using Orkystra.Contracts.Optimization;
@@ -22,6 +24,11 @@ using Orkystra.Contracts.Transport;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
+
+// Environment variables are loaded automatically by WebApplication.CreateBuilder.
+// Use double-underscore (__) as the key separator for nested config keys.
+// Example: Security__ApiKey=my-key overrides Security:ApiKey.
+// Provider secrets use a separate convention: ORKYSTRA_PROVIDER_{ID}_{FIELD}.
 
 builder.Services.AddOpenApi();
 builder.Services.AddCors(options =>
@@ -53,6 +60,8 @@ builder.Services.Configure<ProviderRuntimeOptions>(builder.Configuration.GetSect
 builder.Services.Configure<AiServiceOptions>(builder.Configuration.GetSection(AiServiceOptions.SectionName));
 builder.Services.Configure<OptimizationServiceOptions>(builder.Configuration.GetSection(OptimizationServiceOptions.SectionName));
 builder.Services.Configure<OperationalPersistenceOptions>(builder.Configuration.GetSection(OperationalPersistenceOptions.SectionName));
+builder.Services.AddSingleton<OperationalPersistenceOptions>(provider =>
+    provider.GetRequiredService<IOptions<OperationalPersistenceOptions>>().Value);
 builder.Services.Configure<EventBackboneOptions>(options =>
 {
     builder.Configuration.GetSection(EventBackboneOptions.SectionName).Bind(options);
@@ -62,6 +71,8 @@ builder.Services.Configure<EventBackboneOptions>(options =>
         options.BrokerUrl = builder.Configuration["Dependencies:Mqtt"] ?? "mqtt://localhost:1883";
     }
 });
+builder.Services.AddSingleton<EventBackboneOptions>(provider =>
+    provider.GetRequiredService<IOptions<EventBackboneOptions>>().Value);
 
 builder.Services.AddSingleton<ApiKeyValidator>();
 builder.Services.AddSingleton<TenantResolutionService>();
@@ -69,7 +80,10 @@ builder.Services.AddSingleton<RequestMetricsStore>();
 builder.Services.AddSingleton<IAuditStore, FileAuditStore>();
 builder.Services.AddSingleton<EventBackboneTelemetryStore>();
 builder.Services.AddSingleton<MqttEnvelopeSerializer>();
-builder.Services.AddSingleton<IInboxStateStore, InMemoryInboxStateStore>();
+builder.Services.AddSingleton<IInboxStateStore>(provider =>
+    new DurableInboxStateStore(
+        provider.GetRequiredService<IOptions<OperationalPersistenceOptions>>(),
+        builder.Environment.ContentRootPath));
 builder.Services.AddSingleton<ScenarioSummaryProjection>();
 builder.Services.AddSingleton<IEventProjection>(provider => provider.GetRequiredService<ScenarioSummaryProjection>());
 builder.Services.AddSingleton<GpsPositionProjection>();
@@ -81,9 +95,19 @@ builder.Services.AddSingleton(provider => new ProviderRuntimeStore(
     Path.Combine(builder.Environment.ContentRootPath, "appsettings.Local.json")));
 builder.Services.AddSingleton(provider => new ProviderSecretStore(
     Path.Combine(builder.Environment.ContentRootPath, "appsettings.Secrets.local.json")));
-builder.Services.AddSingleton(provider => new OperationalPersistenceStore(
-    provider.GetRequiredService<IOptions<OperationalPersistenceOptions>>(),
-    builder.Environment.ContentRootPath));
+builder.Services.AddSingleton<IOperationalPersistenceStore>(provider =>
+{
+    var options = provider.GetRequiredService<IOptions<OperationalPersistenceOptions>>().Value;
+    if (string.Equals(options.Provider, "postgres", StringComparison.OrdinalIgnoreCase))
+    {
+        return new PostgresOperationalPersistenceStore(
+            provider.GetRequiredService<IOptions<OperationalPersistenceOptions>>());
+    }
+
+    return new SqliteOperationalPersistenceStore(
+        provider.GetRequiredService<IOptions<OperationalPersistenceOptions>>(),
+        builder.Environment.ContentRootPath);
+});
 builder.Services.AddHttpClient("provider-rest-transport", client =>
 {
     client.Timeout = TimeSpan.FromSeconds(5);
@@ -101,7 +125,15 @@ builder.Services.AddHttpClient<RouteOptimizationWorkflowService>((provider, clie
     client.Timeout = TimeSpan.FromSeconds(options.TimeoutSeconds);
 });
 builder.Services.AddSingleton<ProviderRegistryFactory>();
-builder.Services.AddSingleton<IEventBackbonePublisher, MqttEventPublisher>();
+builder.Services.AddSingleton<EventOutboxStore>(provider =>
+    new EventOutboxStore(
+        provider.GetRequiredService<IOptions<OperationalPersistenceOptions>>(),
+        builder.Environment.ContentRootPath));
+builder.Services.AddSingleton<IEventBackbonePublisher>(provider =>
+    new OutboxEventPublisher(
+        provider.GetRequiredService<MqttEventPublisher>(),
+        provider.GetRequiredService<EventOutboxStore>(),
+        provider.GetRequiredService<ILogger<OutboxEventPublisher>>()));
 builder.Services.AddHostedService<MqttEventConsumerService>();
 builder.Services.AddSingleton<ProviderCatalogService>();
 builder.Services.AddSingleton<ControlTowerOverviewService>();
@@ -116,9 +148,31 @@ builder.Services.AddSingleton<SimulationProjectionService>();
 builder.Services.AddSingleton<ScenarioEventWorkflowService>();
 builder.Services.AddSingleton<GpsProjectionService>();
 builder.Services.AddSingleton<GpsTelemetryWorkflowService>();
+builder.Services.AddSingleton<BootstrapService>();
+builder.Services.AddSingleton<SanityCheckService>();
 builder.Services.AddScoped<RequestTenantContext>();
 
 var app = builder.Build();
+
+var apiSecurityOptions = app.Services.GetRequiredService<IOptions<ApiSecurityOptions>>().Value;
+if (string.IsNullOrWhiteSpace(apiSecurityOptions.ApiKey))
+{
+    app.Logger.LogCritical("Security:ApiKey is not configured. Set it via Security__ApiKey environment variable or appsettings.");
+    throw new InvalidOperationException("Security:ApiKey is required.");
+}
+
+var persistenceOptions = app.Services.GetRequiredService<IOptions<OperationalPersistenceOptions>>().Value;
+if (string.Equals(persistenceOptions.Provider, "postgres", StringComparison.OrdinalIgnoreCase) &&
+    string.IsNullOrWhiteSpace(persistenceOptions.ConnectionString))
+{
+    app.Logger.LogCritical("OperationalPersistence:ConnectionString is required when Provider is 'postgres'.");
+    throw new InvalidOperationException("OperationalPersistence:ConnectionString is required when Provider is 'postgres'.");
+}
+
+app.Logger.LogInformation(
+    "Orkystra API starting — ApiKey configured: {ApiKeyConfigured}, Persistence: {PersistenceProvider}, Event backbone: {EventBackboneEnabled}",
+    !string.IsNullOrWhiteSpace(apiSecurityOptions.ApiKey), persistenceOptions.Provider,
+    app.Services.GetRequiredService<IOptions<EventBackboneOptions>>().Value.Enabled);
 
 if (app.Environment.IsDevelopment())
 {
@@ -154,6 +208,43 @@ app.MapGet("/health/ready", (IConfiguration configuration) => Results.Ok(new
 .AllowAnonymous()
 .WithName("GetReadiness");
 
+app.MapGet("/health/sanity", async (SanityCheckService sanityCheckService, CancellationToken cancellationToken) =>
+    Results.Ok(await sanityCheckService.RunAsync(cancellationToken)))
+.AllowAnonymous()
+.WithName("GetSanityCheck");
+
+app.MapPost("/api/bootstrap/demo", async (
+    BootstrapDemoRequest? request,
+    RequestTenantContext tenantContext,
+    BootstrapService bootstrapService,
+    IOperationalPersistenceStore persistenceStore,
+    CancellationToken cancellationToken) =>
+{
+    var tenantId = tenantContext.TenantId ?? "local-demo-tenant";
+    var effectiveRequest = request ?? BootstrapDemoRequest.Default;
+
+    if (string.IsNullOrWhiteSpace(effectiveRequest.ScenarioName))
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["scenarioName"] = ["A scenario name is required."]
+        });
+    }
+
+    if (effectiveRequest.AdvanceMinutes <= 0)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["advanceMinutes"] = ["Advance minutes must be greater than zero."]
+        });
+    }
+
+    var result = await bootstrapService.BootstrapAsync(tenantId, effectiveRequest, cancellationToken);
+    return Results.Ok(result);
+})
+.RequireAuthorization()
+.WithName("BootstrapDemo");
+
 app.MapGet("/observability/metrics", (RequestMetricsStore metricsStore) => Results.Ok(metricsStore.Snapshot()))
 .AllowAnonymous()
 .WithName("GetMetrics");
@@ -161,6 +252,48 @@ app.MapGet("/observability/metrics", (RequestMetricsStore metricsStore) => Resul
 app.MapGet("/observability/event-backbone", (EventBackboneTelemetryStore telemetryStore) => Results.Ok(telemetryStore.Snapshot()))
 .RequireAuthorization()
 .WithName("GetEventBackboneTelemetry");
+
+app.MapGet("/observability/event-backbone/outbox", async (EventOutboxStore outboxStore, int? count, CancellationToken cancellationToken) =>
+{
+    var requestedCount = count ?? 50;
+    var entries = await outboxStore.GetRecentEntriesAsync(requestedCount, cancellationToken);
+    return Results.Ok(new { entries });
+})
+.RequireAuthorization()
+.WithName("GetOutboxEntries");
+
+app.MapPost("/observability/event-backbone/replay", async (
+    EventOutboxStore outboxStore,
+    MqttEnvelopeSerializer serializer,
+    IEventBackbonePublisher publisher,
+    ILogger<Program> logger,
+    CancellationToken cancellationToken) =>
+{
+    var pendingEntries = await outboxStore.GetPendingEntriesAsync(50, cancellationToken);
+    var replayed = 0;
+    var failed = 0;
+
+    foreach (var entry in pendingEntries)
+    {
+        try
+        {
+            var envelope = serializer.Deserialize(entry.PayloadJson);
+            await publisher.PublishAsync(envelope, cancellationToken);
+            await outboxStore.MarkPublishedAsync(entry.Id, cancellationToken);
+            replayed++;
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Replay failed for outbox entry {EntryId}.", entry.Id);
+            await outboxStore.MarkFailedAsync(entry.Id, exception.Message, cancellationToken);
+            failed++;
+        }
+    }
+
+    return Results.Ok(new { replayed, failed, total = pendingEntries.Count });
+})
+.RequireAuthorization()
+.WithName("ReplayOutboxEntries");
 
 app.MapGet("/observability/context", (HttpContext httpContext, RequestTenantContext tenantContext) => Results.Ok(new
 {
@@ -188,7 +321,7 @@ app.MapGet("/observability/audit", async (IAuditStore auditStore, IOptions<Obser
 
 app.MapGet("/observability/persistence/projections", async (
     RequestTenantContext tenantContext,
-    OperationalPersistenceStore persistenceStore,
+    IOperationalPersistenceStore persistenceStore,
     IOptions<OperationalPersistenceOptions> options,
     string? projectionName,
     int? count,
@@ -218,7 +351,7 @@ app.MapGet("/observability/persistence/projections", async (
 
 app.MapGet("/observability/persistence/workflows", async (
     RequestTenantContext tenantContext,
-    OperationalPersistenceStore persistenceStore,
+    IOperationalPersistenceStore persistenceStore,
     IOptions<OperationalPersistenceOptions> options,
     string? workflowKind,
     int? count,
@@ -252,7 +385,7 @@ app.MapGet("/observability/persistence/workflows", async (
 app.MapGet("/api/control-tower/overview", async (
     RequestTenantContext tenantContext,
     ControlTowerOverviewService overviewService,
-    OperationalPersistenceStore persistenceStore,
+    IOperationalPersistenceStore persistenceStore,
     CancellationToken cancellationToken) =>
 {
     var tenantId = tenantContext.TenantId ?? "local-demo-tenant";
@@ -266,7 +399,7 @@ app.MapGet("/api/control-tower/overview", async (
 app.MapGet("/api/simulation/scenarios", async (
     RequestTenantContext tenantContext,
     SimulationProjectionService simulationProjectionService,
-    OperationalPersistenceStore persistenceStore,
+    IOperationalPersistenceStore persistenceStore,
     CancellationToken cancellationToken) =>
 {
     var tenantId = tenantContext.TenantId ?? "local-demo-tenant";
@@ -281,7 +414,7 @@ app.MapPost("/api/simulation/scenarios/demo-events", async (
     PublishScenarioEventsRequest? request,
     RequestTenantContext tenantContext,
     ScenarioEventWorkflowService scenarioEventWorkflowService,
-    OperationalPersistenceStore persistenceStore,
+    IOperationalPersistenceStore persistenceStore,
     CancellationToken cancellationToken) =>
 {
     var tenantId = tenantContext.TenantId ?? "local-demo-tenant";
@@ -321,7 +454,7 @@ app.MapPost("/api/simulation/scenarios/demo-events", async (
 app.MapGet("/api/gps/positions", async (
     RequestTenantContext tenantContext,
     GpsProjectionService gpsProjectionService,
-    OperationalPersistenceStore persistenceStore,
+    IOperationalPersistenceStore persistenceStore,
     CancellationToken cancellationToken) =>
 {
     var tenantId = tenantContext.TenantId ?? "local-demo-tenant";
@@ -335,7 +468,7 @@ app.MapGet("/api/gps/positions", async (
 app.MapPost("/api/gps/positions/publish", async (
     RequestTenantContext tenantContext,
     GpsTelemetryWorkflowService gpsTelemetryWorkflowService,
-    OperationalPersistenceStore persistenceStore,
+    IOperationalPersistenceStore persistenceStore,
     CancellationToken cancellationToken) =>
 {
     var tenantId = tenantContext.TenantId ?? "local-demo-tenant";
@@ -357,7 +490,7 @@ app.MapPost("/api/gps/positions/publish", async (
 app.MapGet("/api/warehouses", async (
     RequestTenantContext tenantContext,
     WarehouseProjectionService warehouseProjectionService,
-    OperationalPersistenceStore persistenceStore,
+    IOperationalPersistenceStore persistenceStore,
     CancellationToken cancellationToken) =>
 {
     var tenantId = tenantContext.TenantId ?? "local-demo-tenant";
@@ -372,7 +505,7 @@ app.MapGet("/api/warehouses/{warehouseId:guid}", async (
     Guid warehouseId,
     RequestTenantContext tenantContext,
     WarehouseProjectionService warehouseProjectionService,
-    OperationalPersistenceStore persistenceStore,
+    IOperationalPersistenceStore persistenceStore,
     CancellationToken cancellationToken) =>
 {
     var tenantId = tenantContext.TenantId ?? "local-demo-tenant";
@@ -391,7 +524,7 @@ app.MapGet("/api/warehouses/{warehouseId:guid}", async (
 app.MapGet("/api/providers/catalog", async (
     RequestTenantContext tenantContext,
     ProviderCatalogService catalogService,
-    OperationalPersistenceStore persistenceStore,
+    IOperationalPersistenceStore persistenceStore,
     CancellationToken cancellationToken) =>
 {
     var tenantId = tenantContext.TenantId ?? "local-demo-tenant";
@@ -405,7 +538,7 @@ app.MapGet("/api/providers/catalog", async (
 app.MapGet("/api/transport/routes", async (
     RequestTenantContext tenantContext,
     TransportProjectionService transportProjectionService,
-    OperationalPersistenceStore persistenceStore,
+    IOperationalPersistenceStore persistenceStore,
     CancellationToken cancellationToken) =>
 {
     var tenantId = tenantContext.TenantId ?? "local-demo-tenant";
@@ -420,7 +553,7 @@ app.MapGet("/api/transport/routes/{routeId:guid}", async (
     Guid routeId,
     RequestTenantContext tenantContext,
     TransportProjectionService transportProjectionService,
-    OperationalPersistenceStore persistenceStore,
+    IOperationalPersistenceStore persistenceStore,
     CancellationToken cancellationToken) =>
 {
     var tenantId = tenantContext.TenantId ?? "local-demo-tenant";
@@ -452,7 +585,7 @@ app.MapPost("/api/transport/sync", async (
     RequestTenantContext tenantContext,
     TransportSyncWorkflowService transportSyncWorkflowService,
     TransportProjectionService transportProjectionService,
-    OperationalPersistenceStore persistenceStore,
+    IOperationalPersistenceStore persistenceStore,
     CancellationToken cancellationToken) =>
 {
     var tenantId = tenantContext.TenantId ?? "local-demo-tenant";
@@ -476,7 +609,7 @@ app.MapPost("/api/transport/sync", async (
 app.MapGet("/api/transport/sync-diff", async (
     RequestTenantContext tenantContext,
     TransportSyncHistoryService transportSyncHistoryService,
-    OperationalPersistenceStore persistenceStore,
+    IOperationalPersistenceStore persistenceStore,
     CancellationToken cancellationToken) =>
 {
     var tenantId = tenantContext.TenantId ?? "local-demo-tenant";
@@ -491,7 +624,7 @@ app.MapGet("/api/transport/sync-history", async (
     int? count,
     RequestTenantContext tenantContext,
     TransportSyncHistoryService transportSyncHistoryService,
-    OperationalPersistenceStore persistenceStore,
+    IOperationalPersistenceStore persistenceStore,
     CancellationToken cancellationToken) =>
 {
     var tenantId = tenantContext.TenantId ?? "local-demo-tenant";
@@ -506,7 +639,7 @@ app.MapGet("/api/transport/sync-history", async (
 app.MapGet("/api/transport/exceptions-workbench", async (
     RequestTenantContext tenantContext,
     TransportExceptionWorkbenchService transportExceptionWorkbenchService,
-    OperationalPersistenceStore persistenceStore,
+    IOperationalPersistenceStore persistenceStore,
     CancellationToken cancellationToken) =>
 {
     var tenantId = tenantContext.TenantId ?? "local-demo-tenant";
@@ -594,7 +727,7 @@ app.MapPost("/api/transport/routes/{routeId:guid}/optimization", async (
     RequestTenantContext tenantContext,
     TransportProjectionService transportProjectionService,
     RouteOptimizationWorkflowService optimizationWorkflowService,
-    OperationalPersistenceStore persistenceStore,
+    IOperationalPersistenceStore persistenceStore,
     CancellationToken cancellationToken) =>
 {
     var tenantId = tenantContext.TenantId ?? "local-demo-tenant";
@@ -624,7 +757,7 @@ app.MapPost("/api/ai/recommendations", async (
     RequestTenantContext tenantContext,
     ControlTowerOverviewService overviewService,
     AiWorkflowService aiWorkflowService,
-    OperationalPersistenceStore persistenceStore,
+    IOperationalPersistenceStore persistenceStore,
     CancellationToken cancellationToken) =>
 {
     if (string.IsNullOrWhiteSpace(request.Question))
@@ -724,3 +857,5 @@ app.MapPut("/api/providers/catalog/{providerId}/secrets", async (
 .WithName("UpdateProviderSecret");
 
 app.Run();
+
+public partial class Program { }

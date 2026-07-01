@@ -1,23 +1,20 @@
 using System.Text.Json;
-using Microsoft.Data.Sqlite;
+using Npgsql;
 using Microsoft.Extensions.Options;
 
 namespace Orkystra.Api.Persistence;
 
-public sealed class SqliteOperationalPersistenceStore : IOperationalPersistenceStore
+public sealed class PostgresOperationalPersistenceStore : IOperationalPersistenceStore
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
 
-    private readonly string _databasePath;
+    private readonly string _connectionString;
     private readonly SemaphoreSlim _initializationGate = new(1, 1);
     private volatile bool _initialized;
 
-    public SqliteOperationalPersistenceStore(IOptions<OperationalPersistenceOptions> options, string contentRootPath)
+    public PostgresOperationalPersistenceStore(IOptions<OperationalPersistenceOptions> options)
     {
-        var configuredPath = options.Value.DatabasePath;
-        _databasePath = Path.GetFullPath(Path.IsPathRooted(configuredPath)
-            ? configuredPath
-            : Path.Combine(contentRootPath, configuredPath));
+        _connectionString = options.Value.ConnectionString;
     }
 
     public async Task UpsertProjectionAsync<TPayload>(
@@ -37,7 +34,7 @@ public sealed class SqliteOperationalPersistenceStore : IOperationalPersistenceS
 
         var payloadJson = JsonSerializer.Serialize(payload, SerializerOptions);
 
-        await using var connection = CreateConnection();
+        await using var connection = new NpgsqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
 
         await using var command = connection.CreateCommand();
@@ -52,25 +49,25 @@ public sealed class SqliteOperationalPersistenceStore : IOperationalPersistenceS
                 payload_json
             )
             VALUES (
-                $tenantId,
-                $projectionName,
-                $projectionKey,
-                $source,
-                $capturedAtUtc,
-                $payloadJson
+                $1,
+                $2,
+                $3,
+                $4,
+                $5,
+                $6
             )
-            ON CONFLICT(tenant_id, projection_name, projection_key)
+            ON CONFLICT (tenant_id, projection_name, projection_key)
             DO UPDATE SET
-                source = excluded.source,
-                captured_at_utc = excluded.captured_at_utc,
-                payload_json = excluded.payload_json;
+                source = EXCLUDED.source,
+                captured_at_utc = EXCLUDED.captured_at_utc,
+                payload_json = EXCLUDED.payload_json;
             """;
-        command.Parameters.AddWithValue("$tenantId", tenantId);
-        command.Parameters.AddWithValue("$projectionName", projectionName);
-        command.Parameters.AddWithValue("$projectionKey", projectionKey);
-        command.Parameters.AddWithValue("$source", source);
-        command.Parameters.AddWithValue("$capturedAtUtc", DateTimeOffset.UtcNow.ToString("O"));
-        command.Parameters.AddWithValue("$payloadJson", payloadJson);
+        command.Parameters.AddWithValue(NpgsqlTypes.NpgsqlDbType.Text, tenantId);
+        command.Parameters.AddWithValue(NpgsqlTypes.NpgsqlDbType.Text, projectionName);
+        command.Parameters.AddWithValue(NpgsqlTypes.NpgsqlDbType.Text, projectionKey);
+        command.Parameters.AddWithValue(NpgsqlTypes.NpgsqlDbType.Text, source);
+        command.Parameters.AddWithValue(NpgsqlTypes.NpgsqlDbType.TimestampTz, DateTimeOffset.UtcNow);
+        command.Parameters.AddWithValue(NpgsqlTypes.NpgsqlDbType.Text, payloadJson);
 
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
@@ -95,7 +92,7 @@ public sealed class SqliteOperationalPersistenceStore : IOperationalPersistenceS
 
         var payloadJson = JsonSerializer.Serialize(payload, SerializerOptions);
 
-        await using var connection = CreateConnection();
+        await using var connection = new NpgsqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
 
         await using var command = connection.CreateCommand();
@@ -112,24 +109,24 @@ public sealed class SqliteOperationalPersistenceStore : IOperationalPersistenceS
                 payload_json
             )
             VALUES (
-                $tenantId,
-                $workflowKind,
-                $subjectKey,
-                $scenarioId,
-                $source,
-                $status,
-                $createdAtUtc,
-                $payloadJson
+                $1,
+                $2,
+                $3,
+                $4,
+                $5,
+                $6,
+                $7,
+                $8
             );
             """;
-        command.Parameters.AddWithValue("$tenantId", tenantId);
-        command.Parameters.AddWithValue("$workflowKind", workflowKind);
-        command.Parameters.AddWithValue("$subjectKey", subjectKey);
-        command.Parameters.AddWithValue("$scenarioId", (object?)scenarioId ?? DBNull.Value);
-        command.Parameters.AddWithValue("$source", source);
-        command.Parameters.AddWithValue("$status", status);
-        command.Parameters.AddWithValue("$createdAtUtc", DateTimeOffset.UtcNow.ToString("O"));
-        command.Parameters.AddWithValue("$payloadJson", payloadJson);
+        command.Parameters.AddWithValue(NpgsqlTypes.NpgsqlDbType.Text, tenantId);
+        command.Parameters.AddWithValue(NpgsqlTypes.NpgsqlDbType.Text, workflowKind);
+        command.Parameters.AddWithValue(NpgsqlTypes.NpgsqlDbType.Text, subjectKey);
+        command.Parameters.AddWithValue(NpgsqlTypes.NpgsqlDbType.Text, scenarioId ?? (object)DBNull.Value);
+        command.Parameters.AddWithValue(NpgsqlTypes.NpgsqlDbType.Text, source);
+        command.Parameters.AddWithValue(NpgsqlTypes.NpgsqlDbType.Text, status);
+        command.Parameters.AddWithValue(NpgsqlTypes.NpgsqlDbType.TimestampTz, DateTimeOffset.UtcNow);
+        command.Parameters.AddWithValue(NpgsqlTypes.NpgsqlDbType.Text, payloadJson);
 
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
@@ -147,7 +144,7 @@ public sealed class SqliteOperationalPersistenceStore : IOperationalPersistenceS
 
         await EnsureInitializedAsync(cancellationToken);
 
-        await using var connection = CreateConnection();
+        await using var connection = new NpgsqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
 
         await using var command = connection.CreateCommand();
@@ -155,14 +152,14 @@ public sealed class SqliteOperationalPersistenceStore : IOperationalPersistenceS
             """
             SELECT tenant_id, projection_name, projection_key, source, captured_at_utc, payload_json
             FROM projection_snapshots
-            WHERE tenant_id = $tenantId
-              AND ($projectionName IS NULL OR projection_name = $projectionName)
+            WHERE tenant_id = $1
+              AND ($2 IS NULL OR projection_name = $2)
             ORDER BY captured_at_utc DESC, projection_name ASC, projection_key ASC
-            LIMIT $count;
+            LIMIT $3;
             """;
-        command.Parameters.AddWithValue("$tenantId", tenantId);
-        command.Parameters.AddWithValue("$projectionName", (object?)projectionName ?? DBNull.Value);
-        command.Parameters.AddWithValue("$count", count);
+        command.Parameters.AddWithValue(NpgsqlTypes.NpgsqlDbType.Text, tenantId);
+        command.Parameters.AddWithValue(NpgsqlTypes.NpgsqlDbType.Text, projectionName ?? (object)DBNull.Value);
+        command.Parameters.AddWithValue(NpgsqlTypes.NpgsqlDbType.Integer, count);
 
         var snapshots = new List<PersistedProjectionSnapshot>();
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
@@ -173,7 +170,7 @@ public sealed class SqliteOperationalPersistenceStore : IOperationalPersistenceS
                 reader.GetString(1),
                 reader.GetString(2),
                 reader.GetString(3),
-                DateTimeOffset.Parse(reader.GetString(4)),
+                reader.GetFieldValue<DateTimeOffset>(4),
                 reader.GetString(5)));
         }
 
@@ -192,7 +189,7 @@ public sealed class SqliteOperationalPersistenceStore : IOperationalPersistenceS
 
         await EnsureInitializedAsync(cancellationToken);
 
-        await using var connection = CreateConnection();
+        await using var connection = new NpgsqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
 
         await using var command = connection.CreateCommand();
@@ -200,14 +197,14 @@ public sealed class SqliteOperationalPersistenceStore : IOperationalPersistenceS
             """
             SELECT tenant_id, projection_name, projection_key, source, captured_at_utc, payload_json
             FROM projection_snapshots
-            WHERE tenant_id = $tenantId
-              AND projection_name = $projectionName
-              AND projection_key = $projectionKey
+            WHERE tenant_id = $1
+              AND projection_name = $2
+              AND projection_key = $3
             LIMIT 1;
             """;
-        command.Parameters.AddWithValue("$tenantId", tenantId);
-        command.Parameters.AddWithValue("$projectionName", projectionName);
-        command.Parameters.AddWithValue("$projectionKey", projectionKey);
+        command.Parameters.AddWithValue(NpgsqlTypes.NpgsqlDbType.Text, tenantId);
+        command.Parameters.AddWithValue(NpgsqlTypes.NpgsqlDbType.Text, projectionName);
+        command.Parameters.AddWithValue(NpgsqlTypes.NpgsqlDbType.Text, projectionKey);
 
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         if (!await reader.ReadAsync(cancellationToken))
@@ -220,7 +217,7 @@ public sealed class SqliteOperationalPersistenceStore : IOperationalPersistenceS
             reader.GetString(1),
             reader.GetString(2),
             reader.GetString(3),
-            DateTimeOffset.Parse(reader.GetString(4)),
+            reader.GetFieldValue<DateTimeOffset>(4),
             reader.GetString(5));
     }
 
@@ -237,7 +234,7 @@ public sealed class SqliteOperationalPersistenceStore : IOperationalPersistenceS
 
         await EnsureInitializedAsync(cancellationToken);
 
-        await using var connection = CreateConnection();
+        await using var connection = new NpgsqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
 
         await using var command = connection.CreateCommand();
@@ -245,14 +242,14 @@ public sealed class SqliteOperationalPersistenceStore : IOperationalPersistenceS
             """
             SELECT id, tenant_id, workflow_kind, subject_key, scenario_id, source, status, created_at_utc, payload_json
             FROM workflow_runs
-            WHERE tenant_id = $tenantId
-              AND ($workflowKind IS NULL OR workflow_kind = $workflowKind)
+            WHERE tenant_id = $1
+              AND ($2 IS NULL OR workflow_kind = $2)
             ORDER BY created_at_utc DESC, id DESC
-            LIMIT $count;
+            LIMIT $3;
             """;
-        command.Parameters.AddWithValue("$tenantId", tenantId);
-        command.Parameters.AddWithValue("$workflowKind", (object?)workflowKind ?? DBNull.Value);
-        command.Parameters.AddWithValue("$count", count);
+        command.Parameters.AddWithValue(NpgsqlTypes.NpgsqlDbType.Text, tenantId);
+        command.Parameters.AddWithValue(NpgsqlTypes.NpgsqlDbType.Text, workflowKind ?? (object)DBNull.Value);
+        command.Parameters.AddWithValue(NpgsqlTypes.NpgsqlDbType.Integer, count);
 
         var runs = new List<PersistedWorkflowRun>();
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
@@ -266,7 +263,7 @@ public sealed class SqliteOperationalPersistenceStore : IOperationalPersistenceS
                 reader.IsDBNull(4) ? null : reader.GetString(4),
                 reader.GetString(5),
                 reader.GetString(6),
-                DateTimeOffset.Parse(reader.GetString(7)),
+                reader.GetFieldValue<DateTimeOffset>(7),
                 reader.GetString(8)));
         }
 
@@ -288,13 +285,7 @@ public sealed class SqliteOperationalPersistenceStore : IOperationalPersistenceS
                 return;
             }
 
-            var directory = Path.GetDirectoryName(_databasePath);
-            if (!string.IsNullOrWhiteSpace(directory))
-            {
-                Directory.CreateDirectory(directory);
-            }
-
-            await using var connection = CreateConnection();
+            await using var connection = new NpgsqlConnection(_connectionString);
             await connection.OpenAsync(cancellationToken);
 
             await using var command = connection.CreateCommand();
@@ -305,20 +296,20 @@ public sealed class SqliteOperationalPersistenceStore : IOperationalPersistenceS
                     projection_name TEXT NOT NULL,
                     projection_key TEXT NOT NULL,
                     source TEXT NOT NULL,
-                    captured_at_utc TEXT NOT NULL,
+                    captured_at_utc TIMESTAMPTZ NOT NULL,
                     payload_json TEXT NOT NULL,
                     PRIMARY KEY (tenant_id, projection_name, projection_key)
                 );
 
                 CREATE TABLE IF NOT EXISTS workflow_runs (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    id BIGSERIAL PRIMARY KEY,
                     tenant_id TEXT NOT NULL,
                     workflow_kind TEXT NOT NULL,
                     subject_key TEXT NOT NULL,
                     scenario_id TEXT NULL,
                     source TEXT NOT NULL,
                     status TEXT NOT NULL,
-                    created_at_utc TEXT NOT NULL,
+                    created_at_utc TIMESTAMPTZ NOT NULL,
                     payload_json TEXT NOT NULL
                 );
 
@@ -333,17 +324,5 @@ public sealed class SqliteOperationalPersistenceStore : IOperationalPersistenceS
         {
             _initializationGate.Release();
         }
-    }
-
-    private SqliteConnection CreateConnection()
-    {
-        var builder = new SqliteConnectionStringBuilder
-        {
-            DataSource = _databasePath,
-            Mode = SqliteOpenMode.ReadWriteCreate,
-            Pooling = false
-        };
-
-        return new SqliteConnection(builder.ToString());
     }
 }

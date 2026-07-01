@@ -7,14 +7,14 @@ namespace Orkystra.Api.ControlTower;
 public sealed class TransportExceptionResolutionLedgerService
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
-    private readonly OperationalPersistenceStore _persistenceStore;
+    private readonly IOperationalPersistenceStore _persistenceStore;
     private const string CurrentProjectionName = "transport-exception-resolutions";
     private const string CurrentProjectionKey = "active";
     private const string HistoryProjectionName = "transport-exception-resolution-history";
     private const string HistoryProjectionKey = "recent";
     private const int MaxHistoryEntries = 120;
 
-    public TransportExceptionResolutionLedgerService(OperationalPersistenceStore persistenceStore)
+    public TransportExceptionResolutionLedgerService(IOperationalPersistenceStore persistenceStore)
     {
         _persistenceStore = persistenceStore;
     }

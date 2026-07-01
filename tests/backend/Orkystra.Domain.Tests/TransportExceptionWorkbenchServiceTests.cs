@@ -16,7 +16,7 @@ public sealed class TransportExceptionWorkbenchServiceTests
 
         try
         {
-            var store = new OperationalPersistenceStore(
+            var store = new SqliteOperationalPersistenceStore(
                 Options.Create(new OperationalPersistenceOptions
                 {
                     DatabasePath = Path.Combine("data", "operations.db")
@@ -177,7 +177,7 @@ public sealed class TransportExceptionWorkbenchServiceTests
                     "Deferred",
                     "Waiting for upstream confirmation.",
                     "Ops Alice",
-                    DateTimeOffset.Parse("2026-06-30T16:00:00Z")));
+                    DateTimeOffset.Parse("2026-12-31T16:00:00Z")));
 
             await resolutionLedgerService.SaveAsync(
                 "tenant-a",
@@ -206,7 +206,7 @@ public sealed class TransportExceptionWorkbenchServiceTests
             Assert.Equal("Deferred", latestResolution.Status);
             Assert.Equal("Waiting for upstream confirmation.", latestResolution.Note);
             Assert.Equal("Ops Alice", latestResolution.FollowUpOwner);
-            Assert.Equal(DateTimeOffset.Parse("2026-06-30T16:00:00Z"), latestResolution.TargetReturnAtUtc);
+            Assert.Equal(DateTimeOffset.Parse("2026-12-31T16:00:00Z"), latestResolution.TargetReturnAtUtc);
 
             var followUpQueueService = new TransportExceptionFollowUpQueueService(
                 workbenchService,
@@ -249,7 +249,7 @@ public sealed class TransportExceptionWorkbenchServiceTests
             Assert.Equal("Deferred", followUpItem.Status);
             Assert.Equal("Waiting for upstream confirmation.", followUpItem.Note);
             Assert.Equal("Ops Alice", followUpItem.FollowUpOwner);
-            Assert.Equal(DateTimeOffset.Parse("2026-06-30T16:00:00Z"), followUpItem.TargetReturnAtUtc);
+            Assert.Equal(DateTimeOffset.Parse("2026-12-31T16:00:00Z"), followUpItem.TargetReturnAtUtc);
             Assert.True(followUpItem.IsStillActive);
             Assert.False(followUpItem.IsOwnerMissing);
             Assert.False(followUpItem.IsOverdue);
@@ -277,7 +277,7 @@ public sealed class TransportExceptionWorkbenchServiceTests
             var deferredItem = refreshedWorkbenchWithCommitment.Items.First(item => item.ExceptionId == "latest-import-delta");
             Assert.Equal("Active", deferredItem.ResolutionFollowUpStatus);
             Assert.Equal("Ops Alice", deferredItem.ResolutionFollowUpOwner);
-            Assert.Equal(DateTimeOffset.Parse("2026-06-30T16:00:00Z"), deferredItem.ResolutionTargetReturnAtUtc);
+            Assert.Equal(DateTimeOffset.Parse("2026-12-31T16:00:00Z"), deferredItem.ResolutionTargetReturnAtUtc);
 
             await resolutionLedgerService.TransitionFollowUpAsync(
                 "tenant-a",

@@ -7,9 +7,9 @@ namespace Orkystra.Api.ControlTower;
 public sealed class TransportSyncHistoryService
 {
   private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
-  private readonly OperationalPersistenceStore _persistenceStore;
+  private readonly IOperationalPersistenceStore _persistenceStore;
 
-  public TransportSyncHistoryService(OperationalPersistenceStore persistenceStore)
+  public TransportSyncHistoryService(IOperationalPersistenceStore persistenceStore)
   {
     _persistenceStore = persistenceStore;
   }

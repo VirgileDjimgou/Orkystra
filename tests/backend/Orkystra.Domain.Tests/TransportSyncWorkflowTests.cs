@@ -3,6 +3,7 @@ using System.Text;
 using Microsoft.Extensions.Options;
 using Orkystra.Api.ControlTower;
 using Orkystra.Api.Persistence;
+using Orkystra.Application.Connectors;
 using Orkystra.Application.Connectors.Providers;
 using Orkystra.Contracts.Transport;
 
@@ -17,7 +18,7 @@ public sealed class TransportSyncWorkflowTests
 
         try
         {
-            var store = new OperationalPersistenceStore(
+            var store = new SqliteOperationalPersistenceStore(
                 Options.Create(new OperationalPersistenceOptions
                 {
                     DatabasePath = Path.Combine("data", "operations.db")
@@ -114,7 +115,7 @@ public sealed class TransportSyncWorkflowTests
 
         try
         {
-            var store = new OperationalPersistenceStore(
+            var store = new SqliteOperationalPersistenceStore(
                 Options.Create(new OperationalPersistenceOptions
                 {
                     DatabasePath = Path.Combine("data", "operations.db")

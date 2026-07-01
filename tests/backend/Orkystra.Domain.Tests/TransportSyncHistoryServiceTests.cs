@@ -14,7 +14,7 @@ public sealed class TransportSyncHistoryServiceTests
 
     try
     {
-      var store = new OperationalPersistenceStore(
+      var store = new SqliteOperationalPersistenceStore(
           Options.Create(new OperationalPersistenceOptions
           {
             DatabasePath = Path.Combine("data", "operations.db")
@@ -140,7 +140,7 @@ public sealed class TransportSyncHistoryServiceTests
 
     try
     {
-      var store = new OperationalPersistenceStore(
+      var store = new SqliteOperationalPersistenceStore(
           Options.Create(new OperationalPersistenceOptions
           {
             DatabasePath = Path.Combine("data", "operations.db")
@@ -167,7 +167,7 @@ public sealed class TransportSyncHistoryServiceTests
 
     try
     {
-      var store = new OperationalPersistenceStore(
+      var store = new SqliteOperationalPersistenceStore(
           Options.Create(new OperationalPersistenceOptions
           {
             DatabasePath = Path.Combine("data", "operations.db")
