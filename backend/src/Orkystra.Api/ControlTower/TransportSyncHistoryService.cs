@@ -46,16 +46,67 @@ public sealed class TransportSyncHistoryService
     }
 
     var latest = snapshots[0];
-    var previous = snapshots.Skip(1).FirstOrDefault(snapshot => snapshot.Routes.Count > 0);
+    return BuildDiffFromSnapshots(latest, snapshots.Skip(1)
+        .FirstOrDefault(snapshot => snapshot.Routes.Count > 0));
+  }
 
+  public async ValueTask<TransportSyncDiffReadModel> BuildDiffBetweenImportsAsync(
+      string tenantId,
+      long previousRunId,
+      long currentRunId,
+      CancellationToken cancellationToken = default)
+  {
+    var previousRun = await _persistenceStore.ReadWorkflowRunByIdAsync(tenantId, previousRunId, cancellationToken);
+    var currentRun = await _persistenceStore.ReadWorkflowRunByIdAsync(tenantId, currentRunId, cancellationToken);
+
+    if (previousRun is null || currentRun is null)
+    {
+      return new TransportSyncDiffReadModel(
+          false,
+          "One or both of the selected import runs were not found.",
+          null,
+          null,
+          0,
+          0,
+          0,
+          0,
+          0,
+          []);
+    }
+
+    var previousSnapshot = TryReadSnapshot(previousRun);
+    var currentSnapshot = TryReadSnapshot(currentRun);
+
+    if (previousSnapshot is null || currentSnapshot is null)
+    {
+      return new TransportSyncDiffReadModel(
+          false,
+          "One or both of the selected import runs have no comparable route evidence.",
+          null,
+          null,
+          0,
+          0,
+          0,
+          0,
+          0,
+          []);
+    }
+
+    return BuildDiffFromSnapshots(currentSnapshot, previousSnapshot);
+  }
+
+  private static TransportSyncDiffReadModel BuildDiffFromSnapshots(
+      SnapshotEvidence current,
+      SnapshotEvidence? previous)
+  {
     if (previous is null)
     {
       return new TransportSyncDiffReadModel(
           false,
           "Only one transport import with comparable route evidence is available. Import another snapshot to unlock before/after route diffs.",
-          latest.ImportedAtUtc,
+          current.ImportedAtUtc,
           null,
-          latest.Routes.Count,
+          current.Routes.Count,
           0,
           0,
           0,
@@ -67,7 +118,7 @@ public sealed class TransportSyncHistoryService
         route => route.Reference,
         route => route,
         StringComparer.OrdinalIgnoreCase);
-    var currentByReference = latest.Routes.ToDictionary(
+    var currentByReference = current.Routes.ToDictionary(
         route => route.Reference,
         route => route,
         StringComparer.OrdinalIgnoreCase);
@@ -98,14 +149,54 @@ public sealed class TransportSyncHistoryService
     return new TransportSyncDiffReadModel(
         true,
         detail,
-        latest.ImportedAtUtc,
+        current.ImportedAtUtc,
         previous.ImportedAtUtc,
-        latest.Routes.Count,
+        current.Routes.Count,
         previous.Routes.Count,
         added,
         removed,
         changed,
         diffs);
+  }
+
+  public async ValueTask<TransportSyncImportDetailReadModel?> BuildImportDetailAsync(
+      string tenantId,
+      long runId,
+      CancellationToken cancellationToken = default)
+  {
+    var run = await _persistenceStore.ReadWorkflowRunByIdAsync(tenantId, runId, cancellationToken);
+    if (run is null)
+    {
+      return null;
+    }
+
+    var snapshot = TryReadSnapshot(run);
+    if (snapshot is null)
+    {
+      return null;
+    }
+
+    var referencePreview = snapshot.Routes
+        .Take(3)
+        .Select(route => route.Reference)
+        .ToArray();
+    var referenceSuffix = referencePreview.Length == 0
+        ? string.Empty
+        : $" ({string.Join(", ", referencePreview)})";
+
+    var summary = $"{snapshot.Routes.Count} routes imported from {snapshot.Source}{referenceSuffix}.";
+
+    return new TransportSyncImportDetailReadModel(
+        run.RunId,
+        snapshot.ProviderId,
+        snapshot.Source,
+        snapshot.Status,
+        run.CreatedAtUtc,
+        snapshot.ImportedAtUtc,
+        snapshot.Routes.Count,
+        snapshot.HealthStatus,
+        summary,
+        snapshot.Routes);
   }
 
   public async ValueTask<TransportSyncHistoryReadModel> BuildRecentHistoryAsync(

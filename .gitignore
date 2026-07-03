@@ -11,6 +11,7 @@ node_modules/
 venv/
 __pycache__/
 *.pyc
+*.egg-info/
 
 # IDE and OS files
 .vs/

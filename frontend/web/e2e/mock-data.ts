@@ -61,6 +61,22 @@ export function mockProviderCatalog() {
   };
 }
 
+export function mockWarehouseWorkbench() {
+  return {
+    generatedAtUtc: new Date().toISOString(),
+    exceptionCount: 2,
+    summary: '2 warehouse signal(s) need operator review.',
+    groups: [
+      { groupKey: 'zone', label: 'Zone', highestSeverity: 'Critical', count: 1, summary: '1 zone exception is active.', recommendedAction: 'focus-warehouse', actionLabel: 'Focus warehouse' },
+      { groupKey: 'occupancy', label: 'Occupancy', highestSeverity: 'Warning', count: 1, summary: '1 occupancy exception is active.', recommendedAction: 'focus-warehouse', actionLabel: 'Focus warehouse' },
+    ],
+    items: [
+      { exceptionId: 'zone-critical-e2e-xdk', severity: 'Critical', category: 'Zone', title: 'Zone XDK in E2E North Hub is critical', detail: 'Cross-dock zone impacted by late carrier arrival.', warehouseId: 'w-001', warehouseName: 'E2E North Hub', zoneCode: 'XDK', recommendedAction: 'focus-warehouse', actionLabel: 'Focus warehouse', evidence: ['Zone: Cross Dock', 'Utilization: 92%', 'Pallets: 167'] },
+      { exceptionId: 'warehouse-occupancy-e2e', severity: 'Warning', category: 'Occupancy', title: 'E2E North Hub occupancy is elevated', detail: '215 of 480 slots occupied (45%). Monitor capacity headroom.', warehouseId: 'w-001', warehouseName: 'E2E North Hub', zoneCode: null, recommendedAction: 'focus-warehouse', actionLabel: 'Focus warehouse', evidence: ['215 pallets stored', '480 total slots', 'Occupancy: 45%'] },
+    ],
+  };
+}
+
 export function mockGpsBoard() {
   return {
     generatedAtUtc: new Date().toISOString(),

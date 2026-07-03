@@ -88,6 +88,22 @@ The provider is selected through the `OperationalPersistence` section in `appset
 3. Tables (`projection_snapshots`, `workflow_runs`) are auto-created on first use. No manual migration scripts are required.
 4. Restart the API. It will use Postgres for all operational persistence operations.
 
+**Runtime verification:**
+
+Once the API is running, confirm the active persistence provider through the protected diagnostics endpoint:
+
+```powershell
+curl http://127.0.0.1:5043/observability/persistence/provider `
+  -H "X-Api-Key: your-dev-key"
+```
+
+For a serious self-host posture, this should report:
+
+- `provider: "postgres"`
+- `posture: "self-host-recommended"`
+- `healthy: true`
+- a safe `connectionTarget` summary without the password value
+
 **Migration from SQLite to Postgres:**
 
 Data is not automatically migrated. To preserve existing data when switching from SQLite to Postgres:
@@ -250,6 +266,16 @@ curl http://127.0.0.1:5043/api/transport/sync-diff `
   -H "X-Api-Key: your-dev-key" `
   -H "X-Tenant-Id: local-demo-tenant"
 
+# Compare any two specific imports (replace run IDs as needed)
+curl "http://127.0.0.1:5043/api/transport/sync-diff?previousRunId=1&currentRunId=2" `
+  -H "X-Api-Key: your-dev-key" `
+  -H "X-Tenant-Id: local-demo-tenant"
+
+# Read detail for a specific import (routes, status, health)
+curl http://127.0.0.1:5043/api/transport/sync-history/1 `
+  -H "X-Api-Key: your-dev-key" `
+  -H "X-Tenant-Id: local-demo-tenant"
+
 # Review transport exception workbench
 curl http://127.0.0.1:5043/api/transport/exceptions-workbench `
   -H "X-Api-Key: your-dev-key" `
@@ -382,14 +408,15 @@ The `.env` file itself is not automatically loaded -- you must export the variab
 ## Python Services
 
 ```powershell
+cd python-services
+pip install -e ".[dev]"
+python -m pytest
 python -m compileall python-services
-cd python-services/ai-service/src
-python -m uvicorn orkystra_ai_service.app:app --host 127.0.0.1 --port 8001
-cd ../../optimization-service/src
-python -m uvicorn orkystra_optimization_service.app:app --host 127.0.0.1 --port 8002
+uvicorn orkystra_ai_service.app:app --host 127.0.0.1 --port 8001
+uvicorn orkystra_optimization_service.app:app --host 127.0.0.1 --port 8002
 ```
 
-The Python service dependencies are declared in `python-services/pyproject.toml`. Install them in a virtual environment before running FastAPI apps.
+The Python service dependencies are declared in `python-services/pyproject.toml`. The editable install now publishes both service packages from their nested `src/` folders, which matches the way CI and self-hosters import them.
 
 ## Infrastructure
 
@@ -400,6 +427,14 @@ docker compose -f infrastructure/docker-compose.stack.yml up -d --build
 
 Local infrastructure includes PostgreSQL, Mosquitto MQTT, and Qdrant.
 The stack compose file also brings up the API, frontend, AI service, and optimization service.
+
+For the shortest packaged self-host bring-up path, use:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File infrastructure/scripts/bring-up-selfhost.ps1
+```
+
+That helper starts the packaged stack, waits for the API health endpoint, and seeds demo data for the default local tenant.
 
 ## Demo Bring-Up (First-Run)
 
@@ -425,3 +460,31 @@ The bootstrap endpoint creates:
 - Scenario events published through the MQTT backbone
 - Persisted bootstrap workflow record for auditability
 - Warehouses, routes, and GPS positions accessible through existing API endpoints
+
+## Demo Reset And Rebuild
+
+To reset the local demo state and rebuild a known-good evaluation environment:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File infrastructure/scripts/reset-demo-state.ps1 -Rebootstrap
+```
+
+That helper:
+
+- removes the default local SQLite operational persistence database
+- removes the local audit output directory
+- can optionally stop Docker Compose services and remove Docker volumes
+- can optionally remove local runtime and secrets overrides
+- can chain directly back into `bring-up-selfhost.ps1`
+
+Useful examples:
+
+```powershell
+# Preview actions only
+powershell -ExecutionPolicy Bypass -File infrastructure/scripts/reset-demo-state.ps1 -Rebootstrap -WhatIf
+```
+
+```powershell
+# Full local teardown including compose volumes
+powershell -ExecutionPolicy Bypass -File infrastructure/scripts/reset-demo-state.ps1 -StopContainers -RemoveDockerVolumes
+```

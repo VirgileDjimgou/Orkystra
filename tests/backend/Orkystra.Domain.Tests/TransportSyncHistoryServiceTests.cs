@@ -278,4 +278,252 @@ public sealed class TransportSyncHistoryServiceTests
       tempDirectory.Delete(true);
     }
   }
+
+  [Fact]
+  public async Task BuildImportDetailAsync_returns_routes_for_a_specific_import()
+  {
+    var tempDirectory = Directory.CreateTempSubdirectory("orkystra-transport-import-detail-tests");
+
+    try
+    {
+      var store = new SqliteOperationalPersistenceStore(
+          Options.Create(new OperationalPersistenceOptions
+          {
+            DatabasePath = Path.Combine("data", "operations.db")
+          }),
+          tempDirectory.FullName);
+
+      var status = new TransportSyncStatusReadModel(
+          "rest-transport-adapter",
+          "live",
+          true,
+          true,
+          2,
+          [Guid.Parse("11111111-1111-1111-1111-111111111111"), Guid.Parse("22222222-2222-2222-2222-222222222222")],
+          ["RT-100", "RT-200"],
+          DateTimeOffset.Parse("2026-06-22T08:00:00Z"),
+          DateTimeOffset.Parse("2026-06-22T08:00:00Z"),
+          DateTimeOffset.Parse("2026-06-22T08:00:00Z"),
+          "live-configured",
+          null,
+          new Orkystra.Contracts.Connectors.ProviderHealthReport(
+              "rest-transport-adapter",
+              "REST Transport Adapter",
+              Orkystra.Contracts.Connectors.ProviderHealthStatus.Healthy,
+              DateTimeOffset.Parse("2026-06-22T08:00:00Z"),
+              "Healthy",
+              ["live-endpoint-configured"]));
+
+      await store.AppendWorkflowRunAsync(
+          "tenant-a",
+          "transport-sync-import",
+          "rest-transport-adapter",
+          null,
+          "live",
+          "live-configured",
+          new TransportSyncImportEvidenceReadModel(
+              status,
+              [
+                  new RouteSummaryReadModel(
+                      Guid.Parse("11111111-1111-1111-1111-111111111111"),
+                      "RT-100",
+                      Guid.NewGuid(),
+                      "TRK-100",
+                      "On time",
+                      3,
+                      5,
+                      1),
+                  new RouteSummaryReadModel(
+                      Guid.Parse("22222222-2222-2222-2222-222222222222"),
+                      "RT-200",
+                      Guid.NewGuid(),
+                      "TRK-200",
+                      "Delayed",
+                      4,
+                      6,
+                      2)
+              ]));
+
+      var service = new TransportSyncHistoryService(store);
+
+      var detail = await service.BuildImportDetailAsync("tenant-a", 1);
+
+      Assert.NotNull(detail);
+      Assert.Equal(1, detail.RunId);
+      Assert.Equal("rest-transport-adapter", detail.ProviderId);
+      Assert.Equal(2, detail.ImportedRouteCount);
+      Assert.Equal(2, detail.Routes.Count);
+      Assert.Contains(detail.Routes, r => r.Reference == "RT-100");
+      Assert.Contains(detail.Routes, r => r.Reference == "RT-200");
+      Assert.Equal("Healthy", detail.HealthStatus);
+    }
+    finally
+    {
+      tempDirectory.Delete(true);
+    }
+  }
+
+  [Fact]
+  public async Task BuildImportDetailAsync_returns_null_for_nonexistent_run()
+  {
+    var tempDirectory = Directory.CreateTempSubdirectory("orkystra-transport-import-detail-notfound-tests");
+
+    try
+    {
+      var store = new SqliteOperationalPersistenceStore(
+          Options.Create(new OperationalPersistenceOptions
+          {
+            DatabasePath = Path.Combine("data", "operations.db")
+          }),
+          tempDirectory.FullName);
+
+      var service = new TransportSyncHistoryService(store);
+      var detail = await service.BuildImportDetailAsync("tenant-a", 999);
+
+      Assert.Null(detail);
+    }
+    finally
+    {
+      tempDirectory.Delete(true);
+    }
+  }
+
+  [Fact]
+  public async Task BuildDiffBetweenImportsAsync_compares_two_specific_imports()
+  {
+    var tempDirectory = Directory.CreateTempSubdirectory("orkystra-transport-diff-between-tests");
+
+    try
+    {
+      var store = new SqliteOperationalPersistenceStore(
+          Options.Create(new OperationalPersistenceOptions
+          {
+            DatabasePath = Path.Combine("data", "operations.db")
+          }),
+          tempDirectory.FullName);
+
+      var firstStatus = new TransportSyncStatusReadModel(
+          "rest-transport-adapter",
+          "live",
+          true,
+          true,
+          1,
+          [Guid.Parse("11111111-1111-1111-1111-111111111111")],
+          ["RT-100"],
+          DateTimeOffset.Parse("2026-06-22T08:00:00Z"),
+          DateTimeOffset.Parse("2026-06-22T08:00:00Z"),
+          DateTimeOffset.Parse("2026-06-22T08:00:00Z"),
+          "live-configured",
+          null,
+          new Orkystra.Contracts.Connectors.ProviderHealthReport(
+              "rest-transport-adapter",
+              "REST Transport Adapter",
+              Orkystra.Contracts.Connectors.ProviderHealthStatus.Healthy,
+              DateTimeOffset.Parse("2026-06-22T08:00:00Z"),
+              "Healthy",
+              ["live-endpoint-configured"]));
+
+      await store.AppendWorkflowRunAsync(
+          "tenant-a",
+          "transport-sync-import",
+          "rest-transport-adapter",
+          null,
+          "live",
+          "live-configured",
+          new TransportSyncImportEvidenceReadModel(
+              firstStatus,
+              [
+                  new RouteSummaryReadModel(
+                      Guid.Parse("11111111-1111-1111-1111-111111111111"),
+                      "RT-100",
+                      Guid.NewGuid(),
+                      "TRK-100",
+                      "On time",
+                      3,
+                      5,
+                      1)
+              ]));
+
+      var secondStatus = firstStatus with
+      {
+        ImportedRouteCount = 2,
+        ImportedRouteIds = [Guid.Parse("11111111-1111-1111-1111-111111111111"), Guid.Parse("33333333-3333-3333-3333-333333333333")],
+        ImportedRouteReferences = ["RT-100", "RT-300"],
+        LastImportedAtUtc = DateTimeOffset.Parse("2026-06-22T09:00:00Z")
+      };
+
+      await store.AppendWorkflowRunAsync(
+          "tenant-a",
+          "transport-sync-import",
+          "rest-transport-adapter",
+          null,
+          "live",
+          "live-configured",
+          new TransportSyncImportEvidenceReadModel(
+              secondStatus,
+              [
+                  new RouteSummaryReadModel(
+                      Guid.Parse("11111111-1111-1111-1111-111111111111"),
+                      "RT-100",
+                      Guid.NewGuid(),
+                      "TRK-100",
+                      "Delayed",
+                      4,
+                      5,
+                      1),
+                  new RouteSummaryReadModel(
+                      Guid.Parse("33333333-3333-3333-3333-333333333333"),
+                      "RT-300",
+                      Guid.NewGuid(),
+                      "TRK-300",
+                      "On time",
+                      2,
+                      2,
+                      0)
+              ]));
+
+      var service = new TransportSyncHistoryService(store);
+
+      var diff = await service.BuildDiffBetweenImportsAsync("tenant-a", 1, 2);
+
+      Assert.True(diff.HasComparableHistory);
+      Assert.Equal(2, diff.LatestRouteCount);
+      Assert.Equal(1, diff.PreviousRouteCount);
+      Assert.Equal(1, diff.AddedRouteCount);
+      Assert.Equal(0, diff.RemovedRouteCount);
+      Assert.Equal(1, diff.ChangedRouteCount);
+      Assert.Contains(diff.RouteDiffs, item => item.RouteReference == "RT-300" && item.ChangeType == "Added");
+      Assert.Contains(diff.RouteDiffs, item => item.RouteReference == "RT-100" && item.ChangeType == "Changed");
+    }
+    finally
+    {
+      tempDirectory.Delete(true);
+    }
+  }
+
+  [Fact]
+  public async Task BuildDiffBetweenImportsAsync_returns_false_for_nonexistent_runs()
+  {
+    var tempDirectory = Directory.CreateTempSubdirectory("orkystra-transport-diff-notfound-tests");
+
+    try
+    {
+      var store = new SqliteOperationalPersistenceStore(
+          Options.Create(new OperationalPersistenceOptions
+          {
+            DatabasePath = Path.Combine("data", "operations.db")
+          }),
+          tempDirectory.FullName);
+
+      var service = new TransportSyncHistoryService(store);
+      var diff = await service.BuildDiffBetweenImportsAsync("tenant-a", 1, 2);
+
+      Assert.False(diff.HasComparableHistory);
+      Assert.Contains("not found", diff.Detail);
+    }
+    finally
+    {
+      tempDirectory.Delete(true);
+    }
+  }
 }

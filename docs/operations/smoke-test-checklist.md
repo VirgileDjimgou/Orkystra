@@ -2,9 +2,13 @@
 
 Use this checklist before a demo, a local release candidate, or a staging handoff.
 
+For the release-candidate support boundary, versioning flow, and known limitations, also read [release-candidate.md](release-candidate.md), [../../CHANGELOG.md](../../CHANGELOG.md), and [releases/v0.1.0-rc.1.md](releases/v0.1.0-rc.1.md).
+
 ## 1. Infrastructure
 
 - Start the stack: `docker compose -f infrastructure/docker-compose.stack.yml up -d --build`
+- Preferred first-run helper: `powershell -ExecutionPolicy Bypass -File infrastructure/scripts/bring-up-selfhost.ps1`
+- Preferred reset helper: `powershell -ExecutionPolicy Bypass -File infrastructure/scripts/reset-demo-state.ps1 -Rebootstrap`
 - Confirm PostgreSQL, MQTT, and Qdrant containers are healthy enough to stay running
 - Confirm API, AI service, optimization service, and web containers are up
 
@@ -15,6 +19,7 @@ Use this checklist before a demo, a local release candidate, or a staging handof
 - `GET /observability/metrics` returns counters
 - `GET /observability/context` returns 200 when `X-Api-Key` and `X-Tenant-Id` are present
 - `GET /observability/event-backbone` returns MQTT publish/consume telemetry and the latest dispatch result
+- `GET /observability/persistence/provider` returns the active persistence provider, posture, safe connection target, and a healthy flag
 - Missing API key returns 401 on protected routes
 - Missing tenant header only fails when tenant-header enforcement is enabled
 - `POST /api/simulation/scenarios/demo-events` returns 202 and records a simulation-event publish workflow run
@@ -42,6 +47,7 @@ Use this checklist before a demo, a local release candidate, or a staging handof
 - When a real transport provider `baseUrl` is configured locally, provider health and route endpoints reflect live upstream posture instead of demo fallback
 - When `authMode` is `api-key` and no key is supplied, the catalog reports readiness as `Auth Key Missing` and the health report includes the `auth-key-missing` signal
 - When an API key is supplied via environment variable or the secrets endpoint, the catalog reports readiness as `Configured` and health signals include `auth-key-configured`
+- When PostgreSQL is the intended self-host persistence target, `/observability/persistence/provider` reports `provider: "postgres"`, `posture: "self-host-recommended"`, and `healthy: true`
 - `PUT /api/providers/catalog/rest-transport-adapter/secrets` with `{ "secretKey": "apiKey", "secretValue": "..." }` returns 204 and persists the key to the local secrets file
 - The secrets endpoint rejects unknown providers (404) and non-secret fields (422)
 - The browser catalog card shows `API key: configured` or `API key: not set` without exposing the value
@@ -125,8 +131,10 @@ Use this checklist before a demo, a local release candidate, or a staging handof
 ## 4. Python services
 
 - AI service `/health` returns 200
+- AI service editable install exposes `orkystra_ai_service` from `python-services`
 - AI service `/recommendations/demo/warehouse` returns grounded response fields
 - Optimization service `/health` returns 200
+- Optimization service editable install exposes `orkystra_optimization_service` from `python-services`
 - Optimization service `/optimize/demo` returns an explainable route plan
 
 ## 5. Quality gates
@@ -134,6 +142,8 @@ Use this checklist before a demo, a local release candidate, or a staging handof
 - `dotnet build backend/Orkystra.slnx --configuration Release /p:UseSharedCompilation=false /nodeReuse:false`
 - `dotnet test backend/Orkystra.slnx --configuration Release`
 - `npm run build` in `frontend/web`
+- `cd python-services && pip install -e ".[dev]"`
+- `python -m pytest python-services`
 - `python -m unittest discover python-services/tests`
 - `python -m compileall python-services`
 

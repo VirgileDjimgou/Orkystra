@@ -13,7 +13,7 @@ namespace Orkystra.Domain.Tests;
 public sealed class AiWorkflowTests
 {
     [Fact]
-    public async Task BuildRecommendationAsync_uses_ai_service_response_when_available()
+    public async Task BuildRecommendationAsync_uses_http_provider_when_available()
     {
         var handler = new RecordingHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
         {
@@ -45,10 +45,12 @@ public sealed class AiWorkflowTests
             """, Encoding.UTF8, "application/json")
         });
 
-        var service = new AiWorkflowService(new HttpClient(handler)
+        var httpProvider = new HttpAiProvider(new HttpClient(handler)
         {
             BaseAddress = new Uri("http://127.0.0.1:8001")
-        }, NullLogger<AiWorkflowService>.Instance);
+        }, NullLogger<HttpAiProvider>.Instance);
+
+        var service = new AiWorkflowService(httpProvider, NullLogger<AiWorkflowService>.Instance);
 
         var result = await service.BuildRecommendationAsync(
             "north-hub-demo",
@@ -57,6 +59,7 @@ public sealed class AiWorkflowTests
             CancellationToken.None);
 
         Assert.Equal("api", result.Source);
+        Assert.Equal("http", result.ProviderName);
         Assert.Equal("warehouse", result.Recommendation.Intent);
         Assert.Contains("North Hub A", result.Recommendation.DirectAnswer);
         Assert.Contains("\"tenant_id\":\"north-hub-demo\"", handler.LastRequestBody);
@@ -64,17 +67,19 @@ public sealed class AiWorkflowTests
     }
 
     [Fact]
-    public async Task BuildRecommendationAsync_falls_back_when_ai_service_is_unavailable()
+    public async Task HttpAiProvider_falls_back_when_service_is_unavailable()
     {
         var handler = new RecordingHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.ServiceUnavailable)
         {
             ReasonPhrase = "Service unavailable"
         });
 
-        var service = new AiWorkflowService(new HttpClient(handler)
+        var httpProvider = new HttpAiProvider(new HttpClient(handler)
         {
             BaseAddress = new Uri("http://127.0.0.1:8001")
-        }, NullLogger<AiWorkflowService>.Instance);
+        }, NullLogger<HttpAiProvider>.Instance);
+
+        var service = new AiWorkflowService(httpProvider, NullLogger<AiWorkflowService>.Instance);
 
         var result = await service.BuildRecommendationAsync(
             "north-hub-demo",
@@ -83,8 +88,140 @@ public sealed class AiWorkflowTests
             CancellationToken.None);
 
         Assert.Equal("fallback", result.Source);
+        Assert.Equal("http", result.ProviderName);
         Assert.Equal("dispatcher", result.Recommendation.Intent);
         Assert.Contains("RT-412", result.Recommendation.DirectAnswer);
+    }
+
+    [Fact]
+    public async Task LocalAiProvider_returns_deterministic_recommendation()
+    {
+        var localProvider = new LocalAiProvider(NullLogger<LocalAiProvider>.Instance);
+        var service = new AiWorkflowService(localProvider, NullLogger<AiWorkflowService>.Instance);
+
+        var result = await service.BuildRecommendationAsync(
+            "north-hub-demo",
+            new AiRecommendationQueryRequest("Which warehouse needs attention right now?", "scenario-1"),
+            BuildOverview(),
+            CancellationToken.None);
+
+        Assert.Equal("api", result.Source);
+        Assert.Equal("local", result.ProviderName);
+        Assert.Equal("warehouse", result.Recommendation.Intent);
+        Assert.Contains("North Hub A", result.Recommendation.DirectAnswer);
+        Assert.NotEmpty(result.Recommendation.Evidence);
+        Assert.Equal("projection_data", result.Recommendation.Evidence.First().Grounding);
+    }
+
+    [Fact]
+    public async Task DisabledAiProvider_returns_disabled_message()
+    {
+        var disabledProvider = new DisabledAiProvider();
+        var service = new AiWorkflowService(disabledProvider, NullLogger<AiWorkflowService>.Instance);
+
+        var result = await service.BuildRecommendationAsync(
+            "north-hub-demo",
+            new AiRecommendationQueryRequest("Which warehouse needs attention right now?", "scenario-1"),
+            BuildOverview(),
+            CancellationToken.None);
+
+        Assert.Equal("api", result.Source);
+        Assert.Equal("disabled", result.ProviderName);
+        Assert.Equal("unknown", result.Recommendation.Intent);
+        Assert.Contains("disabled", result.Recommendation.DirectAnswer, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("low", result.Recommendation.ConfidenceLevel);
+        Assert.Contains("AiService__Provider", result.Recommendation.DirectAnswer, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("supervisor-agent", result.Recommendation.SpecialistAgents);
+    }
+
+    [Fact]
+    public async Task HttpAiProvider_returns_fallback_on_null_response_body()
+    {
+        var handler = new RecordingHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent("null", Encoding.UTF8, "application/json")
+        });
+
+        var httpProvider = new HttpAiProvider(new HttpClient(handler)
+        {
+            BaseAddress = new Uri("http://127.0.0.1:8001")
+        }, NullLogger<HttpAiProvider>.Instance);
+
+        var service = new AiWorkflowService(httpProvider, NullLogger<AiWorkflowService>.Instance);
+
+        var result = await service.BuildRecommendationAsync(
+            "north-hub-demo",
+            new AiRecommendationQueryRequest("Which warehouse needs attention right now?", "scenario-1"),
+            BuildOverview(),
+            CancellationToken.None);
+
+        Assert.Equal("fallback", result.Source);
+        Assert.Equal("http", result.ProviderName);
+        Assert.NotEmpty(result.Recommendation.Evidence);
+    }
+
+    [Fact]
+    public async Task HttpAiProvider_returns_fallback_on_malformed_json()
+    {
+        var handler = new RecordingHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent("{ this is not valid json }", Encoding.UTF8, "application/json")
+        });
+
+        var httpProvider = new HttpAiProvider(new HttpClient(handler)
+        {
+            BaseAddress = new Uri("http://127.0.0.1:8001")
+        }, NullLogger<HttpAiProvider>.Instance);
+
+        var service = new AiWorkflowService(httpProvider, NullLogger<AiWorkflowService>.Instance);
+
+        var result = await service.BuildRecommendationAsync(
+            "north-hub-demo",
+            new AiRecommendationQueryRequest("Which warehouse needs attention right now?", "scenario-1"),
+            BuildOverview(),
+            CancellationToken.None);
+
+        Assert.Equal("fallback", result.Source);
+        Assert.Equal("http", result.ProviderName);
+        Assert.NotEmpty(result.Recommendation.Evidence);
+        Assert.NotNull(result.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task LocalAiProvider_handles_empty_overview_gracefully()
+    {
+        var localProvider = new LocalAiProvider(NullLogger<LocalAiProvider>.Instance);
+        var service = new AiWorkflowService(localProvider, NullLogger<AiWorkflowService>.Instance);
+
+        var result = await service.BuildRecommendationAsync(
+            "north-hub-demo",
+            new AiRecommendationQueryRequest("Which warehouse needs attention right now?", "scenario-1"),
+            BuildEmptyOverview(),
+            CancellationToken.None);
+
+        Assert.Equal("api", result.Source);
+        Assert.Equal("local", result.ProviderName);
+        Assert.Equal("warehouse", result.Recommendation.Intent);
+        Assert.Contains("cannot assess", result.Recommendation.DirectAnswer);
+        Assert.Empty(result.Recommendation.Evidence);
+    }
+
+    [Fact]
+    public async Task LocalAiProvider_returns_unknown_for_ambiguous_question()
+    {
+        var localProvider = new LocalAiProvider(NullLogger<LocalAiProvider>.Instance);
+        var service = new AiWorkflowService(localProvider, NullLogger<AiWorkflowService>.Instance);
+
+        var result = await service.BuildRecommendationAsync(
+            "north-hub-demo",
+            new AiRecommendationQueryRequest("How is the overall business doing?", "scenario-1"),
+            BuildOverview(),
+            CancellationToken.None);
+
+        Assert.Equal("api", result.Source);
+        Assert.Equal("local", result.ProviderName);
+        Assert.Equal("unknown", result.Recommendation.Intent);
+        Assert.Empty(result.Recommendation.Evidence);
     }
 
     private static ControlTowerOverviewResponse BuildOverview()
@@ -125,6 +262,11 @@ public sealed class AiWorkflowTests
             [],
             [],
             []);
+    }
+
+    private static ControlTowerOverviewResponse BuildEmptyOverview()
+    {
+        return new ControlTowerOverviewResponse("north-hub-demo", DateTimeOffset.UtcNow, [], [], [], [], [], []);
     }
 
     private sealed class RecordingHttpMessageHandler : HttpMessageHandler

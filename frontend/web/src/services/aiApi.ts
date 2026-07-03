@@ -3,6 +3,7 @@ import { sendApiRequest } from './apiClient'
 export type AiEvidenceView = {
   source: string
   detail: string
+  grounding: string
 }
 
 export type AiRecommendedActionView = {
@@ -27,6 +28,7 @@ export type AiRecommendationEnvelopeView = {
   recommendation: AiRecommendationView
   source: 'api' | 'fallback'
   errorMessage: string | null
+  providerName: string
 }
 
 export type AiRecommendationInput = {
@@ -63,11 +65,13 @@ export async function loadAiRecommendation(input: AiRecommendationInput): Promis
       errorMessage: workflow.errorMessage,
     }
   } catch (error) {
+    const normalizedError = error instanceof Error ? error.message : 'AI workflow request failed.'
+
     return {
       workflow: {
         recommendation: {
           intent: 'unknown',
-          directAnswer: '',
+          directAnswer: 'The AI recommendation endpoint is unreachable. Please check that the API is running and that the AI provider is configured.',
           evidence: [],
           assumptions: [],
           recommendedActions: [],
@@ -77,10 +81,11 @@ export async function loadAiRecommendation(input: AiRecommendationInput): Promis
           specialistAgents: ['frontend-fallback'],
         },
         source: 'fallback',
-        errorMessage: error instanceof Error ? error.message : 'AI workflow request failed.',
+        errorMessage: normalizedError,
+        providerName: 'frontend-fallback',
       },
       source: 'fallback',
-      errorMessage: error instanceof Error ? error.message : 'AI workflow request failed.',
+      errorMessage: normalizedError,
     }
   }
 }

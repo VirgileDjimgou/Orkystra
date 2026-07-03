@@ -37,4 +37,9 @@ public interface IOperationalPersistenceStore
         string? workflowKind,
         int count,
         CancellationToken cancellationToken = default);
+
+    Task<PersistedWorkflowRun?> ReadWorkflowRunByIdAsync(
+        string tenantId,
+        long runId,
+        CancellationToken cancellationToken = default);
 }

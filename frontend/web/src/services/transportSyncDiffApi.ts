@@ -11,9 +11,18 @@ export type TransportSyncDiffLoadResult = {
   errorMessage: string | null
 }
 
-export async function loadTransportSyncDiff(): Promise<TransportSyncDiffLoadResult> {
+export async function loadTransportSyncDiff(
+  previousRunId?: number,
+  currentRunId?: number,
+): Promise<TransportSyncDiffLoadResult> {
   try {
-    const response = await sendApiRequest('/api/transport/sync-diff', {
+    let url = '/api/transport/sync-diff'
+
+    if (previousRunId !== undefined && currentRunId !== undefined) {
+      url += `?previousRunId=${previousRunId}&currentRunId=${currentRunId}`
+    }
+
+    const response = await sendApiRequest(url, {
       includeTenantHeader: true,
     })
 

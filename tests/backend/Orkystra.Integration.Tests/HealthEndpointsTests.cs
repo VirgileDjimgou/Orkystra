@@ -40,4 +40,20 @@ public sealed class HealthEndpointsTests : IntegrationTestBase
         Assert.NotEqual(0, components.GetArrayLength());
         Assert.True(doc.RootElement.TryGetProperty("allHealthy", out _));
     }
+
+    [Fact]
+    public async Task Get_persistence_provider_returns_sqlite_diagnostics()
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, "/observability/persistence/provider");
+        request.Headers.Add("X-Api-Key", "integration-test-key");
+
+        var response = await Client.SendAsync(request);
+
+        Assert.Equal(System.Net.HttpStatusCode.OK, response.StatusCode);
+        var doc = await DeserializeDocumentAsync(response);
+        Assert.Equal("sqlite", doc.RootElement.GetProperty("provider").GetString());
+        Assert.Equal("local-default", doc.RootElement.GetProperty("posture").GetString());
+        Assert.True(doc.RootElement.GetProperty("healthy").GetBoolean());
+        Assert.True(doc.RootElement.TryGetProperty("connectionTarget", out _));
+    }
 }

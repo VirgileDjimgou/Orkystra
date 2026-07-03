@@ -1,5 +1,39 @@
 # Orkystra — Smart Logistics Twin
 
+**Orkystra** is a modular, simulation-first logistics control tower with warehouse digital twin, transport management, event-driven simulation, route optimization, and AI assistance. Built with .NET 9, Vue 3, Python/FastAPI, and MQTT.
+
+> 🇬🇧 [English docs](INSTALL.md) · 🇫🇷 Documentation française ci-dessous
+
+---
+
+## Quick Start
+
+```powershell
+# Prerequisites: .NET 9 SDK, Node.js 20+, Docker
+cp .env.example .env
+docker compose -f infrastructure/docker-compose.yml up -d
+dotnet run --project backend/src/Orkystra.Api
+cd frontend/web && npm install && npm run dev
+```
+
+See [INSTALL.md](INSTALL.md) for detailed installation and deployment instructions. See [CONTRIBUTING.md](CONTRIBUTING.md) for how to contribute.
+
+For the fastest packaged self-host evaluation path, run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File infrastructure/scripts/bring-up-selfhost.ps1
+```
+
+That script starts the Docker Compose stack, waits for the API health endpoint, and bootstraps the demo data automatically.
+
+To reset the local demo state and rebuild it cleanly, run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File infrastructure/scripts/reset-demo-state.ps1 -Rebootstrap
+```
+
+---
+
 **Orkystra** est un système d'exploitation logistique (Logistics OS) complet avec jumeau numérique d'entrepôt, gestion de transport, simulation événementielle, optimisation de tournées et assistant IA. Plateforme modulaire « simulation-first, reality-ready » construite en .NET, Vue 3, Python/FastAPI et MQTT.
 
 ## Démo interactive par rôle — Workflows pas-à-pas
@@ -8,57 +42,57 @@ Chaque rôle suit un workflow de 4 étapes (consulter → analyser → décider 
 
 ### 🏢 Président / Directeur — Vue stratégique globale
 
-| Étape | Capture |
-|-------|---------|
-| ① Vue d'ensemble : KPI, alertes, santé des providers | <img src="docs/screenshots/01-president/01-vue-ensemble.png" width="500"> |
-| ② Analyse des alertes critiques et flux tendus | <img src="docs/screenshots/01-president/02-details-alertes.png" width="500"> |
-| ③ Décision : contacter les prestataires dégradés | <img src="docs/screenshots/01-president/03-sante-providers.png" width="500"> |
-| ④ Suivi : plan d'action validé pour la journée | <img src="docs/screenshots/01-president/04-decisions.png" width="500"> |
+| Étape                                                | Capture                                                                      |
+| ---------------------------------------------------- | ---------------------------------------------------------------------------- |
+| ① Vue d'ensemble : KPI, alertes, santé des providers | <img src="docs/screenshots/01-president/01-vue-ensemble.png" width="500">    |
+| ② Analyse des alertes critiques et flux tendus       | <img src="docs/screenshots/01-president/02-details-alertes.png" width="500"> |
+| ③ Décision : contacter les prestataires dégradés     | <img src="docs/screenshots/01-president/03-sante-providers.png" width="500"> |
+| ④ Suivi : plan d'action validé pour la journée       | <img src="docs/screenshots/01-president/04-decisions.png" width="500">       |
 
 ### 📦 Opérateur Entrepôt — Gestion des stocks et jumeau 3D
 
-| Étape | Capture |
-|-------|---------|
-| ① Vue des entrepôts : occupation, zones, quais | <img src="docs/screenshots/02-warehouse-operator/01-entrepots.png" width="500"> |
-| ② Jumeau numérique 3D interactif | <img src="docs/screenshots/02-warehouse-operator/02-jumeau-numerique.png" width="500"> |
+| Étape                                            | Capture                                                                                |
+| ------------------------------------------------ | -------------------------------------------------------------------------------------- |
+| ① Vue des entrepôts : occupation, zones, quais   | <img src="docs/screenshots/02-warehouse-operator/01-entrepots.png" width="500">        |
+| ② Jumeau numérique 3D interactif                 | <img src="docs/screenshots/02-warehouse-operator/02-jumeau-numerique.png" width="500"> |
 | ③ Analyse des capacités et risques de congestion | <img src="docs/screenshots/02-warehouse-operator/03-analyse-capacite.png" width="500"> |
-| ④ Décision : réaffectation des zones de stockage | <img src="docs/screenshots/02-warehouse-operator/04-reaffectation.png" width="500"> |
+| ④ Décision : réaffectation des zones de stockage | <img src="docs/screenshots/02-warehouse-operator/04-reaffectation.png" width="500">    |
 
 ### 🚛 Dispatcher Transport — Suivi et optimisation des routes
 
-| Étape | Capture |
-|-------|---------|
-| ① Tableau des routes : statut, arrêts, livraisons | <img src="docs/screenshots/03-transport-dispatcher/01-tableau-routes.png" width="500"> |
-| ② Analyse de la route RT-412 en retard | <img src="docs/screenshots/03-transport-dispatcher/02-route-retard.png" width="500"> |
-| ③ Re-routage : optimisation OR-Tools disponible | <img src="docs/screenshots/03-transport-dispatcher/03-optimisation.png" width="500"> |
-| ④ Synchro transport : plan de tournée mis à jour | <img src="docs/screenshots/03-transport-dispatcher/04-synchronisation.png" width="500"> |
+| Étape                                             | Capture                                                                                 |
+| ------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| ① Tableau des routes : statut, arrêts, livraisons | <img src="docs/screenshots/03-transport-dispatcher/01-tableau-routes.png" width="500">  |
+| ② Analyse de la route RT-412 en retard            | <img src="docs/screenshots/03-transport-dispatcher/02-route-retard.png" width="500">    |
+| ③ Re-routage : optimisation OR-Tools disponible   | <img src="docs/screenshots/03-transport-dispatcher/03-optimisation.png" width="500">    |
+| ④ Synchro transport : plan de tournée mis à jour  | <img src="docs/screenshots/03-transport-dispatcher/04-synchronisation.png" width="500"> |
 
 ### 🤖 Analyste IA — Recommandations opérationnelles
 
-| Étape | Capture |
-|-------|---------|
-| ① Assistant IA : recommandations opérationnelles | <img src="docs/screenshots/04-ai-analyst/01-assistant-IA.png" width="500"> |
-| ② Preuves, hypothèses, niveau de confiance HIGH | <img src="docs/screenshots/04-ai-analyst/02-preuves-confiance.png" width="500"> |
-| ③ Trace opérationnelle et historique IA | <img src="docs/screenshots/04-ai-analyst/03-trace-operationnelle.png" width="500"> |
-| ④ Workflow IA : analyse, décision, action | <img src="docs/screenshots/04-ai-analyst/04-workflow-ia.png" width="500"> |
+| Étape                                            | Capture                                                                            |
+| ------------------------------------------------ | ---------------------------------------------------------------------------------- |
+| ① Assistant IA : recommandations opérationnelles | <img src="docs/screenshots/04-ai-analyst/01-assistant-IA.png" width="500">         |
+| ② Preuves, hypothèses, niveau de confiance HIGH  | <img src="docs/screenshots/04-ai-analyst/02-preuves-confiance.png" width="500">    |
+| ③ Trace opérationnelle et historique IA          | <img src="docs/screenshots/04-ai-analyst/03-trace-operationnelle.png" width="500"> |
+| ④ Workflow IA : analyse, décision, action        | <img src="docs/screenshots/04-ai-analyst/04-workflow-ia.png" width="500">          |
 
 ### ⚙️ Administrateur — Configuration et connecteurs
 
-| Étape | Capture |
-|-------|---------|
-| ① Catalogue des providers connecteurs | <img src="docs/screenshots/05-admin/01-catalogue-providers.png" width="500"> |
-| ② Configuration des connecteurs et secrets API | <img src="docs/screenshots/05-admin/02-configuration.png" width="500"> |
-| ③ État des connexions et santé des services | <img src="docs/screenshots/05-admin/03-etat-connexions.png" width="500"> |
-| ④ Configuration runtime et déploiement | <img src="docs/screenshots/05-admin/04-runtime-config.png" width="500"> |
+| Étape                                          | Capture                                                                      |
+| ---------------------------------------------- | ---------------------------------------------------------------------------- |
+| ① Catalogue des providers connecteurs          | <img src="docs/screenshots/05-admin/01-catalogue-providers.png" width="500"> |
+| ② Configuration des connecteurs et secrets API | <img src="docs/screenshots/05-admin/02-configuration.png" width="500">       |
+| ③ État des connexions et santé des services    | <img src="docs/screenshots/05-admin/03-etat-connexions.png" width="500">     |
+| ④ Configuration runtime et déploiement         | <img src="docs/screenshots/05-admin/04-runtime-config.png" width="500">      |
 
 ### 📊 Superviseur — Observabilité et audit
 
-| Étape | Capture |
-|-------|---------|
-| ① Piste d'audit et observabilité | <img src="docs/screenshots/06-supervisor/01-audit.png" width="500"> |
-| ② Métriques système et backbone événementiel | <img src="docs/screenshots/06-supervisor/02-metriques.png" width="500"> |
-| ③ Santé du système : API, MQTT, SQLite | <img src="docs/screenshots/06-supervisor/03-sante-systeme.png" width="500"> |
-| ④ Tableau de bord superviseur : vue consolidée | <img src="docs/screenshots/06-supervisor/04-tableau-bord.png" width="500"> |
+| Étape                                          | Capture                                                                     |
+| ---------------------------------------------- | --------------------------------------------------------------------------- |
+| ① Piste d'audit et observabilité               | <img src="docs/screenshots/06-supervisor/01-audit.png" width="500">         |
+| ② Métriques système et backbone événementiel   | <img src="docs/screenshots/06-supervisor/02-metriques.png" width="500">     |
+| ③ Santé du système : API, MQTT, SQLite         | <img src="docs/screenshots/06-supervisor/03-sante-systeme.png" width="500"> |
+| ④ Tableau de bord superviseur : vue consolidée | <img src="docs/screenshots/06-supervisor/04-tableau-bord.png" width="500">  |
 
 ### Lancement de la démo interactive
 
@@ -84,10 +118,36 @@ Les données sont chargées en direct depuis l'API .NET sur le port 5043 avec le
 
 ## Core Documents
 
+- Installation & deployment: [INSTALL.md](INSTALL.md)
+- Contributing & architecture: [CONTRIBUTING.md](CONTRIBUTING.md)
+- Changelog: [CHANGELOG.md](CHANGELOG.md)
+- Release candidate guide: [docs/operations/release-candidate.md](docs/operations/release-candidate.md)
+- Current release notes: [docs/operations/releases/v0.1.0-rc.1.md](docs/operations/releases/v0.1.0-rc.1.md)
+- Current release manifest: [docs/operations/releases/v0.1.0-rc.1-manifest.json](docs/operations/releases/v0.1.0-rc.1-manifest.json)
+- Current publish checklist: [docs/operations/releases/v0.1.0-rc.1-publish-checklist.md](docs/operations/releases/v0.1.0-rc.1-publish-checklist.md)
+- Recommended universal AI agent prompt: [prompts/ORKYSTRA_UNIVERSAL_AGENT_PROMPT_FR.md](prompts/ORKYSTRA_UNIVERSAL_AGENT_PROMPT_FR.md)
+- Codex / Copilot autopilot prompt: [prompts/CODEX_AUTOPILOT.md](prompts/CODEX_AUTOPILOT.md)
 - Architecture overview: `docs/architecture/overview.md`
 - Connector architecture: `docs/architecture/connector-layer.md`
 - Production hardening notes: `docs/architecture/production-hardening.md`
 - Development commands: `docs/development.md`
+- Constitution (product & architecture source of truth): `constitution/SMART_LOGISTICS_TWIN_CONSTITUTION_v2.md`
+- Sprint roadmap: `IMPLEMENTATION_ROADMAP.md`
+- Project status: `PROJECT_STATUS.md`
+
+## AI Agent Continuation
+
+For any IDE or agentic IDE, the recommended entrypoint is the repository prompt:
+
+- `prompts/ORKYSTRA_UNIVERSAL_AGENT_PROMPT_FR.md`
+
+For Codex or GitHub Copilot chat sessions, you can then use the short command:
+
+```text
+Smart Logistic continue
+```
+
+That alias is expected to reload the source-of-truth files, continue from the next unfinished sprint, verify the touched slices, then update the roadmap and status before stopping.
 
 ## Repository Layout
 
@@ -112,22 +172,22 @@ Orkystra/
     ai-service/              # FastAPI + LangGraph (recommandations)
     optimization-service/    # FastAPI + OR-Tools (optimisation tournées)
   tests/
-    backend/                 # 95+ tests xUnit
+    backend/                 # 138+ tests xUnit
 ```
 
 ## Stack Technique
 
-| Couche | Technologie |
-|--------|-------------|
-| **Backend** | .NET 9 (C#), Minimal API, Clean Architecture |
-| **Frontend** | Vue 3, TypeScript, Vite, Three.js (jumeau 3D) |
-| **IA** | Python 3.12+, FastAPI, LangGraph |
-| **Optimisation** | Python 3.12+, FastAPI, OR-Tools |
-| **Broker événementiel** | MQTT (Mosquitto) via MQTTnet |
-| **Base de données** | SQLite (persistance opérationnelle), PostgreSQL (ref) |
-| **Vector store** | Qdrant (IA - RAG) |
-| **Infrastructure** | Docker Compose |
-| **Auth** | API Key + Tenant headers |
+| Couche                  | Technologie                                           |
+| ----------------------- | ----------------------------------------------------- |
+| **Backend**             | .NET 9 (C#), Minimal API, Clean Architecture          |
+| **Frontend**            | Vue 3, TypeScript, Vite, Three.js (jumeau 3D)         |
+| **IA**                  | Python 3.12+, FastAPI, LangGraph                      |
+| **Optimisation**        | Python 3.12+, FastAPI, OR-Tools                       |
+| **Broker événementiel** | MQTT (Mosquitto) via MQTTnet                          |
+| **Base de données**     | SQLite (persistance opérationnelle), PostgreSQL (ref) |
+| **Vector store**        | Qdrant (IA - RAG)                                     |
+| **Infrastructure**      | Docker Compose                                        |
+| **Auth**                | API Key + Tenant headers                              |
 
 ## Fonctionnalités clés
 
@@ -158,7 +218,7 @@ Orkystra/
 │ Orkystra.Domain│            │ Orkystra.Contracts │
 │ (Aggregates,   │            │ (DTOs, ReadModels) │
 │  Events, VOs)  │            └───────────────────┘
-└──────┬────────┘                     
+└──────┬────────┘
        │
 ┌──────▼──────────────┐
 │ Orkystra.Application │
@@ -196,7 +256,7 @@ npm run dev
 
 # 4. Services Python (optionnel)
 cd python-services
-pip install -e .
+pip install -e ".[dev]"
 uvicorn orkystra_ai_service.app:app --port 8001
 uvicorn orkystra_optimization_service.app:app --port 8002
 ```
@@ -210,4 +270,5 @@ Push-Location frontend/web
 npm run build
 Pop-Location
 python -m compileall python-services
+python -m pytest python-services
 ```

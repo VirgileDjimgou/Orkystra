@@ -78,6 +78,7 @@ builder.Services.AddSingleton<ApiKeyValidator>();
 builder.Services.AddSingleton<TenantResolutionService>();
 builder.Services.AddSingleton<RequestMetricsStore>();
 builder.Services.AddSingleton<IAuditStore, FileAuditStore>();
+builder.Services.AddSingleton<PersistenceDiagnosticsService>();
 builder.Services.AddSingleton<EventBackboneTelemetryStore>();
 builder.Services.AddSingleton<MqttEnvelopeSerializer>();
 builder.Services.AddSingleton<IInboxStateStore>(provider =>
@@ -112,12 +113,28 @@ builder.Services.AddHttpClient("provider-rest-transport", client =>
 {
     client.Timeout = TimeSpan.FromSeconds(5);
 });
-builder.Services.AddHttpClient<AiWorkflowService>((provider, client) =>
+builder.Services.AddSingleton<IAiProvider>(provider =>
 {
     var options = provider.GetRequiredService<IOptions<AiServiceOptions>>().Value;
-    client.BaseAddress = new Uri(options.BaseUrl, UriKind.Absolute);
-    client.Timeout = TimeSpan.FromSeconds(options.TimeoutSeconds);
+    switch (options.Provider.ToLowerInvariant())
+    {
+        case "http":
+            var httpClientFactory = provider.GetRequiredService<IHttpClientFactory>();
+            var httpClient = httpClientFactory.CreateClient("ai-http-provider");
+            httpClient.BaseAddress = new Uri(options.BaseUrl, UriKind.Absolute);
+            httpClient.Timeout = TimeSpan.FromSeconds(options.TimeoutSeconds);
+            return new HttpAiProvider(httpClient, provider.GetRequiredService<ILogger<HttpAiProvider>>());
+        case "local":
+            return new LocalAiProvider(provider.GetRequiredService<ILogger<LocalAiProvider>>());
+        case "disabled":
+            return new DisabledAiProvider();
+        default:
+            throw new InvalidOperationException(
+                $"Unknown AI provider '{options.Provider}'. Valid values: 'http', 'local', 'disabled'.");
+    }
 });
+builder.Services.AddHttpClient("ai-http-provider");
+builder.Services.AddSingleton<AiWorkflowService>();
 builder.Services.AddHttpClient<RouteOptimizationWorkflowService>((provider, client) =>
 {
     var options = provider.GetRequiredService<IOptions<OptimizationServiceOptions>>().Value;
@@ -383,6 +400,16 @@ app.MapGet("/observability/persistence/workflows", async (
 .RequireAuthorization()
 .WithName("GetPersistedWorkflowRuns");
 
+app.MapGet("/observability/persistence/provider", async (
+    PersistenceDiagnosticsService diagnosticsService,
+    CancellationToken cancellationToken) =>
+{
+    var snapshot = await diagnosticsService.BuildAsync(cancellationToken);
+    return Results.Ok(snapshot);
+})
+.RequireAuthorization()
+.WithName("GetPersistenceProviderDiagnostics");
+
 app.MapGet("/api/control-tower/overview", async (
     RequestTenantContext tenantContext,
     ControlTowerOverviewService overviewService,
@@ -619,18 +646,37 @@ app.MapPost("/api/transport/sync", async (
 .WithName("ImportTransportSnapshot");
 
 app.MapGet("/api/transport/sync-diff", async (
+    long? previousRunId,
+    long? currentRunId,
     RequestTenantContext tenantContext,
     TransportSyncHistoryService transportSyncHistoryService,
     IOperationalPersistenceStore persistenceStore,
     CancellationToken cancellationToken) =>
 {
     var tenantId = tenantContext.TenantId ?? "local-demo-tenant";
-    var diff = await transportSyncHistoryService.BuildLatestDiffAsync(tenantId, cancellationToken);
+
+    var diff = previousRunId.HasValue && currentRunId.HasValue
+        ? await transportSyncHistoryService.BuildDiffBetweenImportsAsync(tenantId, previousRunId.Value, currentRunId.Value, cancellationToken)
+        : await transportSyncHistoryService.BuildLatestDiffAsync(tenantId, cancellationToken);
+
     await persistenceStore.UpsertProjectionAsync(tenantId, "transport-sync-diff", "latest", "api", diff, cancellationToken);
     return Results.Ok(diff);
 })
 .RequireAuthorization()
 .WithName("GetTransportSyncDiff");
+
+app.MapGet("/api/transport/sync-history/{runId}", async (
+    long runId,
+    RequestTenantContext tenantContext,
+    TransportSyncHistoryService transportSyncHistoryService,
+    CancellationToken cancellationToken) =>
+{
+    var tenantId = tenantContext.TenantId ?? "local-demo-tenant";
+    var detail = await transportSyncHistoryService.BuildImportDetailAsync(tenantId, runId, cancellationToken);
+    return detail is not null ? Results.Ok(detail) : Results.NotFound();
+})
+.RequireAuthorization()
+.WithName("GetTransportSyncImportDetail");
 
 app.MapGet("/api/transport/sync-history", async (
     int? count,

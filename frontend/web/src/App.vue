@@ -10,6 +10,7 @@ import {
   buildFallbackTransportExceptionFollowUpQueue,
   buildFallbackTransportSyncDiff,
   buildFallbackTransportSyncHistory,
+  buildFallbackTransportSyncImportDetail,
   buildFallbackTransportSyncStatus,
   buildFallbackWarehouseDetail,
   buildFallbackWarehouseWorkbench,
@@ -24,6 +25,7 @@ import {
   type TransportExceptionFollowUpQueueView,
   type TransportSyncDiffView,
   type TransportSyncHistoryView,
+  type TransportSyncImportDetailView,
   type TransportSyncStatusView,
   type WarehouseDetailView,
   type WarehouseWorkbenchView,
@@ -59,7 +61,10 @@ import { loadTransportExceptionFollowUpQueue } from "./services/transportExcepti
 import { transitionTransportExceptionFollowUp } from "./services/transportExceptionFollowUpTransitionApi";
 import { loadTransportExceptionResolutionHistory } from "./services/transportExceptionResolutionHistoryApi";
 import { saveTransportExceptionResolution } from "./services/transportExceptionResolutionApi";
-import { loadTransportSyncHistory } from "./services/transportSyncHistoryApi";
+import {
+  loadTransportSyncHistory,
+  loadTransportSyncImportDetail,
+} from "./services/transportSyncHistoryApi";
 
 type DataConnectionState = "loading" | "api" | "fallback" | "stale";
 type TransportSupportActionId =
@@ -127,6 +132,11 @@ const transportSyncHistoryFeed = ref<TransportSyncHistoryView>(
 );
 const transportSyncHistoryConnectionState = ref<DataConnectionState>("loading");
 const transportSyncHistoryErrorMessage = ref<string | null>(null);
+const transportSyncImportDetail = ref<TransportSyncImportDetailView | null>(null);
+const transportSyncImportDetailConnectionState = ref<DataConnectionState>("loading");
+const transportSyncImportDetailErrorMessage = ref<string | null>(null);
+const transportSyncComparePreviousRunId = ref<number | null>(null);
+const transportSyncCompareCurrentRunId = ref<number | null>(null);
 const transportExceptionWorkbench = ref<TransportExceptionWorkbenchView>(
   buildFallbackTransportExceptionWorkbench()
 );
@@ -2735,6 +2745,28 @@ async function refreshTransportSyncDiff(
   applyTransportSyncDiffResult(result, preserveExisting);
 }
 
+function applyTransportSyncImportDetailResult(
+  runId: number,
+  result: Awaited<ReturnType<typeof loadTransportSyncImportDetail>>,
+): void {
+  if (result.detail !== null) {
+    transportSyncImportDetail.value = result.detail;
+  }
+
+  transportSyncImportDetailConnectionState.value =
+    result.source === "api" ? "api" : "fallback";
+  transportSyncImportDetailErrorMessage.value = result.errorMessage;
+}
+
+async function refreshTransportSyncImportDetail(
+  runId: number
+): Promise<void> {
+  transportSyncImportDetailConnectionState.value = "loading";
+  transportSyncImportDetail.value = null;
+  const result = await loadTransportSyncImportDetail(runId);
+  applyTransportSyncImportDetailResult(runId, result);
+}
+
 async function refreshTransportSyncHistory(
   preserveExisting = true
 ): Promise<void> {
@@ -2744,6 +2776,35 @@ async function refreshTransportSyncHistory(
 
   const result = await loadTransportSyncHistory();
   applyTransportSyncHistoryResult(result, preserveExisting);
+}
+
+async function onSelectTransportSyncImportForDetail(
+  runId: number
+): Promise<void> {
+  await refreshTransportSyncImportDetail(runId);
+}
+
+async function onCompareTransportSyncImports(
+  previousRunId: number,
+  currentRunId: number
+): Promise<void> {
+  transportSyncComparePreviousRunId.value = previousRunId;
+  transportSyncCompareCurrentRunId.value = currentRunId;
+  transportSyncDiffConnectionState.value = "loading";
+  const result = await loadTransportSyncDiff(previousRunId, currentRunId);
+  applyTransportSyncDiffResult(result, false);
+}
+
+function onClearTransportSyncDetail(): void {
+  transportSyncImportDetail.value = null;
+  transportSyncImportDetailConnectionState.value = "fallback";
+  transportSyncImportDetailErrorMessage.value = null;
+}
+
+function onClearTransportSyncComparison(): void {
+  transportSyncComparePreviousRunId.value = null;
+  transportSyncCompareCurrentRunId.value = null;
+  refreshTransportSyncDiff();
 }
 
 async function refreshTransportExceptionWorkbench(
@@ -3082,6 +3143,15 @@ watch(selectedScenarioId, (nextScenarioId, previousScenarioId) => {
     await refreshAiRecommendation(false);
   })();
 });
+
+watch(
+  [transportSyncComparePreviousRunId, transportSyncCompareCurrentRunId],
+  ([prevRunId, currRunId]) => {
+    if (prevRunId !== null && currRunId !== null) {
+      void onCompareTransportSyncImports(prevRunId, currRunId);
+    }
+  },
+);
 
 onBeforeUnmount(() => {
   window.clearTimeout(connectionRecoveryHandle);
@@ -4545,7 +4615,15 @@ onBeforeUnmount(() => {
               </p>
 
               <ul class="transport-story-list">
-                <li v-for="run in transportSyncHistory" :key="run.id">
+                <li
+                  v-for="run in transportSyncHistory"
+                  :key="run.id"
+                  class="transport-history-entry"
+                  :class="{
+                    'is-selected':
+                      transportSyncImportDetail?.runId === Number(run.id),
+                  }"
+                >
                   <strong>{{ run.createdAtLabel }}</strong>
                   <span>{{ run.summary }}</span>
                   <span>
@@ -4566,12 +4644,98 @@ onBeforeUnmount(() => {
                   <span v-if="run.importedAtLabel">
                     Imported {{ run.importedAtLabel }}
                   </span>
+                  <div class="chip-row">
+                    <button
+                      type="button"
+                      class="catalog-chip"
+                      @click="onSelectTransportSyncImportForDetail(Number(run.id))"
+                    >
+                      View detail
+                    </button>
+                    <button
+                      type="button"
+                      class="catalog-chip"
+                      :disabled="!run.hasComparablePrevious"
+                      @click="
+                        onCompareTransportSyncImports(
+                          Number(run.id) - 1,
+                          Number(run.id)
+                        )
+                      "
+                    >
+                      Diff vs previous
+                    </button>
+                  </div>
                 </li>
                 <li v-if="transportSyncHistory.length === 0">
                   <strong>No import history yet</strong>
                   <span>
                     Trigger an import to start building a transport sync
                     timeline for this tenant.
+                  </span>
+                </li>
+              </ul>
+            </article>
+
+            <article
+              v-if="transportSyncImportDetail"
+              id="transport-sync-import-detail-card"
+              class="transport-story-card"
+            >
+              <div class="catalog-editor-heading">
+                <div>
+                  <span class="panel-label">Import detail</span>
+                  <h3>{{ transportSyncImportDetail.createdAtLabel }}</h3>
+                </div>
+                <span class="mini-badge">{{
+                  transportSyncImportDetail.importedRouteCount
+                }}</span>
+              </div>
+
+              <p class="catalog-summary">
+                {{
+                  transportSyncImportDetailErrorMessage ??
+                  transportSyncImportDetail.summary
+                }}
+              </p>
+
+              <p class="catalog-summary">
+                Provider: {{ transportSyncImportDetail.providerId }} &middot;
+                Source: {{ transportSyncImportDetail.source }} &middot; Status:
+                {{ transportSyncImportDetail.status }} &middot; Health:
+                {{ transportSyncImportDetail.healthStatus }}
+              </p>
+
+              <div class="chip-row">
+                <button
+                  type="button"
+                  class="catalog-chip"
+                  @click="onClearTransportSyncDetail()"
+                >
+                  Close detail
+                </button>
+              </div>
+
+              <ul class="transport-story-list">
+                <li
+                  v-for="route in transportSyncImportDetail.routes"
+                  :key="route.reference"
+                >
+                  <strong>{{ route.reference }}</strong>
+                  <span
+                    >Status: {{ route.status }}, Truck:
+                    {{ route.truckReference }}</span
+                  >
+                  <span
+                    >{{ route.stopCount }} stops,
+                    {{ route.shipmentCount }} shipments,
+                    {{ route.completedDeliveryCount }} completed</span
+                  >
+                </li>
+                <li v-if="transportSyncImportDetail.routes.length === 0">
+                  <strong>No routes in this import</strong>
+                  <span>
+                    This import snapshot did not contain any route evidence.
                   </span>
                 </li>
               </ul>
@@ -5145,11 +5309,73 @@ onBeforeUnmount(() => {
               <div class="catalog-editor-heading">
                 <div>
                   <span class="panel-label">Historical diff</span>
-                  <h3>Latest vs previous import</h3>
+                  <h3>
+                    {{
+                      transportSyncComparePreviousRunId !== null
+                        ? "Selected import comparison"
+                        : "Latest vs previous import"
+                    }}
+                  </h3>
                 </div>
                 <span class="mini-badge">{{
                   filteredTransportDiffs.length
                 }}</span>
+              </div>
+
+              <div
+                v-if="transportSyncHistory.length > 1"
+                class="chip-row"
+              >
+                <select
+                  class="catalog-select"
+                  :value="transportSyncComparePreviousRunId ?? ''"
+                  @change="
+                    (event) => {
+                      const val = (event.target as HTMLSelectElement).value
+                      if (val) {
+                        transportSyncComparePreviousRunId = Number(val)
+                      }
+                    }
+                  "
+                >
+                  <option value="">Previous import...</option>
+                  <option
+                    v-for="run in transportSyncHistory.slice(1)"
+                    :key="'prev-' + run.id"
+                    :value="String(run.id)"
+                  >
+                    {{ run.createdAtLabel }} ({{ run.importedRouteCount }} routes)
+                  </option>
+                </select>
+                <select
+                  class="catalog-select"
+                  :value="transportSyncCompareCurrentRunId ?? ''"
+                  @change="
+                    (event) => {
+                      const val = (event.target as HTMLSelectElement).value
+                      if (val) {
+                        transportSyncCompareCurrentRunId = Number(val)
+                      }
+                    }
+                  "
+                >
+                  <option value="">Current import...</option>
+                  <option
+                    v-for="run in transportSyncHistory"
+                    :key="'curr-' + run.id"
+                    :value="String(run.id)"
+                  >
+                    {{ run.createdAtLabel }} ({{ run.importedRouteCount }} routes)
+                  </option>
+                </select>
+                <button
+                  v-if="transportSyncComparePreviousRunId !== null"
+                  type="button"
+                  class="catalog-chip"
+                  @click="onClearTransportSyncComparison()"
+                >
+                  Clear comparison
+                </button>
               </div>
 
               <p class="catalog-summary">
@@ -5695,6 +5921,10 @@ onBeforeUnmount(() => {
                 <span>Intent: {{ aiRecommendationView.intent }}</span>
                 <span>Source: {{ aiRecommendation?.source }}</span>
                 <span
+                  >Provider:
+                  {{ aiRecommendation?.providerName ?? "unknown" }}</span
+                >
+                <span
                   >Agents:
                   {{ aiRecommendationView.specialistAgents.join(", ") }}</span
                 >
@@ -5710,6 +5940,9 @@ onBeforeUnmount(() => {
                     >
                       <strong>{{ item.source }}</strong>
                       <span>{{ item.detail }}</span>
+                      <span v-if="item.grounding" class="provider-meta">
+                        Grounding: {{ item.grounding }}
+                      </span>
                     </li>
                   </ul>
                 </section>
@@ -6983,6 +7216,36 @@ onBeforeUnmount(() => {
 
 .transport-story-list span {
   color: #cbd5e1;
+}
+
+.transport-history-entry {
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.transport-history-entry:hover {
+  border-color: rgba(56, 189, 248, 0.3);
+}
+
+.transport-history-entry.is-selected {
+  border-color: #38bdf8;
+  background: rgba(56, 189, 248, 0.06);
+}
+
+.catalog-select {
+  padding: 6px 10px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 6px;
+  background: rgba(15, 23, 42, 0.82);
+  color: #e2e8f0;
+  font-size: 0.875rem;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.catalog-select option {
+  background: #1e293b;
+  color: #e2e8f0;
 }
 
 .transport-support-actions {

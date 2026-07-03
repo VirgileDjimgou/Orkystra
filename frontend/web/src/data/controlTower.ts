@@ -193,6 +193,29 @@ export type TransportSyncHistoryView = {
   entries: TransportSyncHistoryEntryView[]
 }
 
+export type TransportSyncImportDetailView = {
+  runId: number
+  providerId: string
+  source: string
+  status: string
+  createdAtLabel: string
+  importedAtLabel: string | null
+  importedRouteCount: number
+  healthStatus: string
+  summary: string
+  routes: TransportSyncDetailRouteItemView[]
+}
+
+export type TransportSyncDetailRouteItemView = {
+  routeId: string
+  reference: string
+  truckReference: string
+  status: string
+  stopCount: number
+  shipmentCount: number
+  completedDeliveryCount: number
+}
+
 export type TransportExceptionWorkbenchItemView = {
   id: string
   severity: 'Critical' | 'Warning' | 'Info'
@@ -1589,6 +1612,29 @@ type ApiTransportSyncHistory = {
   entries: ApiTransportSyncHistoryEntry[]
 }
 
+type ApiTransportSyncImportDetail = {
+  runId: number
+  providerId: string
+  source: string
+  status: string
+  createdAtUtc: string
+  importedAtUtc: string | null
+  importedRouteCount: number
+  healthStatus: string
+  summary: string
+  routes: ApiTransportSyncDetailRouteItem[]
+}
+
+type ApiTransportSyncDetailRouteItem = {
+  routeId: string
+  reference: string
+  truckReference: string
+  status: string
+  stopCount: number
+  shipmentCount: number
+  completedDeliveryCount: number
+}
+
 type ApiTransportExceptionWorkbenchItem = {
   exceptionId: string
   severity: string
@@ -1759,6 +1805,44 @@ export function mapApiTransportSyncHistoryToView(apiHistory: ApiTransportSyncHis
       changedRouteCount: entry.changedRouteCount,
       routeReferencePreview: entry.importedRouteReferences.slice(0, 3),
     })),
+  }
+}
+
+export function mapApiTransportSyncImportDetailToView(apiDetail: ApiTransportSyncImportDetail): TransportSyncImportDetailView {
+  return {
+    runId: apiDetail.runId,
+    providerId: apiDetail.providerId,
+    source: apiDetail.source,
+    status: apiDetail.status,
+    createdAtLabel: formatUtcLabel(apiDetail.createdAtUtc),
+    importedAtLabel: apiDetail.importedAtUtc ? formatUtcLabel(apiDetail.importedAtUtc) : null,
+    importedRouteCount: apiDetail.importedRouteCount,
+    healthStatus: apiDetail.healthStatus,
+    summary: apiDetail.summary,
+    routes: apiDetail.routes.map((route) => ({
+      routeId: route.routeId,
+      reference: route.reference,
+      truckReference: route.truckReference,
+      status: route.status,
+      stopCount: route.stopCount,
+      shipmentCount: route.shipmentCount,
+      completedDeliveryCount: route.completedDeliveryCount,
+    })),
+  }
+}
+
+export function buildFallbackTransportSyncImportDetail(): TransportSyncImportDetailView {
+  return {
+    runId: 0,
+    providerId: 'fallback',
+    source: 'fallback',
+    status: 'unavailable',
+    createdAtLabel: 'Local fallback',
+    importedAtLabel: null,
+    importedRouteCount: 0,
+    healthStatus: 'Degraded',
+    summary: 'Import detail is unavailable in fallback mode.',
+    routes: [],
   }
 }
 

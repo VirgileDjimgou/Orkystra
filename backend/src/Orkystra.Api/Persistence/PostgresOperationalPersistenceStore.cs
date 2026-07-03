@@ -270,6 +270,46 @@ public sealed class PostgresOperationalPersistenceStore : IOperationalPersistenc
         return runs;
     }
 
+    public async Task<PersistedWorkflowRun?> ReadWorkflowRunByIdAsync(
+        string tenantId,
+        long runId,
+        CancellationToken cancellationToken = default)
+    {
+        await EnsureInitializedAsync(cancellationToken);
+
+        await using var connection = new NpgsqlConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken);
+
+        await using var command = connection.CreateCommand();
+        command.CommandText =
+            """
+            SELECT id, tenant_id, workflow_kind, subject_key, scenario_id, source, status, created_at_utc, payload_json
+            FROM workflow_runs
+            WHERE tenant_id = $1
+              AND id = $2
+            LIMIT 1;
+            """;
+        command.Parameters.AddWithValue(NpgsqlTypes.NpgsqlDbType.Text, tenantId);
+        command.Parameters.AddWithValue(NpgsqlTypes.NpgsqlDbType.Bigint, runId);
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken))
+        {
+            return null;
+        }
+
+        return new PersistedWorkflowRun(
+            reader.GetInt64(0),
+            reader.GetString(1),
+            reader.GetString(2),
+            reader.GetString(3),
+            reader.IsDBNull(4) ? null : reader.GetString(4),
+            reader.GetString(5),
+            reader.GetString(6),
+            reader.GetFieldValue<DateTimeOffset>(7),
+            reader.GetString(8));
+    }
+
     private async Task EnsureInitializedAsync(CancellationToken cancellationToken)
     {
         if (_initialized)
