@@ -36,6 +36,40 @@ powershell -ExecutionPolicy Bypass -File infrastructure/scripts/reset-demo-state
 
 **Orkystra** est un système d'exploitation logistique (Logistics OS) complet avec jumeau numérique d'entrepôt, gestion de transport, simulation événementielle, optimisation de tournées et assistant IA. Plateforme modulaire « simulation-first, reality-ready » construite en .NET, Vue 3, Python/FastAPI et MQTT.
 
+## État actuel du projet
+
+- Sprint courant : ✅ Sprint 184 (documentation evidence-gap), conforme a [PROJECT_STATUS.md](PROJECT_STATUS.md)
+- Build backend : ✅ `dotnet build backend/Orkystra.slnx --configuration Release /p:UseSharedCompilation=false /nodeReuse:false`
+- Build frontend : ✅ `cd frontend/web && npm install && npm run build`
+- Compilation Python : ✅ `python -m compileall python-services`
+- Tests backend : ✅ `dotnet test backend/Orkystra.slnx --configuration Release /p:UseSharedCompilation=false /nodeReuse:false` (143 tests reussis)
+- Tests Python : ✅ `pytest` dans `python-services/tests` (17 tests reussis)
+- Verification consolidee : ✅ `infrastructure/scripts/verify-oss-readiness.ps1` executee avec succes
+- Simulation role-based executee : ✅ API locale active sur `http://localhost:5043`, demo role-play active sur `http://127.0.0.1:4180/demo.html`, endpoints metier verifies (`/api/control-tower/overview`, `/api/providers/catalog`)
+- Contrainte d'environnement : ⚠️ Docker Engine indisponible pendant cette passe, donc MQTT et stack compose complete non demarres dans cette execution.
+
+## Architecture & médias disponibles
+
+- Schémas d'architecture et détails d'intégration : [docs/architecture/overview.md](docs/architecture/overview.md), [docs/architecture/connector-layer.md](docs/architecture/connector-layer.md), [docs/architecture/optimization-layer.md](docs/architecture/optimization-layer.md), [docs/architecture/production-hardening.md](docs/architecture/production-hardening.md)
+- Captures par role : [docs/screenshots/01-president](docs/screenshots/01-president), [docs/screenshots/02-warehouse-operator](docs/screenshots/02-warehouse-operator), [docs/screenshots/03-transport-dispatcher](docs/screenshots/03-transport-dispatcher), [docs/screenshots/04-ai-analyst](docs/screenshots/04-ai-analyst), [docs/screenshots/05-admin](docs/screenshots/05-admin), [docs/screenshots/06-supervisor](docs/screenshots/06-supervisor)
+- Videos WebM generees : [docs/screenshots/videos](docs/screenshots/videos)
+- Scripts media : [docs/screenshots/capture-screenshots.mjs](docs/screenshots/capture-screenshots.mjs), [docs/screenshots/capture-role-videos.mjs](docs/screenshots/capture-role-videos.mjs)
+
+## Videos de demonstration par role (compatibles README GitHub)
+
+| Role | Video courte (WebM) | Vignette |
+| ---- | ------------------- | -------- |
+| President / Directeur | [Voir la video](docs/screenshots/videos/president.webm) | <img src="docs/screenshots/videos/posters/president.png" width="280"> |
+| Operateur Entrepot | [Voir la video](docs/screenshots/videos/warehouse-operator.webm) | <img src="docs/screenshots/videos/posters/warehouse-operator.png" width="280"> |
+| Dispatcher Transport | [Voir la video](docs/screenshots/videos/transport-dispatcher.webm) | <img src="docs/screenshots/videos/posters/transport-dispatcher.png" width="280"> |
+| Analyste IA | [Voir la video](docs/screenshots/videos/ai-analyst.webm) | <img src="docs/screenshots/videos/posters/ai-analyst.png" width="280"> |
+| Administrateur | [Voir la video](docs/screenshots/videos/administrator.webm) | <img src="docs/screenshots/videos/posters/administrator.png" width="280"> |
+| Superviseur | [Voir la video](docs/screenshots/videos/supervisor.webm) | <img src="docs/screenshots/videos/posters/supervisor.png" width="280"> |
+| Controleur (audit) | [Voir la video](docs/screenshots/videos/controller.webm) | <img src="docs/screenshots/videos/posters/controller.png" width="280"> |
+| Commissaire aux comptes (audit) | [Voir la video](docs/screenshots/videos/auditor.webm) | <img src="docs/screenshots/videos/posters/auditor.png" width="280"> |
+
+Note role-mapping: les parcours "Controleur" et "Commissaire aux comptes" sont actuellement derives du role Superviseur (audit, observabilite, evidence trail), qui est la surface produit la plus proche de ces responsabilites dans l'etat actuel.
+
 ## Démo interactive par rôle — Workflows pas-à-pas
 
 Chaque rôle suit un workflow de 4 étapes (consulter → analyser → décider → suivre). Captures réalisées depuis l'API réelle (3 scénarios, 2 entrepôts, 3 routes, 3 providers).
@@ -107,12 +141,12 @@ dotnet run --project src/Orkystra.Api
 
 # 3. Page démo standalone (port 4180)
 cd docs/screenshots
-npx http-server . -p 4180 -c-1
+python -m http.server 4180
 
 # 4. Ouvrir http://127.0.0.1:4180/demo.html
 ```
 
-Les données sont chargées en direct depuis l'API .NET sur le port 5043 avec les headers `X-Api-Keys` et `X-Tenant-Id`.
+Les donnees sont chargees en direct depuis l'API .NET sur le port 5043 avec les headers `X-Api-Key` et `X-Tenant-Id`.
 
 ---
 
@@ -129,13 +163,13 @@ Les données sont chargées en direct depuis l'API .NET sur le port 5043 avec le
 - Current publish checklist: [docs/operations/releases/v0.1.0-rc.1-publish-checklist.md](docs/operations/releases/v0.1.0-rc.1-publish-checklist.md)
 - Recommended universal AI agent prompt: [prompts/ORKYSTRA_UNIVERSAL_AGENT_PROMPT_FR.md](prompts/ORKYSTRA_UNIVERSAL_AGENT_PROMPT_FR.md)
 - Codex / Copilot autopilot prompt: [prompts/CODEX_AUTOPILOT.md](prompts/CODEX_AUTOPILOT.md)
-- Architecture overview: `docs/architecture/overview.md`
-- Connector architecture: `docs/architecture/connector-layer.md`
-- Production hardening notes: `docs/architecture/production-hardening.md`
-- Development commands: `docs/development.md`
-- Constitution (product & architecture source of truth): `constitution/SMART_LOGISTICS_TWIN_CONSTITUTION_v2.md`
-- Sprint roadmap: `IMPLEMENTATION_ROADMAP.md`
-- Project status: `PROJECT_STATUS.md`
+- Architecture overview: [docs/architecture/overview.md](docs/architecture/overview.md)
+- Connector architecture: [docs/architecture/connector-layer.md](docs/architecture/connector-layer.md)
+- Production hardening notes: [docs/architecture/production-hardening.md](docs/architecture/production-hardening.md)
+- Development commands: [docs/development.md](docs/development.md)
+- Constitution (product & architecture source of truth): [constitution/SMART_LOGISTICS_TWIN_CONSTITUTION_v2.md](constitution/SMART_LOGISTICS_TWIN_CONSTITUTION_v2.md)
+- Sprint roadmap: [IMPLEMENTATION_ROADMAP.md](IMPLEMENTATION_ROADMAP.md)
+- Project status: [PROJECT_STATUS.md](PROJECT_STATUS.md)
 
 ## AI Agent Continuation
 
@@ -227,40 +261,22 @@ Orkystra/
 
 ## Architecture
 
+```mermaid
+flowchart TD
+    UI[Orkystra Control Tower\nVue 3 + Three.js] -->|HTTP + API Key + Tenant| API[Orkystra.Api\n.NET 9]
+    API --> APP[Orkystra.Application\nWorkflows + Projections + Provider Registry]
+    APP --> DOM[Orkystra.Domain\nAggregates + Events + Value Objects]
+    API --> CTR[Orkystra.Contracts\nDTOs + Read Models]
+
+    API -->|MQTT| MQTT[Mosquitto Broker]
+    API -->|HTTP| AI[Python AI Service\nFastAPI + LangGraph]
+    API -->|HTTP| OPT[Python Optimization Service\nFastAPI + OR-Tools]
+    APP --> ADP[CSV / REST / GPS Adapters]
+
+    API --> OBS[Observability\nAudit + Metrics + Persistence diagnostics]
 ```
-┌──────────────────────────────────────────────────────────┐
-│                     Orkystra Control Tower (Vue 3)        │
-│            Tableau de bord · Jumeau 3D · Carte GPS        │
-└──────────────────────────┬───────────────────────────────┘
-                           │ HTTP (API Key + Tenant)
-┌──────────────────────────▼───────────────────────────────┐
-│                   Orkystra.Api (.NET 9)                   │
-│    Contrôleur + Middleware + Projection + Workflows        │
-└──────┬──────────────────────────────┬────────────────────┘
-       │                              │
-┌──────▼────────┐            ┌────────▼──────────┐
-│ Orkystra.Domain│            │ Orkystra.Contracts │
-│ (Aggregates,   │            │ (DTOs, ReadModels) │
-│  Events, VOs)  │            └───────────────────┘
-└──────┬────────┘
-       │
-┌──────▼──────────────┐
-│ Orkystra.Application │
-│ (Projections, Providers Registry, Event Envelopes)
-└──────────────────────┘
-       │                          ┌─────────────────────┐
-       ├── MQTT (Mosquitto) ──────┤  Python AI Service   │
-       │                          │  (FastAPI/LangGraph) │
-       │                          └─────────────────────┘
-       │                          ┌─────────────────────┐
-       ├── HTTP ──────────────────┤  Python Optimization │
-       │                          │  (FastAPI/OR-Tools) │
-       │                          └─────────────────────┘
-       │                          ┌─────────────────────┐
-       └── Provider Registry ─────┤  CSV / REST / GPS   │
-                                  │  Adapters           │
-                                  └─────────────────────┘
-```
+
+Voir aussi les docs d'architecture detaillees : [docs/architecture/overview.md](docs/architecture/overview.md), [docs/architecture/connector-layer.md](docs/architecture/connector-layer.md), [docs/architecture/ai-layer.md](docs/architecture/ai-layer.md), [docs/architecture/optimization-layer.md](docs/architecture/optimization-layer.md), [docs/architecture/production-hardening.md](docs/architecture/production-hardening.md).
 
 ## Démarrer en local
 
