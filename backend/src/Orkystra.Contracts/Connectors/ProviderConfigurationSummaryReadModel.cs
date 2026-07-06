@@ -8,4 +8,7 @@ public sealed record ProviderConfigurationSummaryReadModel(
     IReadOnlyCollection<string> MissingFields,
     IReadOnlyCollection<ProviderConfigurationSettingReadModel> Settings,
     string AuthMode,
-    bool AuthConfigured);
+    bool AuthConfigured,
+    string WritebackMode,
+    string WritebackReadiness,
+    string WritebackSummary);

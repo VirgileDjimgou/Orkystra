@@ -71,8 +71,30 @@ public sealed class ProviderRuntimeStore
 
         var normalizedSettings = editableFields.ToDictionary(
             field => field,
-            field => request.Settings.TryGetValue(field, out var value) ? value.Trim() : string.Empty,
+            field =>
+            {
+                var value = request.Settings.TryGetValue(field, out var configuredValue)
+                    ? configuredValue.Trim()
+                    : string.Empty;
+
+                if (string.Equals(field, "writebackMode", StringComparison.OrdinalIgnoreCase))
+                {
+                    return string.IsNullOrWhiteSpace(value)
+                        ? ProviderRuntimeMetadata.GetWritebackMode(providerId, null)
+                        : ProviderRuntimeMetadata.NormalizeWritebackMode(value);
+                }
+
+                return value;
+            },
             StringComparer.OrdinalIgnoreCase);
+
+        if (normalizedSettings.TryGetValue("writebackMode", out var writebackMode) &&
+            !ProviderRuntimeMetadata.IsWritebackModeValid(providerId, writebackMode))
+        {
+            throw new ArgumentException(
+                $"Unsupported writeback mode '{writebackMode}' for provider '{providerId}'. Allowed values: disabled, dry-run, enabled.",
+                nameof(request));
+        }
 
         var updated = new ProviderRuntimeSettings
         {

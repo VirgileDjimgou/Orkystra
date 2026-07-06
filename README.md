@@ -122,6 +122,8 @@ Les données sont chargées en direct depuis l'API .NET sur le port 5043 avec le
 - Contributing & architecture: [CONTRIBUTING.md](CONTRIBUTING.md)
 - Changelog: [CHANGELOG.md](CHANGELOG.md)
 - Release candidate guide: [docs/operations/release-candidate.md](docs/operations/release-candidate.md)
+- Post-release-candidate maturity checkpoint: [docs/operations/post-release-candidate-checkpoint.md](docs/operations/post-release-candidate-checkpoint.md)
+- Support handoff and issue reproduction: [docs/operations/support-handoff-and-reproduction.md](docs/operations/support-handoff-and-reproduction.md)
 - Current release notes: [docs/operations/releases/v0.1.0-rc.1.md](docs/operations/releases/v0.1.0-rc.1.md)
 - Current release manifest: [docs/operations/releases/v0.1.0-rc.1-manifest.json](docs/operations/releases/v0.1.0-rc.1-manifest.json)
 - Current publish checklist: [docs/operations/releases/v0.1.0-rc.1-publish-checklist.md](docs/operations/releases/v0.1.0-rc.1-publish-checklist.md)
@@ -148,6 +150,28 @@ Smart Logistic continue
 ```
 
 That alias is expected to reload the source-of-truth files, continue from the next unfinished sprint, verify the touched slices, then update the roadmap and status before stopping.
+
+For a consolidated maturity check, the repo also ships:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File infrastructure/scripts/verify-oss-readiness.ps1
+```
+
+That script runs the release-grade build and test pass across backend, frontend, and Python services, and it is the practical gate for the current post-release-candidate checkpoint.
+
+When you need to file an issue, start with:
+
+- [docs/operations/support-handoff-and-reproduction.md](docs/operations/support-handoff-and-reproduction.md)
+- [docs/operations/support-packet-review.md](docs/operations/support-packet-review.md)
+- [docs/operations/support-packet-refresh-loop.md](docs/operations/support-packet-refresh-loop.md)
+- [docs/operations/support-packet-archive-hygiene.md](docs/operations/support-packet-archive-hygiene.md)
+- [docs/operations/support-packet-lifecycle-summary.md](docs/operations/support-packet-lifecycle-summary.md)
+- [.github/ISSUE_TEMPLATE/bug_report.md](.github/ISSUE_TEMPLATE/bug_report.md)
+- `powershell -ExecutionPolicy Bypass -File infrastructure/scripts/package-support-issue.ps1 -ApiKey <api-key>`
+- `powershell -ExecutionPolicy Bypass -File infrastructure/scripts/validate-support-issue.ps1 -PacketDirectory <packet-folder>`
+- `powershell -ExecutionPolicy Bypass -File infrastructure/scripts/refresh-support-issue.ps1 -PacketDirectory <packet-folder> -ApiKey <api-key> -RefreshReason "retry-after-reset"`
+- `powershell -ExecutionPolicy Bypass -File infrastructure/scripts/prune-support-issue-archives.ps1 -PacketDirectory <packet-folder> -KeepLatest 3`
+- `powershell -ExecutionPolicy Bypass -File infrastructure/scripts/summarize-support-issue.ps1 -PacketDirectory <packet-folder>`
 
 ## Repository Layout
 

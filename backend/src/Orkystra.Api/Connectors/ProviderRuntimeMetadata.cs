@@ -2,6 +2,14 @@ namespace Orkystra.Api.Connectors;
 
 public static class ProviderRuntimeMetadata
 {
+    private static readonly IReadOnlyDictionary<string, string[]> EditableFieldsByProvider =
+        new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["csv-warehouse-import"] = ["sourcePath", "importSchedule"],
+            ["rest-transport-adapter"] = ["baseUrl", "authMode", "writebackMode"],
+            ["gps-telematics-adapter"] = ["streamTopic", "snapshotIntervalSeconds"]
+        };
+
     private static readonly IReadOnlyDictionary<string, string[]> RequiredFieldsByProvider =
         new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
         {
@@ -25,14 +33,16 @@ public static class ProviderRuntimeMetadata
 
     public static IReadOnlyCollection<string> GetEditableFields(string providerId)
     {
-        return RequiredFieldsByProvider.TryGetValue(providerId, out var fields)
+        return EditableFieldsByProvider.TryGetValue(providerId, out var fields)
             ? fields
             : [];
     }
 
     public static IReadOnlyCollection<string> GetRequiredFields(string providerId)
     {
-        return GetEditableFields(providerId);
+        return RequiredFieldsByProvider.TryGetValue(providerId, out var fields)
+            ? fields
+            : [];
     }
 
     public static IReadOnlyCollection<string> GetSecretFields(string providerId)
@@ -58,5 +68,54 @@ public static class ProviderRuntimeMetadata
         return settings.Settings.TryGetValue("authMode", out var mode) && !string.IsNullOrWhiteSpace(mode)
             ? mode.Trim()
             : "none";
+    }
+
+    public static bool SupportsWriteback(string providerId)
+    {
+        return string.Equals(providerId, "rest-transport-adapter", StringComparison.OrdinalIgnoreCase);
+    }
+
+    public static string GetWritebackMode(string providerId, ProviderRuntimeSettings? settings)
+    {
+        if (!SupportsWriteback(providerId))
+        {
+            return "read-only";
+        }
+
+        if (settings is null)
+        {
+            return "dry-run";
+        }
+
+        if (!settings.Settings.TryGetValue("writebackMode", out var mode) || string.IsNullOrWhiteSpace(mode))
+        {
+            return "dry-run";
+        }
+
+        return NormalizeWritebackMode(mode);
+    }
+
+    public static bool IsWritebackModeValid(string providerId, string mode)
+    {
+        if (!SupportsWriteback(providerId))
+        {
+            return string.Equals(mode, "read-only", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(mode, "disabled", StringComparison.OrdinalIgnoreCase)
+                || string.IsNullOrWhiteSpace(mode);
+        }
+
+        return string.Equals(mode, "disabled", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(mode, "dry-run", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(mode, "enabled", StringComparison.OrdinalIgnoreCase);
+    }
+
+    public static string NormalizeWritebackMode(string mode)
+    {
+        return mode.Trim().ToLowerInvariant() switch
+        {
+            "enabled" => "enabled",
+            "disabled" => "disabled",
+            _ => "dry-run"
+        };
     }
 }

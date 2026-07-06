@@ -38,6 +38,7 @@ Useful local warehouse endpoints once the API is running:
 - `GET /api/simulation/scenarios`
 - `POST /api/simulation/scenarios/demo-events`
 - `GET /api/gps/positions`
+- `GET /api/gps/board`
 - `POST /api/gps/positions/publish`
 - `GET /api/warehouses`
 - `GET /api/warehouses/{warehouseId}`
@@ -52,6 +53,7 @@ Useful local warehouse endpoints once the API is running:
 - `POST /api/bootstrap/demo` (protected — one-step seeded demo setup)
 - `GET /observability/persistence/projections`
 - `GET /observability/persistence/workflows`
+- `GET /observability/support-bundle`
 
 The development API key is intentionally not committed. Provide it through environment variables or an ignored local configuration file.
 The API now allows local Vite origins on `127.0.0.1` and `localhost` for development workflows, so the operator UI can call the protected backend directly during local browser sessions.
@@ -167,6 +169,20 @@ curl -X POST http://127.0.0.1:5043/observability/event-backbone/replay `
 
 The replay endpoint returns `{ replayed, failed, total }` describing how many pending entries were successfully republished.
 
+**Automatic recovery:**
+
+The API now also runs a background outbox recovery worker when the event backbone is enabled. It periodically retries `pending` and `failed` outbox entries through the raw MQTT publisher instead of waiting for a manual replay every time.
+
+Configuration:
+
+| Variable | Default | Description |
+|---|---|---|
+| `EventBackbone__AutoReplayEnabled` | `true` | Enable or disable periodic outbox recovery |
+| `EventBackbone__AutoReplayIntervalSeconds` | `30` | Delay between automatic replay passes |
+| `EventBackbone__AutoReplayBatchSize` | `20` | Max entries retried per automatic pass |
+
+The `/observability/event-backbone` telemetry now also exposes recovery counters and the last automatic/manual recovery timestamp.
+
 **Deduplication behavior:**
 
 The durable inbox uses `(consumer_name, message_id)` as a primary key. If a message is received after a restart, the inbox store returns `true` for `HasProcessedAsync`, and the idempotent projection runner skips the duplicate. This ensures exactly-once projection semantics across restarts as long as the same database is used.
@@ -183,6 +199,10 @@ The first connector-originated MQTT slice now uses the GPS provider. The workflo
 Useful local GPS checks:
 
 ```powershell
+# Read the current operator-facing fleet board
+curl http://127.0.0.1:5043/api/gps/board `
+  -H "X-Api-Key: your-dev-key"
+
 # Publish the latest provider GPS positions into MQTT
 curl -X POST http://127.0.0.1:5043/api/gps/positions/publish `
   -H "X-Api-Key: your-dev-key"
@@ -193,6 +213,7 @@ curl http://127.0.0.1:5043/api/gps/positions `
 ```
 
 The GPS stream topic comes from `ProviderRuntime:Providers[gps-telematics-adapter].Settings.streamTopic` and defaults to `fleet/gps/demo` in the local demo configuration.
+The operator workspace now also exposes a dedicated GPS fleet board that surfaces route-linked telemetry posture, a simple projected truck map, and an explicit focus summary for the next truck that needs review.
 
 ### Live provider authentication
 
@@ -223,6 +244,23 @@ The provider catalog shows `API key: configured` or `API key: not set` depending
 
 The operator workspace includes a **Set API key** form in the connector catalog card for any provider whose `authMode` is not `none`. The form sends the key through the secrets endpoint and clears the value from the browser after saving.
 
+### Connector writeback posture
+
+The provider catalog now also exposes a writeback posture for each connector:
+
+- `Read-only` for providers that do not expose any writeback path in the current product shell
+- `Auth Required` when a provider could support writeback, but required auth material is still missing
+- `Dry-run Only` when the provider can prepare future writeback flows but should not mutate the upstream yet
+- `Writeback Enabled` only when the provider is intentionally configured for live upstream mutation
+
+For the current transport connector, `writebackMode` is available as a local runtime setting in the provider catalog and supports:
+
+- `disabled`
+- `dry-run`
+- `enabled`
+
+The safety default remains `dry-run` unless the runtime configuration is intentionally changed.
+
 ## Frontend
 
 ```powershell
@@ -242,6 +280,7 @@ The AI workflow panel now sends the current question to `POST /api/ai/recommenda
 The optimization workflow panel now sends the selected route and scenario context to `POST /api/transport/routes/{routeId}/optimization`, and the backend routes the request through the optimization service with a resilient local fallback.
 The backend now persists key snapshots and workflow envelopes centrally, so `GET /observability/persistence/projections` and `GET /observability/persistence/workflows` are useful when tracing recent state transitions during local debugging.
 The frontend now exposes those same observability feeds through an `Operational trace` surface, which makes recent persisted runs and audit evidence visible during local demos without opening backend files.
+The same observability layer now also exposes `GET /observability/support-bundle`, which aggregates persistence diagnostics, event-backbone telemetry, recent projections, recent workflow runs, and recent audit entries into one exportable JSON support snapshot.
 The provider catalog remains the right place to edit non-secret transport runtime settings locally; once a real `baseUrl` is saved, the backend transport provider can hydrate route summaries and route details from `/routes` and `/routes/details` on the configured upstream.
 
 ### Transport snapshot sync
@@ -359,6 +398,9 @@ Use double-underscore (`__`) as the key separator for nested settings. For examp
 | `OperationalPersistence__ConnectionString` | `Host=localhost;...` | Postgres connection string |
 | `EventBackbone__BrokerUrl` | `mqtt://localhost:1883` | MQTT broker URL |
 | `EventBackbone__Enabled` | `true` | Enable or disable MQTT event backbone |
+| `EventBackbone__AutoReplayEnabled` | `true` | Enable or disable periodic outbox recovery |
+| `EventBackbone__AutoReplayIntervalSeconds` | `30` | Delay between automatic replay passes |
+| `EventBackbone__AutoReplayBatchSize` | `20` | Max entries retried per automatic pass |
 | `AiService__BaseUrl` | `http://127.0.0.1:8001` | AI recommendation service URL |
 | `AiService__TimeoutSeconds` | `8` | AI service HTTP timeout |
 | `OptimizationService__BaseUrl` | `http://127.0.0.1:8002` | Optimization service URL |
@@ -435,6 +477,15 @@ powershell -ExecutionPolicy Bypass -File infrastructure/scripts/bring-up-selfhos
 ```
 
 That helper starts the packaged stack, waits for the API health endpoint, and seeds demo data for the default local tenant.
+
+For a packaged troubleshooting handoff, export the current support evidence into one JSON file:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File infrastructure/scripts/export-support-bundle.ps1 `
+  -ApiKey "your-local-key"
+```
+
+That helper calls the protected `/observability/support-bundle` endpoint and writes a timestamped JSON export that can be attached to a bug report or reused across agent sessions.
 
 ## Demo Bring-Up (First-Run)
 

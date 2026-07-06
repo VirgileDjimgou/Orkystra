@@ -11,4 +11,10 @@ public sealed class EventBackboneOptions
     public string SimulationTopicFilter { get; set; } = "orkystra/events/simulation/#";
 
     public int ReconnectDelaySeconds { get; set; } = 5;
+
+    public bool AutoReplayEnabled { get; set; } = true;
+
+    public int AutoReplayIntervalSeconds { get; set; } = 30;
+
+    public int AutoReplayBatchSize { get; set; } = 20;
 }

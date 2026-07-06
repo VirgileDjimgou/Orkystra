@@ -90,4 +90,52 @@ public sealed class ProviderRuntimeStoreTests
             tempDirectory.Delete(true);
         }
     }
+
+    [Fact]
+    public async Task UpdateAsync_normalizes_writeback_mode_for_rest_transport_provider()
+    {
+        var tempDirectory = Directory.CreateTempSubdirectory("orkystra-provider-runtime-tests");
+
+        try
+        {
+            var localConfigurationPath = Path.Combine(tempDirectory.FullName, "appsettings.Local.json");
+            var store = new ProviderRuntimeStore(
+                Options.Create(new ProviderRuntimeOptions
+                {
+                    Providers =
+                    [
+                        new ProviderRuntimeSettings
+                        {
+                            ProviderId = "rest-transport-adapter",
+                            Enabled = true,
+                            Environment = "sandbox",
+                            Settings = new Dictionary<string, string>
+                            {
+                                ["baseUrl"] = "https://sandbox.example.invalid/transport",
+                                ["authMode"] = "api-key"
+                            }
+                        }
+                    ]
+                }),
+                localConfigurationPath);
+
+            var updated = await store.UpdateAsync(
+                "rest-transport-adapter",
+                new UpdateProviderConfigurationRequest(
+                    true,
+                    "sandbox",
+                    new Dictionary<string, string>
+                    {
+                        ["baseUrl"] = "https://sandbox.example.invalid/transport",
+                        ["authMode"] = "api-key",
+                        ["writebackMode"] = "ENABLED"
+                    }));
+
+            Assert.Equal("enabled", updated.Settings["writebackMode"]);
+        }
+        finally
+        {
+            tempDirectory.Delete(true);
+        }
+    }
 }

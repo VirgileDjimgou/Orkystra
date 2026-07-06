@@ -15,9 +15,11 @@ import {
   buildFallbackWarehouseDetail,
   buildFallbackWarehouseWorkbench,
   buildFallbackProviderCatalog,
+  buildFallbackGpsFleetBoard,
   formatUtcLabel,
   simulationSpeeds,
   type ControlTowerOverviewView,
+  type GpsFleetBoardView,
   type RouteDetailView,
   type RouteOptimizationView,
   type TransportExceptionWorkbenchView,
@@ -38,10 +40,33 @@ import {
 } from "./services/aiApi";
 import { loadControlTowerOverview } from "./services/controlTowerApi";
 import {
+  loadGpsFleetBoard,
+  publishGpsFleetTelemetry,
+} from "./services/gpsBoardApi";
+import {
   buildFallbackOperationalActivity,
   loadOperationalActivity,
   type OperationalActivityView,
 } from "./services/observabilityApi";
+import {
+  buildSupportPacketClassification,
+  buildSupportPacketArchiveGuidance,
+  buildSupportPacketDeltaGuidance,
+  buildSupportPacketDriftGuidance,
+  buildSupportPacketLifecycleGuidance,
+  buildSupportPacketReleaseContextGuidance,
+  buildSupportPacketRetryGuidance,
+  buildSupportPacketTriageShortcut,
+  buildSupportPacketTimelineGuidance,
+  buildSupportReleaseHandshake,
+  buildSupportPacketReadiness,
+  downloadSupportIssueDraft,
+  buildSupportIssueDraft,
+  buildFallbackSupportBundleSummary,
+  exportSupportBundle,
+  loadSupportBundleSummary,
+  type SupportBundleSummaryView,
+} from "./services/supportBundleApi";
 import { loadRouteOptimization } from "./services/optimizationApi";
 import {
   loadProviderCatalog,
@@ -108,6 +133,7 @@ const overview = ref<ControlTowerOverviewView>(fallbackOverview);
 const warehouseDetail = ref<WarehouseDetailView>(fallbackWarehouseDetail);
 const warehouseWorkbench = ref<WarehouseWorkbenchView>(fallbackWarehouseWorkbench);
 const routeDetail = ref<RouteDetailView>(fallbackRouteDetail);
+const gpsFleetBoard = ref<GpsFleetBoardView>(buildFallbackGpsFleetBoard());
 const loadErrorMessage = ref<string | null>(null);
 const overviewConnectionState = ref<DataConnectionState>("loading");
 const warehouseDetailErrorMessage = ref<string | null>(null);
@@ -116,6 +142,9 @@ const warehouseWorkbenchErrorMessage = ref<string | null>(null);
 const warehouseWorkbenchConnectionState = ref<DataConnectionState>("loading");
 const routeDetailErrorMessage = ref<string | null>(null);
 const routeConnectionState = ref<DataConnectionState>("loading");
+const gpsFleetBoardErrorMessage = ref<string | null>(null);
+const gpsFleetBoardConnectionState = ref<DataConnectionState>("loading");
+const isPublishingGpsTelemetry = ref(false);
 const transportSyncStatus = ref<TransportSyncStatusView>(
   buildFallbackTransportSyncStatus()
 );
@@ -182,6 +211,22 @@ const operationalActivity = ref<OperationalActivityView>(
 const operationalActivityErrorMessage = ref<string | null>(null);
 const operationalConnectionState = ref<DataConnectionState>("loading");
 const isRefreshingOperationalActivity = ref(false);
+const supportBundleSummary = ref<SupportBundleSummaryView>(
+  buildFallbackSupportBundleSummary()
+);
+const supportBundleErrorMessage = ref<string | null>(null);
+const supportBundleConnectionState = ref<DataConnectionState>("loading");
+const isExportingSupportBundle = ref(false);
+const isCopyingSupportIssueDraft = ref(false);
+const isDownloadingSupportIssueDraft = ref(false);
+const supportIssueCopyNotice = ref<string | null>(null);
+const supportIssueSummaryDraft = ref(
+  "Support intake issue from the operator workspace."
+);
+const supportIssueReproductionDraft = ref("");
+const supportIssueExpectedDraft = ref("");
+const supportIssueActualDraft = ref("");
+const supportIssueEvidenceDraft = ref("");
 const routeOptimization = ref<RouteOptimizationView>(
   buildFallbackRouteOptimization(routeDetail.value)
 );
@@ -256,6 +301,41 @@ const delayedRouteCount = computed(
   () =>
     overview.value.routes.filter((route) => route.status !== "On time").length
 );
+const gpsAttentionCount = computed(
+  () =>
+    gpsFleetBoard.value.positions.filter(
+      (position) => position.alertPosture !== "Healthy"
+    ).length
+);
+const gpsMapMarkers = computed(() => {
+  const positions = gpsFleetBoard.value.positions;
+
+  if (positions.length === 0) {
+    return [];
+  }
+
+  const latitudes = positions.map((position) => position.latitude);
+  const longitudes = positions.map((position) => position.longitude);
+  const minLatitude = Math.min(...latitudes);
+  const maxLatitude = Math.max(...latitudes);
+  const minLongitude = Math.min(...longitudes);
+  const maxLongitude = Math.max(...longitudes);
+  const latitudeRange = Math.max(maxLatitude - minLatitude, 0.01);
+  const longitudeRange = Math.max(maxLongitude - minLongitude, 0.01);
+
+  return positions.map((position) => ({
+    ...position,
+    left: `${((position.longitude - minLongitude) / longitudeRange) * 100}%`,
+    top: `${(1 - (position.latitude - minLatitude) / latitudeRange) * 100}%`,
+  }));
+});
+const gpsFleetFocusPosition = computed(
+  () =>
+    gpsFleetBoard.value.positions.find(
+      (position) =>
+        position.truckReference === gpsFleetBoard.value.focusTruckReference
+    ) ?? gpsFleetBoard.value.positions[0] ?? null
+);
 const degradedProviderCount = computed(
   () =>
     overview.value.providers.filter(
@@ -320,6 +400,9 @@ const warehouseProjectionTone = computed(() =>
 const transportProjectionTone = computed(() =>
   toneForConnectionState(routeConnectionState.value)
 );
+const gpsFleetBoardTone = computed(() =>
+  toneForConnectionState(gpsFleetBoardConnectionState.value)
+);
 const transportSyncTone = computed(() =>
   toneForConnectionState(transportSyncConnectionState.value)
 );
@@ -342,6 +425,13 @@ const transportProjectionLabel = computed(() =>
     routeConnectionState.value,
     "Transport API live",
     "Transport fallback"
+  )
+);
+const gpsFleetBoardLabel = computed(() =>
+  labelForConnectionState(
+    gpsFleetBoardConnectionState.value,
+    "GPS board live",
+    "GPS board fallback"
   )
 );
 const transportSyncLabel = computed(() =>
@@ -376,6 +466,160 @@ const operationalWorkflowLabel = computed(() =>
     operationalConnectionState.value,
     "Operational trace live",
     "Operational trace fallback"
+  )
+);
+const supportBundleTone = computed(() =>
+  toneForConnectionState(supportBundleConnectionState.value)
+);
+const supportBundleLabel = computed(() =>
+  labelForConnectionState(
+    supportBundleConnectionState.value,
+    "Support bundle live",
+    "Support bundle fallback"
+  )
+);
+const supportEscalationLabel = computed(() => {
+  switch (supportBundleSummary.value.escalationTarget) {
+    case "configuration-or-persistence":
+      return "Config or persistence";
+    case "dependency-or-event-backbone":
+      return "Dependency or broker";
+    case "product-or-workflow":
+      return "Product or workflow";
+    default:
+      return "Evidence still thin";
+  }
+});
+const supportEscalationTone = computed(() => {
+  switch (supportBundleSummary.value.escalationTarget) {
+    case "configuration-or-persistence":
+      return "severity-warning";
+    case "dependency-or-event-backbone":
+      return "severity-unhealthy";
+    case "product-or-workflow":
+      return "severity-healthy";
+    default:
+      return "severity-warning";
+  }
+});
+const supportIssueDeploymentMode = computed(() => {
+  if (supportBundleSummary.value.persistenceLabel.includes("PostgreSQL")) {
+    return "PostgreSQL self-host"
+  }
+
+  if (supportBundleSummary.value.persistenceLabel.includes("SQLite")) {
+    return "Local single-tenant or SQLite self-host"
+  }
+
+  return "Self-host or local evaluation"
+});
+const supportIssueBrowserLabel = computed(() => {
+  if (typeof window === "undefined") {
+    return "Browser unavailable";
+  }
+
+  return window.navigator.userAgent;
+});
+const supportIssueDraft = computed(() =>
+  buildSupportIssueDraft({
+    bundle: supportBundleSummary.value,
+    scenarioLabel: currentScenario.value?.name ?? selectedScenarioId.value,
+    routeLabel: currentRoute.value.reference,
+    routeStatus: currentRoute.value.status,
+    deploymentMode: supportIssueDeploymentMode.value,
+    browserLabel: supportIssueBrowserLabel.value,
+    summary: supportIssueSummaryDraft.value,
+    reproductionSteps: supportIssueReproductionDraft.value,
+    expectedResult: supportIssueExpectedDraft.value,
+    actualResult:
+      supportIssueActualDraft.value.trim() || supportBundleErrorMessage.value || "",
+    evidenceNotes: supportIssueEvidenceDraft.value,
+  })
+);
+const supportPacketReadiness = computed(() =>
+  buildSupportPacketReadiness({
+    bundle: supportBundleSummary.value,
+    scenarioLabel: currentScenario.value?.name ?? selectedScenarioId.value,
+    routeLabel: currentRoute.value.reference,
+    routeStatus: currentRoute.value.status,
+    deploymentMode: supportIssueDeploymentMode.value,
+    browserLabel: supportIssueBrowserLabel.value,
+    summary: supportIssueSummaryDraft.value,
+    reproductionSteps: supportIssueReproductionDraft.value,
+    expectedResult: supportIssueExpectedDraft.value,
+    actualResult:
+      supportIssueActualDraft.value.trim() || supportBundleErrorMessage.value || "",
+    evidenceNotes: supportIssueEvidenceDraft.value,
+  })
+);
+const supportPacketReadinessTone = computed(() => {
+  switch (supportPacketReadiness.value.status) {
+    case "Ready":
+      return "severity-healthy";
+    case "Needs operator details":
+      return "severity-warning";
+    default:
+      return "severity-unhealthy";
+  }
+});
+const supportReleaseHandshake = computed(() =>
+  buildSupportReleaseHandshake(
+    supportBundleSummary.value,
+    supportPacketReadiness.value
+  )
+);
+const supportPacketClassification = computed(() =>
+  buildSupportPacketClassification(
+    supportBundleSummary.value,
+    supportPacketReadiness.value
+  )
+);
+const supportPacketTriageShortcut = computed(() =>
+  buildSupportPacketTriageShortcut(
+    supportBundleSummary.value,
+    supportPacketReadiness.value
+  )
+);
+const supportPacketReleaseContextGuidance = computed(() =>
+  buildSupportPacketReleaseContextGuidance(
+    supportBundleSummary.value,
+    supportPacketReadiness.value
+  )
+);
+const supportPacketDriftGuidance = computed(() =>
+  buildSupportPacketDriftGuidance(
+    supportBundleSummary.value,
+    supportPacketReadiness.value
+  )
+);
+const supportPacketRetryGuidance = computed(() =>
+  buildSupportPacketRetryGuidance(
+    supportBundleSummary.value,
+    supportPacketReadiness.value
+  )
+);
+const supportPacketArchiveGuidance = computed(() =>
+  buildSupportPacketArchiveGuidance(
+    supportBundleSummary.value,
+    supportPacketReadiness.value
+  )
+);
+const supportPacketLifecycleGuidance = computed(() =>
+  buildSupportPacketLifecycleGuidance(
+    supportBundleSummary.value,
+    supportPacketReadiness.value
+  )
+);
+const supportPacketTimelineGuidance = computed(() =>
+  buildSupportPacketTimelineGuidance(
+    supportBundleSummary.value,
+    supportPacketReadiness.value
+  )
+);
+const supportPacketDeltaGuidance = computed(() =>
+  buildSupportPacketDeltaGuidance(
+    supportBundleSummary.value,
+    supportPacketReadiness.value
   )
 );
 const optimizationWorkflowTone = computed(() =>
@@ -2455,6 +2699,32 @@ function applyTransportProjectionResult(
       : result.errorMessage;
 }
 
+function applyGpsFleetBoardResult(
+  result: Awaited<ReturnType<typeof loadGpsFleetBoard>>,
+  preserveExisting: boolean
+): void {
+  const keepCurrentSnapshot =
+    preserveExisting &&
+    result.source === "fallback" &&
+    gpsFleetBoard.value.positions.length > 0 &&
+    (gpsFleetBoardConnectionState.value === "api" ||
+      gpsFleetBoardConnectionState.value === "stale");
+
+  if (!keepCurrentSnapshot) {
+    gpsFleetBoard.value = result.board;
+  }
+
+  gpsFleetBoardConnectionState.value = keepCurrentSnapshot
+    ? "stale"
+    : result.source === "api"
+    ? "api"
+    : "fallback";
+  gpsFleetBoardErrorMessage.value =
+    keepCurrentSnapshot && result.errorMessage
+      ? `${result.errorMessage} Keeping the last successful GPS operator board.`
+      : result.errorMessage;
+}
+
 function applyTransportSyncResult(
   result: Awaited<ReturnType<typeof loadTransportSyncStatus>>,
   preserveExisting: boolean
@@ -2663,6 +2933,32 @@ function applyOperationalActivityResult(
       : result.errorMessage;
 }
 
+function applySupportBundleResult(
+  result: Awaited<ReturnType<typeof loadSupportBundleSummary>>,
+  preserveExisting: boolean
+): void {
+  const keepCurrentSnapshot =
+    preserveExisting &&
+    result.source === "fallback" &&
+    supportBundleSummary.value.workflowCount + supportBundleSummary.value.projectionCount + supportBundleSummary.value.auditCount > 0 &&
+    (supportBundleConnectionState.value === "api" ||
+      supportBundleConnectionState.value === "stale");
+
+  if (!keepCurrentSnapshot) {
+    supportBundleSummary.value = result.bundle;
+  }
+
+  supportBundleConnectionState.value = keepCurrentSnapshot
+    ? "stale"
+    : result.source === "api"
+    ? "api"
+    : "fallback";
+  supportBundleErrorMessage.value =
+    keepCurrentSnapshot && result.errorMessage
+      ? `${result.errorMessage} Keeping the last successful support bundle summary.`
+      : result.errorMessage;
+}
+
 function applyRouteOptimizationResult(
   result: Awaited<ReturnType<typeof loadRouteOptimization>>,
   preserveExisting: boolean,
@@ -2721,6 +3017,17 @@ async function refreshTransportProjection(
 
   const result = await loadTransportProjection(routeId);
   applyTransportProjectionResult(result, preserveExisting, routeId);
+}
+
+async function refreshGpsFleetBoard(
+  preserveExisting = true
+): Promise<void> {
+  if (!preserveExisting) {
+    gpsFleetBoardConnectionState.value = "loading";
+  }
+
+  const result = await loadGpsFleetBoard();
+  applyGpsFleetBoardResult(result, preserveExisting);
 }
 
 async function refreshTransportSyncStatus(
@@ -2893,6 +3200,17 @@ async function refreshOperationalActivity(
   }
 }
 
+async function refreshSupportBundleSummary(
+  preserveExisting = true
+): Promise<void> {
+  if (!preserveExisting) {
+    supportBundleConnectionState.value = "loading";
+  }
+
+  const result = await loadSupportBundleSummary();
+  applySupportBundleResult(result, preserveExisting);
+}
+
 async function refreshRouteOptimization(
   preserveExisting = true,
   syncOperationalTrace = true
@@ -2929,6 +3247,7 @@ async function refreshWorkspace(preserveExisting = true): Promise<void> {
     overviewConnectionState.value = "loading";
     warehouseConnectionState.value = "loading";
     routeConnectionState.value = "loading";
+    gpsFleetBoardConnectionState.value = "loading";
     transportSyncConnectionState.value = "loading";
     transportSyncDiffConnectionState.value = "loading";
     transportSyncHistoryConnectionState.value = "loading";
@@ -2937,6 +3256,7 @@ async function refreshWorkspace(preserveExisting = true): Promise<void> {
     providerCatalogConnectionState.value = "loading";
     aiConnectionState.value = "loading";
     operationalConnectionState.value = "loading";
+    supportBundleConnectionState.value = "loading";
     routeOptimizationConnectionState.value = "loading";
   }
 
@@ -2949,10 +3269,12 @@ async function refreshWorkspace(preserveExisting = true): Promise<void> {
   await refreshWarehouseProjection(selectedWarehouseId.value, preserveExisting);
   await refreshWarehouseWorkbench(preserveExisting);
   await refreshTransportProjection(selectedRouteId.value, preserveExisting);
+  await refreshGpsFleetBoard(preserveExisting);
   await refreshTransportSyncEvidenceBundle(preserveExisting);
   await refreshRouteOptimization(preserveExisting, false);
   await refreshAiRecommendation(preserveExisting, false);
   await refreshOperationalActivity(preserveExisting);
+  await refreshSupportBundleSummary(preserveExisting);
   isRefreshingWorkspace.value = false;
 
   const hasPartialFallback =
@@ -2960,6 +3282,7 @@ async function refreshWorkspace(preserveExisting = true): Promise<void> {
       overviewConnectionState.value,
       warehouseConnectionState.value,
       routeConnectionState.value,
+      gpsFleetBoardConnectionState.value,
       transportSyncConnectionState.value,
       transportSyncDiffConnectionState.value,
       transportSyncHistoryConnectionState.value,
@@ -2968,12 +3291,14 @@ async function refreshWorkspace(preserveExisting = true): Promise<void> {
       providerCatalogConnectionState.value,
       aiConnectionState.value,
       operationalConnectionState.value,
+      supportBundleConnectionState.value,
       routeOptimizationConnectionState.value,
     ].some((state) => state === "fallback") &&
     [
       overviewConnectionState.value,
       warehouseConnectionState.value,
       routeConnectionState.value,
+      gpsFleetBoardConnectionState.value,
       transportSyncConnectionState.value,
       transportSyncDiffConnectionState.value,
       transportSyncHistoryConnectionState.value,
@@ -2982,6 +3307,7 @@ async function refreshWorkspace(preserveExisting = true): Promise<void> {
       providerCatalogConnectionState.value,
       aiConnectionState.value,
       operationalConnectionState.value,
+      supportBundleConnectionState.value,
       routeOptimizationConnectionState.value,
     ].some((state) => state === "api" || state === "stale");
 
@@ -3015,6 +3341,102 @@ async function triggerTransportSync(): Promise<void> {
     }
   } finally {
     isSyncingTransport.value = false;
+  }
+}
+
+async function triggerGpsTelemetryPublish(): Promise<void> {
+  isPublishingGpsTelemetry.value = true;
+
+  try {
+    if (gpsFleetBoardConnectionState.value !== "stale") {
+      gpsFleetBoardConnectionState.value = "loading";
+    }
+
+    const result = await publishGpsFleetTelemetry();
+    applyGpsFleetBoardResult(result, true);
+
+    if (result.source === "api") {
+      await refreshOperationalActivity(true);
+    }
+  } finally {
+    isPublishingGpsTelemetry.value = false;
+  }
+}
+
+async function triggerSupportBundleExport(): Promise<void> {
+  isExportingSupportBundle.value = true;
+  supportBundleErrorMessage.value = null;
+
+  try {
+    await exportSupportBundle();
+    await refreshSupportBundleSummary(true);
+  } catch (error) {
+    supportBundleErrorMessage.value =
+      error instanceof Error
+        ? error.message
+        : "Support bundle export could not be completed.";
+  } finally {
+    isExportingSupportBundle.value = false;
+  }
+}
+
+async function triggerSupportIssueCopy(): Promise<void> {
+  isCopyingSupportIssueDraft.value = true;
+  supportIssueCopyNotice.value = null;
+
+  try {
+    const issueDraft = supportIssueDraft.value;
+
+    if (
+      typeof window !== "undefined" &&
+      typeof window.navigator !== "undefined" &&
+      window.navigator.clipboard
+    ) {
+      await window.navigator.clipboard.writeText(issueDraft);
+      supportIssueCopyNotice.value =
+        "Issue draft copied. Attach the exported support bundle before filing.";
+      return;
+    }
+
+    const textArea = document.createElement("textarea");
+    textArea.value = issueDraft;
+    textArea.setAttribute("readonly", "true");
+    textArea.style.position = "absolute";
+    textArea.style.left = "-9999px";
+    document.body.appendChild(textArea);
+    textArea.select();
+    document.execCommand("copy");
+    textArea.remove();
+    supportIssueCopyNotice.value =
+      "Issue draft copied with the local fallback clipboard flow.";
+  } catch (error) {
+    supportIssueCopyNotice.value =
+      error instanceof Error
+        ? error.message
+        : "The issue draft could not be copied automatically.";
+  } finally {
+    isCopyingSupportIssueDraft.value = false;
+  }
+}
+
+function triggerSupportIssueDownload(): void {
+  isDownloadingSupportIssueDraft.value = true;
+  supportIssueCopyNotice.value = null;
+
+  try {
+    downloadSupportIssueDraft(
+      supportBundleSummary.value,
+      supportIssueDraft.value
+    );
+    supportIssueCopyNotice.value =
+      "Issue draft downloaded. Pair it with the matching support bundle export.";
+  } catch (error) {
+    supportIssueCopyNotice.value =
+      error instanceof Error
+        ? error.message
+        : "The issue draft could not be downloaded.";
+  } finally {
+    isDownloadingSupportIssueDraft.value = false;
   }
 }
 
@@ -3340,6 +3762,26 @@ onBeforeUnmount(() => {
               {{
                 routeDetailErrorMessage ??
                 `Detailed transport projection updated ${routeDetail.updatedAtLabel}.`
+              }}
+            </p>
+          </article>
+
+          <article class="connection-card">
+            <div class="connection-card-head">
+              <div>
+                <strong>GPS fleet board</strong>
+                <p>
+                  Truck telemetry, route correlation, and live operator focus.
+                </p>
+              </div>
+              <span class="status-pill" :class="gpsFleetBoardTone">{{
+                gpsFleetBoardLabel
+              }}</span>
+            </div>
+            <p>
+              {{
+                gpsFleetBoardErrorMessage ??
+                gpsFleetBoard.summary
               }}
             </p>
           </article>
@@ -5807,6 +6249,171 @@ onBeforeUnmount(() => {
         </section>
       </section>
 
+      <section class="surface gps-surface">
+        <div class="surface-heading">
+          <div>
+            <span class="panel-label">GPS fleet board</span>
+            <h2>Fleet telemetry focus</h2>
+          </div>
+          <div class="catalog-heading-meta">
+            <span class="status-pill" :class="gpsFleetBoardTone">
+              {{ gpsFleetBoardLabel }}
+            </span>
+            <button
+              type="button"
+              class="catalog-save-button"
+              :disabled="isPublishingGpsTelemetry"
+              @click="triggerGpsTelemetryPublish"
+            >
+              {{ isPublishingGpsTelemetry ? "Publishing..." : "Publish telemetry" }}
+            </button>
+          </div>
+        </div>
+
+        <div class="gps-board-grid">
+          <article class="transport-story-card">
+            <div class="catalog-editor-heading">
+              <div>
+                <span class="panel-label">Telemetry posture</span>
+                <h3>What needs attention first</h3>
+              </div>
+              <span class="mini-badge">
+                {{ gpsFleetBoard.generatedAtLabel }}
+              </span>
+            </div>
+
+            <p class="catalog-summary">
+              {{
+                gpsFleetBoardErrorMessage ??
+                gpsFleetBoard.summary
+              }}
+            </p>
+
+            <div class="transport-sync-grid">
+              <div class="transport-sync-metric">
+                <span class="panel-label">Projected trucks</span>
+                <strong>{{ gpsFleetBoard.positionCount }}</strong>
+                <span>{{ gpsFleetBoard.routeLinkedCount }} route-linked</span>
+              </div>
+
+              <div class="transport-sync-metric">
+                <span class="panel-label">Movement</span>
+                <strong>{{ gpsFleetBoard.movingCount }} moving</strong>
+                <span>{{ gpsFleetBoard.idleCount }} idle</span>
+              </div>
+
+              <div class="transport-sync-metric">
+                <span class="panel-label">Freshness</span>
+                <strong>{{ gpsFleetBoard.freshCount }} fresh</strong>
+                <span>
+                  {{ gpsFleetBoard.agingCount }} aging, {{ gpsFleetBoard.staleCount }} stale
+                </span>
+              </div>
+
+              <div class="transport-sync-metric">
+                <span class="panel-label">Attention</span>
+                <strong>{{ gpsAttentionCount }} trucks</strong>
+                <span>{{ gpsFleetBoard.speedingCount }} speeding</span>
+              </div>
+            </div>
+
+            <div class="transport-sync-delta">
+              <span class="panel-label">Focus summary</span>
+              <p>{{ gpsFleetBoard.focusSummary }}</p>
+            </div>
+
+            <div v-if="gpsFleetFocusPosition" class="gps-focus-card">
+              <div class="transport-route-diff-head">
+                <div>
+                  <strong>{{ gpsFleetFocusPosition.truckReference }}</strong>
+                  <span>
+                    {{
+                      gpsFleetFocusPosition.routeReference
+                        ? `${gpsFleetFocusPosition.routeReference} - ${gpsFleetFocusPosition.routeStatus ?? "Unlinked"}`
+                        : "No linked route"
+                    }}
+                  </span>
+                </div>
+                <span
+                  class="status-pill"
+                  :class="`severity-${gpsFleetFocusPosition.alertPosture.toLowerCase()}`"
+                >
+                  {{ gpsFleetFocusPosition.alertPosture }}
+                </span>
+              </div>
+              <p>{{ gpsFleetFocusPosition.alertSummary }}</p>
+            </div>
+          </article>
+
+          <article class="transport-story-card">
+            <div class="catalog-editor-heading">
+              <div>
+                <span class="panel-label">Map correlation</span>
+                <h3>Projected truck spread</h3>
+              </div>
+              <span class="mini-badge">{{ gpsMapMarkers.length }} trucks</span>
+            </div>
+
+            <div class="gps-map-stage" aria-label="GPS fleet telemetry map">
+              <div class="map-grid"></div>
+              <div
+                v-for="marker in gpsMapMarkers"
+                :key="marker.truckId"
+                class="gps-truck-marker"
+                :class="`gps-${marker.alertPosture.toLowerCase()}`"
+                :style="{ left: marker.left, top: marker.top }"
+              >
+                <strong>{{ marker.truckReference }}</strong>
+                <span>{{ marker.routeReference ?? "Unlinked" }}</span>
+              </div>
+              <div class="map-legend">
+                <span><i class="legend-swatch normal"></i> Healthy</span>
+                <span><i class="legend-swatch risk"></i> Warning</span>
+                <span><i class="legend-swatch delayed"></i> Critical</span>
+              </div>
+            </div>
+          </article>
+        </div>
+
+        <div class="gps-list">
+          <article
+            v-for="position in gpsFleetBoard.positions"
+            :key="position.truckId"
+            class="gps-list-row"
+            :class="`gps-${position.alertPosture.toLowerCase()}`"
+          >
+            <div class="gps-list-head">
+              <div>
+                <strong>{{ position.truckReference }}</strong>
+                <p>
+                  {{
+                    position.routeReference
+                      ? `${position.routeReference} - ${position.routeStatus ?? "No route posture"}`
+                      : "No linked route"
+                  }}
+                </p>
+              </div>
+              <span
+                class="status-pill"
+                :class="`severity-${position.alertPosture.toLowerCase()}`"
+              >
+                {{ position.alertPosture }}
+              </span>
+            </div>
+
+            <div class="gps-list-meta">
+              <span>{{ position.coordinateLabel }}</span>
+              <span>{{ position.speedKph }} km/h</span>
+              <span>{{ position.movementPosture }}</span>
+              <span>{{ position.freshnessPosture }} - {{ position.minutesSinceReading }} min</span>
+              <span>{{ position.recordedAtLabel }}</span>
+            </div>
+
+            <p>{{ position.alertSummary }}</p>
+          </article>
+        </div>
+      </section>
+
       <section class="surface ai-surface">
         <div class="surface-heading">
           <div>
@@ -6272,6 +6879,299 @@ onBeforeUnmount(() => {
               refresh can now be traced back to persisted backend state.
             </p>
           </article>
+
+          <article class="optimization-summary-card">
+            <div class="catalog-editor-heading">
+              <div>
+                <span class="panel-label">Support bundle</span>
+                <h3>Self-host export</h3>
+              </div>
+              <span class="status-pill" :class="supportBundleTone">
+                {{ supportBundleLabel }}
+              </span>
+            </div>
+            <p class="catalog-summary">
+              {{
+                supportBundleErrorMessage ??
+                supportBundleSummary.summary
+              }}
+            </p>
+            <div class="catalog-meta">
+              <span>{{ supportBundleSummary.tenantId }}</span>
+              <span>{{ supportBundleSummary.persistenceLabel }}</span>
+              <span>{{ supportBundleSummary.generatedAtLabel }}</span>
+            </div>
+            <div class="catalog-meta">
+              <span>{{ supportBundleSummary.workflowCount }} workflows</span>
+              <span>{{ supportBundleSummary.projectionCount }} snapshots</span>
+              <span>{{ supportBundleSummary.auditCount }} audits</span>
+            </div>
+            <div class="catalog-editor-actions">
+              <span class="severity-chip" :class="supportEscalationTone">
+                {{ supportEscalationLabel }}
+              </span>
+              <span class="catalog-editor-note">
+                The backend now classifies whether this looks like a product bug, a configuration gap, a dependency issue, or still-thin evidence.
+              </span>
+            </div>
+            <div class="catalog-editor-actions">
+              <button
+                type="button"
+                class="catalog-save-button"
+                :disabled="isExportingSupportBundle"
+                @click="triggerSupportBundleExport"
+              >
+                {{
+                  isExportingSupportBundle
+                    ? "Exporting bundle..."
+                    : "Export support bundle"
+                }}
+              </button>
+              <span class="catalog-editor-note">
+                The exported JSON mirrors the protected support snapshot that self-host maintainers can also collect from PowerShell.
+              </span>
+            </div>
+            <div class="catalog-editor-grid">
+              <label class="catalog-field support-intake-field">
+                <span>Issue summary</span>
+                <input
+                  v-model="supportIssueSummaryDraft"
+                  type="text"
+                  placeholder="Describe the symptom in one clear sentence."
+                />
+              </label>
+              <label class="catalog-field support-intake-field">
+                <span>Evidence notes</span>
+                <input
+                  v-model="supportIssueEvidenceDraft"
+                  type="text"
+                  placeholder="Optional operator note, failed API call, or timing clue."
+                />
+              </label>
+              <label class="catalog-field support-intake-field support-intake-field-wide">
+                <span>Steps to reproduce</span>
+                <textarea
+                  v-model="supportIssueReproductionDraft"
+                  placeholder="List the exact user or API steps that trigger the issue."
+                />
+              </label>
+              <label class="catalog-field support-intake-field">
+                <span>Expected result</span>
+                <textarea
+                  v-model="supportIssueExpectedDraft"
+                  placeholder="State the healthy result maintainers should expect."
+                />
+              </label>
+              <label class="catalog-field support-intake-field">
+                <span>Actual result</span>
+                <textarea
+                  v-model="supportIssueActualDraft"
+                  placeholder="State what failed, degraded, or diverged in the live system."
+                />
+              </label>
+            </div>
+            <div class="catalog-editor-actions">
+              <button
+                type="button"
+                class="catalog-save-button"
+                :disabled="isCopyingSupportIssueDraft"
+                @click="triggerSupportIssueCopy"
+              >
+                {{
+                  isCopyingSupportIssueDraft
+                    ? "Copying issue draft..."
+                    : "Copy issue draft"
+                }}
+              </button>
+              <button
+                type="button"
+                class="catalog-save-button"
+                :disabled="isDownloadingSupportIssueDraft"
+                @click="triggerSupportIssueDownload"
+              >
+                {{
+                  isDownloadingSupportIssueDraft
+                    ? "Downloading draft..."
+                    : "Download issue draft"
+                }}
+              </button>
+              <span class="catalog-editor-note">
+                The generated draft maps the live tenant, persistence posture, selected scenario, and selected route into the GitHub bug report shape.
+              </span>
+            </div>
+            <p v-if="supportIssueCopyNotice" class="support-intake-notice">
+              {{ supportIssueCopyNotice }}
+            </p>
+            <div class="catalog-block">
+              <div class="catalog-editor-heading">
+                <div>
+                  <span class="panel-label">Packet readiness</span>
+                  <h3>Maintainer handoff</h3>
+                </div>
+                <span class="severity-chip" :class="supportPacketReadinessTone">
+                  {{ supportPacketReadiness.status }}
+                </span>
+              </div>
+              <p class="catalog-summary">
+                {{ supportPacketReadiness.summary }}
+              </p>
+              <ul
+                v-if="supportPacketReadiness.missingItems.length > 0"
+                class="detail-list compact-detail-list"
+              >
+                <li
+                  v-for="item in supportPacketReadiness.missingItems"
+                  :key="item"
+                >
+                  <span>{{ item }}</span>
+                </li>
+              </ul>
+            </div>
+            <div class="catalog-block">
+              <span class="panel-label">Release handshake</span>
+              <p class="catalog-summary">
+                <strong>{{ supportReleaseHandshake.label }}</strong>
+              </p>
+              <p class="catalog-summary">
+                {{ supportReleaseHandshake.summary }}
+              </p>
+            </div>
+            <div class="catalog-block">
+              <span class="panel-label">Packet class</span>
+              <p class="catalog-summary">
+                <strong>{{ supportPacketClassification.label }}</strong>
+              </p>
+              <p class="catalog-summary">
+                {{ supportPacketClassification.summary }}
+              </p>
+            </div>
+            <div class="catalog-block">
+              <span class="panel-label">Triage shortcut</span>
+              <p class="catalog-summary">
+                <strong>{{ supportPacketTriageShortcut.lane }}</strong>
+              </p>
+              <p class="catalog-summary">
+                {{ supportPacketTriageShortcut.summary }}
+              </p>
+              <p class="catalog-summary">
+                Next owner: {{ supportPacketTriageShortcut.nextOwner }}
+              </p>
+              <ul class="detail-list compact-detail-list">
+                <li
+                  v-for="check in supportPacketTriageShortcut.checks"
+                  :key="check"
+                >
+                  <span>{{ check }}</span>
+                </li>
+              </ul>
+            </div>
+            <div class="catalog-block">
+              <span class="panel-label">Release context</span>
+              <p class="catalog-summary">
+                <strong>{{ supportPacketReleaseContextGuidance.label }}</strong>
+              </p>
+              <p class="catalog-summary">
+                {{ supportPacketReleaseContextGuidance.summary }}
+              </p>
+              <ul class="detail-list compact-detail-list">
+                <li
+                  v-for="check in supportPacketReleaseContextGuidance.checks"
+                  :key="check"
+                >
+                  <span>{{ check }}</span>
+                </li>
+              </ul>
+            </div>
+            <div class="catalog-block">
+              <span class="panel-label">Attempt drift</span>
+              <p class="catalog-summary">
+                <strong>{{ supportPacketDriftGuidance.label }}</strong>
+              </p>
+              <p class="catalog-summary">
+                {{ supportPacketDriftGuidance.summary }}
+              </p>
+              <ul class="detail-list compact-detail-list">
+                <li
+                  v-for="check in supportPacketDriftGuidance.checks"
+                  :key="check"
+                >
+                  <span>{{ check }}</span>
+                </li>
+              </ul>
+            </div>
+            <div class="catalog-block">
+              <span class="panel-label">After reset or retry</span>
+              <p class="catalog-summary">
+                <strong>{{ supportPacketRetryGuidance.label }}</strong>
+              </p>
+              <p class="catalog-summary">
+                {{ supportPacketRetryGuidance.summary }}
+              </p>
+              <p class="catalog-summary">
+                {{ supportPacketRetryGuidance.nextStep }}
+              </p>
+            </div>
+            <div class="catalog-block">
+              <span class="panel-label">Archive hygiene</span>
+              <p class="catalog-summary">
+                <strong>{{ supportPacketArchiveGuidance.label }}</strong>
+              </p>
+              <p class="catalog-summary">
+                {{ supportPacketArchiveGuidance.summary }}
+              </p>
+            </div>
+            <div class="catalog-block">
+              <span class="panel-label">Canonical handoff</span>
+              <p class="catalog-summary">
+                <strong>{{ supportPacketLifecycleGuidance.label }}</strong>
+              </p>
+              <p class="catalog-summary">
+                {{ supportPacketLifecycleGuidance.summary }}
+              </p>
+            </div>
+            <div class="catalog-block">
+              <span class="panel-label">Timeline story</span>
+              <p class="catalog-summary">
+                <strong>{{ supportPacketTimelineGuidance.label }}</strong>
+              </p>
+              <p class="catalog-summary">
+                {{ supportPacketTimelineGuidance.summary }}
+              </p>
+            </div>
+            <div class="catalog-block">
+              <span class="panel-label">Latest delta</span>
+              <p class="catalog-summary">
+                <strong>{{ supportPacketDeltaGuidance.label }}</strong>
+              </p>
+              <p class="catalog-summary">
+                {{ supportPacketDeltaGuidance.summary }}
+              </p>
+            </div>
+            <div class="catalog-block">
+              <span class="panel-label">Artifact checklist</span>
+              <ul class="detail-list compact-detail-list">
+                <li
+                  v-for="artifact in supportBundleSummary.artifactChecklist"
+                  :key="artifact"
+                >
+                  <span>{{ artifact }}</span>
+                </li>
+              </ul>
+            </div>
+            <label class="catalog-field support-intake-field support-intake-preview">
+              <span>Issue draft preview</span>
+              <textarea :value="supportIssueDraft" readonly />
+            </label>
+            <div class="chip-row">
+              <span
+                v-for="signal in supportBundleSummary.signals"
+                :key="signal"
+                class="catalog-chip"
+              >
+                {{ signal }}
+              </span>
+            </div>
+          </article>
         </div>
 
         <div class="operations-grid">
@@ -6351,6 +7251,28 @@ onBeforeUnmount(() => {
                 >
                 <span>Correlation {{ entry.correlationId }}</span>
                 <span>{{ entry.summary }}</span>
+              </li>
+            </ul>
+          </article>
+
+          <article class="operations-card">
+            <div class="surface-heading">
+              <div>
+                <span class="panel-label">Collection hints</span>
+                <h3>What to gather next</h3>
+              </div>
+              <span class="mini-badge">{{
+                supportBundleSummary.collectionHints.length
+              }} items</span>
+            </div>
+
+            <ul class="detail-list">
+              <li
+                v-for="hint in supportBundleSummary.collectionHints"
+                :key="hint"
+              >
+                <strong>{{ supportBundleSummary.posture }}</strong>
+                <span>{{ hint }}</span>
               </li>
             </ul>
           </article>
@@ -6459,6 +7381,15 @@ onBeforeUnmount(() => {
                     }}
                   </span>
                 </div>
+              </div>
+
+              <div class="catalog-auth-posture">
+                <span class="panel-label">Writeback posture</span>
+                <div class="catalog-meta">
+                  <span>Mode: {{ provider.writebackMode }}</span>
+                  <span class="auth-badge-ok">{{ provider.writebackReadiness }}</span>
+                </div>
+                <p class="catalog-summary">{{ provider.writebackSummary }}</p>
               </div>
             </div>
 
@@ -7176,6 +8107,13 @@ onBeforeUnmount(() => {
   gap: 12px;
 }
 
+.gps-board-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
 .transport-story-card {
   display: grid;
   gap: 12px;
@@ -7660,6 +8598,106 @@ onBeforeUnmount(() => {
   border-color: rgba(248, 113, 113, 0.36);
 }
 
+.gps-map-stage {
+  position: relative;
+  min-height: 320px;
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 8px;
+  background: radial-gradient(circle at top, rgba(59, 130, 246, 0.18), rgba(15, 23, 42, 0.96));
+}
+
+.gps-truck-marker {
+  position: absolute;
+  display: grid;
+  gap: 2px;
+  min-width: 86px;
+  padding: 10px 12px;
+  transform: translate(-50%, -50%);
+  border: 1px solid rgba(96, 165, 250, 0.22);
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.92);
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.36);
+}
+
+.gps-truck-marker strong {
+  font-size: 14px;
+  color: #f8fafc;
+}
+
+.gps-truck-marker span {
+  font-size: 12px;
+  color: #cbd5e1;
+}
+
+.gps-truck-marker.gps-healthy {
+  border-color: rgba(74, 222, 128, 0.34);
+}
+
+.gps-truck-marker.gps-warning {
+  border-color: rgba(250, 204, 21, 0.34);
+}
+
+.gps-truck-marker.gps-critical {
+  border-color: rgba(248, 113, 113, 0.38);
+}
+
+.gps-focus-card {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.72);
+}
+
+.gps-focus-card p {
+  margin: 0;
+  color: #cbd5e1;
+}
+
+.gps-list {
+  display: grid;
+  gap: 10px;
+}
+
+.gps-list-row {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.72);
+}
+
+.gps-list-row.gps-warning {
+  border-color: rgba(250, 204, 21, 0.28);
+}
+
+.gps-list-row.gps-critical {
+  border-color: rgba(248, 113, 113, 0.3);
+}
+
+.gps-list-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 12px;
+}
+
+.gps-list-head p,
+.gps-list-row p {
+  margin: 0;
+  color: #cbd5e1;
+}
+
+.gps-list-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  color: #94a3b8;
+}
+
 .map-legend {
   position: absolute;
   left: 16px;
@@ -7800,6 +8838,10 @@ onBeforeUnmount(() => {
   background: rgba(15, 23, 42, 0.82);
 }
 
+.compact-detail-list li {
+  padding: 8px 10px;
+}
+
 .detail-list strong {
   color: #f8fafc;
 }
@@ -7923,6 +8965,27 @@ onBeforeUnmount(() => {
   border: 1px solid rgba(148, 163, 184, 0.2);
   border-radius: 8px;
   resize: vertical;
+}
+
+.support-intake-field textarea {
+  min-height: 110px;
+}
+
+.support-intake-field-wide {
+  grid-column: 1 / -1;
+}
+
+.support-intake-preview textarea {
+  min-height: 240px;
+  font-family: "IBM Plex Mono", "Fira Code", monospace;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.support-intake-notice {
+  margin: 0;
+  color: #bfdbfe;
+  font-size: 13px;
 }
 
 .catalog-toggle {
@@ -8233,6 +9296,10 @@ onBeforeUnmount(() => {
     grid-template-columns: 1fr;
   }
 
+  .gps-board-grid {
+    grid-template-columns: 1fr;
+  }
+
   .catalog-editor-grid {
     grid-template-columns: 1fr;
   }
@@ -8292,6 +9359,7 @@ onBeforeUnmount(() => {
   .connection-grid,
   .transport-detail-columns,
   .transport-sync-grid,
+  .gps-board-grid,
   .transport-story-grid {
     grid-template-columns: 1fr;
   }
@@ -8334,6 +9402,10 @@ onBeforeUnmount(() => {
 
   .route-meta {
     justify-items: start;
+  }
+
+  .gps-list-head {
+    flex-direction: column;
   }
 }
 </style>

@@ -3,6 +3,7 @@
 This guide covers local development setup and self-hosted deployment for Orkystra.
 
 For the current candidate summary, see `CHANGELOG.md` and `docs/operations/releases/v0.1.0-rc.1.md`.
+For the post-release-candidate maturity checkpoint, see `docs/operations/post-release-candidate-checkpoint.md`.
 
 ## Prerequisites
 

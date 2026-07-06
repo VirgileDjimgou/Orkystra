@@ -6,15 +6,18 @@ public sealed class OutboxEventPublisher : IEventBackbonePublisher
 {
     private readonly IEventBackbonePublisher _inner;
     private readonly EventOutboxStore _outboxStore;
+    private readonly MqttEnvelopeSerializer _serializer;
     private readonly ILogger<OutboxEventPublisher> _logger;
 
     public OutboxEventPublisher(
         IEventBackbonePublisher inner,
         EventOutboxStore outboxStore,
+        MqttEnvelopeSerializer serializer,
         ILogger<OutboxEventPublisher> logger)
     {
         _inner = inner;
         _outboxStore = outboxStore;
+        _serializer = serializer;
         _logger = logger;
     }
 
@@ -22,24 +25,12 @@ public sealed class OutboxEventPublisher : IEventBackbonePublisher
     {
         ArgumentNullException.ThrowIfNull(envelope);
 
-        var entryId = await _outboxStore.RecordPendingAsync(
+        var serializedEnvelope = _serializer.Serialize(envelope);
+        var entryId = await _outboxStore.RecordPendingSerializedAsync(
             envelope.MessageId.ToString("D"),
             envelope.EventType,
             envelope.Topic,
-            new
-            {
-                envelope.MessageId,
-                envelope.EventType,
-                envelope.SchemaVersion,
-                envelope.OccurredAt,
-                tenantId = envelope.TenantId,
-                envelope.CorrelationId,
-                envelope.CausationId,
-                envelope.BoundedContext,
-                envelope.AggregateType,
-                envelope.AggregateId,
-                envelope.Payload
-            },
+            serializedEnvelope,
             cancellationToken);
 
         try

@@ -79,8 +79,11 @@ builder.Services.AddSingleton<TenantResolutionService>();
 builder.Services.AddSingleton<RequestMetricsStore>();
 builder.Services.AddSingleton<IAuditStore, FileAuditStore>();
 builder.Services.AddSingleton<PersistenceDiagnosticsService>();
+builder.Services.AddSingleton<SupportBundleService>();
 builder.Services.AddSingleton<EventBackboneTelemetryStore>();
 builder.Services.AddSingleton<MqttEnvelopeSerializer>();
+builder.Services.AddSingleton<MqttEventPublisher>();
+builder.Services.AddSingleton<IRawEventBackbonePublisher>(provider => provider.GetRequiredService<MqttEventPublisher>());
 builder.Services.AddSingleton<IInboxStateStore>(provider =>
     new DurableInboxStateStore(
         provider.GetRequiredService<IOptions<OperationalPersistenceOptions>>(),
@@ -146,12 +149,15 @@ builder.Services.AddSingleton<EventOutboxStore>(provider =>
     new EventOutboxStore(
         provider.GetRequiredService<IOptions<OperationalPersistenceOptions>>(),
         builder.Environment.ContentRootPath));
+builder.Services.AddSingleton<OutboxRecoveryService>();
 builder.Services.AddSingleton<IEventBackbonePublisher>(provider =>
     new OutboxEventPublisher(
         provider.GetRequiredService<MqttEventPublisher>(),
         provider.GetRequiredService<EventOutboxStore>(),
+        provider.GetRequiredService<MqttEnvelopeSerializer>(),
         provider.GetRequiredService<ILogger<OutboxEventPublisher>>()));
 builder.Services.AddHostedService<MqttEventConsumerService>();
+builder.Services.AddHostedService<OutboxRecoveryWorker>();
 builder.Services.AddSingleton<ProviderCatalogService>();
 builder.Services.AddSingleton<ControlTowerOverviewService>();
 builder.Services.AddSingleton<WarehouseProjectionService>();
@@ -165,6 +171,7 @@ builder.Services.AddSingleton<TransportExceptionFollowUpQueueService>();
 builder.Services.AddSingleton<SimulationProjectionService>();
 builder.Services.AddSingleton<ScenarioEventWorkflowService>();
 builder.Services.AddSingleton<GpsProjectionService>();
+builder.Services.AddSingleton<GpsFleetBoardService>();
 builder.Services.AddSingleton<GpsTelemetryWorkflowService>();
 builder.Services.AddSingleton<BootstrapService>();
 builder.Services.AddSingleton<SanityCheckService>();
@@ -281,34 +288,11 @@ app.MapGet("/observability/event-backbone/outbox", async (EventOutboxStore outbo
 .WithName("GetOutboxEntries");
 
 app.MapPost("/observability/event-backbone/replay", async (
-    EventOutboxStore outboxStore,
-    MqttEnvelopeSerializer serializer,
-    IEventBackbonePublisher publisher,
-    ILogger<Program> logger,
+    OutboxRecoveryService recoveryService,
     CancellationToken cancellationToken) =>
 {
-    var pendingEntries = await outboxStore.GetPendingEntriesAsync(50, cancellationToken);
-    var replayed = 0;
-    var failed = 0;
-
-    foreach (var entry in pendingEntries)
-    {
-        try
-        {
-            var envelope = serializer.Deserialize(entry.PayloadJson);
-            await publisher.PublishAsync(envelope, cancellationToken);
-            await outboxStore.MarkPublishedAsync(entry.Id, cancellationToken);
-            replayed++;
-        }
-        catch (Exception exception)
-        {
-            logger.LogWarning(exception, "Replay failed for outbox entry {EntryId}.", entry.Id);
-            await outboxStore.MarkFailedAsync(entry.Id, exception.Message, cancellationToken);
-            failed++;
-        }
-    }
-
-    return Results.Ok(new { replayed, failed, total = pendingEntries.Count });
+    var result = await recoveryService.ReplayPendingAsync(50, triggeredAutomatically: false, cancellationToken);
+    return Results.Ok(new { replayed = result.Replayed, failed = result.Failed, total = result.Total });
 })
 .RequireAuthorization()
 .WithName("ReplayOutboxEntries");
@@ -410,6 +394,25 @@ app.MapGet("/observability/persistence/provider", async (
 .RequireAuthorization()
 .WithName("GetPersistenceProviderDiagnostics");
 
+app.MapGet("/observability/support-bundle", async (
+    HttpContext httpContext,
+    RequestTenantContext tenantContext,
+    SupportBundleService supportBundleService,
+    int? count,
+    CancellationToken cancellationToken) =>
+{
+    var tenantId = tenantContext.TenantId ?? "local-demo-tenant";
+    var snapshot = await supportBundleService.BuildAsync(
+        tenantId,
+        httpContext.User.Identity?.Name ?? "anonymous",
+        httpContext.Response.Headers["X-Correlation-Id"].ToString(),
+        count,
+        cancellationToken);
+    return Results.Ok(snapshot);
+})
+.RequireAuthorization()
+.WithName("GetSupportBundle");
+
 app.MapGet("/api/control-tower/overview", async (
     RequestTenantContext tenantContext,
     ControlTowerOverviewService overviewService,
@@ -492,6 +495,20 @@ app.MapGet("/api/gps/positions", async (
 })
 .RequireAuthorization()
 .WithName("ListGpsPositions");
+
+app.MapGet("/api/gps/board", async (
+    RequestTenantContext tenantContext,
+    GpsFleetBoardService gpsFleetBoardService,
+    IOperationalPersistenceStore persistenceStore,
+    CancellationToken cancellationToken) =>
+{
+    var tenantId = tenantContext.TenantId ?? "local-demo-tenant";
+    var board = await gpsFleetBoardService.BuildAsync(tenantId, cancellationToken);
+    await persistenceStore.UpsertProjectionAsync(tenantId, "gps-fleet-board", "latest", "api", board, cancellationToken);
+    return Results.Ok(board);
+})
+.RequireAuthorization()
+.WithName("GetGpsFleetBoard");
 
 app.MapPost("/api/gps/positions/publish", async (
     RequestTenantContext tenantContext,

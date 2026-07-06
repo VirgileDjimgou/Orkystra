@@ -463,6 +463,9 @@ export type ProviderCatalogItemView = {
   editableSettings: ProviderConfigurationSettingView[]
   authMode: string
   authConfigured: boolean
+  writebackMode: string
+  writebackReadiness: string
+  writebackSummary: string
   syncStatusLabel: string
   lastActivityLabel: string
   summary: string
@@ -777,6 +780,9 @@ type ApiProviderCatalogItem = {
     }>
     authMode: string
     authConfigured: boolean
+    writebackMode: string
+    writebackReadiness: string
+    writebackSummary: string
   }
   health: {
     providerId: string
@@ -809,6 +815,40 @@ type ApiProviderCatalogItem = {
     fields: ApiProviderCatalogField[]
   }
   supportedReadModels: string[]
+}
+
+type ApiGpsFleetPosition = {
+  truckId: string
+  truckReference: string
+  routeId: string | null
+  routeReference: string | null
+  routeStatus: string | null
+  latitude: number
+  longitude: number
+  speedKph: number
+  recordedAtUtc: string
+  minutesSinceReading: number
+  freshnessPosture: string
+  movementPosture: string
+  alertPosture: string
+  alertSummary: string
+}
+
+type ApiGpsFleetBoard = {
+  generatedAtUtc: string
+  positionCount: number
+  routeLinkedCount: number
+  freshCount: number
+  agingCount: number
+  staleCount: number
+  movingCount: number
+  idleCount: number
+  speedingCount: number
+  summary: string
+  focusTruckReference: string | null
+  focusRouteReference: string | null
+  focusSummary: string
+  positions: ApiGpsFleetPosition[]
 }
 
 type ApiProviderCatalogResponse = {
@@ -2249,6 +2289,10 @@ export function buildFallbackProviderCatalog(): ProviderCatalogView {
         ],
         authMode: 'none',
         authConfigured: true,
+        writebackMode: 'read-only',
+        writebackReadiness: 'Read-only',
+        writebackSummary:
+          'This provider is currently exposed as read-only. No connector writeback path is available in the product shell.',
         syncStatusLabel: 'Ready',
         lastActivityLabel: 'Last success 2026-06-20 09:57 UTC',
         summary: 'CSV adapter skeleton is ready to validate and map warehouse import files.',
@@ -2279,6 +2323,10 @@ export function buildFallbackProviderCatalog(): ProviderCatalogView {
         ],
         authMode: 'api-key',
         authConfigured: false,
+        writebackMode: 'dry-run',
+        writebackReadiness: 'Dry-run Only',
+        writebackSummary:
+          'Writeback remains in dry-run posture. Operator workflows may prepare actions, but upstream mutation should stay disabled.',
         syncStatusLabel: 'Awaiting Configuration',
         lastActivityLabel: 'Last attempt 2026-06-20 10:15 UTC',
         summary: 'REST adapter skeleton is available but not yet configured against a live upstream service.',
@@ -2309,6 +2357,10 @@ export function buildFallbackProviderCatalog(): ProviderCatalogView {
         ],
         authMode: 'none',
         authConfigured: true,
+        writebackMode: 'read-only',
+        writebackReadiness: 'Read-only',
+        writebackSummary:
+          'This provider is currently exposed as read-only. No connector writeback path is available in the product shell.',
         syncStatusLabel: 'Connected',
         lastActivityLabel: 'Last success 2026-06-20 10:14 UTC',
         summary: 'GPS adapter skeleton can expose canonical truck-position snapshots.',
@@ -2347,6 +2399,11 @@ export function mapApiProviderCatalogToView(apiCatalog: ApiProviderCatalogRespon
       })),
       authMode: provider.configuration.authMode ?? 'none',
       authConfigured: provider.configuration.authConfigured ?? true,
+      writebackMode: provider.configuration.writebackMode ?? 'read-only',
+      writebackReadiness: provider.configuration.writebackReadiness ?? 'Read-only',
+      writebackSummary:
+        provider.configuration.writebackSummary ??
+        'This provider is currently exposed as read-only. No connector writeback path is available in the product shell.',
       syncStatusLabel: formatSyncStatusLabel(provider.syncStatus.status),
       lastActivityLabel: formatRelativeSyncLabel(provider.syncStatus.lastSuccessfulSyncAt, provider.syncStatus.lastAttemptedSyncAt),
       summary: provider.health.summary,
@@ -2364,69 +2421,187 @@ export function mapApiProviderCatalogToView(apiCatalog: ApiProviderCatalogRespon
 
 // GPS Fleet Board types and builders
 export type GpsFleetBoardView = {
-  positions: GpsFleetPositionView[];
-  summary: {
-    total: number;
-    moving: number;
-    idle: number;
-    stale: number;
-  };
-};
+  generatedAtLabel: string
+  positionCount: number
+  routeLinkedCount: number
+  freshCount: number
+  agingCount: number
+  staleCount: number
+  movingCount: number
+  idleCount: number
+  speedingCount: number
+  summary: string
+  focusTruckReference: string | null
+  focusRouteReference: string | null
+  focusSummary: string
+  positions: GpsFleetPositionView[]
+}
 
 export type GpsFleetPositionView = {
-  truckReference: string;
-  latitude: number;
-  longitude: number;
-  speedKph: number | null;
-  recordedAt: string;
-  isStale: boolean;
-  routeId: string | null;
-  routeReference: string | null;
-};
+  truckId: string
+  truckReference: string
+  routeId: string | null
+  routeReference: string | null
+  routeStatus: string | null
+  latitude: number
+  longitude: number
+  speedKph: number
+  recordedAtUtc: string
+  recordedAtLabel: string
+  minutesSinceReading: number
+  freshnessPosture: 'Fresh' | 'Aging' | 'Stale'
+  movementPosture: 'Moving' | 'Idle' | 'Stopped'
+  alertPosture: 'Healthy' | 'Warning' | 'Critical'
+  alertSummary: string
+  coordinateLabel: string
+}
+
+function normalizeGpsFreshnessPosture(
+  posture: string
+): GpsFleetPositionView['freshnessPosture'] {
+  switch (posture) {
+    case 'Aging':
+    case 'Stale':
+      return posture
+    default:
+      return 'Fresh'
+  }
+}
+
+function normalizeGpsMovementPosture(
+  posture: string
+): GpsFleetPositionView['movementPosture'] {
+  switch (posture) {
+    case 'Idle':
+    case 'Stopped':
+      return posture
+    default:
+      return 'Moving'
+  }
+}
+
+function normalizeGpsAlertPosture(
+  posture: string
+): GpsFleetPositionView['alertPosture'] {
+  switch (posture) {
+    case 'Critical':
+    case 'Warning':
+      return posture
+    default:
+      return 'Healthy'
+  }
+}
 
 export function buildFallbackGpsFleetBoard(): GpsFleetBoardView {
+  const generatedAtUtc = new Date().toISOString()
+
   return {
+    generatedAtLabel: formatUtcLabel(generatedAtUtc),
+    positionCount: 3,
+    routeLinkedCount: 3,
+    freshCount: 2,
+    agingCount: 1,
+    staleCount: 0,
+    movingCount: 2,
+    idleCount: 1,
+    speedingCount: 0,
+    summary:
+      '3 projected GPS positions, 3 route-linked, 1 aging, 1 idle.',
+    focusTruckReference: 'TRK-11',
+    focusRouteReference: 'RT-204',
+    focusSummary:
+      'TRK-11 should be checked next because the latest telemetry suggests elevated route risk.',
     positions: [
       {
-        truckReference: "TRK-19",
+        truckId: '00000000-0000-0000-0000-000000000019',
+        truckReference: 'TRK-19',
+        routeId: '00000000-0000-0000-0000-000000000412',
+        routeReference: 'RT-412',
+        routeStatus: 'On time',
         latitude: 48.8566,
         longitude: 2.3522,
         speedKph: 65,
-        recordedAt: new Date().toISOString(),
-        isStale: false,
-        routeId: "route-rt-412",
-        routeReference: "RT-412",
+        recordedAtUtc: generatedAtUtc,
+        recordedAtLabel: formatUtcLabel(generatedAtUtc),
+        minutesSinceReading: 2,
+        freshnessPosture: 'Fresh',
+        movementPosture: 'Moving',
+        alertPosture: 'Healthy',
+        alertSummary: 'Telemetry is current and aligned with the linked route posture.',
+        coordinateLabel: '48.8566, 2.3522',
       },
       {
-        truckReference: "TRK-11",
+        truckId: '00000000-0000-0000-0000-000000000011',
+        truckReference: 'TRK-11',
+        routeId: '00000000-0000-0000-0000-000000000204',
+        routeReference: 'RT-204',
+        routeStatus: 'Delayed',
         latitude: 48.8866,
         longitude: 2.3822,
-        speedKph: 0,
-        recordedAt: new Date(Date.now() - 600000).toISOString(),
-        isStale: false,
-        routeId: "route-rt-204",
-        routeReference: "RT-204",
+        speedKph: 4,
+        recordedAtUtc: new Date(Date.now() - 600000).toISOString(),
+        recordedAtLabel: formatUtcLabel(new Date(Date.now() - 600000).toISOString()),
+        minutesSinceReading: 10,
+        freshnessPosture: 'Aging',
+        movementPosture: 'Idle',
+        alertPosture: 'Warning',
+        alertSummary: 'Truck is near-stationary while the linked route is already delayed.',
+        coordinateLabel: '48.8866, 2.3822',
       },
       {
-        truckReference: "TRK-07",
+        truckId: '00000000-0000-0000-0000-000000000007',
+        truckReference: 'TRK-07',
+        routeId: '00000000-0000-0000-0000-000000000318',
+        routeReference: 'RT-318',
+        routeStatus: 'At risk',
         latitude: 48.8066,
         longitude: 2.3222,
         speedKph: 42,
-        recordedAt: new Date(Date.now() - 120000).toISOString(),
-        isStale: false,
-        routeId: "route-rt-318",
-        routeReference: "RT-318",
+        recordedAtUtc: new Date(Date.now() - 120000).toISOString(),
+        recordedAtLabel: formatUtcLabel(new Date(Date.now() - 120000).toISOString()),
+        minutesSinceReading: 2,
+        freshnessPosture: 'Fresh',
+        movementPosture: 'Moving',
+        alertPosture: 'Warning',
+        alertSummary: 'Telemetry is current, but the linked route is already at risk.',
+        coordinateLabel: '48.8066, 2.3222',
       },
     ],
-    summary: {
-      total: 3,
-      moving: 2,
-      idle: 1,
-      stale: 0,
-    },
-  };
+  }
 }
 
-export function mapApiGpsFleetBoardToView(_payload: unknown): GpsFleetBoardView {
-  return buildFallbackGpsFleetBoard();
+export function mapApiGpsFleetBoardToView(apiBoard: ApiGpsFleetBoard): GpsFleetBoardView {
+  return {
+    generatedAtLabel: formatUtcLabel(apiBoard.generatedAtUtc),
+    positionCount: apiBoard.positionCount,
+    routeLinkedCount: apiBoard.routeLinkedCount,
+    freshCount: apiBoard.freshCount,
+    agingCount: apiBoard.agingCount,
+    staleCount: apiBoard.staleCount,
+    movingCount: apiBoard.movingCount,
+    idleCount: apiBoard.idleCount,
+    speedingCount: apiBoard.speedingCount,
+    summary: apiBoard.summary,
+    focusTruckReference: apiBoard.focusTruckReference,
+    focusRouteReference: apiBoard.focusRouteReference,
+    focusSummary: apiBoard.focusSummary,
+    positions: apiBoard.positions.map((position) => ({
+      truckId: position.truckId,
+      truckReference: position.truckReference,
+      routeId: position.routeId,
+      routeReference: position.routeReference,
+      routeStatus: position.routeStatus,
+      latitude: position.latitude,
+      longitude: position.longitude,
+      speedKph: position.speedKph,
+      recordedAtUtc: position.recordedAtUtc,
+      recordedAtLabel: formatUtcLabel(position.recordedAtUtc),
+      minutesSinceReading: position.minutesSinceReading,
+      freshnessPosture: normalizeGpsFreshnessPosture(position.freshnessPosture),
+      movementPosture: normalizeGpsMovementPosture(position.movementPosture),
+      alertPosture: normalizeGpsAlertPosture(position.alertPosture),
+      alertSummary: position.alertSummary,
+      coordinateLabel: `${position.latitude.toFixed(4)}, ${position.longitude.toFixed(4)}`,
+    })),
+  }
 }

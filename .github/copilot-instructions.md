@@ -9,6 +9,8 @@ Before implementing project work, read:
 - `constitution/SMART_LOGISTICS_TWIN_CONSTITUTION_v2.md`
 - `IMPLEMENTATION_ROADMAP.md`
 - `PROJECT_STATUS.md`
+- `docs/operations/post-release-candidate-checkpoint.md`
+- `docs/operations/support-handoff-and-reproduction.md`
 - `docs/methodology/VIBE_CODING_OPERATING_MODEL.md`
 - `docs/methodology/SPRINT_PROTOCOL.md`
 - `prompts/CODEX_AUTOPILOT.md`
@@ -26,6 +28,20 @@ Treat it as a request to run the 5-sprint batch protocol from:
 ```text
 prompts/SMART_LOGISTIC_CONTINUE_5_SPRINTS.md
 ```
+
+## Maturity Checkpoint
+
+When the user asks for the current OSS readiness posture, also read:
+
+- `docs/operations/post-release-candidate-checkpoint.md`
+- `infrastructure/scripts/verify-oss-readiness.ps1`
+
+When the user asks to file, reproduce, or triage a bug, also read:
+
+- `docs/operations/support-handoff-and-reproduction.md`
+- `.github/ISSUE_TEMPLATE/bug_report.md`
+
+Treat that checkpoint as the current source of truth for supported posture, unsupported areas, and the remaining estimate.
 
 ## Execution Rules
 

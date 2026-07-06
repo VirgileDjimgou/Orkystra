@@ -5,7 +5,7 @@ using Orkystra.Contracts.Eventing;
 
 namespace Orkystra.Api.Eventing;
 
-public sealed class MqttEventPublisher : IEventBackbonePublisher
+public sealed class MqttEventPublisher : IEventBackbonePublisher, IRawEventBackbonePublisher
 {
     private readonly EventBackboneOptions _options;
     private readonly MqttEnvelopeSerializer _serializer;

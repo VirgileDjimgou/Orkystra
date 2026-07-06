@@ -34,6 +34,7 @@ test.describe('Provider configuration smoke checks', () => {
     const body = page.locator('body');
     await expect(body).toContainText(/REST Transport Adapter/i, { timeout: 30000 });
     await expect(body).toContainText(/api-key/i);
+    await expect(body).toContainText(/Dry-run Only/i);
   });
 
   test('shows fallback provider catalog when API is unreachable', async ({ page }) => {

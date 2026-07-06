@@ -19,6 +19,7 @@ For the release-candidate support boundary, versioning flow, and known limitatio
 - `GET /observability/metrics` returns counters
 - `GET /observability/context` returns 200 when `X-Api-Key` and `X-Tenant-Id` are present
 - `GET /observability/event-backbone` returns MQTT publish/consume telemetry and the latest dispatch result
+- `GET /observability/event-backbone` also exposes recovery counters and a last-recovery timestamp once the outbox auto-recovery worker is active
 - `GET /observability/persistence/provider` returns the active persistence provider, posture, safe connection target, and a healthy flag
 - Missing API key returns 401 on protected routes
 - Missing tenant header only fails when tenant-header enforcement is enabled
@@ -26,6 +27,7 @@ For the release-candidate support boundary, versioning flow, and known limitatio
 - `GET /api/simulation/scenarios` returns scenario summaries populated from the MQTT-backed projection flow
 - `POST /api/gps/positions/publish` returns 202 and records a GPS telemetry publish workflow run
 - `GET /api/gps/positions` returns latest projected `GpsPositionSnapshot` entries fed by the MQTT-backed GPS stream
+- `GET /api/gps/board` returns the operator-facing GPS fleet board with summary, focus posture, and route-linked truck rows
 - `GET /api/warehouses` returns warehouse summaries with 200
 - `GET /api/warehouses/{warehouseId}` returns detailed zones and docks with 200
 - `GET /api/transport/routes` returns route summaries with 200
@@ -44,20 +46,25 @@ For the release-candidate support boundary, versioning flow, and known limitatio
 - `POST /api/transport/routes/{routeId}/optimization` returns a bounded optimization review with route order, explanation, and alternatives
 - `GET /observability/persistence/projections` returns persisted projection snapshots for the active tenant
 - `GET /observability/persistence/workflows` returns persisted AI and optimization workflow runs for the active tenant
+- `GET /observability/support-bundle` returns one aggregated JSON snapshot with context, persistence posture, event-backbone telemetry, recent projections, recent workflows, and recent audit entries
 - When a real transport provider `baseUrl` is configured locally, provider health and route endpoints reflect live upstream posture instead of demo fallback
 - When `authMode` is `api-key` and no key is supplied, the catalog reports readiness as `Auth Key Missing` and the health report includes the `auth-key-missing` signal
 - When an API key is supplied via environment variable or the secrets endpoint, the catalog reports readiness as `Configured` and health signals include `auth-key-configured`
 - When PostgreSQL is the intended self-host persistence target, `/observability/persistence/provider` reports `provider: "postgres"`, `posture: "self-host-recommended"`, and `healthy: true`
 - `PUT /api/providers/catalog/rest-transport-adapter/secrets` with `{ "secretKey": "apiKey", "secretValue": "..." }` returns 204 and persists the key to the local secrets file
+- `POST /observability/event-backbone/replay` still works as a manual operator override even though automatic outbox recovery is enabled by default
 - The secrets endpoint rejects unknown providers (404) and non-secret fields (422)
 - The browser catalog card shows `API key: configured` or `API key: not set` without exposing the value
 - The `Set API key` form in the catalog card stores and clears the value after a successful save
+- The provider catalog also shows a writeback posture (`Read-only`, `Auth Required`, `Dry-run Only`, or `Writeback Enabled`) for each connector
+- The REST transport adapter defaults to `dry-run` writeback mode and should only move to `enabled` after an intentional local review
 
 ## 3. Frontend
 
 - Control Tower loads in the browser
 - Connection posture shows `API live` for the overview, `Warehouse API live` for the twin detail surface, and `Editable local API` for the provider catalog once the local stack is ready
 - Connection posture shows `Transport API live` for the route detail surface once the local stack is ready
+- Connection posture shows `GPS board live` for the fleet telemetry surface once the local stack is ready
 - Connection posture shows `Optimization live` for the dispatcher optimization workflow once the local stack is ready
 - `Refresh data` recovers cleanly after a local API or Vite restart
 - Scenario selector changes visible state
@@ -121,9 +128,12 @@ For the release-candidate support boundary, versioning flow, and known limitatio
 - Diff rows can focus the corresponding current route when that route still exists in the latest transport board
 - On a wide desktop viewport, the transport sync metrics, storyline, timeline, and route-detail lists remain readable without collapsing into cramped multi-column blocks
 - Transport board and detail panels render without overlap on desktop and mobile-width viewports
+- GPS fleet board shows projected-truck counts, freshness/movement metrics, a telemetry focus summary, and at least one route-linked truck row when telemetry is available
+- GPS fleet map keeps healthy, warning, and critical markers readable on desktop and mobile-width viewports
 - AI workflow panel renders a grounded recommendation, shows confidence, and exposes evidence and missing-data context
 - Optimization workflow panel renders the current remaining order, a recommended plan, and at least one explanation or fallback trade-off note
 - Operational trace surface renders recent workflow runs, persisted snapshots, and recent audit entries without layout overlap
+- Operational trace surface also exposes a visible support-bundle export action and a readable support summary without layout overlap
 - Provider runtime editor stays enabled only when the catalog is API-backed and shows save feedback after a local configuration update
 - Provider catalog and overview health posture make it obvious when transport is using live upstream data versus demo fallback
 - Transport sync status makes it obvious whether the last imported route snapshot came from a live upstream or a demo fallback path
@@ -153,6 +163,7 @@ For the release-candidate support boundary, versioning flow, and known limitatio
 - Verify at least one protected API call produces an audit log entry
 - Verify request counters increase after exercising the stack
 - Verify at least one recent projection snapshot and one recent workflow run are visible through the persistence observability endpoints
+- Verify the support bundle export succeeds and includes persistence posture, event-backbone telemetry, recent projections, recent workflows, and recent audit entries in one JSON file
 - Verify a `transport-sync-import` workflow run appears after triggering `POST /api/transport/sync`
 - Verify the event-backbone telemetry shows at least one published event and one consumed event after triggering a demo scenario event sequence
 - Verify the event-backbone telemetry updates again after publishing GPS positions and that the last topic matches the configured GPS stream topic

@@ -74,6 +74,13 @@ public sealed class ProviderCatalogService
         var requiredFields = ProviderRuntimeMetadata.GetRequiredFields(providerId);
         var authMode = ProviderRuntimeMetadata.GetAuthMode(configuredProvider);
         var authConfigured = IsAuthConfigured(providerId, authMode);
+        var writebackMode = ProviderRuntimeMetadata.GetWritebackMode(providerId, configuredProvider);
+        var (writebackReadiness, writebackSummary) = BuildWritebackPosture(
+            providerId,
+            configuredProvider,
+            authMode,
+            authConfigured,
+            writebackMode);
 
         if (configuredProvider is null)
         {
@@ -85,10 +92,13 @@ public sealed class ProviderCatalogService
                 requiredFields,
                 editableFields.Select(field => new ProviderConfigurationSettingReadModel(
                     field,
-                    string.Empty,
+                    GetEditableSettingValue(providerId, configuredProvider, field),
                     requiredFields.Contains(field, StringComparer.OrdinalIgnoreCase))).ToArray(),
                 authMode,
-                authConfigured);
+                authConfigured,
+                writebackMode,
+                writebackReadiness,
+                writebackSummary);
         }
 
         var configuredFields = configuredProvider.Settings
@@ -127,14 +137,75 @@ public sealed class ProviderCatalogService
             readiness,
             configuredFields,
             missingFields,
-            editableFields
+                editableFields
                 .Select(field => new ProviderConfigurationSettingReadModel(
                     field,
-                    configuredProvider.Settings.TryGetValue(field, out var value) ? value : string.Empty,
+                    GetEditableSettingValue(providerId, configuredProvider, field),
                     requiredFields.Contains(field, StringComparer.OrdinalIgnoreCase)))
                 .ToArray(),
             authMode,
-            authConfigured);
+            authConfigured,
+            writebackMode,
+            writebackReadiness,
+            writebackSummary);
+    }
+
+    private static string GetEditableSettingValue(
+        string providerId,
+        ProviderRuntimeSettings? configuredProvider,
+        string field)
+    {
+        if (string.Equals(field, "writebackMode", StringComparison.OrdinalIgnoreCase))
+        {
+            return ProviderRuntimeMetadata.GetWritebackMode(providerId, configuredProvider);
+        }
+
+        return configuredProvider is not null &&
+               configuredProvider.Settings.TryGetValue(field, out var value)
+            ? value
+            : string.Empty;
+    }
+
+    private static (string Readiness, string Summary) BuildWritebackPosture(
+        string providerId,
+        ProviderRuntimeSettings? configuredProvider,
+        string authMode,
+        bool authConfigured,
+        string writebackMode)
+    {
+        if (!ProviderRuntimeMetadata.SupportsWriteback(providerId))
+        {
+            return (
+                "Read-only",
+                "This provider is currently exposed as read-only. No connector writeback path is available in the product shell.");
+        }
+
+        if (configuredProvider is null || !configuredProvider.Enabled)
+        {
+            return (
+                "Disabled",
+                "Writeback is disabled until the provider is enabled and intentionally configured.");
+        }
+
+        if (!string.Equals(authMode, "none", StringComparison.OrdinalIgnoreCase) && !authConfigured)
+        {
+            return (
+                "Auth Required",
+                "Writeback is blocked until the required authentication material is configured.");
+        }
+
+        return writebackMode switch
+        {
+            "enabled" => (
+                "Writeback Enabled",
+                "Writeback is enabled for this provider. Use only against an intentionally reviewed upstream environment."),
+            "disabled" => (
+                "Disabled",
+                "Writeback is intentionally disabled for this provider."),
+            _ => (
+                "Dry-run Only",
+                "Writeback remains in dry-run posture. Operator workflows may prepare actions, but upstream mutation should stay disabled.")
+        };
     }
 
     private bool IsAuthConfigured(string providerId, string authMode)

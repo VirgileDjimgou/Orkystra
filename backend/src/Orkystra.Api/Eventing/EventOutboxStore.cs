@@ -44,6 +44,17 @@ public sealed class EventOutboxStore : IDisposable
     {
         await EnsureInitializedAsync(cancellationToken);
         var payloadJson = JsonSerializer.Serialize(payload, SerializerOptions);
+        return await RecordPendingSerializedAsync(messageId, eventType, topic, payloadJson, cancellationToken);
+    }
+
+    public async Task<long> RecordPendingSerializedAsync(
+        string messageId,
+        string eventType,
+        string topic,
+        string payloadJson,
+        CancellationToken cancellationToken = default)
+    {
+        await EnsureInitializedAsync(cancellationToken);
 
         if (_options.Provider == "postgres")
         {

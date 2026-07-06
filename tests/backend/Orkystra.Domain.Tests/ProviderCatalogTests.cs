@@ -50,6 +50,8 @@ public sealed class ProviderCatalogTests
 
             Assert.Equal("api-key", transportProvider.Configuration.AuthMode);
             Assert.False(transportProvider.Configuration.AuthConfigured); // No secret store injected
+            Assert.Equal("dry-run", transportProvider.Configuration.WritebackMode);
+            Assert.Equal("Auth Required", transportProvider.Configuration.WritebackReadiness);
         }
         finally
         {
@@ -81,6 +83,7 @@ public sealed class ProviderCatalogTests
             Assert.True(transportProvider.Configuration.AuthConfigured);
             // All required non-secret fields are present AND the API key is configured → Configured.
             Assert.Equal("Configured", transportProvider.Configuration.Readiness);
+            Assert.Equal("dry-run", transportProvider.Configuration.WritebackMode);
         }
         finally
         {

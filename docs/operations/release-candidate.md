@@ -89,3 +89,11 @@ It is not yet intended to promise:
 - enterprise SSO and governance features
 - opaque one-click cloud hosting
 - unlimited connector compatibility
+
+For support retries and reset-driven issue reproduction after this release-candidate block, use:
+
+- [support-handoff-and-reproduction.md](support-handoff-and-reproduction.md)
+- [support-packet-review.md](support-packet-review.md)
+- [support-packet-refresh-loop.md](support-packet-refresh-loop.md)
+
+For the next maturity checkpoint after this release-candidate block, see [post-release-candidate-checkpoint.md](post-release-candidate-checkpoint.md). It captures the current supported posture, unsupported areas, and the consolidated verification pass that now acts as the open-source maturity gate.
