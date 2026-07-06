@@ -57,16 +57,16 @@ powershell -ExecutionPolicy Bypass -File infrastructure/scripts/reset-demo-state
 
 ## Videos de demonstration par role (compatibles README GitHub)
 
-| Role | Video courte (WebM) | Vignette |
-| ---- | ------------------- | -------- |
-| President / Directeur | [Voir la video](docs/screenshots/videos/president.webm) | <img src="docs/screenshots/videos/posters/president.png" width="280"> |
-| Operateur Entrepot | [Voir la video](docs/screenshots/videos/warehouse-operator.webm) | <img src="docs/screenshots/videos/posters/warehouse-operator.png" width="280"> |
-| Dispatcher Transport | [Voir la video](docs/screenshots/videos/transport-dispatcher.webm) | <img src="docs/screenshots/videos/posters/transport-dispatcher.png" width="280"> |
-| Analyste IA | [Voir la video](docs/screenshots/videos/ai-analyst.webm) | <img src="docs/screenshots/videos/posters/ai-analyst.png" width="280"> |
-| Administrateur | [Voir la video](docs/screenshots/videos/administrator.webm) | <img src="docs/screenshots/videos/posters/administrator.png" width="280"> |
-| Superviseur | [Voir la video](docs/screenshots/videos/supervisor.webm) | <img src="docs/screenshots/videos/posters/supervisor.png" width="280"> |
-| Controleur (audit) | [Voir la video](docs/screenshots/videos/controller.webm) | <img src="docs/screenshots/videos/posters/controller.png" width="280"> |
-| Commissaire aux comptes (audit) | [Voir la video](docs/screenshots/videos/auditor.webm) | <img src="docs/screenshots/videos/posters/auditor.png" width="280"> |
+| Role                            | Video courte (WebM)                                                | Vignette                                                                         |
+| ------------------------------- | ------------------------------------------------------------------ | -------------------------------------------------------------------------------- |
+| President / Directeur           | [Voir la video](docs/screenshots/videos/president.webm)            | <img src="docs/screenshots/videos/posters/president.png" width="280">            |
+| Operateur Entrepot              | [Voir la video](docs/screenshots/videos/warehouse-operator.webm)   | <img src="docs/screenshots/videos/posters/warehouse-operator.png" width="280">   |
+| Dispatcher Transport            | [Voir la video](docs/screenshots/videos/transport-dispatcher.webm) | <img src="docs/screenshots/videos/posters/transport-dispatcher.png" width="280"> |
+| Analyste IA                     | [Voir la video](docs/screenshots/videos/ai-analyst.webm)           | <img src="docs/screenshots/videos/posters/ai-analyst.png" width="280">           |
+| Administrateur                  | [Voir la video](docs/screenshots/videos/administrator.webm)        | <img src="docs/screenshots/videos/posters/administrator.png" width="280">        |
+| Superviseur                     | [Voir la video](docs/screenshots/videos/supervisor.webm)           | <img src="docs/screenshots/videos/posters/supervisor.png" width="280">           |
+| Controleur (audit)              | [Voir la video](docs/screenshots/videos/controller.webm)           | <img src="docs/screenshots/videos/posters/controller.png" width="280">           |
+| Commissaire aux comptes (audit) | [Voir la video](docs/screenshots/videos/auditor.webm)              | <img src="docs/screenshots/videos/posters/auditor.png" width="280">              |
 
 Note role-mapping: les parcours "Controleur" et "Commissaire aux comptes" sont actuellement derives du role Superviseur (audit, observabilite, evidence trail), qui est la surface produit la plus proche de ces responsabilites dans l'etat actuel.
 
