@@ -243,6 +243,107 @@ function Get-ContextDriftSummary {
     }
 }
 
+function Get-EvidenceProvenance {
+    param(
+        [string[]]$PresentActiveFiles,
+        [string[]]$CanonicalHandoffFiles,
+        [int]$ArchiveCount
+    )
+
+    $entries = @(
+        [ordered]@{
+            order = 1
+            file = "ISSUE_DRAFT.md"
+            role = "primary-narrative"
+            required = $true
+            summary = "Operator-written narrative that defines the bug report shape and reproduction steps."
+        }
+        [ordered]@{
+            order = 2
+            file = "support-bundle.json"
+            role = "primary-runtime-evidence"
+            required = $true
+            summary = "Canonical runtime evidence bundle for the active packet."
+        }
+        [ordered]@{
+            order = 3
+            file = "SUPPORT_VALIDATION.json"
+            role = "packet-gate"
+            required = $true
+            summary = "Validation verdict that says whether the packet should be reused, refreshed, or regenerated."
+        }
+        [ordered]@{
+            order = 4
+            file = "SUPPORT_LIFECYCLE.json"
+            role = "packet-interpretation"
+            required = $true
+            summary = "Machine-readable lifecycle and drift interpretation for the active handoff."
+        }
+        [ordered]@{
+            order = 5
+            file = "MAINTAINER_HANDOFF.md"
+            role = "maintainer-entrypoint"
+            required = $true
+            summary = "Maintainer-facing reading order and quick decision surface."
+        }
+        [ordered]@{
+            order = 6
+            file = "SUPPORT_ATTEMPTS.json"
+            role = "comparison-context"
+            required = $false
+            summary = "Historical attempt record used when comparing retries or drift."
+        }
+        [ordered]@{
+            order = 7
+            file = "SUPPORT_ARCHIVE_INDEX.json"
+            role = "archive-context"
+            required = $false
+            summary = "Index of archived packet snapshots for deeper comparison only."
+        }
+        [ordered]@{
+            order = 8
+            file = "SUPPORT_LIFECYCLE.md"
+            role = "human-readable-summary"
+            required = $false
+            summary = "Human-readable companion to the lifecycle JSON."
+        }
+        [ordered]@{
+            order = 9
+            file = "SUPPORT_MANIFEST.json"
+            role = "packet-contract"
+            required = $false
+            summary = "Packet contract and metadata backing the generated summaries."
+        }
+    )
+
+    $annotated = @(
+        $entries | ForEach-Object {
+            [pscustomobject]@{
+                order = [int]$_.order
+                file = [string]$_.file
+                role = [string]$_.role
+                required = [bool]$_.required
+                present = $PresentActiveFiles -contains [string]$_.file
+                canonical = $CanonicalHandoffFiles -contains [string]$_.file
+                summary = [string]$_.summary
+            }
+        }
+    )
+
+    return [ordered]@{
+        readingOrder = @($annotated | Sort-Object -Property @{ Expression = { [int]$_.order } })
+        primaryFiles = @($annotated | Where-Object { $_.required })
+        optionalFiles = @($annotated | Where-Object { -not $_.required -and $_.present })
+        comparisonContextSummary =
+            if ($ArchiveCount -gt 0) {
+                "Archived packet snapshots exist, so comparison evidence should stay secondary to the active issue draft and support bundle."
+            }
+            else {
+                "No archived packet snapshots exist yet, so the active issue draft and support bundle remain the only canonical evidence pair."
+            }
+    }
+}
+
 $packetDirectory = (Resolve-Path $PacketDirectory).Path
 
 if ([string]::IsNullOrWhiteSpace($JsonOutputPath)) {
@@ -285,6 +386,18 @@ $latestArchive = if ($archiveItems.Length -gt 0) { $archiveItems[$archiveItems.L
 $validationStatus = if ($validation) { [string]$validation.status } else { "Unknown" }
 $recommendedAction = if ($validation) { [string]$validation.recommendedAction } else { "Regenerate" }
 $escalationTarget = if ($validation) { [string]$validation.escalationTarget } else { "" }
+$evidenceGapScore =
+    if ($validation -and $validation.PSObject.Properties.Name.Contains("evidenceGapScore")) { $validation.evidenceGapScore }
+    else {
+        [ordered]@{
+            strongCount = 0
+            weakCount = 0
+            absentCount = 0
+            topPriorityCategory = ""
+            topPriorityNextAction = ""
+            categories = @()
+        }
+    }
 $triageMetadata = Get-TriageMetadata -ValidationStatus $validationStatus -RecommendedAction $recommendedAction -EscalationTarget $escalationTarget
 $releaseContext =
     if ($manifest.PSObject.Properties.Name.Contains("releaseContext")) { $manifest.releaseContext }
@@ -379,6 +492,7 @@ $summary = [ordered]@{
     latestArchiveReason = if ($manifest.PSObject.Properties.Name.Contains("lastArchiveReason")) { [string]$manifest.lastArchiveReason } else { "" }
     escalationTarget = $escalationTarget
     posture = if ($validation) { [string]$validation.posture } else { "" }
+    evidenceGapScore = $evidenceGapScore
     releaseContext = $releaseContext
     runtimeContext = $runtimeContext
     activeFiles = @($presentActiveFiles)
@@ -398,6 +512,8 @@ $summary = [ordered]@{
     triageChecks = @($triageMetadata.triageChecks)
     contextDrift = $contextDrift
 }
+$evidenceProvenance = Get-EvidenceProvenance -PresentActiveFiles $presentActiveFiles -CanonicalHandoffFiles @($summary.canonicalHandoffFiles) -ArchiveCount $summary.archiveCount
+$summary.evidenceProvenance = $evidenceProvenance
 
 Set-ObjectPropertyValue -TargetObject $manifest -PropertyName "canonicalPacketState" -Value $canonicalPacketState
 Set-ObjectPropertyValue -TargetObject $manifest -PropertyName "packetClass" -Value ([string]$triageMetadata.packetClass)
@@ -452,11 +568,35 @@ $summary | ConvertTo-Json -Depth 8 | Set-Content -Path $JsonOutputPath -Encoding
 - Bundle source: $($summary.runtimeContext.bundleSource)
 - Issue draft source: $($summary.runtimeContext.issueDraftSource)
 
+## Evidence gap score
+
+- Strong categories: $($summary.evidenceGapScore.strongCount)
+- Weak categories: $($summary.evidenceGapScore.weakCount)
+- Absent categories: $($summary.evidenceGapScore.absentCount)
+- Top priority category: $($summary.evidenceGapScore.topPriorityCategory)
+- Top priority next action: $($summary.evidenceGapScore.topPriorityNextAction)
+
+## Evidence gap categories
+
+$(if (@($summary.evidenceGapScore.categories).Count -gt 0) { ($summary.evidenceGapScore.categories | ForEach-Object { "- $($_.category) | severity: $($_.severity) | $($_.summary) | next: $($_.nextAction)" }) -join "`r`n" } else { "- No evidence gap categories are currently recorded." })
+
 ## Context drift
 
 - Posture: $($summary.contextDrift.posture)
 - Changed fields: $(if (@($summary.contextDrift.changedFields).Count -gt 0) { ($summary.contextDrift.changedFields -join ", ") } else { "none" })
 - Summary: $($summary.contextDrift.summary)
+
+## Evidence provenance
+
+- Comparison posture: $($summary.evidenceProvenance.comparisonContextSummary)
+
+## Reading order
+
+$(($summary.evidenceProvenance.readingOrder | ForEach-Object { "- $($_.order). $($_.file) | role: $($_.role) | required: $($_.required) | canonical: $($_.canonical) | present: $($_.present)" }) -join "`r`n")
+
+## Optional comparison context
+
+$(if (@($summary.evidenceProvenance.optionalFiles).Count -gt 0) { ($summary.evidenceProvenance.optionalFiles | ForEach-Object { "- $($_.file) | $($_.summary)" }) -join "`r`n" } else { "- No optional comparison artifacts are currently present." })
 
 ## Active handoff files
 

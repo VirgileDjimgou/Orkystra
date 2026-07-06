@@ -76,6 +76,8 @@ That command prepares one folder containing:
 
 The generated packet now also captures repository, release, and runtime context automatically in the manifest and lifecycle summary, so maintainers can see which local repo state and shell posture produced the failure.
 When retries happen more than once, keep that context stable if possible, or call out explicitly when branch, commit, host, shell, or capture-source posture changed between attempts.
+The packet now also carries an explicit evidence reading order, so the issue draft and active support bundle stay clearly marked as canonical while archive and comparison files stay secondary.
+It now also scores evidence gaps by category so the next operator action can focus on the weakest proof instead of collecting broad, low-signal attachments.
 
 To validate an existing packet before handoff, use:
 

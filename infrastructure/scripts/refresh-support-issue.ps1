@@ -317,11 +317,109 @@ $handoffPath = Join-Path $packetDirectory "MAINTAINER_HANDOFF.md"
 - Bundle source: $($lifecycleReport.runtimeContext.bundleSource)
 - Issue draft source: $($lifecycleReport.runtimeContext.issueDraftSource)
 
+## Evidence gap score
+
+- Strong categories: $($lifecycleReport.evidenceGapScore.strongCount)
+- Weak categories: $($lifecycleReport.evidenceGapScore.weakCount)
+- Absent categories: $($lifecycleReport.evidenceGapScore.absentCount)
+- Top priority category: $($lifecycleReport.evidenceGapScore.topPriorityCategory)
+- Top priority next action: $($lifecycleReport.evidenceGapScore.topPriorityNextAction)
+
+## Evidence gap categories
+
+$(if (@($lifecycleReport.evidenceGapScore.categories).Count -gt 0) { ($lifecycleReport.evidenceGapScore.categories | ForEach-Object { "- $($_.category) | severity: $($_.severity) | $($_.summary) | next: $($_.nextAction)" }) -join "`r`n" } else { "- No evidence gap categories are currently recorded." })
+
 ## Context drift
 
 - Posture: $($lifecycleReport.contextDrift.posture)
 - Changed fields: $(if (@($lifecycleReport.contextDrift.changedFields).Count -gt 0) { ($lifecycleReport.contextDrift.changedFields -join ", ") } else { "none" })
 - Summary: $($lifecycleReport.contextDrift.summary)
+
+## Reading order
+
+$(($lifecycleReport.evidenceProvenance.readingOrder | ForEach-Object { "- $($_.order). $($_.file) | role: $($_.role) | required: $($_.required) | canonical: $($_.canonical) | present: $($_.present)" }) -join "`r`n")
+
+## Optional comparison context
+
+$(if (@($lifecycleReport.evidenceProvenance.optionalFiles).Count -gt 0) { ($lifecycleReport.evidenceProvenance.optionalFiles | ForEach-Object { "- $($_.file) | $($_.summary)" }) -join "`r`n" } else { "- No optional comparison artifacts are currently present." })
+
+## Included files
+
+- support-bundle.json
+- ISSUE_DRAFT.md
+- SUPPORT_MANIFEST.json
+- SUPPORT_ATTEMPTS.json
+- SUPPORT_VALIDATION.json
+- SUPPORT_LIFECYCLE.json
+
+## Triage shortcuts
+
+$(($lifecycleReport.triageChecks | ForEach-Object { "- $_" }) -join "`r`n")
+
+## Maintainer action
+
+Use `SUPPORT_ATTEMPTS.json` to see whether this packet was regenerated after a retry or reset. Prefer the latest validation status and the latest issue draft when reviewing the packet.
+"@ | Set-Content -Path $handoffPath -Encoding UTF8
+
+& $summaryScriptPath -PacketDirectory $packetDirectory | Out-Null
+$lifecycleReport = Get-Content (Join-Path $packetDirectory "SUPPORT_LIFECYCLE.json") -Raw | ConvertFrom-Json
+
+@"
+# Maintainer Handoff
+
+- Packet directory: $packetDirectory
+- Tenant: $TenantId
+- Validation status: $($validationReport.status)
+- Escalation target: $($validationReport.escalationTarget)
+- Support posture: $($validationReport.posture)
+- Packet class: $($lifecycleReport.packetClass)
+- Triage lane: $($lifecycleReport.triageLane)
+- Next owner: $($lifecycleReport.nextOwner)
+- Current attempt: $($manifest.currentAttempt)
+- Last refresh reason: $RefreshReason
+- Current maturity checkpoint: $checkpointEstimate
+
+## Release context
+
+- Branch: $($lifecycleReport.releaseContext.repositoryBranch)
+- Commit: $($lifecycleReport.releaseContext.repositoryShortCommit)
+- Tag or version hint: $($lifecycleReport.releaseContext.releaseVersionHint)
+- Release posture: $($lifecycleReport.releaseContext.releasePosture)
+- Dirty worktree: $($lifecycleReport.releaseContext.repositoryIsDirty)
+
+## Runtime context
+
+- Host: $($lifecycleReport.runtimeContext.hostName)
+- OS: $($lifecycleReport.runtimeContext.operatingSystem)
+- PowerShell: $($lifecycleReport.runtimeContext.powerShellVersion)
+- Bundle source: $($lifecycleReport.runtimeContext.bundleSource)
+- Issue draft source: $($lifecycleReport.runtimeContext.issueDraftSource)
+
+## Evidence gap score
+
+- Strong categories: $($lifecycleReport.evidenceGapScore.strongCount)
+- Weak categories: $($lifecycleReport.evidenceGapScore.weakCount)
+- Absent categories: $($lifecycleReport.evidenceGapScore.absentCount)
+- Top priority category: $($lifecycleReport.evidenceGapScore.topPriorityCategory)
+- Top priority next action: $($lifecycleReport.evidenceGapScore.topPriorityNextAction)
+
+## Evidence gap categories
+
+$(if (@($lifecycleReport.evidenceGapScore.categories).Count -gt 0) { ($lifecycleReport.evidenceGapScore.categories | ForEach-Object { "- $($_.category) | severity: $($_.severity) | $($_.summary) | next: $($_.nextAction)" }) -join "`r`n" } else { "- No evidence gap categories are currently recorded." })
+
+## Context drift
+
+- Posture: $($lifecycleReport.contextDrift.posture)
+- Changed fields: $(if (@($lifecycleReport.contextDrift.changedFields).Count -gt 0) { ($lifecycleReport.contextDrift.changedFields -join ", ") } else { "none" })
+- Summary: $($lifecycleReport.contextDrift.summary)
+
+## Reading order
+
+$(($lifecycleReport.evidenceProvenance.readingOrder | ForEach-Object { "- $($_.order). $($_.file) | role: $($_.role) | required: $($_.required) | canonical: $($_.canonical) | present: $($_.present)" }) -join "`r`n")
+
+## Optional comparison context
+
+$(if (@($lifecycleReport.evidenceProvenance.optionalFiles).Count -gt 0) { ($lifecycleReport.evidenceProvenance.optionalFiles | ForEach-Object { "- $($_.file) | $($_.summary)" }) -join "`r`n" } else { "- No optional comparison artifacts are currently present." })
 
 ## Included files
 

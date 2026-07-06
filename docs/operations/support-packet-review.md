@@ -67,6 +67,8 @@ The lifecycle summary is now also the quickest way to understand:
 - `releaseContext`: which branch, commit, and release hint produced the packet
 - `runtimeContext`: which host and shell posture produced the capture
 - `contextDrift`: whether the latest retry still represents the same repo and runtime state as the previous attempt
+- `evidenceProvenance`: which artifacts are mandatory, which are optional, and in what order they should be read
+- `evidenceGapScore`: which proof category is strong, weak, or absent and what to strengthen first
 
 If these fields point to operator refresh or configuration review, treat that as a signal to avoid spending maintainer time on deep workflow debugging yet.
 

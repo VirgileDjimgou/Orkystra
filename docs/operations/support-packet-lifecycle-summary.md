@@ -30,6 +30,8 @@ The lifecycle summary makes these questions obvious:
 - which repository branch, commit, and release hint produced the packet
 - which host, shell, and capture source produced the runtime evidence
 - whether the latest retry reused the same repo and runtime posture as the previous attempt
+- which artifacts are canonical, which are optional comparison context, and in what order to read them
+- which evidence category is currently strongest, weakest, or still absent
 - what the timeline of attempts and archived snapshots looks like
 - what changed between the active packet and the latest archived packet
 
@@ -62,6 +64,8 @@ Before reading the full packet story, skim these lifecycle fields first:
 - `releaseContext`
 - `runtimeContext`
 - `contextDrift`
+- `evidenceProvenance`
+- `evidenceGapScore`
 
 That keeps the first pass short and helps avoid using maintainer time on a packet that still belongs in operator refresh or configuration review.
 

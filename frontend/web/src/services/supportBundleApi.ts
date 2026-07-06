@@ -120,6 +120,18 @@ export type SupportPacketDriftGuidanceView = {
   checks: string[]
 }
 
+export type SupportPacketEvidenceGuidanceView = {
+  label: string
+  summary: string
+  checks: string[]
+}
+
+export type SupportPacketEvidenceGapGuidanceView = {
+  label: string
+  summary: string
+  checks: string[]
+}
+
 function formatUtcLabel(value: string): string {
   return new Intl.DateTimeFormat('en-GB', {
     year: 'numeric',
@@ -376,6 +388,65 @@ export function buildSupportPacketReadiness(input: SupportIssueDraftInput): Supp
     status: 'Needs operator details',
     summary: 'The packet has live evidence, but the operator narrative still needs more detail.',
     missingItems,
+  }
+}
+
+export function buildSupportPacketEvidenceGapGuidance(
+  input: SupportIssueDraftInput,
+  readiness: SupportPacketReadinessView
+): SupportPacketEvidenceGapGuidanceView {
+  const hasWorkflowEvidence = input.bundle.workflowCount > 0
+  const hasAuditEvidence = input.bundle.auditCount > 0
+  const hasNarrative =
+    input.summary.trim().length >= 8 &&
+    input.reproductionSteps.trim().length >= 12 &&
+    input.expectedResult.trim().length >= 8 &&
+    (input.actualResult.trim() || input.bundle.summary).length >= 8
+
+  if (readiness.status === 'Ready') {
+    return {
+      label: 'Evidence chain is balanced',
+      summary: 'The packet already has a usable narrative and enough runtime evidence for a first maintainer pass.',
+      checks: [
+        'Keep the current issue draft and support bundle as the canonical pair.',
+        'Only attach optional comparison context when it explains a real delta.',
+        'Preserve the current packet if the next retry does not materially change the failure.',
+      ],
+    }
+  }
+
+  if (!hasWorkflowEvidence || !hasAuditEvidence) {
+    return {
+      label: 'Runtime evidence is the weakest link',
+      summary: 'The packet still needs stronger workflow or audit proof before deeper escalation is worth the maintainer time.',
+      checks: [
+        hasWorkflowEvidence ? 'Workflow evidence is present; focus on audit proof next.' : 'Capture a fresh workflow trace in the next support bundle.',
+        hasAuditEvidence ? 'Audit evidence is present; focus on workflow proof next.' : 'Capture audit evidence for the same failing run.',
+        'Refresh the packet only after the new runtime evidence reflects the same failure.',
+      ],
+    }
+  }
+
+  if (!hasNarrative) {
+    return {
+      label: 'Operator narrative is the weakest link',
+      summary: 'The runtime evidence exists, but the packet still underspecifies what the maintainer is supposed to reproduce and verify.',
+      checks: [
+        'Tighten the summary, reproduction steps, expected result, and actual result.',
+        'Make the issue draft readable without opening the raw bundle first.',
+        'Keep the evidence focused on the exact first failing state you want reviewed.',
+      ],
+    }
+  }
+
+  return {
+    label: 'Packet still needs one focused pass',
+    summary: 'The packet is close, but one category of proof still needs to be made more explicit before handoff.',
+    checks: [
+      'Prefer strengthening the weakest category before adding more optional attachments.',
+      'Keep the issue draft, validation, and lifecycle summary aligned.',
+      'Escalate only after the packet reads as one coherent evidence chain.',
+    ],
   }
 }
 
@@ -714,6 +785,45 @@ export function buildSupportPacketDriftGuidance(
       'Record branch and commit changes between retries.',
       'Call out host, shell, or capture-source changes if they occurred.',
       'Only treat the latest failure as the same debugging state when the context stayed stable.',
+    ],
+  }
+}
+
+export function buildSupportPacketEvidenceGuidance(
+  bundle: SupportBundleSummaryView,
+  readiness: SupportPacketReadinessView
+): SupportPacketEvidenceGuidanceView {
+  if (readiness.status === 'Needs runtime evidence') {
+    return {
+      label: 'Re-anchor the packet first',
+      summary: 'Do not attach extra comparison artifacts until the primary handoff bundle and issue draft are coherent again.',
+      checks: [
+        'Keep the current support bundle and issue draft as the primary artifacts.',
+        'Attach comparison evidence only when it explains what changed between retries.',
+        'Avoid dumping broad log sets when one focused failing artifact would do.',
+      ],
+    }
+  }
+
+  if (bundle.escalationTarget === 'dependency-or-event-backbone') {
+    return {
+      label: 'Anchor the first failing evidence',
+      summary: 'Dependency-heavy failures should still travel with one canonical bundle and one clear operator narrative before optional comparison files.',
+      checks: [
+        'Lead with the current issue draft and support bundle.',
+        'Use optional comparison artifacts only to explain broker or runtime drift.',
+        'Keep the maintainer reading order short and explicit.',
+      ],
+    }
+  }
+
+  return {
+    label: 'Keep one canonical evidence chain',
+    summary: 'A mature packet should tell the maintainer which artifacts are mandatory, which are optional, and in what order to read them.',
+    checks: [
+      'Make the issue draft and support bundle the first-line evidence pair.',
+      'Use lifecycle and validation outputs as interpretation guides, not as replacements for the evidence.',
+      'Treat archived snapshots and comparison notes as optional context unless the delta actually matters.',
     ],
   }
 }

@@ -59,6 +59,6 @@ The repository has crossed the line from prototype behavior into a credible self
 
 At this checkpoint, the remaining path to a genuinely mature and comfortably commercializable product is roughly:
 
-- 1 to 9 more consistent sprints
+- 1 to 7 more consistent sprints
 
 That estimate assumes we continue to prioritize cross-cutting product maturity, supportability, and release hygiene over narrow UI polish or isolated feature additions.

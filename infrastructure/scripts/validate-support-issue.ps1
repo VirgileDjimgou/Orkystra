@@ -37,6 +37,7 @@ foreach ($requiredFile in $requiredFiles) {
 $errors = New-Object System.Collections.Generic.List[string]
 $warnings = New-Object System.Collections.Generic.List[string]
 $notes = New-Object System.Collections.Generic.List[string]
+$evidenceGaps = New-Object System.Collections.Generic.List[object]
 
 if ($missingFiles.Count -gt 0) {
     foreach ($missingFile in $missingFiles) {
@@ -96,6 +97,23 @@ function Test-ContextFieldSet {
     }
 
     return $true
+}
+
+function Add-EvidenceGap {
+    param(
+        [System.Collections.Generic.List[object]]$Target,
+        [string]$Category,
+        [string]$Severity,
+        [string]$Summary,
+        [string]$NextAction
+    )
+
+    $Target.Add([pscustomobject]@{
+        category = $Category
+        severity = $Severity
+        summary = $Summary
+        nextAction = $NextAction
+    })
 }
 
 function Read-ArchiveIndexFile {
@@ -161,6 +179,10 @@ if ($missingFiles.Count -eq 0) {
         if ($issueDraft -notmatch [Regex]::Escape($requiredHeading)) {
             $errors.Add("Issue draft is missing heading: $requiredHeading")
         }
+    }
+
+    if ($issueDraft.Length -lt 280) {
+        Add-EvidenceGap -Target $evidenceGaps -Category "operator-narrative" -Severity "weak" -Summary "The issue draft is still thin relative to the expected maintainer handoff shape." -NextAction "Tighten the summary, reproduction steps, and expected-versus-actual wording."
     }
 
     $requiredManifestFields = @(
@@ -278,6 +300,7 @@ if ($missingFiles.Count -eq 0) {
             @($bundleSummary.artifactChecklist).Count -eq 0
         ) {
             $warnings.Add("Support bundle artifact checklist is empty.")
+            Add-EvidenceGap -Target $evidenceGaps -Category "attachment-provenance" -Severity "weak" -Summary "The support bundle does not yet describe which artifacts should travel with the handoff." -NextAction "Rebuild the packet with a clearer artifact checklist and reading order."
         }
 
         if (
@@ -285,16 +308,19 @@ if ($missingFiles.Count -eq 0) {
             @($bundleSummary.signals).Count -eq 0
         ) {
             $warnings.Add("Support bundle signals are empty.")
+            Add-EvidenceGap -Target $evidenceGaps -Category "runtime-signal-summary" -Severity "weak" -Summary "The support bundle has no summarized runtime signals for the failing state." -NextAction "Capture a fresh support bundle from the failing run."
         }
     }
 
     if ($bundle.PSObject.Properties.Name.Contains("collections")) {
         if ((Get-NormalizedIntValue $bundle.collections.auditCount) -eq 0) {
             $warnings.Add("Packet has no audit evidence yet.")
+            Add-EvidenceGap -Target $evidenceGaps -Category "audit-evidence" -Severity "absent" -Summary "No audit evidence is attached to the packet yet." -NextAction "Capture audit evidence for the same failing run before escalation."
         }
 
         if ((Get-NormalizedIntValue $bundle.collections.workflowCount) -eq 0) {
             $warnings.Add("Packet has no workflow evidence yet.")
+            Add-EvidenceGap -Target $evidenceGaps -Category "workflow-evidence" -Severity "absent" -Summary "No workflow evidence is attached to the packet yet." -NextAction "Capture a workflow trace for the current failure."
         }
     }
 
@@ -339,7 +365,9 @@ if ($missingFiles.Count -eq 0) {
             "releaseContext",
             "runtimeContext",
             "contextDrift",
-            "previousAttempt"
+            "previousAttempt",
+            "evidenceProvenance",
+            "evidenceGapScore"
         )
 
         foreach ($field in $requiredLifecycleFields) {
@@ -374,6 +402,26 @@ if ($missingFiles.Count -eq 0) {
 
         if ($lifecycleMarkdown -notmatch [Regex]::Escape("## Previous attempt")) {
             $errors.Add("Lifecycle markdown is missing the previous attempt section.")
+        }
+
+        if ($lifecycleMarkdown -notmatch [Regex]::Escape("## Evidence provenance")) {
+            $errors.Add("Lifecycle markdown is missing the evidence provenance section.")
+        }
+
+        if ($lifecycleMarkdown -notmatch [Regex]::Escape("## Reading order")) {
+            $errors.Add("Lifecycle markdown is missing the reading order section.")
+        }
+
+        if ($lifecycleMarkdown -notmatch [Regex]::Escape("## Optional comparison context")) {
+            $errors.Add("Lifecycle markdown is missing the optional comparison context section.")
+        }
+
+        if ($lifecycleMarkdown -notmatch [Regex]::Escape("## Evidence gap score")) {
+            $errors.Add("Lifecycle markdown is missing the evidence gap score section.")
+        }
+
+        if ($lifecycleMarkdown -notmatch [Regex]::Escape("## Evidence gap categories")) {
+            $errors.Add("Lifecycle markdown is missing the evidence gap categories section.")
         }
 
         if ([string]$manifest.packetClass -ne [string]$lifecycle.packetClass) {
@@ -420,10 +468,69 @@ if ($missingFiles.Count -eq 0) {
         if (-not $lifecycle.contextDrift.PSObject.Properties.Name.Contains("summary")) {
             $errors.Add("Lifecycle contextDrift is missing field: summary")
         }
+
+        if (-not $lifecycle.evidenceProvenance.PSObject.Properties.Name.Contains("readingOrder")) {
+            $errors.Add("Lifecycle evidenceProvenance is missing field: readingOrder")
+        }
+
+        if (-not $lifecycle.evidenceProvenance.PSObject.Properties.Name.Contains("primaryFiles")) {
+            $errors.Add("Lifecycle evidenceProvenance is missing field: primaryFiles")
+        }
+
+        if (-not $lifecycle.evidenceProvenance.PSObject.Properties.Name.Contains("optionalFiles")) {
+            $errors.Add("Lifecycle evidenceProvenance is missing field: optionalFiles")
+        }
+
+        if (-not $lifecycle.evidenceProvenance.PSObject.Properties.Name.Contains("comparisonContextSummary")) {
+            $errors.Add("Lifecycle evidenceProvenance is missing field: comparisonContextSummary")
+        }
+
+        if (-not $lifecycle.evidenceGapScore.PSObject.Properties.Name.Contains("strongCount")) {
+            $errors.Add("Lifecycle evidenceGapScore is missing field: strongCount")
+        }
+
+        if (-not $lifecycle.evidenceGapScore.PSObject.Properties.Name.Contains("weakCount")) {
+            $errors.Add("Lifecycle evidenceGapScore is missing field: weakCount")
+        }
+
+        if (-not $lifecycle.evidenceGapScore.PSObject.Properties.Name.Contains("absentCount")) {
+            $errors.Add("Lifecycle evidenceGapScore is missing field: absentCount")
+        }
+
+        if (-not $lifecycle.evidenceGapScore.PSObject.Properties.Name.Contains("topPriorityCategory")) {
+            $errors.Add("Lifecycle evidenceGapScore is missing field: topPriorityCategory")
+        }
+
+        if (-not $lifecycle.evidenceGapScore.PSObject.Properties.Name.Contains("topPriorityNextAction")) {
+            $errors.Add("Lifecycle evidenceGapScore is missing field: topPriorityNextAction")
+        }
+
+        if (-not $lifecycle.evidenceGapScore.PSObject.Properties.Name.Contains("categories")) {
+            $errors.Add("Lifecycle evidenceGapScore is missing field: categories")
+        }
     }
 
     $notes.Add("Validation compares packet completeness against the current support packet contract.")
 }
+
+if ($errors.Count -eq 0 -and $warnings.Count -eq 0 -and $evidenceGaps.Count -eq 0) {
+    Add-EvidenceGap -Target $evidenceGaps -Category "packet-balance" -Severity "strong" -Summary "The packet currently has a balanced narrative, runtime evidence, and attachment structure." -NextAction "Keep the current packet as the canonical handoff unless the failure changes."
+}
+
+$priorityScore = @{
+    absent = 3
+    weak = 2
+    strong = 1
+}
+
+$orderedEvidenceGaps = @(
+    $evidenceGaps | Sort-Object -Property @{ Expression = { $priorityScore[[string]$_.severity] } ; Descending = $true }, category
+)
+
+$strongCount = @($orderedEvidenceGaps | Where-Object { $_.severity -eq "strong" }).Count
+$weakCount = @($orderedEvidenceGaps | Where-Object { $_.severity -eq "weak" }).Count
+$absentCount = @($orderedEvidenceGaps | Where-Object { $_.severity -eq "absent" }).Count
+$topEvidenceGap = if ($orderedEvidenceGaps.Count -gt 0) { $orderedEvidenceGaps[0] } else { $null }
 
 $status =
     if ($errors.Count -gt 0) { "Rejected" }
@@ -451,6 +558,14 @@ $report = [ordered]@{
     recommendedAction = $recommendedAction
     escalationTarget = if ($bundleSummary) { [string]$bundleSummary.escalationTarget } else { "" }
     posture = if ($bundleSummary) { [string]$bundleSummary.posture } else { "" }
+    evidenceGapScore = [ordered]@{
+        strongCount = $strongCount
+        weakCount = $weakCount
+        absentCount = $absentCount
+        topPriorityCategory = if ($topEvidenceGap) { [string]$topEvidenceGap.category } else { "" }
+        topPriorityNextAction = if ($topEvidenceGap) { [string]$topEvidenceGap.nextAction } else { "" }
+        categories = @($orderedEvidenceGaps)
+    }
 }
 
 $report | ConvertTo-Json -Depth 6 | Set-Content -Path $OutputPath -Encoding UTF8

@@ -53,6 +53,8 @@ import {
   buildSupportPacketArchiveGuidance,
   buildSupportPacketDeltaGuidance,
   buildSupportPacketDriftGuidance,
+  buildSupportPacketEvidenceGapGuidance,
+  buildSupportPacketEvidenceGuidance,
   buildSupportPacketLifecycleGuidance,
   buildSupportPacketReleaseContextGuidance,
   buildSupportPacketRetryGuidance,
@@ -552,6 +554,27 @@ const supportPacketReadiness = computed(() =>
     evidenceNotes: supportIssueEvidenceDraft.value,
   })
 );
+const supportPacketEvidenceGapGuidance = computed(() =>
+  buildSupportPacketEvidenceGapGuidance(
+    {
+      bundle: supportBundleSummary.value,
+      scenarioLabel: currentScenario.value?.name ?? selectedScenarioId.value,
+      routeLabel: currentRoute.value.reference,
+      routeStatus: currentRoute.value.status,
+      deploymentMode: supportIssueDeploymentMode.value,
+      browserLabel: supportIssueBrowserLabel.value,
+      summary: supportIssueSummaryDraft.value,
+      reproductionSteps: supportIssueReproductionDraft.value,
+      expectedResult: supportIssueExpectedDraft.value,
+      actualResult:
+        supportIssueActualDraft.value.trim() ||
+        supportBundleErrorMessage.value ||
+        "",
+      evidenceNotes: supportIssueEvidenceDraft.value,
+    },
+    supportPacketReadiness.value
+  )
+);
 const supportPacketReadinessTone = computed(() => {
   switch (supportPacketReadiness.value.status) {
     case "Ready":
@@ -588,6 +611,12 @@ const supportPacketReleaseContextGuidance = computed(() =>
 );
 const supportPacketDriftGuidance = computed(() =>
   buildSupportPacketDriftGuidance(
+    supportBundleSummary.value,
+    supportPacketReadiness.value
+  )
+);
+const supportPacketEvidenceGuidance = computed(() =>
+  buildSupportPacketEvidenceGuidance(
     supportBundleSummary.value,
     supportPacketReadiness.value
   )
@@ -7028,6 +7057,23 @@ onBeforeUnmount(() => {
               </ul>
             </div>
             <div class="catalog-block">
+              <span class="panel-label">Weakest evidence</span>
+              <p class="catalog-summary">
+                <strong>{{ supportPacketEvidenceGapGuidance.label }}</strong>
+              </p>
+              <p class="catalog-summary">
+                {{ supportPacketEvidenceGapGuidance.summary }}
+              </p>
+              <ul class="detail-list compact-detail-list">
+                <li
+                  v-for="check in supportPacketEvidenceGapGuidance.checks"
+                  :key="check"
+                >
+                  <span>{{ check }}</span>
+                </li>
+              </ul>
+            </div>
+            <div class="catalog-block">
               <span class="panel-label">Release handshake</span>
               <p class="catalog-summary">
                 <strong>{{ supportReleaseHandshake.label }}</strong>
@@ -7093,6 +7139,23 @@ onBeforeUnmount(() => {
               <ul class="detail-list compact-detail-list">
                 <li
                   v-for="check in supportPacketDriftGuidance.checks"
+                  :key="check"
+                >
+                  <span>{{ check }}</span>
+                </li>
+              </ul>
+            </div>
+            <div class="catalog-block">
+              <span class="panel-label">Attachment anchors</span>
+              <p class="catalog-summary">
+                <strong>{{ supportPacketEvidenceGuidance.label }}</strong>
+              </p>
+              <p class="catalog-summary">
+                {{ supportPacketEvidenceGuidance.summary }}
+              </p>
+              <ul class="detail-list compact-detail-list">
+                <li
+                  v-for="check in supportPacketEvidenceGuidance.checks"
                   :key="check"
                 >
                   <span>{{ check }}</span>
