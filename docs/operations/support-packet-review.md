@@ -69,6 +69,8 @@ The lifecycle summary is now also the quickest way to understand:
 - `contextDrift`: whether the latest retry still represents the same repo and runtime state as the previous attempt
 - `evidenceProvenance`: which artifacts are mandatory, which are optional, and in what order they should be read
 - `evidenceGapScore`: which proof category is strong, weak, or absent and what to strengthen first
+- `remediationChecklist`: the short ordered pass to run next, the expected owner, and the stop conditions for ending the pass cleanly
+- `captureGuidance`: the fastest capture move for the packet class, the lane, and the current release posture
 
 If these fields point to operator refresh or configuration review, treat that as a signal to avoid spending maintainer time on deep workflow debugging yet.
 

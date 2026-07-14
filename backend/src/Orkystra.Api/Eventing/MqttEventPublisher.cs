@@ -43,7 +43,6 @@ public sealed class MqttEventPublisher : IEventBackbonePublisher, IRawEventBackb
         var message = new MqttApplicationMessageBuilder()
             .WithTopic(envelope.Topic)
             .WithPayload(serializedEnvelope)
-            .WithContentType("application/json")
             .Build();
 
         await client.PublishAsync(message, cancellationToken);

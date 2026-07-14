@@ -4,7 +4,7 @@ Run commands from the repository root unless noted.
 
 ## Autonomous Continuation
 
-Use this command in Codex or GitHub Copilot when you want a longer supervised run:
+Use this command when you want a longer supervised run:
 
 ```text
 Smart Logistic continue
@@ -14,7 +14,7 @@ This means: read project memory, then execute up to 5 consecutive unfinished spr
 
 The agent must stop early if a sprint needs human approval, secrets, paid external services, destructive migration work, or a build/test failure that cannot be repaired in the current session.
 
-The canonical local prompt is `prompts/SMART_LOGISTIC_CONTINUE_5_SPRINTS.md`. GitHub Copilot also reads `.github/copilot-instructions.md`, which contains the same batch-mode rule in a tracked file.
+The canonical local prompt is `prompts/CONTINUE_5_SPRINTS.md`. The repository instructions file contains the same batch-mode rule in a tracked file.
 
 ## Backend
 

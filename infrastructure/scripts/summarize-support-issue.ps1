@@ -344,6 +344,191 @@ function Get-EvidenceProvenance {
     }
 }
 
+function Get-RemediationChecklist {
+    param(
+        [object]$EvidenceGapScore,
+        [object]$TriageMetadata,
+        [string]$ValidationStatus,
+        [string]$RecommendedAction,
+        [string]$CanonicalPacketState,
+        [object]$ContextDrift
+    )
+
+    $items = New-Object System.Collections.Generic.List[object]
+    $stopConditions = New-Object System.Collections.Generic.List[string]
+
+    if ($EvidenceGapScore -and [string]$EvidenceGapScore.topPriorityNextAction) {
+        $items.Add([ordered]@{
+            order = 1
+            focus = if ([string]$EvidenceGapScore.topPriorityCategory) { [string]$EvidenceGapScore.topPriorityCategory } else { "primary-evidence-gap" }
+            owner = [string]$TriageMetadata.nextOwner
+            action = [string]$EvidenceGapScore.topPriorityNextAction
+            rationale = "Start with the highest-priority weak or absent proof category before broadening the packet."
+        })
+    }
+
+    foreach ($triageCheck in @($TriageMetadata.triageChecks | Select-Object -First 2)) {
+        $items.Add([ordered]@{
+            order = $items.Count + 1
+            focus = "triage-lane"
+            owner = [string]$TriageMetadata.nextOwner
+            action = [string]$triageCheck
+            rationale = "Keep the next pass aligned with the current packet class and owner."
+        })
+    }
+
+    if ($ContextDrift -and [string]$ContextDrift.posture -ne "stable-context" -and [string]$ContextDrift.posture -ne "no-prior-attempt" -and [string]$ContextDrift.posture -ne "no-attempt-history") {
+        $items.Add([ordered]@{
+            order = $items.Count + 1
+            focus = "context-drift"
+            owner = "Operator"
+            action = "Review the changed context fields before treating the newest failure as the same debugging state."
+            rationale = [string]$ContextDrift.summary
+        })
+    }
+
+    if ($RecommendedAction -eq "Refresh") {
+        $items.Add([ordered]@{
+            order = $items.Count + 1
+            focus = "packet-refresh"
+            owner = "Operator"
+            action = "Refresh the packet only after the next retry reproduces the same failure with better evidence."
+            rationale = "A refresh should improve signal quality, not replace the packet with unrelated noise."
+        })
+    }
+    elseif ($RecommendedAction -eq "Regenerate") {
+        $items.Add([ordered]@{
+            order = $items.Count + 1
+            focus = "packet-regeneration"
+            owner = "Operator"
+            action = "Regenerate the packet until the required files and lifecycle sections are complete."
+            rationale = "The current packet is too incomplete to act as the canonical handoff."
+        })
+    }
+
+    $stopConditions.Add("Stop once validation is Accepted or AcceptedWithWarnings and the top-priority evidence action is reflected in the packet.")
+    $stopConditions.Add("Stop if the failure changed materially; archive the old packet before building the next one.")
+
+    if ($CanonicalPacketState -eq "active-packet-is-canonical") {
+        $stopConditions.Add("If the packet already remains canonical after the checklist pass, reuse it instead of creating another duplicate handoff.")
+    }
+
+    $checklistPosture =
+        if ($ValidationStatus -eq "Rejected") { "regenerate-first" }
+        elseif ($RecommendedAction -eq "Refresh") { "focused-refresh" }
+        else { "targeted-hardening" }
+    $focusCategory = if ($EvidenceGapScore) { [string]$EvidenceGapScore.topPriorityCategory } else { "" }
+    $handoffReady =
+        ($ValidationStatus -eq "Accepted" -or $ValidationStatus -eq "AcceptedWithWarnings") -and
+        ([string]$RecommendedAction -ne "Regenerate")
+    $headline =
+        if ($ValidationStatus -eq "Rejected") { "Regenerate the packet before deeper debugging." }
+        elseif ($RecommendedAction -eq "Refresh") { "Run one focused refresh pass against the weakest evidence category." }
+        elseif ([string]$EvidenceGapScore.topPriorityCategory) { "Tighten the packet around '$([string]$EvidenceGapScore.topPriorityCategory)' before broadening scope." }
+        else { "Keep the packet aligned and only add evidence that materially sharpens the next handoff." }
+    $checklist = [ordered]@{}
+    $checklist["posture"] = [string]$checklistPosture
+    $checklist["headline"] = [string]$headline
+    $checklist["packetClass"] = [string]$TriageMetadata.packetClass
+    $checklist["triageLane"] = [string]$TriageMetadata.triageLane
+    $checklist["nextOwner"] = [string]$TriageMetadata.nextOwner
+    $checklist["focusCategory"] = [string]$focusCategory
+    $checklist["handoffReady"] = [bool]$handoffReady
+    $checklist["items"] = @($items.ToArray())
+    $checklist["stopConditions"] = @($stopConditions.ToArray())
+
+    return $checklist
+}
+
+function Get-CaptureGuidance {
+    param(
+        [object]$BundleSummary,
+        [object]$TriageMetadata,
+        [object]$RemediationChecklist,
+        [string]$ValidationStatus,
+        [string]$RecommendedAction,
+        [string]$CanonicalPacketState,
+        [object]$ContextDrift
+    )
+
+    $shortcuts = New-Object System.Collections.Generic.List[string]
+    $checks = New-Object System.Collections.Generic.List[string]
+    $exitCriteria = New-Object System.Collections.Generic.List[string]
+
+    $escalationTarget = if ($BundleSummary) { [string]$BundleSummary.escalationTarget } else { "" }
+    $packetClass = [string]$TriageMetadata.packetClass
+    $triageLane = [string]$TriageMetadata.triageLane
+    $nextOwner = [string]$TriageMetadata.nextOwner
+    if ($escalationTarget -eq "configuration-or-persistence") {
+        $label = "Configuration capture shortcut"
+        $summary = "Freeze the active deployment posture first, then capture the exact runtime evidence that changed with the failing retry."
+        $shortcuts.Add("Record the active branch, commit, and deployment mode before retrying.")
+        $shortcuts.Add("Capture persistence posture and any self-host configuration deltas first.")
+        $shortcuts.Add("Export the support bundle immediately after the same failure reproduces.")
+        $checks.Add("Keep the issue draft and support bundle aligned on the same failure run.")
+        $checks.Add("Preserve the current artifact checklist unless the capture path changed materially.")
+        $checks.Add("Keep the packet class and release posture tied together in the handoff.")
+    }
+    elseif ($escalationTarget -eq "dependency-or-event-backbone") {
+        $label = "Dependency capture shortcut"
+        $summary = "Pin down broker or event-flow evidence around the exact retry that failed, not a broad service dump."
+        $shortcuts.Add("Capture the broker or dependency posture that matches the failing attempt.")
+        $shortcuts.Add("Keep only the first failing trace or log excerpt needed to prove the runtime drift.")
+        $shortcuts.Add("Export the packet again only if the same dependency failure still reproduces.")
+        $checks.Add("Workflow proof should stay anchored to the same failing run.")
+        $checks.Add("Audit proof should stay anchored to the same failing run.")
+        $checks.Add("Keep the shortcut aligned with the current packet class and triage lane.")
+    }
+    elseif ($ValidationStatus -ne "Ready" -and $RecommendedAction -ne "Reuse") {
+        $label = "Operator capture shortcut"
+        $summary = "Tighten the user story, then capture the evidence that proves the exact first failure."
+        $shortcuts.Add("Tighten summary, reproduction, expected result, and actual result before the next retry.")
+        $shortcuts.Add("Capture workflow and audit evidence from the same failing run.")
+        $shortcuts.Add("Refresh the packet only after the new capture is still the same failure state.")
+        $checks.Add("Use the remediation checklist as the guardrail for the next pass.")
+        $checks.Add("Keep the capture scoped to the same failure state.")
+    }
+    else {
+        $label = "Release-aware capture shortcut"
+        $summary = "The packet is already strong, so the next capture should be narrow and delta-focused."
+        $shortcuts.Add("Freeze the active branch, commit, and release posture before the next capture.")
+        $shortcuts.Add("Collect only the evidence that explains the new delta from the current canonical packet.")
+        $shortcuts.Add("Archive the older packet only when the new capture genuinely supersedes it.")
+        $checks.Add("Use the current packet as the canonical handoff unless the failure changed.")
+        $checks.Add("Only add evidence that explains a real change.")
+    }
+
+    if ($ContextDrift -and [string]$ContextDrift.posture -ne "stable-context" -and [string]$ContextDrift.posture -ne "no-prior-attempt" -and [string]$ContextDrift.posture -ne "no-attempt-history") {
+        $checks.Add("Context drift is present, so compare the changed repo and runtime fields before reusing the packet.")
+    }
+
+    if ($RecommendedAction -eq "Refresh") {
+        $exitCriteria.Add("Stop once the new capture makes the weakest category clearly stronger.")
+    }
+    elseif ($RecommendedAction -eq "Regenerate") {
+        $exitCriteria.Add("Stop only after the packet contract is complete enough to be canonical.")
+    }
+    else {
+        $exitCriteria.Add("Stop when the current packet still explains the same failure and no broader capture is needed.")
+    }
+
+    $exitCriteria.Add("Keep the packet aligned with the remediation checklist and the current release posture.")
+    if ([string]$releaseLabel) {
+        $checks.Add("Keep the release posture explicit for the packet and note the exact snapshot that produced it.")
+    }
+
+    return [ordered]@{
+        label = $label
+        summary = $summary
+        packetClass = $packetClass
+        triageLane = $triageLane
+        nextOwner = $nextOwner
+        shortcuts = @($shortcuts)
+        checks = @($checks)
+        exitCriteria = @($exitCriteria)
+    }
+}
+
 $packetDirectory = (Resolve-Path $PacketDirectory).Path
 
 if ([string]::IsNullOrWhiteSpace($JsonOutputPath)) {
@@ -434,6 +619,8 @@ $canonicalPacketState =
     elseif ($recommendedAction -eq "Refresh") { "refresh-advised-before-handoff" }
     else { "active-packet-is-canonical" }
 $contextDrift = Get-ContextDriftSummary -LatestAttempt $latestAttempt -PreviousAttempt $previousAttempt
+$remediationChecklist = Get-RemediationChecklist -EvidenceGapScore $evidenceGapScore -TriageMetadata $triageMetadata -ValidationStatus $validationStatus -RecommendedAction $recommendedAction -CanonicalPacketState $canonicalPacketState -ContextDrift $contextDrift
+$captureGuidance = Get-CaptureGuidance -BundleSummary $bundleSummary -TriageMetadata $triageMetadata -RemediationChecklist $remediationChecklist -ValidationStatus $validationStatus -RecommendedAction $recommendedAction -CanonicalPacketState $canonicalPacketState -ContextDrift $contextDrift
 
 $timeline = @()
 
@@ -511,6 +698,8 @@ $summary = [ordered]@{
     deltaNarration = $deltaNarration
     triageChecks = @($triageMetadata.triageChecks)
     contextDrift = $contextDrift
+    remediationChecklist = $remediationChecklist
+    captureGuidance = $captureGuidance
 }
 $evidenceProvenance = Get-EvidenceProvenance -PresentActiveFiles $presentActiveFiles -CanonicalHandoffFiles @($summary.canonicalHandoffFiles) -ArchiveCount $summary.archiveCount
 $summary.evidenceProvenance = $evidenceProvenance
@@ -579,6 +768,42 @@ $summary | ConvertTo-Json -Depth 8 | Set-Content -Path $JsonOutputPath -Encoding
 ## Evidence gap categories
 
 $(if (@($summary.evidenceGapScore.categories).Count -gt 0) { ($summary.evidenceGapScore.categories | ForEach-Object { "- $($_.category) | severity: $($_.severity) | $($_.summary) | next: $($_.nextAction)" }) -join "`r`n" } else { "- No evidence gap categories are currently recorded." })
+
+## Remediation checklist
+
+- Posture: $($summary.remediationChecklist.posture)
+- Headline: $($summary.remediationChecklist.headline)
+- Packet class: $($summary.remediationChecklist.packetClass)
+- Triage lane: $($summary.remediationChecklist.triageLane)
+- Next owner: $($summary.remediationChecklist.nextOwner)
+- Focus category: $($summary.remediationChecklist.focusCategory)
+- Handoff ready after pass: $($summary.remediationChecklist.handoffReady)
+
+$(if (@($summary.remediationChecklist.items).Count -gt 0) { ($summary.remediationChecklist.items | ForEach-Object { "- Step $($_.order) | focus: $($_.focus) | owner: $($_.owner) | action: $($_.action) | rationale: $($_.rationale)" }) -join "`r`n" } else { "- No remediation steps are currently recorded." })
+
+## Remediation stop conditions
+
+$(if (@($summary.remediationChecklist.stopConditions).Count -gt 0) { ($summary.remediationChecklist.stopConditions | ForEach-Object { "- $_" }) -join "`r`n" } else { "- No stop conditions are currently recorded." })
+
+## Capture guidance
+
+- Label: $($summary.captureGuidance.label)
+- Summary: $($summary.captureGuidance.summary)
+- Packet class: $($summary.captureGuidance.packetClass)
+- Triage lane: $($summary.captureGuidance.triageLane)
+- Next owner: $($summary.captureGuidance.nextOwner)
+
+## Capture shortcuts
+
+$(if (@($summary.captureGuidance.shortcuts).Count -gt 0) { ($summary.captureGuidance.shortcuts | ForEach-Object { "- $_" }) -join "`r`n" } else { "- No capture shortcuts are currently recorded." })
+
+## Capture checks
+
+$(if (@($summary.captureGuidance.checks).Count -gt 0) { ($summary.captureGuidance.checks | ForEach-Object { "- $_" }) -join "`r`n" } else { "- No capture checks are currently recorded." })
+
+## Capture exit criteria
+
+$(if (@($summary.captureGuidance.exitCriteria).Count -gt 0) { ($summary.captureGuidance.exitCriteria | ForEach-Object { "- $_" }) -join "`r`n" } else { "- No capture exit criteria are currently recorded." })
 
 ## Context drift
 

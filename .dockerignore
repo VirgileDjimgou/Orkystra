@@ -1,0 +1,14 @@
+.git
+.github
+.codex
+.vs
+.idea
+**/bin
+**/obj
+**/dist
+**/node_modules
+**/.DS_Store
+**/*.log
+**/*.user
+**/*.suo
+**/*.swp

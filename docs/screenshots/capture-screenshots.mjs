@@ -8,68 +8,68 @@ const OUT = join(import.meta.dirname, '.');
 const ROLES = [
   {
     id: '01-president',
-    name: 'Président / Directeur',
-    button: 'Président',
+    name: 'President / Director',
+    button: 'President',
     steps: [
-      { file: '01-vue-ensemble', desc: 'Vue stratégique globale : KPI, alertes, providers' },
-      { file: '02-details-alertes', desc: 'Analyse des alertes critiques et flux tendus' },
-      { file: '03-sante-providers', desc: 'Décision : contacter les prestataires dégradés' },
-      { file: '04-decisions', desc: 'Suivi : plan d\'action validé pour la journée' },
+      { file: '01-overview', desc: 'Strategic overview: KPIs, alerts, providers' },
+      { file: '02-alert-details', desc: 'Review critical alerts and tight flows' },
+      { file: '03-provider-health', desc: 'Decision: contact degraded providers' },
+      { file: '04-decisions', desc: 'Follow-up: action plan approved for the day' },
     ],
   },
   {
     id: '02-warehouse-operator',
-    name: 'Opérateur Entrepôt',
-    button: 'Opérateur',
+    name: 'Warehouse Operator',
+    button: 'Operator',
     steps: [
-      { file: '01-entrepots', desc: 'Vue des entrepôts : occupation, zones, quais' },
-      { file: '02-jumeau-numerique', desc: 'Jumeau numérique 3D interactif' },
-      { file: '03-analyse-capacite', desc: 'Analyse des capacités et risques de congestion' },
-      { file: '04-reaffectation', desc: 'Décision : réaffectation des zones de stockage' },
+      { file: '01-warehouses', desc: 'Warehouse view: occupancy, zones, docks' },
+      { file: '02-digital-twin', desc: 'Interactive 3D digital twin' },
+      { file: '03-capacity-analysis', desc: 'Capacity analysis and congestion risks' },
+      { file: '04-reassignment', desc: 'Decision: reassign storage zones' },
     ],
   },
   {
     id: '03-transport-dispatcher',
-    name: 'Dispatcher Transport',
+    name: 'Transport Dispatcher',
     button: 'Dispatcher',
     steps: [
-      { file: '01-tableau-routes', desc: 'Vue des routes : statut, arrêts, livraisons' },
-      { file: '02-route-retard', desc: 'Analyse de la route RT-412 en retard' },
-      { file: '03-optimisation', desc: 'Re-routage : optimisation OR-Tools disponible' },
-      { file: '04-synchronisation', desc: 'Synchro transport : plan de tournée mis à jour' },
+      { file: '01-route-board', desc: 'Route view: status, stops, deliveries' },
+      { file: '02-route-retard', desc: 'Review the delayed RT-412 route' },
+      { file: '03-optimization', desc: 'Rerouting: OR-Tools optimization available' },
+      { file: '04-synchronization', desc: 'Transport sync: route plan updated' },
     ],
   },
   {
     id: '04-ai-analyst',
-    name: 'Analyste IA',
-    button: 'Analyste',
+    name: 'AI Analyst',
+    button: 'Analyst',
     steps: [
-      { file: '01-assistant-IA', desc: 'Assistant IA : recommandations opérationnelles' },
-      { file: '02-preuves-confiance', desc: 'Détail des preuves, hypothèses, confiance HIGH' },
-      { file: '03-trace-operationnelle', desc: 'Trace opérationnelle et historique IA' },
-      { file: '04-workflow-ia', desc: 'Workflow IA : analyse, décision, action' },
+      { file: '01-ai-assistant', desc: 'AI assistant: operational recommendations' },
+      { file: '02-evidence-confidence', desc: 'Evidence details, assumptions, HIGH confidence' },
+      { file: '03-operational-trace', desc: 'Operational trace and AI history' },
+      { file: '04-ai-workflow', desc: 'AI workflow: analysis, decision, action' },
     ],
   },
   {
     id: '05-admin',
-    name: 'Administrateur',
-    button: 'Administrateur',
+    name: 'Administrator',
+    button: 'Administrator',
     steps: [
-      { file: '01-catalogue-providers', desc: 'Catalogue des providers connecteurs' },
-      { file: '02-configuration', desc: 'Configuration des connecteurs et secrets API' },
-      { file: '03-etat-connexions', desc: 'État des connexions et santé des services' },
-      { file: '04-runtime-config', desc: 'Configuration runtime et déploiement' },
+      { file: '01-provider-catalog', desc: 'Connector provider catalog' },
+      { file: '02-configuration', desc: 'Connector configuration and API secrets' },
+      { file: '03-connection-status', desc: 'Connection status and service health' },
+      { file: '04-runtime-config', desc: 'Runtime configuration and deployment' },
     ],
   },
   {
     id: '06-supervisor',
-    name: 'Superviseur',
-    button: 'Superviseur',
+    name: 'Supervisor',
+    button: 'Supervisor',
     steps: [
-      { file: '01-audit', desc: 'Piste d\'audit et observabilité' },
-      { file: '02-metriques', desc: 'Métriques système et backbone événementiel' },
-      { file: '03-sante-systeme', desc: 'Santé du système : API, MQTT, SQLite' },
-      { file: '04-tableau-bord', desc: 'Tableau de bord superviseur : vue consolidée' },
+      { file: '01-audit', desc: 'Audit trail and observability' },
+      { file: '02-metrics', desc: 'System metrics and event backbone' },
+      { file: '03-system-health', desc: 'System health: API, MQTT, SQLite' },
+      { file: '04-dashboard', desc: 'Supervisor dashboard: consolidated view' },
     ],
   },
 ];
@@ -133,3 +133,6 @@ capture().catch(e => {
   console.error('Capture failed:', e);
   process.exit(1);
 });
+
+
+

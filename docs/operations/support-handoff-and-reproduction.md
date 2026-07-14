@@ -78,6 +78,8 @@ The generated packet now also captures repository, release, and runtime context 
 When retries happen more than once, keep that context stable if possible, or call out explicitly when branch, commit, host, shell, or capture-source posture changed between attempts.
 The packet now also carries an explicit evidence reading order, so the issue draft and active support bundle stay clearly marked as canonical while archive and comparison files stay secondary.
 It now also scores evidence gaps by category so the next operator action can focus on the weakest proof instead of collecting broad, low-signal attachments.
+It now also synthesizes a remediation checklist so the next pass can stay focused on one owner, one lane, and one stopping rule instead of turning into an open-ended evidence hunt.
+It now also includes a capture shortcut so the next operator knows the fastest evidence move for the current packet class and release posture.
 
 To validate an existing packet before handoff, use:
 

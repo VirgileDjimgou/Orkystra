@@ -132,6 +132,23 @@ export type SupportPacketEvidenceGapGuidanceView = {
   checks: string[]
 }
 
+export type SupportPacketRemediationGuidanceView = {
+  label: string
+  summary: string
+  nextOwner: string
+  checks: string[]
+  exitCriteria: string[]
+}
+
+export type SupportPacketCaptureGuidanceView = {
+  label: string
+  summary: string
+  nextOwner: string
+  shortcuts: string[]
+  checks: string[]
+  exitCriteria: string[]
+}
+
 function formatUtcLabel(value: string): string {
   return new Intl.DateTimeFormat('en-GB', {
     year: 'numeric',
@@ -482,6 +499,169 @@ export function buildSupportReleaseHandshake(
         label: 'Collect more evidence',
         summary: 'The packet still sits below the current release handshake bar because runtime evidence remains too thin.',
       }
+  }
+}
+
+export function buildSupportPacketRemediationGuidance(
+  input: SupportIssueDraftInput,
+  readiness: SupportPacketReadinessView,
+  classification: SupportPacketClassificationView,
+  triageShortcut: SupportPacketTriageShortcutView,
+  evidenceGapGuidance: SupportPacketEvidenceGapGuidanceView
+): SupportPacketRemediationGuidanceView {
+  const hasWorkflowEvidence = input.bundle.workflowCount > 0
+  const hasAuditEvidence = input.bundle.auditCount > 0
+  const hasArtifactChecklist = input.bundle.artifactChecklist.length > 0
+
+  const exitCriteria =
+    readiness.status === 'Ready'
+      ? [
+          'Keep the current packet and issue draft as the canonical handoff.',
+          'Only add comparison artifacts when they explain a real retry delta.',
+        ]
+      : [
+          'Re-check packet readiness after the focused remediation pass.',
+          'Stop when the weakest category is explicitly stronger than before.',
+        ]
+
+  if (readiness.status === 'Needs runtime evidence') {
+    return {
+      label: 'Focused evidence refresh',
+      summary:
+        'Run one narrow remediation pass against the weakest runtime proof instead of broadening the packet all at once.',
+      nextOwner: triageShortcut.nextOwner,
+      checks: [
+        hasWorkflowEvidence ? 'Workflow evidence is already present; capture audit proof for the same failing run.' : 'Capture a fresh workflow trace for the exact failing run.',
+        hasAuditEvidence ? 'Audit evidence is already present; verify the workflow trail remains aligned.' : 'Capture audit evidence that matches the same failure timeline.',
+        'Refresh the packet only after the new evidence still represents the same failure state.',
+      ],
+      exitCriteria,
+    }
+  }
+
+  if (readiness.status === 'Needs operator details') {
+    return {
+      label: 'Narrative tightening pass',
+      summary:
+        'The packet already has runtime signal, so the next high-value move is to make the maintainer story crisp and directly reproducible.',
+      nextOwner: triageShortcut.nextOwner,
+      checks: [
+        'Tighten the summary, reproduction steps, expected result, and actual result into one coherent story.',
+        hasArtifactChecklist ? 'Keep the artifact checklist focused on the first failing state.' : 'Add a small artifact checklist that names only the files the maintainer should read first.',
+        `Keep the next pass aligned with packet class ${classification.label} and lane ${triageShortcut.lane}.`,
+      ],
+      exitCriteria,
+    }
+  }
+
+  return {
+    label: 'Canonical handoff preservation',
+    summary:
+      'The packet is already strong, so the remediation goal is to preserve signal quality and avoid duplicate or noisy follow-up passes.',
+    nextOwner: triageShortcut.nextOwner,
+    checks: [
+      evidenceGapGuidance.checks[0] ?? 'Preserve the current packet as the main handoff.',
+      'Archive only materially different retries or reset states.',
+      'Use the current packet as the maintainer entrypoint before collecting broader attachments.',
+    ],
+    exitCriteria,
+  }
+}
+
+export function buildSupportPacketCaptureGuidance(
+  input: SupportIssueDraftInput,
+  readiness: SupportPacketReadinessView,
+  classification: SupportPacketClassificationView,
+  triageShortcut: SupportPacketTriageShortcutView,
+  remediationGuidance: SupportPacketRemediationGuidanceView
+): SupportPacketCaptureGuidanceView {
+  const releaseLabel = input.bundle.generatedAtLabel
+  const hasWorkflowEvidence = input.bundle.workflowCount > 0
+  const hasAuditEvidence = input.bundle.auditCount > 0
+  const hasArtifactChecklist = input.bundle.artifactChecklist.length > 0
+
+  const exitCriteria =
+    readiness.status === 'Ready'
+      ? [
+          'Capture only when the next run produces a meaningful new delta.',
+          'Keep the current packet as canonical if the failure state did not change.',
+        ]
+      : [
+          'Stop once the new capture makes the weakest category clearly stronger.',
+          'Rebuild the packet only after the evidence still matches the same failure.',
+        ]
+
+  if (input.bundle.escalationTarget === 'configuration-or-persistence') {
+    return {
+      label: 'Configuration capture shortcut',
+      summary:
+        'The fastest useful pass is to freeze the active deployment posture, then capture the exact runtime evidence that changed with the failing retry.',
+      nextOwner: triageShortcut.nextOwner,
+      shortcuts: [
+        'Record the active branch, commit, and deployment mode before retrying.',
+        'Capture persistence posture and any self-host configuration deltas first.',
+        'Export the support bundle immediately after the same failure reproduces.',
+      ],
+      checks: [
+        'Keep the issue draft and support bundle aligned on the same failure run.',
+        hasArtifactChecklist ? 'Preserve the current artifact checklist unless the capture path changed materially.' : 'Add a small artifact checklist that names the minimum evidence to read first.',
+        `Keep the packet class as ${classification.label} and the current release posture tied to ${releaseLabel}.`,
+      ],
+      exitCriteria,
+    }
+  }
+
+  if (input.bundle.escalationTarget === 'dependency-or-event-backbone') {
+    return {
+      label: 'Dependency capture shortcut',
+      summary:
+        'The next pass should pin down broker or event-flow evidence around the exact retry that failed, not a broad service dump.',
+      nextOwner: triageShortcut.nextOwner,
+      shortcuts: [
+        'Capture the broker or dependency posture that matches the failing attempt.',
+        'Keep only the first failing trace or log excerpt needed to prove the runtime drift.',
+        'Export the packet again only if the same dependency failure still reproduces.',
+      ],
+      checks: [
+        hasWorkflowEvidence ? 'Workflow proof already exists; focus on the dependency trace that frames it.' : 'Capture workflow evidence that ties the failure to the dependency posture.',
+        hasAuditEvidence ? 'Audit proof already exists; keep the capture centered on the same failing run.' : 'Capture audit evidence for the same failure so the packet stays coherent.',
+        `Keep the shortcut aligned with lane ${triageShortcut.lane} and class ${classification.label}.`,
+      ],
+      exitCriteria,
+    }
+  }
+
+  if (readiness.status !== 'Ready') {
+    return {
+      label: 'Operator capture shortcut',
+      summary:
+        'The shortest useful pass is to tighten the user story, then immediately capture the evidence that proves the exact first failure.',
+      nextOwner: triageShortcut.nextOwner,
+      shortcuts: [
+        'Tighten summary, reproduction, expected result, and actual result before the next retry.',
+        'Capture workflow and audit evidence from the same failing run.',
+        'Refresh the packet only after the new capture is still the same failure state.',
+      ],
+      checks: remediationGuidance.checks,
+      exitCriteria,
+    }
+  }
+
+  return {
+    label: 'Release-aware capture shortcut',
+    summary:
+      'The packet is already strong, so the next capture should be narrow and delta-focused: preserve the current evidence chain and only add what explains a real change.',
+    nextOwner: triageShortcut.nextOwner,
+    shortcuts: [
+      'Freeze the active branch, commit, and release posture before the next capture.',
+      'Collect only the evidence that explains the new delta from the current canonical packet.',
+      'Archive the older packet only when the new capture genuinely supersedes it.',
+    ],
+    checks: [
+      remediationGuidance.checks[0] ?? 'Keep the packet aligned with the current remediation plan.',
+      `Use the current release posture and packet class (${classification.label}) to decide whether the next pass should be regeneration or reuse.`,
+    ],
+    exitCriteria,
   }
 }
 

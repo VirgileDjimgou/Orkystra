@@ -53,9 +53,11 @@ import {
   buildSupportPacketArchiveGuidance,
   buildSupportPacketDeltaGuidance,
   buildSupportPacketDriftGuidance,
+  buildSupportPacketCaptureGuidance,
   buildSupportPacketEvidenceGapGuidance,
   buildSupportPacketEvidenceGuidance,
   buildSupportPacketLifecycleGuidance,
+  buildSupportPacketRemediationGuidance,
   buildSupportPacketReleaseContextGuidance,
   buildSupportPacketRetryGuidance,
   buildSupportPacketTriageShortcut,
@@ -601,6 +603,54 @@ const supportPacketTriageShortcut = computed(() =>
   buildSupportPacketTriageShortcut(
     supportBundleSummary.value,
     supportPacketReadiness.value
+  )
+);
+const supportPacketRemediationGuidance = computed(() =>
+  buildSupportPacketRemediationGuidance(
+    {
+      bundle: supportBundleSummary.value,
+      scenarioLabel: currentScenario.value?.name ?? selectedScenarioId.value,
+      routeLabel: currentRoute.value.reference,
+      routeStatus: currentRoute.value.status,
+      deploymentMode: supportIssueDeploymentMode.value,
+      browserLabel: supportIssueBrowserLabel.value,
+      summary: supportIssueSummaryDraft.value,
+      reproductionSteps: supportIssueReproductionDraft.value,
+      expectedResult: supportIssueExpectedDraft.value,
+      actualResult:
+        supportIssueActualDraft.value.trim() ||
+        supportBundleErrorMessage.value ||
+        "",
+      evidenceNotes: supportIssueEvidenceDraft.value,
+    },
+    supportPacketReadiness.value,
+    supportPacketClassification.value,
+    supportPacketTriageShortcut.value,
+    supportPacketEvidenceGapGuidance.value
+  )
+);
+const supportPacketCaptureGuidance = computed(() =>
+  buildSupportPacketCaptureGuidance(
+    {
+      bundle: supportBundleSummary.value,
+      scenarioLabel: currentScenario.value?.name ?? selectedScenarioId.value,
+      routeLabel: currentRoute.value.reference,
+      routeStatus: currentRoute.value.status,
+      deploymentMode: supportIssueDeploymentMode.value,
+      browserLabel: supportIssueBrowserLabel.value,
+      summary: supportIssueSummaryDraft.value,
+      reproductionSteps: supportIssueReproductionDraft.value,
+      expectedResult: supportIssueExpectedDraft.value,
+      actualResult:
+        supportIssueActualDraft.value.trim() ||
+        supportBundleErrorMessage.value ||
+        "",
+      evidenceNotes: supportIssueEvidenceDraft.value,
+    },
+    supportPacketReadiness.value,
+    supportPacketClassification.value,
+    supportPacketTriageShortcut.value,
+    supportPacketRemediationGuidance.value
   )
 );
 const supportPacketReleaseContextGuidance = computed(() =>
@@ -7070,6 +7120,70 @@ onBeforeUnmount(() => {
                   :key="check"
                 >
                   <span>{{ check }}</span>
+                </li>
+              </ul>
+            </div>
+            <div class="catalog-block">
+              <span class="panel-label">Remediation pass</span>
+              <p class="catalog-summary">
+                <strong>{{ supportPacketRemediationGuidance.label }}</strong>
+              </p>
+              <p class="catalog-summary">
+                {{ supportPacketRemediationGuidance.summary }}
+              </p>
+              <p class="catalog-summary">
+                Next owner: {{ supportPacketRemediationGuidance.nextOwner }}
+              </p>
+              <ul class="detail-list compact-detail-list">
+                <li
+                  v-for="check in supportPacketRemediationGuidance.checks"
+                  :key="check"
+                >
+                  <span>{{ check }}</span>
+                </li>
+              </ul>
+              <ul class="detail-list compact-detail-list">
+                <li
+                  v-for="criterion in supportPacketRemediationGuidance.exitCriteria"
+                  :key="criterion"
+                >
+                  <span>{{ criterion }}</span>
+                </li>
+              </ul>
+            </div>
+            <div class="catalog-block">
+              <span class="panel-label">Capture shortcut</span>
+              <p class="catalog-summary">
+                <strong>{{ supportPacketCaptureGuidance.label }}</strong>
+              </p>
+              <p class="catalog-summary">
+                {{ supportPacketCaptureGuidance.summary }}
+              </p>
+              <p class="catalog-summary">
+                Next owner: {{ supportPacketCaptureGuidance.nextOwner }}
+              </p>
+              <ul class="detail-list compact-detail-list">
+                <li
+                  v-for="shortcut in supportPacketCaptureGuidance.shortcuts"
+                  :key="shortcut"
+                >
+                  <span>{{ shortcut }}</span>
+                </li>
+              </ul>
+              <ul class="detail-list compact-detail-list">
+                <li
+                  v-for="check in supportPacketCaptureGuidance.checks"
+                  :key="check"
+                >
+                  <span>{{ check }}</span>
+                </li>
+              </ul>
+              <ul class="detail-list compact-detail-list">
+                <li
+                  v-for="criterion in supportPacketCaptureGuidance.exitCriteria"
+                  :key="criterion"
+                >
+                  <span>{{ criterion }}</span>
                 </li>
               </ul>
             </div>

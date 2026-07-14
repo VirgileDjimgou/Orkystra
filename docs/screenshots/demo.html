@@ -124,47 +124,47 @@ td { padding: 10px 12px; border-bottom: 1px solid rgba(148,163,184,0.05); }
   <div class="header">
     <div class="brand">
       <div class="brand-mark">O</div>
-      <div><h1>Orkystra</h1><p>Smart Logistics Twin — Demo interactif</p></div>
+      <div><h1>Orkystra</h1><p>Smart Logistics Twin — Interactive Demo</p></div>
     </div>
-    <span class="role-badge" id="roleBadge">Président / Directeur</span>
+    <span class="role-badge" id="roleBadge">President / Director</span>
   </div>
 
   <div class="role-nav" id="roleNav">
-    <button class="active" data-role="president">🏢 Président / Directeur</button>
-    <button data-role="warehouse">📦 Opérateur Entrepôt</button>
-    <button data-role="transport">🚛 Dispatcher Transport</button>
-    <button data-role="ai">🤖 Analyste IA</button>
-    <button data-role="admin">⚙️ Administrateur</button>
-    <button data-role="supervisor">📊 Superviseur</button>
+    <button class="active" data-role="president">🏢 President / Director</button>
+    <button data-role="warehouse">📦 Warehouse Operator</button>
+    <button data-role="transport">🚛 Transport Dispatcher</button>
+    <button data-role="ai">🤖 AI Analyst</button>
+    <button data-role="admin">⚙️ Administrator</button>
+    <button data-role="supervisor">📊 Supervisor</button>
   </div>
 
   <div id="loading" style="text-align:center;padding:60px;color:#94a3b8">
-    <p style="font-size:18px;margin-bottom:8px">Chargement des données...</p>
-    <p>Connexion à l'API Orkystra</p>
+    <p style="font-size:18px;margin-bottom:8px">Loading data...</p>
+    <p>Connecting to the Orkystra API</p>
   </div>
   <div id="content" style="display:none">
 
     <!-- ===== ROLE 1: PRESIDENT ===== -->
     <div class="role-section active" data-role="president">
       <p class="role-desc">
-        Vue stratégique globale : indicateurs clés, alertes, santé des providers.
-        Le président supervise l'ensemble des opérations logistiques.
+        Strategic overview: key indicators, alerts, and provider health.
+        The president oversees the full logistics operation.
       </p>
       <div class="metrics" id="metrics"></div>
 
       <div class="grid-2">
         <div class="section">
-          <div class="section-title">Alertes opérationnelles <span id="alertCount"></span></div>
+          <div class="section-title">Operational alerts <span id="alertCount"></span></div>
           <div id="alerts"></div>
         </div>
         <div class="section">
-          <div class="section-title">Flux d'événements <span id="feedCount"></span></div>
+          <div class="section-title">Event feed <span id="feedCount"></span></div>
           <div id="eventFeed"></div>
         </div>
       </div>
 
       <div class="section">
-        <div class="section-title">Santé des connecteurs (Providers)</div>
+        <div class="section-title">Connector health</div>
         <div id="providers"></div>
       </div>
     </div>
@@ -172,20 +172,20 @@ td { padding: 10px 12px; border-bottom: 1px solid rgba(148,163,184,0.05); }
     <!-- ===== ROLE 2: WAREHOUSE OPERATOR ===== -->
     <div class="role-section" data-role="warehouse">
       <p class="role-desc">
-        Gestion des entrepôts : vue détaillée des zones, racks, quais et palettes.
-        L'opérateur surveille les taux d'occupation et la disponibilité.
+        Warehouse operations: detailed view of zones, racks, docks, and pallets.
+        The operator monitors occupancy and availability.
       </p>
       <div class="grid-2">
         <div class="section">
-          <div class="section-title">Entrepôts <span id="whCount"></span></div>
+          <div class="section-title">Warehouses <span id="whCount"></span></div>
           <div id="warehouses"></div>
         </div>
         <div class="section">
-          <div class="section-title">Jumeau numérique 3D <span>Entrepôt interactif</span></div>
+          <div class="section-title">3D digital twin <span>Interactive warehouse</span></div>
           <div style="background:linear-gradient(180deg,#0f172a,#111827);border:1px solid rgba(148,163,184,0.22);border-radius:8px;padding:40px;text-align:center">
             <div style="font-size:48px;margin-bottom:12px">🏭</div>
-            <p style="color:#94a3b8">Visualisation Three.js interactive</p>
-            <p style="font-size:12px;color:#64748b">Rotation 3D · Zones colorisées · Quais dynamiques</p>
+            <p style="color:#94a3b8">Interactive Three.js visualization</p>
+            <p style="font-size:12px;color:#64748b">3D rotation · Color-coded zones · Dynamic docks</p>
           </div>
         </div>
       </div>
@@ -194,31 +194,31 @@ td { padding: 10px 12px; border-bottom: 1px solid rgba(148,163,184,0.05); }
     <!-- ===== ROLE 3: TRANSPORT DISPATCHER ===== -->
     <div class="role-section" data-role="transport">
       <p class="role-desc">
-        Gestion des routes et expéditions : suivi en temps réel des camions,
-        optimisation des tournées, gestion des exceptions.
+        Route and shipment operations: real-time truck tracking,
+        route optimization, and exception handling.
       </p>
       <div class="section">
-        <div class="section-title">Tableau des routes</div>
+        <div class="section-title">Route board</div>
         <div id="routes"></div>
       </div>
       <div class="grid-3">
         <div class="card" style="background:rgba(34,197,94,0.05);border-color:rgba(34,197,94,0.2)">
-          <h4 style="color:#4ade80">✅ Optimisation disponible</h4>
+          <h4 style="color:#4ade80">✅ Optimization available</h4>
           <p style="font-size:12px;color:#94a3b8">
-            L'optimiseur OR-Tools peut recalculer les tournées avec contraintes de temps,
-            capacité et priorités.
+            The OR-Tools optimizer can recalculate routes with time,
+            capacity, and priority constraints.
           </p>
         </div>
         <div class="card" style="background:rgba(234,179,8,0.05);border-color:rgba(234,179,8,0.2)">
-          <h4 style="color:#facc15">⚠️ Synchronisation transport</h4>
+          <h4 style="color:#facc15">⚠️ Transport synchronization</h4>
           <p style="font-size:12px;color:#94a3b8">
-            Dernière synchro : période en cours. Indicateur de fraîcheur disponible.
+            Last sync: current period. Freshness indicator available.
           </p>
         </div>
         <div class="card" style="background:rgba(239,68,68,0.05);border-color:rgba(239,68,68,0.2)">
-          <h4 style="color:#f87171">🔧 Workbench exceptions</h4>
+          <h4 style="color:#f87171">🔧 Exception workbench</h4>
           <p style="font-size:12px;color:#94a3b8">
-            Filtrage, résolution, suivi des engagements et historique des exceptions transport.
+            Filtering, resolution, commitment tracking, and transport exception history.
           </p>
         </div>
       </div>
@@ -227,28 +227,28 @@ td { padding: 10px 12px; border-bottom: 1px solid rgba(148,163,184,0.05); }
     <!-- ===== ROLE 4: AI ANALYST ===== -->
     <div class="role-section" data-role="ai">
       <p class="role-desc">
-        Assistant IA logistique : recommandations basées sur les projections,
-        avec preuves, hypothèses et niveau de confiance.
+        Logistics AI assistant: recommendations based on projections,
+        with evidence, assumptions, and confidence levels.
       </p>
       <div class="grid-2">
         <div class="section">
-          <div class="section-title">🧠 Assistant IA — Recommandations</div>
+          <div class="section-title">🧠 AI Assistant — Recommendations</div>
           <div class="chat-bubble chat-user">
             <strong>Question :</strong> "Which route should the dispatcher review first?"
           </div>
           <div class="chat-bubble chat-ai" id="aiResponse">
-            <strong>Analyse en cours...</strong>
+            <strong>Analysis in progress...</strong>
           </div>
         </div>
         <div class="section">
-          <div class="section-title">📋 Trace opérationnelle</div>
+          <div class="section-title">📋 Operational trace</div>
           <div id="operationalTrace">
             <p style="color:#94a3b8;font-size:13px">
-              Workflows IA, optimisations, et synchronisations persistées dans la base SQLite.
+              AI workflows, optimizations, and synchronizations persisted in the SQLite database.
             </p>
             <div style="margin-top:8px;padding:10px;background:rgba(30,41,59,0.4);border-radius:8px;font-size:12px">
-              <p><span class="badge badge-blue">AI</span> Recommandation générée</p>
-              <p style="color:#64748b;margin-top:4px">Preuves : North Hub A à 75% d'occupation, RT-412 en retard</p>
+              <p><span class="badge badge-blue">AI</span> Recommendation generated</p>
+              <p style="color:#64748b;margin-top:4px">Evidence: North Hub A at 75% occupancy, RT-412 delayed</p>
             </div>
           </div>
         </div>
@@ -258,15 +258,15 @@ td { padding: 10px 12px; border-bottom: 1px solid rgba(148,163,184,0.05); }
     <!-- ===== ROLE 5: ADMIN ===== -->
     <div class="role-section" data-role="admin">
       <p class="role-desc">
-        Configuration et administration : gestion des providers, secrets API,
-        catalogue de connecteurs et configuration runtime.
+        Configuration and administration: provider management, API secrets,
+        connector catalog, and runtime configuration.
       </p>
       <div class="section">
-        <div class="section-title">Catalogue des providers</div>
+        <div class="section-title">Provider catalog</div>
         <div id="providerCatalog"></div>
       </div>
       <div class="section">
-        <div class="section-title">État des connexions</div>
+        <div class="section-title">Connection status</div>
         <div class="grid-4" id="connectionState2"></div>
       </div>
     </div>
@@ -274,25 +274,25 @@ td { padding: 10px 12px; border-bottom: 1px solid rgba(148,163,184,0.05); }
     <!-- ===== ROLE 6: SUPERVISOR ===== -->
     <div class="role-section" data-role="supervisor">
       <p class="role-desc">
-        Supervision et observabilité : audit trail, métriques, persistance,
-        backbone événementiel MQTT.
+        Supervision and observability: audit trail, metrics, persistence,
+        MQTT event backbone.
       </p>
       <div class="grid-2">
         <div class="section">
           <div class="section-title">📜 Audit trail</div>
           <p style="font-size:13px;color:#94a3b8;margin-bottom:12px">
-            Piste d'audit locale persistée dans <code>output/audit/audit-log.jsonl</code>.
-            Chaque requête API protégée est horodatée avec tenant, corrélation et statut.
+            Local audit trail persisted in <code>output/audit/audit-log.jsonl</code>.
+            Each protected API request is timestamped with tenant, correlation, and status.
           </p>
           <div id="auditEntries"></div>
         </div>
         <div class="section">
-          <div class="section-title">📊 Métriques & Observabilité</div>
+          <div class="section-title">📊 Metrics & Observability</div>
           <div class="grid-2" style="margin-bottom:12px">
-            <div class="card"><h4>Backbone MQTT</h4><p style="font-size:12px;color:#94a3b8">Événements simulation et GPS publiés/consommés via Mosquitto</p></div>
-            <div class="card"><h4>Persistance SQLite</h4><p style="font-size:12px;color:#94a3b8">Snapshots et workflows persistés dans <code>orkystra-operations.db</code></p></div>
+            <div class="card"><h4>Backbone MQTT</h4><p style="font-size:12px;color:#94a3b8">Simulation and GPS events published and consumed through Mosquitto</p></div>
+            <div class="card"><h4>SQLite persistence</h4><p style="font-size:12px;color:#94a3b8">Snapshots and workflows persisted in <code>orkystra-operations.db</code></p></div>
           </div>
-          <div class="card"><h4>Santé du système</h4><div id="systemHealth"></div></div>
+          <div class="card"><h4>System health</h4><div id="systemHealth"></div></div>
         </div>
       </div>
     </div>
@@ -347,26 +347,26 @@ async function load() {
       <div class="metric-card">
         <div class="label">Horloge simulation</div>
         <div class="value">${overview.scenarios[0]?.currentTime?.split('T')[1]?.split('+')[0] || 'N/A'}</div>
-        <div class="sub">Seed ${overview.scenarios[0]?.seed || '-'} · ${overview.scenarios.length} scénarios</div>
+        <div class="sub">Seed ${overview.scenarios[0]?.seed || '-'} · ${overview.scenarios.length} scenarios</div>
       </div>
       <div class="metric-card">
-        <div class="label">Occupation entrepôts</div>
+        <div class="label">Warehouse occupancy</div>
         <div class="value">${whUtil}%</div>
         <div class="sub">${overview.warehouses.reduce((s,w)=>s+w.storedPalletCount,0)} palettes / ${overview.warehouses.reduce((s,w)=>s+w.slotCount,0)} slots</div>
       </div>
       <div class="metric-card">
         <div class="label">Transport</div>
-        <div class="value">${delayedRoutes} routes hors-plan</div>
-        <div class="sub">${overview.routes.length} routes actives</div>
+        <div class="value">${delayedRoutes} routes off plan</div>
+        <div class="sub">${overview.routes.length} active routes</div>
       </div>
       <div class="metric-card">
-        <div class="label">Risque opérationnel</div>
-        <div class="value">${criticalAlerts} alertes critiques</div>
-        <div class="sub">${overview.alerts.length} alertes totales</div>
+        <div class="label">Operational risk</div>
+        <div class="value">${criticalAlerts} critical alerts</div>
+        <div class="sub">${overview.alerts.length} total alerts</div>
       </div>
       <div class="metric-card">
-        <div class="label">Santé providers</div>
-        <div class="value">${degraded} liens dégradés</div>
+        <div class="label">Provider health</div>
+        <div class="value">${degraded} degraded links</div>
         <div class="sub">${overview.providers.length} connecteurs</div>
       </div>
     `;
@@ -392,7 +392,7 @@ async function load() {
     // ---- Providers overview ----
     document.getElementById('providers').innerHTML = `
     <table>
-      <tr><th>Provider</th><th>Domaine</th><th>Santé</th><th>Sync</th><th>Dernière synchro</th></tr>
+      <tr><th>Provider</th><th>Domain</th><th>Health</th><th>Sync</th><th>Last sync</th></tr>
       ${overview.providers.map(p => `
       <tr>
         <td><strong>${p.providerName}</strong></td>
@@ -407,7 +407,7 @@ async function load() {
     document.getElementById('whCount').textContent = `(${overview.warehouses.length})`;
     document.getElementById('warehouses').innerHTML = `
     <table>
-      <tr><th>Entrepôt</th><th>Zones</th><th>Slots</th><th>Palettes</th><th>Occupation</th><th>Quais occupés</th></tr>
+      <tr><th>Warehouse</th><th>Zones</th><th>Slots</th><th>Palettes</th><th>Occupancy</th><th>Occupied docks</th></tr>
       ${overview.warehouses.map(w => `
       <tr>
         <td><strong>${w.name}</strong></td>
@@ -422,7 +422,7 @@ async function load() {
     // ---- Routes ----
     document.getElementById('routes').innerHTML = `
     <table>
-      <tr><th>Réf.</th><th>Camion</th><th>Statut</th><th>Arrêts</th><th>Expéditions</th><th>Livrées</th></tr>
+      <tr><th>Ref.</th><th>Truck</th><th>Status</th><th>Stops</th><th>Shipments</th><th>Delivered</th></tr>
       ${overview.routes.map(r => `
       <tr>
         <td><strong>${r.reference}</strong></td>
@@ -436,19 +436,19 @@ async function load() {
 
     // ---- AI ----
     document.getElementById('aiResponse').innerHTML = `
-      <strong>Réponse :</strong>
+      <strong>Response:</strong>
       <p style="margin-top:8px">The dispatcher should prioritize <strong>RT-412</strong> (TRK-19) which is currently Delayed with 27 active shipments. North Hub A is at 75% slot occupancy, at risk of congestion.</p>
       <div style="margin-top:8px;padding:8px;background:rgba(59,130,246,0.1);border-radius:6px;font-size:12px">
         <p><strong>Preuves :</strong> Route RT-412 status=Delayed, shipments=27, truck=TRK-19</p>
         <p><strong>Confiance :</strong> HIGH</p>
-        <p><strong>Actions recommandées :</strong> Re-routage prioritaire, réaffectation de créneaux</p>
+        <p><strong>Recommended actions:</strong> Priority rerouting, slot reassignment</p>
       </div>
     `;
 
     // ---- Provider Catalog (Admin) ----
     document.getElementById('providerCatalog').innerHTML = `
     <table>
-      <tr><th>Provider</th><th>Domaine</th><th>Type</th><th>Santé</th><th>Configuration</th><th>Auth</th></tr>
+      <tr><th>Provider</th><th>Domain</th><th>Type</th><th>Health</th><th>Configuration</th><th>Auth</th></tr>
       ${catalog.providers.map(p => `
       <tr>
         <td><strong>${p.providerName}</strong></td>
@@ -462,17 +462,17 @@ async function load() {
 
     // ---- Connection state ----
     document.getElementById('connectionState2').innerHTML = `
-      <div class="card"><h4>Overview</h4><span class="badge badge-green">API</span><p style="font-size:12px;color:#94a3b8;margin-top:4px">Connecté</p></div>
-      <div class="card"><h4>Entrepôts</h4><span class="badge badge-green">API</span><p style="font-size:12px;color:#94a3b8;margin-top:4px">Projections disponibles</p></div>
+      <div class="card"><h4>Overview</h4><span class="badge badge-green">API</span><p style="font-size:12px;color:#94a3b8;margin-top:4px">Connected</p></div>
+      <div class="card"><h4>Warehouses</h4><span class="badge badge-green">API</span><p style="font-size:12px;color:#94a3b8;margin-top:4px">Projections available</p></div>
       <div class="card"><h4>Transport</h4><span class="badge badge-green">API</span><p style="font-size:12px;color:#94a3b8;margin-top:4px">Routes et synchro</p></div>
-      <div class="card"><h4>Catalogue</h4><span class="badge badge-green">API</span><p style="font-size:12px;color:#94a3b8;margin-top:4px">Providers configurés</p></div>
+      <div class="card"><h4>Catalog</h4><span class="badge badge-green">API</span><p style="font-size:12px;color:#94a3b8;margin-top:4px">Configured providers</p></div>
     `;
 
     // ---- Audit (Supervisor) ----
     document.getElementById('auditEntries').innerHTML = `
       <div class="event-item"><span class="event-time">${new Date().toLocaleTimeString()}</span><div><strong>GET /api/control-tower/overview</strong><p style="font-size:12px;color:#94a3b8">Tenant: north-hub-demo · 200 OK</p></div></div>
       <div class="event-item"><span class="event-time">${new Date(Date.now()-5000).toLocaleTimeString()}</span><div><strong>GET /api/providers/catalog</strong><p style="font-size:12px;color:#94a3b8">Tenant: north-hub-demo · 200 OK</p></div></div>
-      <div class="event-item"><span class="event-time">${new Date(Date.now()-120000).toLocaleTimeString()}</span><div><strong>POST /api/transport/sync</strong><p style="font-size:12px;color:#94a3b8">Snapshot importé · 3 routes</p></div></div>
+      <div class="event-item"><span class="event-time">${new Date(Date.now()-120000).toLocaleTimeString()}</span><div><strong>POST /api/transport/sync</strong><p style="font-size:12px;color:#94a3b8">Snapshot imported · 3 routes</p></div></div>
     `;
 
     // ---- System health ----
@@ -481,8 +481,8 @@ async function load() {
         <tr><td>API Backend</td><td><span class="badge badge-green">Healthy</span></td><td style="font-size:12px;color:#64748b">Port 5043</td></tr>
         <tr><td>MQTT Broker</td><td><span class="badge badge-green">Connected</span></td><td style="font-size:12px;color:#64748b">Port 1883 (Mosquitto)</td></tr>
         <tr><td>Base SQLite</td><td><span class="badge badge-green">Active</span></td><td style="font-size:12px;color:#64748b">orkystra-operations.db</td></tr>
-        <tr><td>Service IA</td><td><span class="badge badge-yellow">Fallback</span></td><td style="font-size:12px;color:#64748b">Local planner actif</td></tr>
-        <tr><td>Optimisation</td><td><span class="badge badge-yellow">Fallback</span></td><td style="font-size:12px;color:#64748b">Déterministe actif</td></tr>
+        <tr><td>AI service</td><td><span class="badge badge-yellow">Fallback</span></td><td style="font-size:12px;color:#64748b">Local planner actif</td></tr>
+        <tr><td>Optimisation</td><td><span class="badge badge-yellow">Fallback</span></td><td style="font-size:12px;color:#64748b">Deterministic engine active</td></tr>
       </table>
     `;
 
@@ -503,7 +503,7 @@ document.getElementById('roleNav').addEventListener('click', function(e) {
   document.querySelectorAll('.role-section').forEach(s => s.classList.remove('active'));
   const role = e.target.dataset.role;
   document.querySelector(`[data-role="${role}"]`).classList.add('active');
-  const names = { president: '🏢 Président / Directeur', warehouse: '📦 Opérateur Entrepôt', transport: '🚛 Dispatcher Transport', ai: '🤖 Analyste IA', admin: '⚙️ Administrateur', supervisor: '📊 Superviseur' };
+  const names = { president: '🏢 President / Director', warehouse: '📦 Warehouse Operator', transport: '🚛 Transport Dispatcher', ai: '🤖 AI Analyst', admin: '⚙️ Administrator', supervisor: '📊 Supervisor' };
   document.getElementById('roleBadge').textContent = names[role] || role;
 });
 
@@ -511,3 +511,7 @@ load();
 </script>
 </body>
 </html>
+
+
+
+

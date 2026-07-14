@@ -329,6 +329,40 @@ $handoffPath = Join-Path $packetDirectory "MAINTAINER_HANDOFF.md"
 
 $(if (@($lifecycleReport.evidenceGapScore.categories).Count -gt 0) { ($lifecycleReport.evidenceGapScore.categories | ForEach-Object { "- $($_.category) | severity: $($_.severity) | $($_.summary) | next: $($_.nextAction)" }) -join "`r`n" } else { "- No evidence gap categories are currently recorded." })
 
+## Remediation checklist
+
+- Posture: $($lifecycleReport.remediationChecklist.posture)
+- Headline: $($lifecycleReport.remediationChecklist.headline)
+- Focus category: $($lifecycleReport.remediationChecklist.focusCategory)
+- Next owner: $($lifecycleReport.remediationChecklist.nextOwner)
+- Handoff ready after pass: $($lifecycleReport.remediationChecklist.handoffReady)
+
+$(if (@($lifecycleReport.remediationChecklist.items).Count -gt 0) { ($lifecycleReport.remediationChecklist.items | ForEach-Object { "- Step $($_.order) | focus: $($_.focus) | owner: $($_.owner) | action: $($_.action)" }) -join "`r`n" } else { "- No remediation steps are currently recorded." })
+
+## Remediation stop conditions
+
+$(if (@($lifecycleReport.remediationChecklist.stopConditions).Count -gt 0) { ($lifecycleReport.remediationChecklist.stopConditions | ForEach-Object { "- $_" }) -join "`r`n" } else { "- No remediation stop conditions are currently recorded." })
+
+## Capture guidance
+
+- Label: $($lifecycleReport.captureGuidance.label)
+- Summary: $($lifecycleReport.captureGuidance.summary)
+- Packet class: $($lifecycleReport.captureGuidance.packetClass)
+- Triage lane: $($lifecycleReport.captureGuidance.triageLane)
+- Next owner: $($lifecycleReport.captureGuidance.nextOwner)
+
+## Capture shortcuts
+
+$(if (@($lifecycleReport.captureGuidance.shortcuts).Count -gt 0) { ($lifecycleReport.captureGuidance.shortcuts | ForEach-Object { "- $_" }) -join "`r`n" } else { "- No capture shortcuts are currently recorded." })
+
+## Capture checks
+
+$(if (@($lifecycleReport.captureGuidance.checks).Count -gt 0) { ($lifecycleReport.captureGuidance.checks | ForEach-Object { "- $_" }) -join "`r`n" } else { "- No capture checks are currently recorded." })
+
+## Capture exit criteria
+
+$(if (@($lifecycleReport.captureGuidance.exitCriteria).Count -gt 0) { ($lifecycleReport.captureGuidance.exitCriteria | ForEach-Object { "- $_" }) -join "`r`n" } else { "- No capture exit criteria are currently recorded." })
+
 ## Context drift
 
 - Posture: $($lifecycleReport.contextDrift.posture)
@@ -406,6 +440,20 @@ $lifecycleReport = Get-Content (Join-Path $packetDirectory "SUPPORT_LIFECYCLE.js
 ## Evidence gap categories
 
 $(if (@($lifecycleReport.evidenceGapScore.categories).Count -gt 0) { ($lifecycleReport.evidenceGapScore.categories | ForEach-Object { "- $($_.category) | severity: $($_.severity) | $($_.summary) | next: $($_.nextAction)" }) -join "`r`n" } else { "- No evidence gap categories are currently recorded." })
+
+## Remediation checklist
+
+- Posture: $($lifecycleReport.remediationChecklist.posture)
+- Headline: $($lifecycleReport.remediationChecklist.headline)
+- Focus category: $($lifecycleReport.remediationChecklist.focusCategory)
+- Next owner: $($lifecycleReport.remediationChecklist.nextOwner)
+- Handoff ready after pass: $($lifecycleReport.remediationChecklist.handoffReady)
+
+$(if (@($lifecycleReport.remediationChecklist.items).Count -gt 0) { ($lifecycleReport.remediationChecklist.items | ForEach-Object { "- Step $($_.order) | focus: $($_.focus) | owner: $($_.owner) | action: $($_.action)" }) -join "`r`n" } else { "- No remediation steps are currently recorded." })
+
+## Remediation stop conditions
+
+$(if (@($lifecycleReport.remediationChecklist.stopConditions).Count -gt 0) { ($lifecycleReport.remediationChecklist.stopConditions | ForEach-Object { "- $_" }) -join "`r`n" } else { "- No remediation stop conditions are currently recorded." })
 
 ## Context drift
 

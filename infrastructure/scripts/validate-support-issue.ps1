@@ -367,7 +367,9 @@ if ($missingFiles.Count -eq 0) {
             "contextDrift",
             "previousAttempt",
             "evidenceProvenance",
-            "evidenceGapScore"
+            "evidenceGapScore",
+            "remediationChecklist",
+            "captureGuidance"
         )
 
         foreach ($field in $requiredLifecycleFields) {
@@ -422,6 +424,30 @@ if ($missingFiles.Count -eq 0) {
 
         if ($lifecycleMarkdown -notmatch [Regex]::Escape("## Evidence gap categories")) {
             $errors.Add("Lifecycle markdown is missing the evidence gap categories section.")
+        }
+
+        if ($lifecycleMarkdown -notmatch [Regex]::Escape("## Remediation checklist")) {
+            $errors.Add("Lifecycle markdown is missing the remediation checklist section.")
+        }
+
+        if ($lifecycleMarkdown -notmatch [Regex]::Escape("## Remediation stop conditions")) {
+            $errors.Add("Lifecycle markdown is missing the remediation stop conditions section.")
+        }
+
+        if ($lifecycleMarkdown -notmatch [Regex]::Escape("## Capture guidance")) {
+            $errors.Add("Lifecycle markdown is missing the capture guidance section.")
+        }
+
+        if ($lifecycleMarkdown -notmatch [Regex]::Escape("## Capture shortcuts")) {
+            $errors.Add("Lifecycle markdown is missing the capture shortcuts section.")
+        }
+
+        if ($lifecycleMarkdown -notmatch [Regex]::Escape("## Capture checks")) {
+            $errors.Add("Lifecycle markdown is missing the capture checks section.")
+        }
+
+        if ($lifecycleMarkdown -notmatch [Regex]::Escape("## Capture exit criteria")) {
+            $errors.Add("Lifecycle markdown is missing the capture exit criteria section.")
         }
 
         if ([string]$manifest.packetClass -ne [string]$lifecycle.packetClass) {
@@ -507,6 +533,74 @@ if ($missingFiles.Count -eq 0) {
 
         if (-not $lifecycle.evidenceGapScore.PSObject.Properties.Name.Contains("categories")) {
             $errors.Add("Lifecycle evidenceGapScore is missing field: categories")
+        }
+
+        if (-not $lifecycle.remediationChecklist.PSObject.Properties.Name.Contains("posture")) {
+            $errors.Add("Lifecycle remediationChecklist is missing field: posture")
+        }
+
+        if (-not $lifecycle.remediationChecklist.PSObject.Properties.Name.Contains("headline")) {
+            $errors.Add("Lifecycle remediationChecklist is missing field: headline")
+        }
+
+        if (-not $lifecycle.remediationChecklist.PSObject.Properties.Name.Contains("packetClass")) {
+            $errors.Add("Lifecycle remediationChecklist is missing field: packetClass")
+        }
+
+        if (-not $lifecycle.remediationChecklist.PSObject.Properties.Name.Contains("triageLane")) {
+            $errors.Add("Lifecycle remediationChecklist is missing field: triageLane")
+        }
+
+        if (-not $lifecycle.remediationChecklist.PSObject.Properties.Name.Contains("nextOwner")) {
+            $errors.Add("Lifecycle remediationChecklist is missing field: nextOwner")
+        }
+
+        if (-not $lifecycle.remediationChecklist.PSObject.Properties.Name.Contains("focusCategory")) {
+            $errors.Add("Lifecycle remediationChecklist is missing field: focusCategory")
+        }
+
+        if (-not $lifecycle.remediationChecklist.PSObject.Properties.Name.Contains("handoffReady")) {
+            $errors.Add("Lifecycle remediationChecklist is missing field: handoffReady")
+        }
+
+        if (-not $lifecycle.remediationChecklist.PSObject.Properties.Name.Contains("items")) {
+            $errors.Add("Lifecycle remediationChecklist is missing field: items")
+        }
+
+        if (-not $lifecycle.remediationChecklist.PSObject.Properties.Name.Contains("stopConditions")) {
+            $errors.Add("Lifecycle remediationChecklist is missing field: stopConditions")
+        }
+
+        if (-not $lifecycle.captureGuidance.PSObject.Properties.Name.Contains("label")) {
+            $errors.Add("Lifecycle captureGuidance is missing field: label")
+        }
+
+        if (-not $lifecycle.captureGuidance.PSObject.Properties.Name.Contains("summary")) {
+            $errors.Add("Lifecycle captureGuidance is missing field: summary")
+        }
+
+        if (-not $lifecycle.captureGuidance.PSObject.Properties.Name.Contains("packetClass")) {
+            $errors.Add("Lifecycle captureGuidance is missing field: packetClass")
+        }
+
+        if (-not $lifecycle.captureGuidance.PSObject.Properties.Name.Contains("triageLane")) {
+            $errors.Add("Lifecycle captureGuidance is missing field: triageLane")
+        }
+
+        if (-not $lifecycle.captureGuidance.PSObject.Properties.Name.Contains("nextOwner")) {
+            $errors.Add("Lifecycle captureGuidance is missing field: nextOwner")
+        }
+
+        if (-not $lifecycle.captureGuidance.PSObject.Properties.Name.Contains("shortcuts")) {
+            $errors.Add("Lifecycle captureGuidance is missing field: shortcuts")
+        }
+
+        if (-not $lifecycle.captureGuidance.PSObject.Properties.Name.Contains("checks")) {
+            $errors.Add("Lifecycle captureGuidance is missing field: checks")
+        }
+
+        if (-not $lifecycle.captureGuidance.PSObject.Properties.Name.Contains("exitCriteria")) {
+            $errors.Add("Lifecycle captureGuidance is missing field: exitCriteria")
         }
     }
 

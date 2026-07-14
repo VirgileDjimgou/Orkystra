@@ -32,6 +32,8 @@ The lifecycle summary makes these questions obvious:
 - whether the latest retry reused the same repo and runtime posture as the previous attempt
 - which artifacts are canonical, which are optional comparison context, and in what order to read them
 - which evidence category is currently strongest, weakest, or still absent
+- what the next focused remediation pass should do, who should own it, and when that pass should stop
+- what the fastest capture shortcut is for the current packet class and release posture
 - what the timeline of attempts and archived snapshots looks like
 - what changed between the active packet and the latest archived packet
 
@@ -66,6 +68,8 @@ Before reading the full packet story, skim these lifecycle fields first:
 - `contextDrift`
 - `evidenceProvenance`
 - `evidenceGapScore`
+- `remediationChecklist`
+- `captureGuidance`
 
 That keeps the first pass short and helps avoid using maintainer time on a packet that still belongs in operator refresh or configuration review.
 

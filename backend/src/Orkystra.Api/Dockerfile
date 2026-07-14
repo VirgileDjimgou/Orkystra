@@ -6,7 +6,7 @@ COPY backend/src/Orkystra.Api/Orkystra.Api.csproj backend/src/Orkystra.Api/
 COPY backend/src/Orkystra.Application/Orkystra.Application.csproj backend/src/Orkystra.Application/
 COPY backend/src/Orkystra.Contracts/Orkystra.Contracts.csproj backend/src/Orkystra.Contracts/
 COPY backend/src/Orkystra.Domain/Orkystra.Domain.csproj backend/src/Orkystra.Domain/
-RUN dotnet restore backend/Orkystra.slnx
+RUN dotnet restore backend/src/Orkystra.Api/Orkystra.Api.csproj
 
 COPY backend/ backend/
 RUN dotnet publish backend/src/Orkystra.Api/Orkystra.Api.csproj -c Release -o /app/publish --no-restore

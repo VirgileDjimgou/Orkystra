@@ -1,6 +1,6 @@
-# Orkystra Copilot Instructions
+# Orkystra Project Instructions
 
-This repository is developed through sprint-based autonomous sessions. Do not try to build the full Smart Logistics Twin platform in a single pass.
+This repository is developed through sprint-based implementation sessions. Do not try to build the full Smart Logistics Twin platform in a single pass.
 
 ## Project Memory
 
@@ -11,9 +11,9 @@ Before implementing project work, read:
 - `PROJECT_STATUS.md`
 - `docs/operations/post-release-candidate-checkpoint.md`
 - `docs/operations/support-handoff-and-reproduction.md`
-- `docs/methodology/VIBE_CODING_OPERATING_MODEL.md`
+- `docs/methodology/SPRINT_OPERATING_MODEL.md`
 - `docs/methodology/SPRINT_PROTOCOL.md`
-- `prompts/CODEX_AUTOPILOT.md`
+- `prompts/AUTOPILOT.md`
 
 ## Command Alias
 
@@ -26,7 +26,7 @@ Smart Logistic continue
 Treat it as a request to run the 5-sprint batch protocol from:
 
 ```text
-prompts/SMART_LOGISTIC_CONTINUE_5_SPRINTS.md
+prompts/CONTINUE_5_SPRINTS.md
 ```
 
 ## Maturity Checkpoint

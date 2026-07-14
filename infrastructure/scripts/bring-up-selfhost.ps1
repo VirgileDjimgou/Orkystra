@@ -1,5 +1,5 @@
 param(
-    [string]$ApiKey = "orkystra-dev-local-key",
+[string]$ApiKey = "expected-local-dev-key",
     [string]$TenantId = "north-hub-demo",
     [string]$ScenarioName = "Self-Host Demo",
     [int]$Seed = 42,
