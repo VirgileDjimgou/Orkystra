@@ -12,13 +12,13 @@ Optional supervised batch command:
 
 ## Current Sprint
 
-Sprint 197 - CI workflow for Python services, backend, and frontend
+Sprint 198 - CI E2E Playwright coverage
 
 Status: Completed
 
 ## Previous Sprint
 
-Sprint 196 - Evidence preset documentation and smoke verification
+Sprint 197 - CI workflow for Python services, backend, and frontend
 
 Status: Completed
 
@@ -28,7 +28,7 @@ Orkystra is currently a production-usable open-source release candidate for loca
 
 ## Recently Completed
 
-- Sprint 197: Created `.github/workflows/ci.yml` with three independent jobs: `python-services` (Python 3.12 + pytest, 17 tests passing), `backend` (dotnet test on Domain.Tests and Integration.Tests, 158 tests passing), and `frontend` (npm ci + npm run build, 39 modules). All jobs verified locally. The workflow triggers on push/PR to main.
+- Sprint 198: Extended the CI `frontend` job with Playwright E2E browser tests. Added `npx playwright install --with-deps chromium`, a vite preview server startup/teardown wrapper, and `npx playwright test` for 13 E2E tests across 5 spec files (control-tower, transport, provider-config, ai-recommendation, warehouse-workbench). The Playwright config already had CI-aware settings (retries=2, workers=1). Test reports are uploaded as artifacts on failure via `actions/upload-artifact@v4`.
 
 ## Remaining Risks
 
@@ -51,4 +51,4 @@ Orkystra is currently a production-usable open-source release candidate for loca
 
 ## Next Exact Action
 
-The CI workflow is in place but has never run on an actual push. The next maturity increment should push the workflow to a remote and confirm all three jobs pass, then either add CI coverage for the remaining gap (Playwright E2E tests) or begin the formal release tag.
+Both CI coverage gaps (Python jobs + E2E) are now addressed. The next maturity increment should either push the CI workflow to a remote and confirm all three jobs pass on an actual push, or begin preparing the formal release tag for the next candidate publication.

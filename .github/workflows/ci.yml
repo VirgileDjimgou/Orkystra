@@ -46,3 +46,23 @@ jobs:
           cache-dependency-path: frontend/web/package-lock.json
       - run: npm ci
       - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: |
+          npx vite preview --host 127.0.0.1 --port 4173 &
+          PREVIEW_PID=$!
+          for i in $(seq 1 20); do
+            curl -sf http://127.0.0.1:4173 > /dev/null && break
+            sleep 1
+          done
+          npx playwright test
+          E2E_EXIT=$?
+          kill $PREVIEW_PID 2>/dev/null || true
+          exit $E2E_EXIT
+        env:
+          CI: 'true'
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: frontend/web/playwright-report/
+          retention-days: 7
