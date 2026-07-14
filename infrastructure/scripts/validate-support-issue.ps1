@@ -438,6 +438,10 @@ if ($missingFiles.Count -eq 0) {
             $errors.Add("Lifecycle markdown is missing the capture guidance section.")
         }
 
+        if ($lifecycleMarkdown -notmatch [Regex]::Escape("## Capture preset actions")) {
+            $errors.Add("Lifecycle markdown is missing the capture preset actions section.")
+        }
+
         if ($lifecycleMarkdown -notmatch [Regex]::Escape("## Capture shortcuts")) {
             $errors.Add("Lifecycle markdown is missing the capture shortcuts section.")
         }
@@ -583,6 +587,18 @@ if ($missingFiles.Count -eq 0) {
             $errors.Add("Lifecycle captureGuidance is missing field: packetClass")
         }
 
+        if (-not $lifecycle.captureGuidance.PSObject.Properties.Name.Contains("presetId")) {
+            $errors.Add("Lifecycle captureGuidance is missing field: presetId")
+        }
+
+        if (-not $lifecycle.captureGuidance.PSObject.Properties.Name.Contains("presetLabel")) {
+            $errors.Add("Lifecycle captureGuidance is missing field: presetLabel")
+        }
+
+        if (-not $lifecycle.captureGuidance.PSObject.Properties.Name.Contains("releasePosture")) {
+            $errors.Add("Lifecycle captureGuidance is missing field: releasePosture")
+        }
+
         if (-not $lifecycle.captureGuidance.PSObject.Properties.Name.Contains("triageLane")) {
             $errors.Add("Lifecycle captureGuidance is missing field: triageLane")
         }
@@ -593,6 +609,10 @@ if ($missingFiles.Count -eq 0) {
 
         if (-not $lifecycle.captureGuidance.PSObject.Properties.Name.Contains("shortcuts")) {
             $errors.Add("Lifecycle captureGuidance is missing field: shortcuts")
+        }
+
+        if (-not $lifecycle.captureGuidance.PSObject.Properties.Name.Contains("presetActions")) {
+            $errors.Add("Lifecycle captureGuidance is missing field: presetActions")
         }
 
         if (-not $lifecycle.captureGuidance.PSObject.Properties.Name.Contains("checks")) {

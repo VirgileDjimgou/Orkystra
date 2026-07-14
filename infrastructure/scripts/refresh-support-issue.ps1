@@ -347,9 +347,16 @@ $(if (@($lifecycleReport.remediationChecklist.stopConditions).Count -gt 0) { ($l
 
 - Label: $($lifecycleReport.captureGuidance.label)
 - Summary: $($lifecycleReport.captureGuidance.summary)
+- Preset id: $($lifecycleReport.captureGuidance.presetId)
+- Preset label: $($lifecycleReport.captureGuidance.presetLabel)
+- Release posture: $($lifecycleReport.captureGuidance.releasePosture)
 - Packet class: $($lifecycleReport.captureGuidance.packetClass)
 - Triage lane: $($lifecycleReport.captureGuidance.triageLane)
 - Next owner: $($lifecycleReport.captureGuidance.nextOwner)
+
+## Capture preset actions
+
+$(if (@($lifecycleReport.captureGuidance.presetActions).Count -gt 0) { ($lifecycleReport.captureGuidance.presetActions | ForEach-Object { "- $_" }) -join "`r`n" } else { "- No capture preset actions are currently recorded." })
 
 ## Capture shortcuts
 

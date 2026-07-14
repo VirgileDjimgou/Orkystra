@@ -2,19 +2,21 @@
 
 Run commands from the repository root unless noted.
 
-## Autonomous Continuation
+## Session Continuation
 
-Use this command when you want a longer supervised run:
+Use this command to resume normal project work:
 
 ```text
-Smart Logistic continue
+Continue the Orkystra project.
 ```
 
-This means: read project memory, then execute up to 5 consecutive unfinished sprints, one sprint at a time.
+That means: read `AGENTS.md`, `CURRENT_STATE.md`, `PROJECT_STATUS.md`, and `IMPLEMENTATION_ROADMAP.md`, then execute the next bounded sprint.
 
-The agent must stop early if a sprint needs human approval, secrets, paid external services, destructive migration work, or a build/test failure that cannot be repaired in the current session.
+For an explicit supervised batch run, use:
 
-The canonical local prompt is `prompts/CONTINUE_5_SPRINTS.md`. The repository instructions file contains the same batch-mode rule in a tracked file.
+```text
+Continue the Orkystra project for 5 sprints.
+```
 
 ## Backend
 

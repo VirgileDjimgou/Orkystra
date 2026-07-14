@@ -7157,6 +7157,12 @@ onBeforeUnmount(() => {
                 <strong>{{ supportPacketCaptureGuidance.label }}</strong>
               </p>
               <p class="catalog-summary">
+                Preset: {{ supportPacketCaptureGuidance.presetLabel }}
+              </p>
+              <p class="catalog-summary">
+                Preset id: {{ supportPacketCaptureGuidance.presetId }}
+              </p>
+              <p class="catalog-summary">
                 {{ supportPacketCaptureGuidance.summary }}
               </p>
               <p class="catalog-summary">
@@ -7168,6 +7174,14 @@ onBeforeUnmount(() => {
                   :key="shortcut"
                 >
                   <span>{{ shortcut }}</span>
+                </li>
+              </ul>
+              <ul class="detail-list compact-detail-list">
+                <li
+                  v-for="action in supportPacketCaptureGuidance.presetActions"
+                  :key="action"
+                >
+                  <span>{{ action }}</span>
                 </li>
               </ul>
               <ul class="detail-list compact-detail-list">

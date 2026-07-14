@@ -1,0 +1,12 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "instructions": [
+    "AGENTS.md",
+    "CURRENT_STATE.md",
+    "PROJECT_STATUS.md",
+    "IMPLEMENTATION_ROADMAP.md",
+    "docs/decisions.md",
+    "docs/architecture/overview.md",
+    "docs/operations/post-release-candidate-checkpoint.md"
+  ]
+}

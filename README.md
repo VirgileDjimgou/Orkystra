@@ -72,9 +72,12 @@ powershell -ExecutionPolicy Bypass -File infrastructure/scripts/verify-oss-readi
 
 ## Source of Truth
 
+- [AGENTS.md](AGENTS.md)
+- [CURRENT_STATE.md](CURRENT_STATE.md)
 - [constitution/SMART_LOGISTICS_TWIN_CONSTITUTION_v2.md](constitution/SMART_LOGISTICS_TWIN_CONSTITUTION_v2.md)
 - [IMPLEMENTATION_ROADMAP.md](IMPLEMENTATION_ROADMAP.md)
 - [PROJECT_STATUS.md](PROJECT_STATUS.md)
+- [docs/decisions.md](docs/decisions.md)
 - [INSTALL.md](INSTALL.md)
 - [CONTRIBUTING.md](CONTRIBUTING.md)
 - [CHANGELOG.md](CHANGELOG.md)
@@ -86,12 +89,14 @@ powershell -ExecutionPolicy Bypass -File infrastructure/scripts/verify-oss-readi
 
 ```text
 Orkystra/
+  AGENTS.md         Session workflow and restart rules
+  CURRENT_STATE.md  Compact restart brief for new sessions
   backend/          .NET API, application, domain, and contracts
   frontend/web/     Vue operator UI
   python-services/  AI and optimization services
   infrastructure/   Docker Compose, scripts, and local stack helpers
   docs/             Architecture, operations, methodology, and screenshots
-  prompts/          Reusable operational prompts
+  opencode.json     OpenCode instruction loading
   tests/            Cross-cutting test assets
 ```
 
@@ -103,6 +108,16 @@ Orkystra/
 - Provider catalog and runtime configuration
 - Observability, audit trail, and support bundles
 - Self-host deployment workflow
+
+## Session Continuation
+
+Use the same command in any new work session:
+
+```text
+Continue the Orkystra project.
+```
+
+The repository continuity files for that workflow are `AGENTS.md`, `CURRENT_STATE.md`, `PROJECT_STATUS.md`, and `IMPLEMENTATION_ROADMAP.md`.
 
 ## Status
 

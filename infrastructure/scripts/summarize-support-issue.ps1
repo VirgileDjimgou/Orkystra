@@ -443,6 +443,7 @@ function Get-RemediationChecklist {
 function Get-CaptureGuidance {
     param(
         [object]$BundleSummary,
+        [object]$ReleaseContext,
         [object]$TriageMetadata,
         [object]$RemediationChecklist,
         [string]$ValidationStatus,
@@ -452,6 +453,7 @@ function Get-CaptureGuidance {
     )
 
     $shortcuts = New-Object System.Collections.Generic.List[string]
+    $presetActions = New-Object System.Collections.Generic.List[string]
     $checks = New-Object System.Collections.Generic.List[string]
     $exitCriteria = New-Object System.Collections.Generic.List[string]
 
@@ -459,12 +461,31 @@ function Get-CaptureGuidance {
     $packetClass = [string]$TriageMetadata.packetClass
     $triageLane = [string]$TriageMetadata.triageLane
     $nextOwner = [string]$TriageMetadata.nextOwner
+    $releasePosture =
+        if ($ReleaseContext -and $ReleaseContext.PSObject.Properties.Name.Contains("releasePosture") -and -not [string]::IsNullOrWhiteSpace([string]$ReleaseContext.releasePosture)) {
+            [string]$ReleaseContext.releasePosture
+        }
+        else {
+            "release-candidate"
+        }
+
+    $packetClassPresetSegment =
+        if ([string]::IsNullOrWhiteSpace($packetClass)) {
+            "general-support-packet"
+        }
+        else {
+            (($packetClass.ToLowerInvariant() -replace "[^a-z0-9]+", "-").Trim("-"))
+        }
+    $releasePosturePresetSegment = (($releasePosture.ToLowerInvariant() -replace "[^a-z0-9]+", "-").Trim("-"))
+    $presetId = "$packetClassPresetSegment-$releasePosturePresetSegment"
+    $presetLabel = "$packetClass / $releasePosture"
+
     if ($escalationTarget -eq "configuration-or-persistence") {
         $label = "Configuration capture shortcut"
         $summary = "Freeze the active deployment posture first, then capture the exact runtime evidence that changed with the failing retry."
-        $shortcuts.Add("Record the active branch, commit, and deployment mode before retrying.")
-        $shortcuts.Add("Capture persistence posture and any self-host configuration deltas first.")
-        $shortcuts.Add("Export the support bundle immediately after the same failure reproduces.")
+        $presetActions.Add("Capture the active branch, commit, and deployment mode before reproducing the failure.")
+        $presetActions.Add("Capture persistence posture and configuration deltas from the same failing run.")
+        $presetActions.Add("Export one focused support bundle immediately after the matching failure.")
         $checks.Add("Keep the issue draft and support bundle aligned on the same failure run.")
         $checks.Add("Preserve the current artifact checklist unless the capture path changed materially.")
         $checks.Add("Keep the packet class and release posture tied together in the handoff.")
@@ -472,9 +493,9 @@ function Get-CaptureGuidance {
     elseif ($escalationTarget -eq "dependency-or-event-backbone") {
         $label = "Dependency capture shortcut"
         $summary = "Pin down broker or event-flow evidence around the exact retry that failed, not a broad service dump."
-        $shortcuts.Add("Capture the broker or dependency posture that matches the failing attempt.")
-        $shortcuts.Add("Keep only the first failing trace or log excerpt needed to prove the runtime drift.")
-        $shortcuts.Add("Export the packet again only if the same dependency failure still reproduces.")
+        $presetActions.Add("Capture broker and dependency posture from the same failing attempt.")
+        $presetActions.Add("Attach only the first failing trace needed to prove the runtime drift.")
+        $presetActions.Add("Re-export the packet only if the same dependency failure still reproduces.")
         $checks.Add("Workflow proof should stay anchored to the same failing run.")
         $checks.Add("Audit proof should stay anchored to the same failing run.")
         $checks.Add("Keep the shortcut aligned with the current packet class and triage lane.")
@@ -482,20 +503,24 @@ function Get-CaptureGuidance {
     elseif ($ValidationStatus -ne "Ready" -and $RecommendedAction -ne "Reuse") {
         $label = "Operator capture shortcut"
         $summary = "Tighten the user story, then capture the evidence that proves the exact first failure."
-        $shortcuts.Add("Tighten summary, reproduction, expected result, and actual result before the next retry.")
-        $shortcuts.Add("Capture workflow and audit evidence from the same failing run.")
-        $shortcuts.Add("Refresh the packet only after the new capture is still the same failure state.")
+        $presetActions.Add("Tighten summary, reproduction, expected result, and actual result first.")
+        $presetActions.Add("Capture workflow and audit evidence from the same failing run.")
+        $presetActions.Add("Refresh only after confirming the failure state is still the same.")
         $checks.Add("Use the remediation checklist as the guardrail for the next pass.")
         $checks.Add("Keep the capture scoped to the same failure state.")
     }
     else {
         $label = "Release-aware capture shortcut"
         $summary = "The packet is already strong, so the next capture should be narrow and delta-focused."
-        $shortcuts.Add("Freeze the active branch, commit, and release posture before the next capture.")
-        $shortcuts.Add("Collect only the evidence that explains the new delta from the current canonical packet.")
-        $shortcuts.Add("Archive the older packet only when the new capture genuinely supersedes it.")
+        $presetActions.Add("Freeze branch, commit, and release posture before the next capture.")
+        $presetActions.Add("Collect only evidence that explains the latest delta from the canonical packet.")
+        $presetActions.Add("Archive older state only when the new packet genuinely supersedes it.")
         $checks.Add("Use the current packet as the canonical handoff unless the failure changed.")
         $checks.Add("Only add evidence that explains a real change.")
+    }
+
+    foreach ($presetAction in $presetActions) {
+        $shortcuts.Add($presetAction)
     }
 
     if ($ContextDrift -and [string]$ContextDrift.posture -ne "stable-context" -and [string]$ContextDrift.posture -ne "no-prior-attempt" -and [string]$ContextDrift.posture -ne "no-attempt-history") {
@@ -513,16 +538,18 @@ function Get-CaptureGuidance {
     }
 
     $exitCriteria.Add("Keep the packet aligned with the remediation checklist and the current release posture.")
-    if ([string]$releaseLabel) {
-        $checks.Add("Keep the release posture explicit for the packet and note the exact snapshot that produced it.")
-    }
+    $checks.Add("Keep the release posture explicit for the packet and note the exact snapshot that produced it.")
 
     return [ordered]@{
         label = $label
         summary = $summary
+        presetId = $presetId
+        presetLabel = $presetLabel
+        releasePosture = $releasePosture
         packetClass = $packetClass
         triageLane = $triageLane
         nextOwner = $nextOwner
+        presetActions = @($presetActions)
         shortcuts = @($shortcuts)
         checks = @($checks)
         exitCriteria = @($exitCriteria)
@@ -620,7 +647,7 @@ $canonicalPacketState =
     else { "active-packet-is-canonical" }
 $contextDrift = Get-ContextDriftSummary -LatestAttempt $latestAttempt -PreviousAttempt $previousAttempt
 $remediationChecklist = Get-RemediationChecklist -EvidenceGapScore $evidenceGapScore -TriageMetadata $triageMetadata -ValidationStatus $validationStatus -RecommendedAction $recommendedAction -CanonicalPacketState $canonicalPacketState -ContextDrift $contextDrift
-$captureGuidance = Get-CaptureGuidance -BundleSummary $bundleSummary -TriageMetadata $triageMetadata -RemediationChecklist $remediationChecklist -ValidationStatus $validationStatus -RecommendedAction $recommendedAction -CanonicalPacketState $canonicalPacketState -ContextDrift $contextDrift
+$captureGuidance = Get-CaptureGuidance -BundleSummary $bundleSummary -ReleaseContext $releaseContext -TriageMetadata $triageMetadata -RemediationChecklist $remediationChecklist -ValidationStatus $validationStatus -RecommendedAction $recommendedAction -CanonicalPacketState $canonicalPacketState -ContextDrift $contextDrift
 
 $timeline = @()
 
@@ -789,9 +816,16 @@ $(if (@($summary.remediationChecklist.stopConditions).Count -gt 0) { ($summary.r
 
 - Label: $($summary.captureGuidance.label)
 - Summary: $($summary.captureGuidance.summary)
+- Preset id: $($summary.captureGuidance.presetId)
+- Preset label: $($summary.captureGuidance.presetLabel)
+- Release posture: $($summary.captureGuidance.releasePosture)
 - Packet class: $($summary.captureGuidance.packetClass)
 - Triage lane: $($summary.captureGuidance.triageLane)
 - Next owner: $($summary.captureGuidance.nextOwner)
+
+## Capture preset actions
+
+$(if (@($summary.captureGuidance.presetActions).Count -gt 0) { ($summary.captureGuidance.presetActions | ForEach-Object { "- $_" }) -join "`r`n" } else { "- No capture preset actions are currently recorded." })
 
 ## Capture shortcuts
 

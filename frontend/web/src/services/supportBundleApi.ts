@@ -143,6 +143,11 @@ export type SupportPacketRemediationGuidanceView = {
 export type SupportPacketCaptureGuidanceView = {
   label: string
   summary: string
+  presetId: string
+  presetLabel: string
+  releasePosture: string
+  packetClass: string
+  presetActions: string[]
   nextOwner: string
   shortcuts: string[]
   checks: string[]
@@ -575,7 +580,13 @@ export function buildSupportPacketCaptureGuidance(
   triageShortcut: SupportPacketTriageShortcutView,
   remediationGuidance: SupportPacketRemediationGuidanceView
 ): SupportPacketCaptureGuidanceView {
-  const releaseLabel = input.bundle.generatedAtLabel
+  const releasePosture =
+    input.deploymentMode.toLowerCase().includes('self-host')
+      ? 'self-host-release-candidate'
+      : 'local-release-candidate'
+  const packetClass = classification.label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'general-support-packet'
+  const presetId = `${packetClass}__${releasePosture}`
+  const presetLabel = `${classification.label} / ${releasePosture}`
   const hasWorkflowEvidence = input.bundle.workflowCount > 0
   const hasAuditEvidence = input.bundle.auditCount > 0
   const hasArtifactChecklist = input.bundle.artifactChecklist.length > 0
@@ -592,36 +603,50 @@ export function buildSupportPacketCaptureGuidance(
         ]
 
   if (input.bundle.escalationTarget === 'configuration-or-persistence') {
+    const presetActions = [
+      'Capture the active branch, commit, and deployment mode before reproducing the failure.',
+      'Capture persistence posture and configuration deltas from the same failing run.',
+      'Export one focused support bundle immediately after the matching failure.',
+    ]
+
     return {
       label: 'Configuration capture shortcut',
       summary:
         'The fastest useful pass is to freeze the active deployment posture, then capture the exact runtime evidence that changed with the failing retry.',
+      presetId,
+      presetLabel,
+      releasePosture,
+      packetClass: classification.label,
+      presetActions,
       nextOwner: triageShortcut.nextOwner,
-      shortcuts: [
-        'Record the active branch, commit, and deployment mode before retrying.',
-        'Capture persistence posture and any self-host configuration deltas first.',
-        'Export the support bundle immediately after the same failure reproduces.',
-      ],
+      shortcuts: presetActions,
       checks: [
         'Keep the issue draft and support bundle aligned on the same failure run.',
         hasArtifactChecklist ? 'Preserve the current artifact checklist unless the capture path changed materially.' : 'Add a small artifact checklist that names the minimum evidence to read first.',
-        `Keep the packet class as ${classification.label} and the current release posture tied to ${releaseLabel}.`,
+        `Keep the packet class as ${classification.label} and the current release posture tied to ${releasePosture}.`,
       ],
       exitCriteria,
     }
   }
 
   if (input.bundle.escalationTarget === 'dependency-or-event-backbone') {
+    const presetActions = [
+      'Capture broker and dependency posture from the same failing attempt.',
+      'Attach only the first failing trace needed to prove the runtime drift.',
+      'Re-export the packet only if the same dependency failure still reproduces.',
+    ]
+
     return {
       label: 'Dependency capture shortcut',
       summary:
         'The next pass should pin down broker or event-flow evidence around the exact retry that failed, not a broad service dump.',
+      presetId,
+      presetLabel,
+      releasePosture,
+      packetClass: classification.label,
+      presetActions,
       nextOwner: triageShortcut.nextOwner,
-      shortcuts: [
-        'Capture the broker or dependency posture that matches the failing attempt.',
-        'Keep only the first failing trace or log excerpt needed to prove the runtime drift.',
-        'Export the packet again only if the same dependency failure still reproduces.',
-      ],
+      shortcuts: presetActions,
       checks: [
         hasWorkflowEvidence ? 'Workflow proof already exists; focus on the dependency trace that frames it.' : 'Capture workflow evidence that ties the failure to the dependency posture.',
         hasAuditEvidence ? 'Audit proof already exists; keep the capture centered on the same failing run.' : 'Capture audit evidence for the same failure so the packet stays coherent.',
@@ -632,31 +657,45 @@ export function buildSupportPacketCaptureGuidance(
   }
 
   if (readiness.status !== 'Ready') {
+    const presetActions = [
+      'Tighten summary, reproduction, expected result, and actual result first.',
+      'Capture workflow and audit evidence from the same failing run.',
+      'Refresh only after confirming the failure state is still the same.',
+    ]
+
     return {
       label: 'Operator capture shortcut',
       summary:
         'The shortest useful pass is to tighten the user story, then immediately capture the evidence that proves the exact first failure.',
+      presetId,
+      presetLabel,
+      releasePosture,
+      packetClass: classification.label,
+      presetActions,
       nextOwner: triageShortcut.nextOwner,
-      shortcuts: [
-        'Tighten summary, reproduction, expected result, and actual result before the next retry.',
-        'Capture workflow and audit evidence from the same failing run.',
-        'Refresh the packet only after the new capture is still the same failure state.',
-      ],
+      shortcuts: presetActions,
       checks: remediationGuidance.checks,
       exitCriteria,
     }
   }
 
+  const presetActions = [
+    'Freeze branch, commit, and release posture before the next capture.',
+    'Collect only evidence that explains the latest delta from the canonical packet.',
+    'Archive older state only when the new packet genuinely supersedes it.',
+  ]
+
   return {
     label: 'Release-aware capture shortcut',
     summary:
       'The packet is already strong, so the next capture should be narrow and delta-focused: preserve the current evidence chain and only add what explains a real change.',
+    presetId,
+    presetLabel,
+    releasePosture,
+    packetClass: classification.label,
+    presetActions,
     nextOwner: triageShortcut.nextOwner,
-    shortcuts: [
-      'Freeze the active branch, commit, and release posture before the next capture.',
-      'Collect only the evidence that explains the new delta from the current canonical packet.',
-      'Archive the older packet only when the new capture genuinely supersedes it.',
-    ],
+    shortcuts: presetActions,
     checks: [
       remediationGuidance.checks[0] ?? 'Keep the packet aligned with the current remediation plan.',
       `Use the current release posture and packet class (${classification.label}) to decide whether the next pass should be regeneration or reuse.`,
