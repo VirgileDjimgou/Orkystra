@@ -39,7 +39,7 @@ function Read-ArrayLikeJsonFile {
         return @()
     }
 
-    return ,$raw
+    return , $raw
 }
 
 function Set-ObjectPropertyValue {
@@ -61,9 +61,9 @@ function Get-TriageMetadata {
 
     if ($ValidationStatus -eq "Rejected") {
         return [ordered]@{
-            packetClass = "incomplete-packet"
-            triageLane = "operator-regeneration"
-            nextOwner = "Operator"
+            packetClass  = "incomplete-packet"
+            triageLane   = "operator-regeneration"
+            nextOwner    = "Operator"
             triageChecks = @(
                 "Regenerate the packet until required files and lifecycle sections are present.",
                 "Tighten the issue draft headings and evidence before escalation.",
@@ -74,9 +74,9 @@ function Get-TriageMetadata {
 
     if ($RecommendedAction -eq "Refresh") {
         return [ordered]@{
-            packetClass = "evidence-gap-packet"
-            triageLane = "operator-refresh"
-            nextOwner = "Operator"
+            packetClass  = "evidence-gap-packet"
+            triageLane   = "operator-refresh"
+            nextOwner    = "Operator"
             triageChecks = @(
                 "Export a fresh support bundle after the next retry or reset.",
                 "Make workflow and audit evidence visible in the packet.",
@@ -88,9 +88,9 @@ function Get-TriageMetadata {
     switch ($EscalationTarget) {
         "configuration-or-persistence" {
             return [ordered]@{
-                packetClass = "configuration-review-packet"
-                triageLane = "self-host-configuration-review"
-                nextOwner = "Operator or deploy maintainer"
+                packetClass  = "configuration-review-packet"
+                triageLane   = "self-host-configuration-review"
+                nextOwner    = "Operator or deploy maintainer"
                 triageChecks = @(
                     "Verify deployment mode and persistence posture first.",
                     "Call out the last configuration change that may have shifted behavior.",
@@ -100,9 +100,9 @@ function Get-TriageMetadata {
         }
         "dependency-or-event-backbone" {
             return [ordered]@{
-                packetClass = "runtime-dependency-packet"
-                triageLane = "runtime-dependency-review"
-                nextOwner = "Platform or runtime maintainer"
+                packetClass  = "runtime-dependency-packet"
+                triageLane   = "runtime-dependency-review"
+                nextOwner    = "Platform or runtime maintainer"
                 triageChecks = @(
                     "Check broker, dependency, or event-flow drift before workflow logic.",
                     "Use the latest delta to describe what changed across retries.",
@@ -112,9 +112,9 @@ function Get-TriageMetadata {
         }
         "product-or-workflow" {
             return [ordered]@{
-                packetClass = "product-defect-candidate"
-                triageLane = "workflow-maintainer-review"
-                nextOwner = "Workflow maintainer"
+                packetClass  = "product-defect-candidate"
+                triageLane   = "workflow-maintainer-review"
+                nextOwner    = "Workflow maintainer"
                 triageChecks = @(
                     "Read the issue draft before opening the raw support bundle.",
                     "Use the lifecycle summary to compare only the latest meaningful delta.",
@@ -124,9 +124,9 @@ function Get-TriageMetadata {
         }
         default {
             return [ordered]@{
-                packetClass = "general-support-packet"
-                triageLane = "mixed-triage"
-                nextOwner = "Operator"
+                packetClass  = "general-support-packet"
+                triageLane   = "mixed-triage"
+                nextOwner    = "Operator"
                 triageChecks = @(
                     "Clarify the primary troubleshooting lane before escalation.",
                     "Keep the issue draft and support summary aligned.",
@@ -145,17 +145,17 @@ function Get-ContextDriftSummary {
 
     if (-not $LatestAttempt) {
         return [ordered]@{
-            posture = "no-attempt-history"
+            posture       = "no-attempt-history"
             changedFields = @()
-            summary = "No readable attempt history exists yet."
+            summary       = "No readable attempt history exists yet."
         }
     }
 
     if (-not $PreviousAttempt) {
         return [ordered]@{
-            posture = "no-prior-attempt"
+            posture       = "no-prior-attempt"
             changedFields = @()
-            summary = "No earlier attempt exists yet, so there is no context drift to compare."
+            summary       = "No earlier attempt exists yet, so there is no context drift to compare."
         }
     }
 
@@ -222,9 +222,9 @@ function Get-ContextDriftSummary {
 
     if ($changes.Count -eq 0) {
         return [ordered]@{
-            posture = "stable-context"
+            posture       = "stable-context"
             changedFields = @()
-            summary = "The latest attempt reuses the same repository and runtime context as the previous attempt, so the failure drift is more likely product or data driven than environment driven."
+            summary       = "The latest attempt reuses the same repository and runtime context as the previous attempt, so the failure drift is more likely product or data driven than environment driven."
         }
     }
 
@@ -232,14 +232,14 @@ function Get-ContextDriftSummary {
     $runtimeDriftCount = @($changes | Where-Object { $_ -like "host-*" -or $_ -like "operating-*" -or $_ -like "powershell-*" -or $_ -like "api-*" -or $_ -like "bundle-*" -or $_ -like "issue-*" -or $_ -eq "runtime-context-availability" }).Count
 
     $posture =
-        if ($releaseDriftCount -gt 0 -and $runtimeDriftCount -gt 0) { "release-and-runtime-drift" }
-        elseif ($releaseDriftCount -gt 0) { "release-drift" }
-        else { "runtime-drift" }
+    if ($releaseDriftCount -gt 0 -and $runtimeDriftCount -gt 0) { "release-and-runtime-drift" }
+    elseif ($releaseDriftCount -gt 0) { "release-drift" }
+    else { "runtime-drift" }
 
     return [ordered]@{
-        posture = $posture
+        posture       = $posture
         changedFields = @($changes)
-        summary = "The latest attempt was captured under a materially different context than the previous attempt. Review the changed fields before treating the newest failure as the same debugging state."
+        summary       = "The latest attempt was captured under a materially different context than the previous attempt. Review the changed fields before treating the newest failure as the same debugging state."
     }
 }
 
@@ -252,95 +252,95 @@ function Get-EvidenceProvenance {
 
     $entries = @(
         [ordered]@{
-            order = 1
-            file = "ISSUE_DRAFT.md"
-            role = "primary-narrative"
+            order    = 1
+            file     = "ISSUE_DRAFT.md"
+            role     = "primary-narrative"
             required = $true
-            summary = "Operator-written narrative that defines the bug report shape and reproduction steps."
+            summary  = "Operator-written narrative that defines the bug report shape and reproduction steps."
         }
         [ordered]@{
-            order = 2
-            file = "support-bundle.json"
-            role = "primary-runtime-evidence"
+            order    = 2
+            file     = "support-bundle.json"
+            role     = "primary-runtime-evidence"
             required = $true
-            summary = "Canonical runtime evidence bundle for the active packet."
+            summary  = "Canonical runtime evidence bundle for the active packet."
         }
         [ordered]@{
-            order = 3
-            file = "SUPPORT_VALIDATION.json"
-            role = "packet-gate"
+            order    = 3
+            file     = "SUPPORT_VALIDATION.json"
+            role     = "packet-gate"
             required = $true
-            summary = "Validation verdict that says whether the packet should be reused, refreshed, or regenerated."
+            summary  = "Validation verdict that says whether the packet should be reused, refreshed, or regenerated."
         }
         [ordered]@{
-            order = 4
-            file = "SUPPORT_LIFECYCLE.json"
-            role = "packet-interpretation"
+            order    = 4
+            file     = "SUPPORT_LIFECYCLE.json"
+            role     = "packet-interpretation"
             required = $true
-            summary = "Machine-readable lifecycle and drift interpretation for the active handoff."
+            summary  = "Machine-readable lifecycle and drift interpretation for the active handoff."
         }
         [ordered]@{
-            order = 5
-            file = "MAINTAINER_HANDOFF.md"
-            role = "maintainer-entrypoint"
+            order    = 5
+            file     = "MAINTAINER_HANDOFF.md"
+            role     = "maintainer-entrypoint"
             required = $true
-            summary = "Maintainer-facing reading order and quick decision surface."
+            summary  = "Maintainer-facing reading order and quick decision surface."
         }
         [ordered]@{
-            order = 6
-            file = "SUPPORT_ATTEMPTS.json"
-            role = "comparison-context"
+            order    = 6
+            file     = "SUPPORT_ATTEMPTS.json"
+            role     = "comparison-context"
             required = $false
-            summary = "Historical attempt record used when comparing retries or drift."
+            summary  = "Historical attempt record used when comparing retries or drift."
         }
         [ordered]@{
-            order = 7
-            file = "SUPPORT_ARCHIVE_INDEX.json"
-            role = "archive-context"
+            order    = 7
+            file     = "SUPPORT_ARCHIVE_INDEX.json"
+            role     = "archive-context"
             required = $false
-            summary = "Index of archived packet snapshots for deeper comparison only."
+            summary  = "Index of archived packet snapshots for deeper comparison only."
         }
         [ordered]@{
-            order = 8
-            file = "SUPPORT_LIFECYCLE.md"
-            role = "human-readable-summary"
+            order    = 8
+            file     = "SUPPORT_LIFECYCLE.md"
+            role     = "human-readable-summary"
             required = $false
-            summary = "Human-readable companion to the lifecycle JSON."
+            summary  = "Human-readable companion to the lifecycle JSON."
         }
         [ordered]@{
-            order = 9
-            file = "SUPPORT_MANIFEST.json"
-            role = "packet-contract"
+            order    = 9
+            file     = "SUPPORT_MANIFEST.json"
+            role     = "packet-contract"
             required = $false
-            summary = "Packet contract and metadata backing the generated summaries."
+            summary  = "Packet contract and metadata backing the generated summaries."
         }
     )
 
     $annotated = @(
         $entries | ForEach-Object {
             [pscustomobject]@{
-                order = [int]$_.order
-                file = [string]$_.file
-                role = [string]$_.role
-                required = [bool]$_.required
-                present = $PresentActiveFiles -contains [string]$_.file
+                order     = [int]$_.order
+                file      = [string]$_.file
+                role      = [string]$_.role
+                required  = [bool]$_.required
+                present   = $PresentActiveFiles -contains [string]$_.file
                 canonical = $CanonicalHandoffFiles -contains [string]$_.file
-                summary = [string]$_.summary
+                summary   = [string]$_.summary
             }
         }
     )
 
     return [ordered]@{
-        readingOrder = @($annotated | Sort-Object -Property @{ Expression = { [int]$_.order } })
-        primaryFiles = @($annotated | Where-Object { $_.required })
-        optionalFiles = @($annotated | Where-Object { -not $_.required -and $_.present })
+        readingOrder             = @($annotated | Sort-Object -Property @{ Expression = { [int]$_.order } })
+        primaryFiles             = @($annotated | Where-Object { $_.required })
+        optionalFiles            = @($annotated | Where-Object { -not $_.required -and $_.present })
         comparisonContextSummary =
-            if ($ArchiveCount -gt 0) {
-                "Archived packet snapshots exist, so comparison evidence should stay secondary to the active issue draft and support bundle."
-            }
-            else {
-                "No archived packet snapshots exist yet, so the active issue draft and support bundle remain the only canonical evidence pair."
-            }
+        if ($ArchiveCount -gt 0) {
+            "Archived packet snapshots exist, so comparison evidence should stay secondary to the active issue draft and support bundle."
+        }
+        else {
+            "No archived packet snapshots exist yet, so the active issue draft and support bundle remain the only canonical evidence pair."
+        }
     }
 }
 
@@ -359,51 +359,51 @@ function Get-RemediationChecklist {
 
     if ($EvidenceGapScore -and [string]$EvidenceGapScore.topPriorityNextAction) {
         $items.Add([ordered]@{
-            order = 1
-            focus = if ([string]$EvidenceGapScore.topPriorityCategory) { [string]$EvidenceGapScore.topPriorityCategory } else { "primary-evidence-gap" }
-            owner = [string]$TriageMetadata.nextOwner
-            action = [string]$EvidenceGapScore.topPriorityNextAction
-            rationale = "Start with the highest-priority weak or absent proof category before broadening the packet."
-        })
+                order     = 1
+                focus     = if ([string]$EvidenceGapScore.topPriorityCategory) { [string]$EvidenceGapScore.topPriorityCategory } else { "primary-evidence-gap" }
+                owner     = [string]$TriageMetadata.nextOwner
+                action    = [string]$EvidenceGapScore.topPriorityNextAction
+                rationale = "Start with the highest-priority weak or absent proof category before broadening the packet."
+            })
     }
 
     foreach ($triageCheck in @($TriageMetadata.triageChecks | Select-Object -First 2)) {
         $items.Add([ordered]@{
-            order = $items.Count + 1
-            focus = "triage-lane"
-            owner = [string]$TriageMetadata.nextOwner
-            action = [string]$triageCheck
-            rationale = "Keep the next pass aligned with the current packet class and owner."
-        })
+                order     = $items.Count + 1
+                focus     = "triage-lane"
+                owner     = [string]$TriageMetadata.nextOwner
+                action    = [string]$triageCheck
+                rationale = "Keep the next pass aligned with the current packet class and owner."
+            })
     }
 
     if ($ContextDrift -and [string]$ContextDrift.posture -ne "stable-context" -and [string]$ContextDrift.posture -ne "no-prior-attempt" -and [string]$ContextDrift.posture -ne "no-attempt-history") {
         $items.Add([ordered]@{
-            order = $items.Count + 1
-            focus = "context-drift"
-            owner = "Operator"
-            action = "Review the changed context fields before treating the newest failure as the same debugging state."
-            rationale = [string]$ContextDrift.summary
-        })
+                order     = $items.Count + 1
+                focus     = "context-drift"
+                owner     = "Operator"
+                action    = "Review the changed context fields before treating the newest failure as the same debugging state."
+                rationale = [string]$ContextDrift.summary
+            })
     }
 
     if ($RecommendedAction -eq "Refresh") {
         $items.Add([ordered]@{
-            order = $items.Count + 1
-            focus = "packet-refresh"
-            owner = "Operator"
-            action = "Refresh the packet only after the next retry reproduces the same failure with better evidence."
-            rationale = "A refresh should improve signal quality, not replace the packet with unrelated noise."
-        })
+                order     = $items.Count + 1
+                focus     = "packet-refresh"
+                owner     = "Operator"
+                action    = "Refresh the packet only after the next retry reproduces the same failure with better evidence."
+                rationale = "A refresh should improve signal quality, not replace the packet with unrelated noise."
+            })
     }
     elseif ($RecommendedAction -eq "Regenerate") {
         $items.Add([ordered]@{
-            order = $items.Count + 1
-            focus = "packet-regeneration"
-            owner = "Operator"
-            action = "Regenerate the packet until the required files and lifecycle sections are complete."
-            rationale = "The current packet is too incomplete to act as the canonical handoff."
-        })
+                order     = $items.Count + 1
+                focus     = "packet-regeneration"
+                owner     = "Operator"
+                action    = "Regenerate the packet until the required files and lifecycle sections are complete."
+                rationale = "The current packet is too incomplete to act as the canonical handoff."
+            })
     }
 
     $stopConditions.Add("Stop once validation is Accepted or AcceptedWithWarnings and the top-priority evidence action is reflected in the packet.")
@@ -414,18 +414,18 @@ function Get-RemediationChecklist {
     }
 
     $checklistPosture =
-        if ($ValidationStatus -eq "Rejected") { "regenerate-first" }
-        elseif ($RecommendedAction -eq "Refresh") { "focused-refresh" }
-        else { "targeted-hardening" }
+    if ($ValidationStatus -eq "Rejected") { "regenerate-first" }
+    elseif ($RecommendedAction -eq "Refresh") { "focused-refresh" }
+    else { "targeted-hardening" }
     $focusCategory = if ($EvidenceGapScore) { [string]$EvidenceGapScore.topPriorityCategory } else { "" }
     $handoffReady =
-        ($ValidationStatus -eq "Accepted" -or $ValidationStatus -eq "AcceptedWithWarnings") -and
-        ([string]$RecommendedAction -ne "Regenerate")
+    ($ValidationStatus -eq "Accepted" -or $ValidationStatus -eq "AcceptedWithWarnings") -and
+    ([string]$RecommendedAction -ne "Regenerate")
     $headline =
-        if ($ValidationStatus -eq "Rejected") { "Regenerate the packet before deeper debugging." }
-        elseif ($RecommendedAction -eq "Refresh") { "Run one focused refresh pass against the weakest evidence category." }
-        elseif ([string]$EvidenceGapScore.topPriorityCategory) { "Tighten the packet around '$([string]$EvidenceGapScore.topPriorityCategory)' before broadening scope." }
-        else { "Keep the packet aligned and only add evidence that materially sharpens the next handoff." }
+    if ($ValidationStatus -eq "Rejected") { "Regenerate the packet before deeper debugging." }
+    elseif ($RecommendedAction -eq "Refresh") { "Run one focused refresh pass against the weakest evidence category." }
+    elseif ([string]$EvidenceGapScore.topPriorityCategory) { "Tighten the packet around '$([string]$EvidenceGapScore.topPriorityCategory)' before broadening scope." }
+    else { "Keep the packet aligned and only add evidence that materially sharpens the next handoff." }
     $checklist = [ordered]@{}
     $checklist["posture"] = [string]$checklistPosture
     $checklist["headline"] = [string]$headline
@@ -462,20 +462,20 @@ function Get-CaptureGuidance {
     $triageLane = [string]$TriageMetadata.triageLane
     $nextOwner = [string]$TriageMetadata.nextOwner
     $releasePosture =
-        if ($ReleaseContext -and $ReleaseContext.PSObject.Properties.Name.Contains("releasePosture") -and -not [string]::IsNullOrWhiteSpace([string]$ReleaseContext.releasePosture)) {
-            [string]$ReleaseContext.releasePosture
-        }
-        else {
-            "release-candidate"
-        }
+    if ($ReleaseContext -and $ReleaseContext.PSObject.Properties.Name.Contains("releasePosture") -and -not [string]::IsNullOrWhiteSpace([string]$ReleaseContext.releasePosture)) {
+        [string]$ReleaseContext.releasePosture
+    }
+    else {
+        "release-candidate"
+    }
 
     $packetClassPresetSegment =
-        if ([string]::IsNullOrWhiteSpace($packetClass)) {
-            "general-support-packet"
-        }
-        else {
-            (($packetClass.ToLowerInvariant() -replace "[^a-z0-9]+", "-").Trim("-"))
-        }
+    if ([string]::IsNullOrWhiteSpace($packetClass)) {
+        "general-support-packet"
+    }
+    else {
+        (($packetClass.ToLowerInvariant() -replace "[^a-z0-9]+", "-").Trim("-"))
+    }
     $releasePosturePresetSegment = (($releasePosture.ToLowerInvariant() -replace "[^a-z0-9]+", "-").Trim("-"))
     $presetId = "$packetClassPresetSegment-$releasePosturePresetSegment"
     $presetLabel = "$packetClass / $releasePosture"
@@ -541,18 +541,18 @@ function Get-CaptureGuidance {
     $checks.Add("Keep the release posture explicit for the packet and note the exact snapshot that produced it.")
 
     return [ordered]@{
-        label = $label
-        summary = $summary
-        presetId = $presetId
-        presetLabel = $presetLabel
+        label          = $label
+        summary        = $summary
+        presetId       = $presetId
+        presetLabel    = $presetLabel
         releasePosture = $releasePosture
-        packetClass = $packetClass
-        triageLane = $triageLane
-        nextOwner = $nextOwner
-        presetActions = @($presetActions)
-        shortcuts = @($shortcuts)
-        checks = @($checks)
-        exitCriteria = @($exitCriteria)
+        packetClass    = $packetClass
+        triageLane     = $triageLane
+        nextOwner      = $nextOwner
+        presetActions  = @($presetActions)
+        shortcuts      = @($shortcuts)
+        checks         = @($checks)
+        exitCriteria   = @($exitCriteria)
     }
 }
 
@@ -599,52 +599,52 @@ $validationStatus = if ($validation) { [string]$validation.status } else { "Unkn
 $recommendedAction = if ($validation) { [string]$validation.recommendedAction } else { "Regenerate" }
 $escalationTarget = if ($validation) { [string]$validation.escalationTarget } else { "" }
 $evidenceGapScore =
-    if ($validation -and $validation.PSObject.Properties.Name.Contains("evidenceGapScore")) { $validation.evidenceGapScore }
-    else {
-        [ordered]@{
-            strongCount = 0
-            weakCount = 0
-            absentCount = 0
-            topPriorityCategory = ""
-            topPriorityNextAction = ""
-            categories = @()
-        }
+if ($validation -and $validation.PSObject.Properties.Name.Contains("evidenceGapScore")) { $validation.evidenceGapScore }
+else {
+    [ordered]@{
+        strongCount           = 0
+        weakCount             = 0
+        absentCount           = 0
+        topPriorityCategory   = ""
+        topPriorityNextAction = ""
+        categories            = @()
     }
+}
 $triageMetadata = Get-TriageMetadata -ValidationStatus $validationStatus -RecommendedAction $recommendedAction -EscalationTarget $escalationTarget
 $releaseContext =
-    if ($manifest.PSObject.Properties.Name.Contains("releaseContext")) { $manifest.releaseContext }
-    else {
-        [ordered]@{
-            repositoryBranch = ""
-            repositoryCommit = ""
-            repositoryShortCommit = ""
-            repositoryTag = ""
-            repositoryIsDirty = $false
-            releaseVersionHint = ""
-            releasePosture = ""
-            releaseGuideFile = ""
-            checkpointGuideFile = ""
-            checkpointEstimate = ""
-        }
+if ($manifest.PSObject.Properties.Name.Contains("releaseContext")) { $manifest.releaseContext }
+else {
+    [ordered]@{
+        repositoryBranch      = ""
+        repositoryCommit      = ""
+        repositoryShortCommit = ""
+        repositoryTag         = ""
+        repositoryIsDirty     = $false
+        releaseVersionHint    = ""
+        releasePosture        = ""
+        releaseGuideFile      = ""
+        checkpointGuideFile   = ""
+        checkpointEstimate    = ""
     }
+}
 $runtimeContext =
-    if ($manifest.PSObject.Properties.Name.Contains("runtimeContext")) { $manifest.runtimeContext }
-    else {
-        [ordered]@{
-            capturedAtUtc = ""
-            hostName = ""
-            userName = ""
-            operatingSystem = ""
-            powerShellVersion = ""
-            apiBaseUrl = ""
-            bundleSource = ""
-            issueDraftSource = ""
-        }
+if ($manifest.PSObject.Properties.Name.Contains("runtimeContext")) { $manifest.runtimeContext }
+else {
+    [ordered]@{
+        capturedAtUtc     = ""
+        hostName          = ""
+        userName          = ""
+        operatingSystem   = ""
+        powerShellVersion = ""
+        apiBaseUrl        = ""
+        bundleSource      = ""
+        issueDraftSource  = ""
     }
+}
 $canonicalPacketState =
-    if ($validationStatus -eq "Rejected") { "refresh-or-regenerate-required" }
-    elseif ($recommendedAction -eq "Refresh") { "refresh-advised-before-handoff" }
-    else { "active-packet-is-canonical" }
+if ($validationStatus -eq "Rejected") { "refresh-or-regenerate-required" }
+elseif ($recommendedAction -eq "Refresh") { "refresh-advised-before-handoff" }
+else { "active-packet-is-canonical" }
 $contextDrift = Get-ContextDriftSummary -LatestAttempt $latestAttempt -PreviousAttempt $previousAttempt
 $remediationChecklist = Get-RemediationChecklist -EvidenceGapScore $evidenceGapScore -TriageMetadata $triageMetadata -ValidationStatus $validationStatus -RecommendedAction $recommendedAction -CanonicalPacketState $canonicalPacketState -ContextDrift $contextDrift
 $captureGuidance = Get-CaptureGuidance -BundleSummary $bundleSummary -ReleaseContext $releaseContext -TriageMetadata $triageMetadata -RemediationChecklist $remediationChecklist -ValidationStatus $validationStatus -RecommendedAction $recommendedAction -CanonicalPacketState $canonicalPacketState -ContextDrift $contextDrift
@@ -653,22 +653,22 @@ $timeline = @()
 
 foreach ($attempt in $attemptItems) {
     $timeline += [ordered]@{
-        kind = "attempt"
-        sequence = [int]$attempt.attempt
-        label = "Attempt $($attempt.attempt)"
-        reason = [string]$attempt.reason
-        status = [string]$attempt.validationStatus
+        kind          = "attempt"
+        sequence      = [int]$attempt.attempt
+        label         = "Attempt $($attempt.attempt)"
+        reason        = [string]$attempt.reason
+        status        = [string]$attempt.validationStatus
         occurredAtUtc = [string]$attempt.createdAtUtc
     }
 }
 
 foreach ($archive in $archiveItems) {
     $timeline += [ordered]@{
-        kind = "archive"
-        sequence = [int]$archive.attempt
-        label = "Archive from attempt $($archive.attempt)"
-        reason = [string]$archive.reason
-        status = "Archived snapshot"
+        kind          = "archive"
+        sequence      = [int]$archive.attempt
+        label         = "Archive from attempt $($archive.attempt)"
+        reason        = [string]$archive.reason
+        status        = "Archived snapshot"
         occurredAtUtc = [string]$archive.archivedAtUtc
     }
 }
@@ -676,40 +676,40 @@ foreach ($archive in $archiveItems) {
 $timeline = @($timeline | Sort-Object occurredAtUtc, kind)
 
 $deltaNarration =
-    if ($latestAttempt -and $latestArchive) {
-        "The active packet is attempt $($latestAttempt.attempt) with validation $($latestAttempt.validationStatus). The latest archived snapshot was captured from attempt $($latestArchive.attempt) because '$($latestArchive.reason)'."
-    }
-    elseif ($attemptItems.Length -gt 1 -and $latestAttempt) {
-        "The active packet is attempt $($latestAttempt.attempt) with validation $($latestAttempt.validationStatus). Earlier attempts exist, but no archived snapshot was preserved yet, so compare the latest attempt history directly before escalation. $($contextDrift.summary)"
-    }
-    elseif ($latestAttempt) {
-        "The active packet is still the only known attempt, so there is no archived delta to compare yet."
-    }
-    else {
-        "The packet does not yet contain a readable attempt history."
-    }
+if ($latestAttempt -and $latestArchive) {
+    "The active packet is attempt $($latestAttempt.attempt) with validation $($latestAttempt.validationStatus). The latest archived snapshot was captured from attempt $($latestArchive.attempt) because '$($latestArchive.reason)'."
+}
+elseif ($attemptItems.Length -gt 1 -and $latestAttempt) {
+    "The active packet is attempt $($latestAttempt.attempt) with validation $($latestAttempt.validationStatus). Earlier attempts exist, but no archived snapshot was preserved yet, so compare the latest attempt history directly before escalation. $($contextDrift.summary)"
+}
+elseif ($latestAttempt) {
+    "The active packet is still the only known attempt, so there is no archived delta to compare yet."
+}
+else {
+    "The packet does not yet contain a readable attempt history."
+}
 
 $summary = [ordered]@{
-    summarizedAtUtc = (Get-Date).ToUniversalTime().ToString("o")
-    packetDirectory = $packetDirectory
-    tenantId = [string]$manifest.tenantId
-    currentAttempt = [int]$manifest.currentAttempt
-    refreshCount = [int]$manifest.refreshCount
-    archiveCount = [int]$manifest.archiveCount
-    validationStatus = $validationStatus
-    recommendedAction = $recommendedAction
-    canonicalPacketState = $canonicalPacketState
-    packetClass = [string]$triageMetadata.packetClass
-    triageLane = [string]$triageMetadata.triageLane
-    nextOwner = [string]$triageMetadata.nextOwner
-    latestRefreshReason = [string]$manifest.lastRefreshReason
-    latestArchiveReason = if ($manifest.PSObject.Properties.Name.Contains("lastArchiveReason")) { [string]$manifest.lastArchiveReason } else { "" }
-    escalationTarget = $escalationTarget
-    posture = if ($validation) { [string]$validation.posture } else { "" }
-    evidenceGapScore = $evidenceGapScore
-    releaseContext = $releaseContext
-    runtimeContext = $runtimeContext
-    activeFiles = @($presentActiveFiles)
+    summarizedAtUtc       = (Get-Date).ToUniversalTime().ToString("o")
+    packetDirectory       = $packetDirectory
+    tenantId              = [string]$manifest.tenantId
+    currentAttempt        = [int]$manifest.currentAttempt
+    refreshCount          = [int]$manifest.refreshCount
+    archiveCount          = [int]$manifest.archiveCount
+    validationStatus      = $validationStatus
+    recommendedAction     = $recommendedAction
+    canonicalPacketState  = $canonicalPacketState
+    packetClass           = [string]$triageMetadata.packetClass
+    triageLane            = [string]$triageMetadata.triageLane
+    nextOwner             = [string]$triageMetadata.nextOwner
+    latestRefreshReason   = [string]$manifest.lastRefreshReason
+    latestArchiveReason   = if ($manifest.PSObject.Properties.Name.Contains("lastArchiveReason")) { [string]$manifest.lastArchiveReason } else { "" }
+    escalationTarget      = $escalationTarget
+    posture               = if ($validation) { [string]$validation.posture } else { "" }
+    evidenceGapScore      = $evidenceGapScore
+    releaseContext        = $releaseContext
+    runtimeContext        = $runtimeContext
+    activeFiles           = @($presentActiveFiles)
     canonicalHandoffFiles = @(
         "ISSUE_DRAFT.md",
         "support-bundle.json",
@@ -718,15 +718,15 @@ $summary = [ordered]@{
         "MAINTAINER_HANDOFF.md",
         "SUPPORT_LIFECYCLE.json"
     )
-    latestAttempt = $latestAttempt
-    previousAttempt = $previousAttempt
-    latestArchive = $latestArchive
-    timeline = @($timeline)
-    deltaNarration = $deltaNarration
-    triageChecks = @($triageMetadata.triageChecks)
-    contextDrift = $contextDrift
-    remediationChecklist = $remediationChecklist
-    captureGuidance = $captureGuidance
+    latestAttempt         = $latestAttempt
+    previousAttempt       = $previousAttempt
+    latestArchive         = $latestArchive
+    timeline              = @($timeline)
+    deltaNarration        = $deltaNarration
+    triageChecks          = @($triageMetadata.triageChecks)
+    contextDrift          = $contextDrift
+    remediationChecklist  = $remediationChecklist
+    captureGuidance       = $captureGuidance
 }
 $evidenceProvenance = Get-EvidenceProvenance -PresentActiveFiles $presentActiveFiles -CanonicalHandoffFiles @($summary.canonicalHandoffFiles) -ArchiveCount $summary.archiveCount
 $summary.evidenceProvenance = $evidenceProvenance

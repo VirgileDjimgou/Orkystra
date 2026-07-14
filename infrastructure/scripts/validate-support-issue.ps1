@@ -77,7 +77,7 @@ function Read-AttemptHistoryFile {
         return @()
     }
 
-    return ,$raw
+    return , $raw
 }
 
 function Test-ContextFieldSet {
@@ -109,11 +109,11 @@ function Add-EvidenceGap {
     )
 
     $Target.Add([pscustomobject]@{
-        category = $Category
-        severity = $Severity
-        summary = $Summary
-        nextAction = $NextAction
-    })
+            category   = $Category
+            severity   = $Severity
+            summary    = $Summary
+            nextAction = $NextAction
+        })
 }
 
 function Read-ArchiveIndexFile {
@@ -137,7 +137,7 @@ function Read-ArchiveIndexFile {
         return @()
     }
 
-    return ,$raw
+    return , $raw
 }
 
 function Read-StructuredJsonFile {
@@ -278,7 +278,8 @@ if ($missingFiles.Count -eq 0) {
 
     if (-not $bundle.summary) {
         $errors.Add("Support bundle is missing the summary block.")
-    } else {
+    }
+    else {
         $bundleSummary = $bundle.summary
         $requiredSummaryFields = @(
             "posture",
@@ -633,7 +634,7 @@ if ($errors.Count -eq 0 -and $warnings.Count -eq 0 -and $evidenceGaps.Count -eq 
 
 $priorityScore = @{
     absent = 3
-    weak = 2
+    weak   = 2
     strong = 1
 }
 
@@ -647,38 +648,40 @@ $absentCount = @($orderedEvidenceGaps | Where-Object { $_.severity -eq "absent" 
 $topEvidenceGap = if ($orderedEvidenceGaps.Count -gt 0) { $orderedEvidenceGaps[0] } else { $null }
 
 $status =
-    if ($errors.Count -gt 0) { "Rejected" }
-    elseif ($warnings.Count -gt 0) { "AcceptedWithWarnings" }
-    else { "Accepted" }
+if ($errors.Count -gt 0) { "Rejected" }
+elseif ($warnings.Count -gt 0) { "AcceptedWithWarnings" }
+else { "Accepted" }
 
 if ($errors.Count -gt 0) {
     $recommendedAction = "Regenerate"
-} elseif ($warnings.Count -gt 0) {
+}
+elseif ($warnings.Count -gt 0) {
     $recommendedAction = "Refresh"
-} else {
+}
+else {
     $recommendedAction = "Reuse"
 }
 
 $report = [ordered]@{
-    validatedAtUtc = (Get-Date).ToUniversalTime().ToString("o")
-    packetDirectory = $packetDirectory
-    status = $status
-    missingFiles = @($missingFiles)
-    errorCount = $errors.Count
-    warningCount = $warnings.Count
-    errors = @($errors)
-    warnings = @($warnings)
-    notes = @($notes)
+    validatedAtUtc    = (Get-Date).ToUniversalTime().ToString("o")
+    packetDirectory   = $packetDirectory
+    status            = $status
+    missingFiles      = @($missingFiles)
+    errorCount        = $errors.Count
+    warningCount      = $warnings.Count
+    errors            = @($errors)
+    warnings          = @($warnings)
+    notes             = @($notes)
     recommendedAction = $recommendedAction
-    escalationTarget = if ($bundleSummary) { [string]$bundleSummary.escalationTarget } else { "" }
-    posture = if ($bundleSummary) { [string]$bundleSummary.posture } else { "" }
-    evidenceGapScore = [ordered]@{
-        strongCount = $strongCount
-        weakCount = $weakCount
-        absentCount = $absentCount
-        topPriorityCategory = if ($topEvidenceGap) { [string]$topEvidenceGap.category } else { "" }
+    escalationTarget  = if ($bundleSummary) { [string]$bundleSummary.escalationTarget } else { "" }
+    posture           = if ($bundleSummary) { [string]$bundleSummary.posture } else { "" }
+    evidenceGapScore  = [ordered]@{
+        strongCount           = $strongCount
+        weakCount             = $weakCount
+        absentCount           = $absentCount
+        topPriorityCategory   = if ($topEvidenceGap) { [string]$topEvidenceGap.category } else { "" }
         topPriorityNextAction = if ($topEvidenceGap) { [string]$topEvidenceGap.nextAction } else { "" }
-        categories = @($orderedEvidenceGaps)
+        categories            = @($orderedEvidenceGaps)
     }
 }
 

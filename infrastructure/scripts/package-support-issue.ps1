@@ -20,12 +20,12 @@ function Write-AttemptHistoryFile {
     $normalizedAttempts = @(
         $AttemptItems | ForEach-Object {
             [ordered]@{
-                attempt = [int](Get-ObjectMemberValue -TargetObject $_ -MemberName "attempt")
-                createdAtUtc = [string](Get-ObjectMemberValue -TargetObject $_ -MemberName "createdAtUtc")
-                reason = [string](Get-ObjectMemberValue -TargetObject $_ -MemberName "reason")
+                attempt          = [int](Get-ObjectMemberValue -TargetObject $_ -MemberName "attempt")
+                createdAtUtc     = [string](Get-ObjectMemberValue -TargetObject $_ -MemberName "createdAtUtc")
+                reason           = [string](Get-ObjectMemberValue -TargetObject $_ -MemberName "reason")
                 validationStatus = [string](Get-ObjectMemberValue -TargetObject $_ -MemberName "validationStatus")
-                releaseContext = Get-ObjectMemberValue -TargetObject $_ -MemberName "releaseContext"
-                runtimeContext = Get-ObjectMemberValue -TargetObject $_ -MemberName "runtimeContext"
+                releaseContext   = Get-ObjectMemberValue -TargetObject $_ -MemberName "releaseContext"
+                runtimeContext   = Get-ObjectMemberValue -TargetObject $_ -MemberName "runtimeContext"
             }
         }
     )
@@ -82,8 +82,8 @@ function Get-DocumentedReleaseVersionHint {
     }
 
     $candidate = Get-ChildItem -Path $releaseDirectory -Filter "*-manifest.json" |
-        Sort-Object Name -Descending |
-        Select-Object -First 1
+    Sort-Object Name -Descending |
+    Select-Object -First 1
 
     if (-not $candidate) {
         return ""
@@ -104,16 +104,16 @@ function Get-ReleaseContext {
     $dirtyStatus = Invoke-GitText -RepositoryRoot $RepositoryRoot -Arguments @("status", "--porcelain")
 
     return [ordered]@{
-        repositoryBranch = $branch
-        repositoryCommit = $commit
+        repositoryBranch      = $branch
+        repositoryCommit      = $commit
         repositoryShortCommit = if ([string]::IsNullOrWhiteSpace($commit)) { "" } else { $commit.Substring(0, [Math]::Min(8, $commit.Length)) }
-        repositoryTag = $tag
-        repositoryIsDirty = -not [string]::IsNullOrWhiteSpace($dirtyStatus)
-        releaseVersionHint = if ([string]::IsNullOrWhiteSpace($tag)) { Get-DocumentedReleaseVersionHint -RepositoryRoot $RepositoryRoot } else { $tag }
-        releasePosture = "release-candidate"
-        releaseGuideFile = "docs/operations/release-candidate.md"
-        checkpointGuideFile = "docs/operations/post-release-candidate-checkpoint.md"
-        checkpointEstimate = $CheckpointEstimate
+        repositoryTag         = $tag
+        repositoryIsDirty     = -not [string]::IsNullOrWhiteSpace($dirtyStatus)
+        releaseVersionHint    = if ([string]::IsNullOrWhiteSpace($tag)) { Get-DocumentedReleaseVersionHint -RepositoryRoot $RepositoryRoot } else { $tag }
+        releasePosture        = "release-candidate"
+        releaseGuideFile      = "docs/operations/release-candidate.md"
+        checkpointGuideFile   = "docs/operations/post-release-candidate-checkpoint.md"
+        checkpointEstimate    = $CheckpointEstimate
     }
 }
 
@@ -125,14 +125,14 @@ function Get-RuntimeContext {
     )
 
     return [ordered]@{
-        capturedAtUtc = (Get-Date).ToUniversalTime().ToString("o")
-        hostName = [System.Environment]::MachineName
-        userName = [System.Environment]::UserName
-        operatingSystem = [System.Environment]::OSVersion.VersionString
+        capturedAtUtc     = (Get-Date).ToUniversalTime().ToString("o")
+        hostName          = [System.Environment]::MachineName
+        userName          = [System.Environment]::UserName
+        operatingSystem   = [System.Environment]::OSVersion.VersionString
         powerShellVersion = $PSVersionTable.PSVersion.ToString()
-        apiBaseUrl = if ([string]::IsNullOrWhiteSpace($SupportBundlePath)) { $ApiBaseUrl } else { "" }
-        bundleSource = if ([string]::IsNullOrWhiteSpace($SupportBundlePath)) { "live-api-export" } else { "existing-file" }
-        issueDraftSource = if ([string]::IsNullOrWhiteSpace($IssueDraftPath)) { "generated-template" } else { "existing-file" }
+        apiBaseUrl        = if ([string]::IsNullOrWhiteSpace($SupportBundlePath)) { $ApiBaseUrl } else { "" }
+        bundleSource      = if ([string]::IsNullOrWhiteSpace($SupportBundlePath)) { "live-api-export" } else { "existing-file" }
+        issueDraftSource  = if ([string]::IsNullOrWhiteSpace($IssueDraftPath)) { "generated-template" } else { "existing-file" }
     }
 }
 
@@ -171,7 +171,8 @@ if (-not [string]::IsNullOrWhiteSpace($SupportBundlePath)) {
     }
 
     Copy-Item -Path $SupportBundlePath -Destination $bundleOutputPath -Force
-} else {
+}
+else {
     $exportScriptPath = Join-Path $PSScriptRoot "export-support-bundle.ps1"
 
     & $exportScriptPath `
@@ -190,7 +191,8 @@ if (-not [string]::IsNullOrWhiteSpace($IssueDraftPath)) {
     }
 
     Copy-Item -Path $IssueDraftPath -Destination $issueDraftOutputPath -Force
-} else {
+}
+else {
     @"
 ## Summary
 
@@ -234,24 +236,24 @@ Add the most relevant timing, data, or dependency clues only.
 }
 
 $manifest = [ordered]@{
-    packetSchemaVersion = 1
-    createdAtUtc = (Get-Date).ToUniversalTime().ToString("o")
-    tenantId = $TenantId
-    bundleFile = "support-bundle.json"
-    issueDraftFile = "ISSUE_DRAFT.md"
+    packetSchemaVersion        = 1
+    createdAtUtc               = (Get-Date).ToUniversalTime().ToString("o")
+    tenantId                   = $TenantId
+    bundleFile                 = "support-bundle.json"
+    issueDraftFile             = "ISSUE_DRAFT.md"
     packagedFromExistingBundle = -not [string]::IsNullOrWhiteSpace($SupportBundlePath)
-    packagedFromExistingDraft = -not [string]::IsNullOrWhiteSpace($IssueDraftPath)
-    refreshCount = 0
-    currentAttempt = 1
-    lastRefreshReason = ""
-    archiveCount = 0
-    lifecycleSummaryFile = "SUPPORT_LIFECYCLE.json"
-    canonicalPacketState = "active-packet-is-canonical"
-    packetClass = "general-support-packet"
-    triageLane = "mixed-triage"
-    nextOwner = "Operator"
-    releaseContext = Get-ReleaseContext -RepositoryRoot $repositoryRoot -CheckpointEstimate $checkpointEstimate
-    runtimeContext = Get-RuntimeContext -ApiBaseUrl $ApiBaseUrl -SupportBundlePath $SupportBundlePath -IssueDraftPath $IssueDraftPath
+    packagedFromExistingDraft  = -not [string]::IsNullOrWhiteSpace($IssueDraftPath)
+    refreshCount               = 0
+    currentAttempt             = 1
+    lastRefreshReason          = ""
+    archiveCount               = 0
+    lifecycleSummaryFile       = "SUPPORT_LIFECYCLE.json"
+    canonicalPacketState       = "active-packet-is-canonical"
+    packetClass                = "general-support-packet"
+    triageLane                 = "mixed-triage"
+    nextOwner                  = "Operator"
+    releaseContext             = Get-ReleaseContext -RepositoryRoot $repositoryRoot -CheckpointEstimate $checkpointEstimate
+    runtimeContext             = Get-RuntimeContext -ApiBaseUrl $ApiBaseUrl -SupportBundlePath $SupportBundlePath -IssueDraftPath $IssueDraftPath
 }
 
 $manifest | ConvertTo-Json -Depth 4 | Set-Content -Path (Join-Path $OutputDirectory "SUPPORT_MANIFEST.json") -Encoding UTF8
@@ -260,12 +262,12 @@ $attemptReleaseContext = $manifest.releaseContext
 $attemptRuntimeContext = $manifest.runtimeContext
 $attempts = @(
     [ordered]@{
-        attempt = 1
-        createdAtUtc = (Get-Date).ToUniversalTime().ToString("o")
-        reason = "initial-capture"
+        attempt          = 1
+        createdAtUtc     = (Get-Date).ToUniversalTime().ToString("o")
+        reason           = "initial-capture"
         validationStatus = ""
-        releaseContext = $attemptReleaseContext
-        runtimeContext = $attemptRuntimeContext
+        releaseContext   = $attemptReleaseContext
+        runtimeContext   = $attemptRuntimeContext
     }
 )
 

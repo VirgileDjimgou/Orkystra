@@ -135,7 +135,9 @@ const fallbackWarehouseWorkbench = buildFallbackWarehouseWorkbench();
 const fallbackRouteDetail = buildFallbackRouteDetail();
 const overview = ref<ControlTowerOverviewView>(fallbackOverview);
 const warehouseDetail = ref<WarehouseDetailView>(fallbackWarehouseDetail);
-const warehouseWorkbench = ref<WarehouseWorkbenchView>(fallbackWarehouseWorkbench);
+const warehouseWorkbench = ref<WarehouseWorkbenchView>(
+  fallbackWarehouseWorkbench
+);
 const routeDetail = ref<RouteDetailView>(fallbackRouteDetail);
 const gpsFleetBoard = ref<GpsFleetBoardView>(buildFallbackGpsFleetBoard());
 const loadErrorMessage = ref<string | null>(null);
@@ -165,8 +167,11 @@ const transportSyncHistoryFeed = ref<TransportSyncHistoryView>(
 );
 const transportSyncHistoryConnectionState = ref<DataConnectionState>("loading");
 const transportSyncHistoryErrorMessage = ref<string | null>(null);
-const transportSyncImportDetail = ref<TransportSyncImportDetailView | null>(null);
-const transportSyncImportDetailConnectionState = ref<DataConnectionState>("loading");
+const transportSyncImportDetail = ref<TransportSyncImportDetailView | null>(
+  null
+);
+const transportSyncImportDetailConnectionState =
+  ref<DataConnectionState>("loading");
 const transportSyncImportDetailErrorMessage = ref<string | null>(null);
 const transportSyncComparePreviousRunId = ref<number | null>(null);
 const transportSyncCompareCurrentRunId = ref<number | null>(null);
@@ -268,23 +273,24 @@ let freshnessTickerHandle = 0;
 const isRefreshingWorkspace = ref(false);
 const isApiConnected = ref(false);
 
-const currentWarehouse = computed(() =>
-  overview.value.warehouses.find(
-    (w) => w.warehouseId === selectedWarehouseId.value
-  ) ?? overview.value.warehouses[0]
+const currentWarehouse = computed(
+  () =>
+    overview.value.warehouses.find(
+      (w) => w.warehouseId === selectedWarehouseId.value
+    ) ?? overview.value.warehouses[0]
 );
 
 const navigationItems = computed(() => [
-  { label: 'Control Tower', short: 'CT', active: true },
-  { label: 'Warehouses', short: 'WH', active: false },
-  { label: 'Transport', short: 'TP', active: false },
-  { label: 'AI Insights', short: 'AI', active: false },
-  { label: 'Providers', short: 'PR', active: false },
-  { label: 'Audit', short: 'AU', active: false },
+  { label: "Control Tower", short: "CT", active: true },
+  { label: "Warehouses", short: "WH", active: false },
+  { label: "Transport", short: "TP", active: false },
+  { label: "AI Insights", short: "AI", active: false },
+  { label: "Providers", short: "PR", active: false },
+  { label: "Audit", short: "AU", active: false },
 ]);
 
-const currentRiskCount = computed(() =>
-  overview.value.alerts.filter((a) => a.severity !== 'Info').length
+const currentRiskCount = computed(
+  () => overview.value.alerts.filter((a) => a.severity !== "Info").length
 );
 
 const currentScenario = computed(() =>
@@ -292,10 +298,10 @@ const currentScenario = computed(() =>
     (scenario) => scenario.scenarioId === selectedScenarioId.value
   )
 );
-const currentRoute = computed(() =>
-  overview.value.routes.find(
-    (r) => r.routeId === selectedRouteId.value
-  ) ?? overview.value.routes[0]
+const currentRoute = computed(
+  () =>
+    overview.value.routes.find((r) => r.routeId === selectedRouteId.value) ??
+    overview.value.routes[0]
 );
 const activeAlertCount = computed(
   () =>
@@ -338,7 +344,9 @@ const gpsFleetFocusPosition = computed(
     gpsFleetBoard.value.positions.find(
       (position) =>
         position.truckReference === gpsFleetBoard.value.focusTruckReference
-    ) ?? gpsFleetBoard.value.positions[0] ?? null
+    ) ??
+    gpsFleetBoard.value.positions[0] ??
+    null
 );
 const degradedProviderCount = computed(
   () =>
@@ -508,14 +516,14 @@ const supportEscalationTone = computed(() => {
 });
 const supportIssueDeploymentMode = computed(() => {
   if (supportBundleSummary.value.persistenceLabel.includes("PostgreSQL")) {
-    return "PostgreSQL self-host"
+    return "PostgreSQL self-host";
   }
 
   if (supportBundleSummary.value.persistenceLabel.includes("SQLite")) {
-    return "Local single-tenant or SQLite self-host"
+    return "Local single-tenant or SQLite self-host";
   }
 
-  return "Self-host or local evaluation"
+  return "Self-host or local evaluation";
 });
 const supportIssueBrowserLabel = computed(() => {
   if (typeof window === "undefined") {
@@ -536,7 +544,9 @@ const supportIssueDraft = computed(() =>
     reproductionSteps: supportIssueReproductionDraft.value,
     expectedResult: supportIssueExpectedDraft.value,
     actualResult:
-      supportIssueActualDraft.value.trim() || supportBundleErrorMessage.value || "",
+      supportIssueActualDraft.value.trim() ||
+      supportBundleErrorMessage.value ||
+      "",
     evidenceNotes: supportIssueEvidenceDraft.value,
   })
 );
@@ -552,7 +562,9 @@ const supportPacketReadiness = computed(() =>
     reproductionSteps: supportIssueReproductionDraft.value,
     expectedResult: supportIssueExpectedDraft.value,
     actualResult:
-      supportIssueActualDraft.value.trim() || supportBundleErrorMessage.value || "",
+      supportIssueActualDraft.value.trim() ||
+      supportBundleErrorMessage.value ||
+      "",
     evidenceNotes: supportIssueEvidenceDraft.value,
   })
 );
@@ -2728,7 +2740,7 @@ function applyWarehouseProjectionResult(
 
 function applyWarehouseWorkbenchResult(
   result: Awaited<ReturnType<typeof loadWarehouseWorkbench>>,
-  preserveExisting: boolean,
+  preserveExisting: boolean
 ): void {
   const keepCurrentSnapshot =
     preserveExisting &&
@@ -3019,7 +3031,10 @@ function applySupportBundleResult(
   const keepCurrentSnapshot =
     preserveExisting &&
     result.source === "fallback" &&
-    supportBundleSummary.value.workflowCount + supportBundleSummary.value.projectionCount + supportBundleSummary.value.auditCount > 0 &&
+    supportBundleSummary.value.workflowCount +
+      supportBundleSummary.value.projectionCount +
+      supportBundleSummary.value.auditCount >
+      0 &&
     (supportBundleConnectionState.value === "api" ||
       supportBundleConnectionState.value === "stale");
 
@@ -3077,7 +3092,9 @@ async function refreshWarehouseProjection(
   applyWarehouseProjectionResult(result, preserveExisting, warehouseId);
 }
 
-async function refreshWarehouseWorkbench(preserveExisting = true): Promise<void> {
+async function refreshWarehouseWorkbench(
+  preserveExisting = true
+): Promise<void> {
   if (!preserveExisting) {
     warehouseWorkbenchConnectionState.value = "loading";
   }
@@ -3098,9 +3115,7 @@ async function refreshTransportProjection(
   applyTransportProjectionResult(result, preserveExisting, routeId);
 }
 
-async function refreshGpsFleetBoard(
-  preserveExisting = true
-): Promise<void> {
+async function refreshGpsFleetBoard(preserveExisting = true): Promise<void> {
   if (!preserveExisting) {
     gpsFleetBoardConnectionState.value = "loading";
   }
@@ -3133,7 +3148,7 @@ async function refreshTransportSyncDiff(
 
 function applyTransportSyncImportDetailResult(
   runId: number,
-  result: Awaited<ReturnType<typeof loadTransportSyncImportDetail>>,
+  result: Awaited<ReturnType<typeof loadTransportSyncImportDetail>>
 ): void {
   if (result.detail !== null) {
     transportSyncImportDetail.value = result.detail;
@@ -3144,9 +3159,7 @@ function applyTransportSyncImportDetailResult(
   transportSyncImportDetailErrorMessage.value = result.errorMessage;
 }
 
-async function refreshTransportSyncImportDetail(
-  runId: number
-): Promise<void> {
+async function refreshTransportSyncImportDetail(runId: number): Promise<void> {
   transportSyncImportDetailConnectionState.value = "loading";
   transportSyncImportDetail.value = null;
   const result = await loadTransportSyncImportDetail(runId);
@@ -3651,7 +3664,7 @@ watch(
     if (prevRunId !== null && currRunId !== null) {
       void onCompareTransportSyncImports(prevRunId, currRunId);
     }
-  },
+  }
 );
 
 onBeforeUnmount(() => {
@@ -3858,10 +3871,7 @@ onBeforeUnmount(() => {
               }}</span>
             </div>
             <p>
-              {{
-                gpsFleetBoardErrorMessage ??
-                gpsFleetBoard.summary
-              }}
+              {{ gpsFleetBoardErrorMessage ?? gpsFleetBoard.summary }}
             </p>
           </article>
 
@@ -4046,27 +4056,65 @@ onBeforeUnmount(() => {
               <h2>Warehouse signals</h2>
             </div>
             <div class="warehouse-actions">
-              <span class="status-pill" :class="toneForConnectionState(warehouseWorkbenchConnectionState)">{{ labelForConnectionState(warehouseWorkbenchConnectionState, 'Warehouse workbench live', 'Warehouse workbench fallback') }}</span>
+              <span
+                class="status-pill"
+                :class="
+                  toneForConnectionState(warehouseWorkbenchConnectionState)
+                "
+                >{{
+                  labelForConnectionState(
+                    warehouseWorkbenchConnectionState,
+                    "Warehouse workbench live",
+                    "Warehouse workbench fallback"
+                  )
+                }}</span
+              >
             </div>
           </div>
           <div class="surface-body">
-            <div v-if="warehouseWorkbenchErrorMessage" class="callout is-warning">{{ warehouseWorkbenchErrorMessage }}</div>
+            <div
+              v-if="warehouseWorkbenchErrorMessage"
+              class="callout is-warning"
+            >
+              {{ warehouseWorkbenchErrorMessage }}
+            </div>
             <div class="exception-strip">
-              <article v-for="item in warehouseWorkbench.items" :key="item.exceptionId" class="exception-card" :class="`severity-${item.severity.toLowerCase()}`">
+              <article
+                v-for="item in warehouseWorkbench.items"
+                :key="item.exceptionId"
+                class="exception-card"
+                :class="`severity-${item.severity.toLowerCase()}`"
+              >
                 <div class="exception-head">
                   <div>
                     <strong>{{ item.title }}</strong>
                     <p class="exception-detail">{{ item.detail }}</p>
-                    <p v-if="item.zoneCode" class="exception-zone">Zone: {{ item.zoneCode }}</p>
+                    <p v-if="item.zoneCode" class="exception-zone">
+                      Zone: {{ item.zoneCode }}
+                    </p>
                   </div>
                   <span>{{ item.severity }}</span>
                 </div>
                 <div v-if="item.evidence.length > 0" class="exception-evidence">
-                  <p v-for="(evidence, idx) in item.evidence" :key="idx" class="evidence-item">{{ evidence }}</p>
+                  <p
+                    v-for="(evidence, idx) in item.evidence"
+                    :key="idx"
+                    class="evidence-item"
+                  >
+                    {{ evidence }}
+                  </p>
                 </div>
                 <div class="exception-action">
-                  <button type="button" class="action-button" disabled>{{ item.actionLabel }}</button>
-                  <p class="action-hint">{{ item.recommendedAction === 'focus-warehouse' ? 'Navigate to warehouse detail to act on this signal.' : 'Operator review recommended.' }}</p>
+                  <button type="button" class="action-button" disabled>
+                    {{ item.actionLabel }}
+                  </button>
+                  <p class="action-hint">
+                    {{
+                      item.recommendedAction === "focus-warehouse"
+                        ? "Navigate to warehouse detail to act on this signal."
+                        : "Operator review recommended."
+                    }}
+                  </p>
                 </div>
               </article>
             </div>
@@ -5169,7 +5217,9 @@ onBeforeUnmount(() => {
                     <button
                       type="button"
                       class="catalog-chip"
-                      @click="onSelectTransportSyncImportForDetail(Number(run.id))"
+                      @click="
+                        onSelectTransportSyncImportForDetail(Number(run.id))
+                      "
                     >
                       View detail
                     </button>
@@ -5633,7 +5683,9 @@ onBeforeUnmount(() => {
                     :key="entry.id"
                   >
                     <strong>{{ entry.updatedAtLabel }}</strong>
-                    <span>{{ entry.status }} ┬À {{ entry.followUpStatus }}</span>
+                    <span
+                      >{{ entry.status }} ┬À {{ entry.followUpStatus }}</span
+                    >
                     <span>{{
                       entry.note ?? "No operator note saved on this update."
                     }}</span>
@@ -5843,10 +5895,7 @@ onBeforeUnmount(() => {
                 }}</span>
               </div>
 
-              <div
-                v-if="transportSyncHistory.length > 1"
-                class="chip-row"
-              >
+              <div v-if="transportSyncHistory.length > 1" class="chip-row">
                 <select
                   class="catalog-select"
                   :value="transportSyncComparePreviousRunId ?? ''"
@@ -5865,7 +5914,10 @@ onBeforeUnmount(() => {
                     :key="'prev-' + run.id"
                     :value="String(run.id)"
                   >
-                    {{ run.createdAtLabel }} ({{ run.importedRouteCount }} routes)
+                    {{ run.createdAtLabel }} ({{
+                      run.importedRouteCount
+                    }}
+                    routes)
                   </option>
                 </select>
                 <select
@@ -5886,7 +5938,10 @@ onBeforeUnmount(() => {
                     :key="'curr-' + run.id"
                     :value="String(run.id)"
                   >
-                    {{ run.createdAtLabel }} ({{ run.importedRouteCount }} routes)
+                    {{ run.createdAtLabel }} ({{
+                      run.importedRouteCount
+                    }}
+                    routes)
                   </option>
                 </select>
                 <button
@@ -6344,7 +6399,9 @@ onBeforeUnmount(() => {
               :disabled="isPublishingGpsTelemetry"
               @click="triggerGpsTelemetryPublish"
             >
-              {{ isPublishingGpsTelemetry ? "Publishing..." : "Publish telemetry" }}
+              {{
+                isPublishingGpsTelemetry ? "Publishing..." : "Publish telemetry"
+              }}
             </button>
           </div>
         </div>
@@ -6362,10 +6419,7 @@ onBeforeUnmount(() => {
             </div>
 
             <p class="catalog-summary">
-              {{
-                gpsFleetBoardErrorMessage ??
-                gpsFleetBoard.summary
-              }}
+              {{ gpsFleetBoardErrorMessage ?? gpsFleetBoard.summary }}
             </p>
 
             <div class="transport-sync-grid">
@@ -6385,7 +6439,8 @@ onBeforeUnmount(() => {
                 <span class="panel-label">Freshness</span>
                 <strong>{{ gpsFleetBoard.freshCount }} fresh</strong>
                 <span>
-                  {{ gpsFleetBoard.agingCount }} aging, {{ gpsFleetBoard.staleCount }} stale
+                  {{ gpsFleetBoard.agingCount }} aging,
+                  {{ gpsFleetBoard.staleCount }} stale
                 </span>
               </div>
 
@@ -6408,7 +6463,9 @@ onBeforeUnmount(() => {
                   <span>
                     {{
                       gpsFleetFocusPosition.routeReference
-                        ? `${gpsFleetFocusPosition.routeReference} - ${gpsFleetFocusPosition.routeStatus ?? "Unlinked"}`
+                        ? `${gpsFleetFocusPosition.routeReference} - ${
+                            gpsFleetFocusPosition.routeStatus ?? "Unlinked"
+                          }`
                         : "No linked route"
                     }}
                   </span>
@@ -6467,7 +6524,9 @@ onBeforeUnmount(() => {
                 <p>
                   {{
                     position.routeReference
-                      ? `${position.routeReference} - ${position.routeStatus ?? "No route posture"}`
+                      ? `${position.routeReference} - ${
+                          position.routeStatus ?? "No route posture"
+                        }`
                       : "No linked route"
                   }}
                 </p>
@@ -6484,7 +6543,10 @@ onBeforeUnmount(() => {
               <span>{{ position.coordinateLabel }}</span>
               <span>{{ position.speedKph }} km/h</span>
               <span>{{ position.movementPosture }}</span>
-              <span>{{ position.freshnessPosture }} - {{ position.minutesSinceReading }} min</span>
+              <span
+                >{{ position.freshnessPosture }} -
+                {{ position.minutesSinceReading }} min</span
+              >
               <span>{{ position.recordedAtLabel }}</span>
             </div>
 
@@ -6970,10 +7032,7 @@ onBeforeUnmount(() => {
               </span>
             </div>
             <p class="catalog-summary">
-              {{
-                supportBundleErrorMessage ??
-                supportBundleSummary.summary
-              }}
+              {{ supportBundleErrorMessage ?? supportBundleSummary.summary }}
             </p>
             <div class="catalog-meta">
               <span>{{ supportBundleSummary.tenantId }}</span>
@@ -6990,7 +7049,9 @@ onBeforeUnmount(() => {
                 {{ supportEscalationLabel }}
               </span>
               <span class="catalog-editor-note">
-                The backend now classifies whether this looks like a product bug, a configuration gap, a dependency issue, or still-thin evidence.
+                The backend now classifies whether this looks like a product
+                bug, a configuration gap, a dependency issue, or still-thin
+                evidence.
               </span>
             </div>
             <div class="catalog-editor-actions">
@@ -7007,7 +7068,8 @@ onBeforeUnmount(() => {
                 }}
               </button>
               <span class="catalog-editor-note">
-                The exported JSON mirrors the protected support snapshot that self-host maintainers can also collect from PowerShell.
+                The exported JSON mirrors the protected support snapshot that
+                self-host maintainers can also collect from PowerShell.
               </span>
             </div>
             <div class="catalog-editor-grid">
@@ -7027,7 +7089,9 @@ onBeforeUnmount(() => {
                   placeholder="Optional operator note, failed API call, or timing clue."
                 />
               </label>
-              <label class="catalog-field support-intake-field support-intake-field-wide">
+              <label
+                class="catalog-field support-intake-field support-intake-field-wide"
+              >
                 <span>Steps to reproduce</span>
                 <textarea
                   v-model="supportIssueReproductionDraft"
@@ -7075,7 +7139,9 @@ onBeforeUnmount(() => {
                 }}
               </button>
               <span class="catalog-editor-note">
-                The generated draft maps the live tenant, persistence posture, selected scenario, and selected route into the GitHub bug report shape.
+                The generated draft maps the live tenant, persistence posture,
+                selected scenario, and selected route into the GitHub bug report
+                shape.
               </span>
             </div>
             <p v-if="supportIssueCopyNotice" class="support-intake-notice">
@@ -7349,7 +7415,9 @@ onBeforeUnmount(() => {
                 </li>
               </ul>
             </div>
-            <label class="catalog-field support-intake-field support-intake-preview">
+            <label
+              class="catalog-field support-intake-field support-intake-preview"
+            >
               <span>Issue draft preview</span>
               <textarea :value="supportIssueDraft" readonly />
             </label>
@@ -7452,9 +7520,9 @@ onBeforeUnmount(() => {
                 <span class="panel-label">Collection hints</span>
                 <h3>What to gather next</h3>
               </div>
-              <span class="mini-badge">{{
-                supportBundleSummary.collectionHints.length
-              }} items</span>
+              <span class="mini-badge"
+                >{{ supportBundleSummary.collectionHints.length }} items</span
+              >
             </div>
 
             <ul class="detail-list">
@@ -7578,7 +7646,9 @@ onBeforeUnmount(() => {
                 <span class="panel-label">Writeback posture</span>
                 <div class="catalog-meta">
                   <span>Mode: {{ provider.writebackMode }}</span>
-                  <span class="auth-badge-ok">{{ provider.writebackReadiness }}</span>
+                  <span class="auth-badge-ok">{{
+                    provider.writebackReadiness
+                  }}</span>
                 </div>
                 <p class="catalog-summary">{{ provider.writebackSummary }}</p>
               </div>
@@ -8795,7 +8865,11 @@ onBeforeUnmount(() => {
   overflow: hidden;
   border: 1px solid rgba(148, 163, 184, 0.14);
   border-radius: 8px;
-  background: radial-gradient(circle at top, rgba(59, 130, 246, 0.18), rgba(15, 23, 42, 0.96));
+  background: radial-gradient(
+    circle at top,
+    rgba(59, 130, 246, 0.18),
+    rgba(15, 23, 42, 0.96)
+  );
 }
 
 .gps-truck-marker {
