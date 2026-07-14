@@ -81,6 +81,40 @@ It now also scores evidence gaps by category so the next operator action can foc
 It now also synthesizes a remediation checklist so the next pass can stay focused on one owner, one lane, and one stopping rule instead of turning into an open-ended evidence hunt.
 It now also includes a capture shortcut so the next operator knows the fastest evidence move for the current packet class and release posture.
 
+## Capture presets during handoff
+
+When packaging or handing off a support issue, capture presets help the next operator choose the fastest evidence move without re-reading the full packet history.
+
+### Preset identity
+
+Each capture preset is identified by:
+
+- **`presetId`** — deterministic identifier derived from packet class and release posture (e.g., `configuration-or-persistence` + `release-candidate` → `configuration-or-persistence-release-candidate`).
+- **`presetLabel`** — human-readable label (e.g., `configuration-or-persistence / release-candidate`).
+
+### How presets appear in the packet
+
+- The lifecycle summary (`SUPPORT_LIFECYCLE.json` / `SUPPORT_LIFECYCLE.md`) includes a `captureGuidance` block with the full preset: label, summary, `presetId`, `presetLabel`, `releasePosture`, `packetClass`, `triageLane`, `nextOwner`, `presetActions`, `shortcuts`, `checks`, and `exitCriteria`.
+- The maintainer handoff (`MAINTAINER_HANDOFF.md`) echoes the same preset actions so the next operator sees the recommended capture steps without opening the lifecycle file.
+- The frontend support panel returns the same `captureGuidance` structure in the bundle summary, so operators can see the preset before running command-line scripts.
+
+### Choosing a preset during packaging
+
+The `package-support-issue.ps1` and `summarize-support-issue.ps1` scripts automatically select the preset that matches the current escalation target and readiness state. The four presets are:
+
+1. **Configuration capture shortcut** — when the escalation target is `configuration-or-persistence`. Freeze deployment posture, capture runtime evidence from the matching failure.
+2. **Dependency capture shortcut** — when the escalation target is `dependency-or-event-backbone`. Pin down broker or event-flow evidence around the retry that failed.
+3. **Operator capture shortcut** — when the packet is not yet `Ready`. Tighten the user story, then capture workflow and audit evidence from the same run.
+4. **Release-aware capture shortcut** — when the packet is already strong. Keep captures narrow and delta-focused; archive older state only when genuinely superseded.
+
+### Validating presets
+
+After packaging, run `validate-support-issue.ps1` to confirm the preset contract is intact. The validator checks:
+
+- The `captureGuidance` block exists in the lifecycle JSON.
+- All required fields (`label`, `summary`, `presetId`, `presetLabel`, `releasePosture`, `triageLane`, `nextOwner`, `shortcuts`, `presetActions`, `checks`, `exitCriteria`) are present.
+- The lifecycle markdown includes the `## Capture preset actions`, `## Capture shortcuts`, `## Capture checks`, and `## Capture exit criteria` sections.
+
 To validate an existing packet before handoff, use:
 
 ```powershell

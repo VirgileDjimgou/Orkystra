@@ -74,6 +74,37 @@ The lifecycle summary is now also the quickest way to understand:
 
 If these fields point to operator refresh or configuration review, treat that as a signal to avoid spending maintainer time on deep workflow debugging yet.
 
+## Capture presets
+
+Capture presets group the fastest evidence moves by packet class and release posture. Each preset is identified by a `presetId` (class + posture combination) and a `presetLabel` (human-readable) and appears in both the lifecycle JSON and the lifecycle markdown.
+
+### Preset action groups
+
+| Group | When to use |
+|-------|-------------|
+| **Configuration capture shortcut** | Escalation target is `configuration-or-persistence` — freeze deployment posture first, then capture runtime evidence from the matching failure. |
+| **Dependency capture shortcut** | Escalation target is `dependency-or-event-backbone` — pin down broker or event-flow evidence around the exact retry that failed. |
+| **Operator capture shortcut** | Packet readiness is not `Ready` — tighten the user story first, then capture evidence from the same failing run. |
+| **Release-aware capture shortcut** | Packet is already strong — keep the capture narrow and delta-focused; archive older state only when genuinely superseded. |
+
+### How to read capture presets during review
+
+1. Open `SUPPORT_LIFECYCLE.json` or `SUPPORT_LIFECYCLE.md` and locate the `captureGuidance` block.
+2. Read `presetId` and `presetLabel` to see which group was selected.
+3. Check `presetActions` — if the actions point to operator refresh, the packet may still be early-stage evidence.
+4. Check `shortcuts` — these are the same actions presented as a compact operator list.
+5. Check `checks` — these guard against common capture drift (e.g., draft/bundle misalignment, stale artifact checklist).
+6. Check `exitCriteria` — these tell the reviewer when to stop asking for more evidence from this preset.
+
+### When to flag a preset mismatch
+
+Flag a mismatch when:
+
+- the `captureGuidance` block is missing from the lifecycle summary — the packet is incomplete.
+- the `presetActions` are empty — the packet has no capture guidance, which means the operator has not yet selected a preset class.
+- the preset class (`packetClass`) does not match the manifest `packetClass` — the capture and the packet metadata are out of sync.
+- the exit criteria describe a state that the current packet clearly does not meet — recommend a refresh before deep debugging.
+
 ## Release posture link
 
 When judging whether a packet is enough for a deeper debugging pass, align it with:

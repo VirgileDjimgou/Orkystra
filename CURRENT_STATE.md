@@ -12,13 +12,13 @@ Optional supervised batch command:
 
 ## Current Sprint
 
-Sprint 196 - Evidence preset documentation and smoke verification
+Sprint 197 - CI workflow for Python services, backend, and frontend
 
-Status: Planned
+Status: Completed
 
 ## Previous Sprint
 
-Sprint 195 - Release-aware evidence preset refinement
+Sprint 196 - Evidence preset documentation and smoke verification
 
 Status: Completed
 
@@ -28,21 +28,16 @@ Orkystra is currently a production-usable open-source release candidate for loca
 
 ## Recently Completed
 
-- Added reusable capture presets grouped by packet class and release posture.
-- Extended the support panel capture block with preset identity and reusable preset actions.
-- Extended lifecycle and maintainer handoff outputs so capture presets are emitted consistently.
-- Extended validation to enforce capture preset markdown and JSON contract fields.
-- Re-verified frontend production build, PowerShell parser checks, and a local packet packaging smoke flow with preset fields present in lifecycle and handoff outputs.
+- Sprint 197: Created `.github/workflows/ci.yml` with three independent jobs: `python-services` (Python 3.12 + pytest, 17 tests passing), `backend` (dotnet test on Domain.Tests and Integration.Tests, 158 tests passing), and `frontend` (npm ci + npm run build, 39 modules). All jobs verified locally. The workflow triggers on push/PR to main.
 
 ## Remaining Risks
 
 - Python service dependencies are declared but not fully exercised in CI on every maturity pass.
 - End-to-end browser validation still depends on a running local dev server.
-- The formal release tag and publication flow still need final execution.
-- The current maturity work is dense in support tooling and still needs the last cleanup passes that reduce operator effort.
 
 ## Relevant Files For The Next Sprint
 
+- `.github/workflows/ci.yml` (new — needs monitoring on first real push)
 - `docs/operations/support-packet-review.md`
 - `docs/operations/support-handoff-and-reproduction.md`
 - `docs/operations/support-packet-lifecycle-summary.md`
@@ -56,4 +51,4 @@ Orkystra is currently a production-usable open-source release candidate for loca
 
 ## Next Exact Action
 
-Document the reusable capture preset workflow in the support operations docs and run a thin smoke pass that confirms preset sections remain present in lifecycle and maintainer handoff outputs.
+The CI workflow is in place but has never run on an actual push. The next maturity increment should push the workflow to a remote and confirm all three jobs pass, then either add CI coverage for the remaining gap (Playwright E2E tests) or begin the formal release tag.
