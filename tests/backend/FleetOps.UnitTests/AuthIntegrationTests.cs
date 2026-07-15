@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using FleetOps.Api;
 using FleetOps.Api.Admin;
+using FleetOps.Api.Tracking;
 using FleetOps.Core.Modules.Identity;
 using FleetOps.Infrastructure.Persistence;
 using FleetOps.UnitTests.Infrastructure;
@@ -85,26 +86,34 @@ public sealed class AuthIntegrationTests(FleetOpsApiFactory factory) : IClassFix
     [Fact]
     public async Task TrackingEndpointFiltersTelemetryByTenant()
     {
+        using var simulationClient = factory.CreateClient();
+        await simulationClient.PostAsync("/api/internal/v1/tracking/scenarios/northwind/reset", null);
+        var northwind = await simulationClient.GetFromJsonAsync<TrackingScenarioResponse>("/api/internal/v1/tracking/scenarios/northwind");
         await using var scope = factory.Services.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<FleetOpsDbContext>();
-        var northwind = await dbContext.Organizations.SingleAsync(x => x.Slug == "northwind");
         var southridge = await dbContext.Organizations.SingleAsync(x => x.Slug == "southridge");
+        var southVehicle = await dbContext.Vehicles
+            .SingleAsync(x => x.OrganizationId == southridge.Id && x.RegistrationNumber == "SR-200");
+        var southDevice = await dbContext.GpsDevices
+            .SingleAsync(x => x.OrganizationId == southridge.Id && x.SerialNumber == "SR-GPS-200");
+        var now = DateTimeOffset.UtcNow;
 
-        using var simulationClient = factory.CreateClient();
-        await simulationClient.PostAsJsonAsync("/api/simulation/telemetry", new TelemetryContract(
-            northwind.Id,
-            Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
-            "SIM-1",
-            DateTimeOffset.UtcNow,
+        await simulationClient.PostAsJsonAsync("/api/internal/v1/tracking/events", new IngestTelemetryRequest(
+            northwind!.OrganizationId,
+            northwind.Vehicles[0].VehicleId,
+            northwind.Vehicles[0].DeviceId,
+            "north-auth-1",
+            now,
             48.4,
             9.2,
             30,
             180));
-        await simulationClient.PostAsJsonAsync("/api/simulation/telemetry", new TelemetryContract(
+        await simulationClient.PostAsJsonAsync("/api/internal/v1/tracking/events", new IngestTelemetryRequest(
             southridge.Id,
-            Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"),
-            "SIM-2",
-            DateTimeOffset.UtcNow,
+            southVehicle.Id,
+            southDevice.SerialNumber,
+            "south-auth-1",
+            now,
             48.5,
             9.3,
             35,
@@ -114,10 +123,10 @@ public sealed class AuthIntegrationTests(FleetOpsApiFactory factory) : IClassFix
         var login = await client.LoginAsync("admin@northwind.local", "Admin123!");
         client.SetBearer(login.AccessToken);
 
-        var response = await client.GetFromJsonAsync<List<TelemetryContract>>("/api/tracking/latest");
+        var response = await client.GetFromJsonAsync<List<TrackingPositionResponse>>("/api/v1/tracking/positions");
 
         Assert.NotNull(response);
         Assert.Single(response!);
-        Assert.All(response!, point => Assert.Equal(northwind.Id, point.OrganizationId));
+        Assert.All(response!, point => Assert.StartsWith("NW-", point.RegistrationNumber, StringComparison.OrdinalIgnoreCase));
     }
 }

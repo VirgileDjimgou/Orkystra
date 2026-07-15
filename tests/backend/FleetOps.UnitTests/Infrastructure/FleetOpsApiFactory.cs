@@ -1,5 +1,5 @@
-using System.Collections.Concurrent;
 using FleetOps.Api;
+using FleetOps.Api.Tracking;
 using FleetOps.Infrastructure.Identity;
 using FleetOps.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Hosting;
@@ -39,10 +39,8 @@ public sealed class FleetOpsApiFactory : WebApplicationFactory<Program>, IAsyncL
         {
             services.RemoveAll<DbContextOptions<FleetOpsDbContext>>();
             services.RemoveAll<IDbContextOptionsConfiguration<FleetOpsDbContext>>();
-            services.RemoveAll<ConcurrentDictionary<Guid, TelemetryContract>>();
 
             services.AddDbContext<FleetOpsDbContext>(options => options.UseInMemoryDatabase(_databaseName));
-            services.AddSingleton(new ConcurrentDictionary<Guid, TelemetryContract>());
         });
     }
 
@@ -53,10 +51,10 @@ public sealed class FleetOpsApiFactory : WebApplicationFactory<Program>, IAsyncL
         var dbContext = scope.ServiceProvider.GetRequiredService<FleetOpsDbContext>();
         var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
-        var positions = scope.ServiceProvider.GetRequiredService<ConcurrentDictionary<Guid, TelemetryContract>>();
+        var metricsStore = scope.ServiceProvider.GetRequiredService<TrackingMetricsStore>();
         await dbContext.Database.EnsureDeletedAsync();
         await dbContext.Database.EnsureCreatedAsync();
-        positions.Clear();
+        metricsStore.ResetAll();
         await FleetOpsSeedData.EnsureSeededAsync(dbContext, roleManager, userManager, CancellationToken.None);
     }
 

@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Text;
 using FleetOps.Api;
 using FleetOps.Api.Admin;
@@ -6,14 +5,12 @@ using FleetOps.Api.Auditing;
 using FleetOps.Api.Auth;
 using FleetOps.Api.Fleet;
 using FleetOps.Api.Security;
+using FleetOps.Api.Tracking;
 using FleetOps.Infrastructure;
 using FleetOps.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.SignalR;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -24,9 +21,13 @@ builder.Services.AddHealthChecks();
 builder.Services.AddSignalR();
 builder.Services.AddFleetOpsInfrastructure(builder.Configuration);
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
+builder.Services.Configure<TrackingOptions>(builder.Configuration.GetSection(TrackingOptions.SectionName));
 builder.Services.AddSingleton<ICurrentTenantAccessor, CurrentTenantAccessor>();
 builder.Services.AddScoped<IJwtTokenIssuer, JwtTokenIssuer>();
 builder.Services.AddScoped<IAuditService, AuditService>();
+builder.Services.AddScoped<TrackingIngestionService>();
+builder.Services.AddSingleton<TrackingMetricsStore>();
+builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -63,7 +64,6 @@ builder.Services.AddCors(options => options.AddDefaultPolicy(policy =>
         .AllowAnyHeader()
         .AllowAnyMethod()
         .AllowCredentials()));
-builder.Services.AddSingleton<ConcurrentDictionary<Guid, TelemetryContract>>();
 
 var app = builder.Build();
 
@@ -95,50 +95,14 @@ app.MapUserAdministrationEndpoints();
 app.MapVehicleEndpoints();
 app.MapDriverEndpoints();
 app.MapDeviceEndpoints();
+app.MapTrackingEndpoints();
 
 app.MapGet("/api/system/info", () => Results.Ok(new
 {
     name = "Zynro Fleet",
-    status = "identity-ready",
+    status = "tracking-ready",
     utc = DateTimeOffset.UtcNow
 }));
-
-app.MapGet("/api/tracking/latest", (
-    HttpContext httpContext,
-    ConcurrentDictionary<Guid, TelemetryContract> positions,
-    ICurrentTenantAccessor currentTenantAccessor) =>
-{
-    var tenant = currentTenantAccessor.GetRequiredTenant(httpContext.User);
-    return Results.Ok(positions.Values
-        .Where(x => x.OrganizationId == tenant.OrganizationId)
-        .OrderBy(x => x.VehicleId));
-}).RequireAuthorization();
-
-app.MapPost("/api/simulation/telemetry", async (
-    TelemetryContract point,
-    ConcurrentDictionary<Guid, TelemetryContract> positions,
-    IHubContext<TrackingHub> hub,
-    IWebHostEnvironment environment,
-    CancellationToken cancellationToken) =>
-{
-    if (!environment.IsDevelopment())
-    {
-        return Results.NotFound();
-    }
-
-    if (point.Latitude is < -90 or > 90 || point.Longitude is < -180 or > 180)
-    {
-        return Results.ValidationProblem(new Dictionary<string, string[]>
-        {
-            ["coordinates"] = ["Latitude or longitude is outside the valid range."]
-        });
-    }
-
-    positions[point.VehicleId] = point with { RecordedAtUtc = point.RecordedAtUtc.ToUniversalTime() };
-    await hub.Clients.Group($"organization:{point.OrganizationId}")
-        .SendAsync("telemetryUpdated", point, cancellationToken);
-    return Results.Accepted();
-});
 
 app.Run();
 

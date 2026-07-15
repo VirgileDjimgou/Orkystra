@@ -18,6 +18,7 @@ public sealed class FleetOpsDbContext(DbContextOptions<FleetOpsDbContext> option
     public DbSet<GpsDevice> GpsDevices => Set<GpsDevice>();
     public DbSet<DeviceAssignment> DeviceAssignments => Set<DeviceAssignment>();
     public DbSet<TelemetryPoint> TelemetryPoints => Set<TelemetryPoint>();
+    public DbSet<CurrentVehiclePosition> CurrentVehiclePositions => Set<CurrentVehiclePosition>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -90,8 +91,23 @@ public sealed class FleetOpsDbContext(DbContextOptions<FleetOpsDbContext> option
         builder.Entity<TelemetryPoint>(entity =>
         {
             entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.OrganizationId, x.EventId }).IsUnique();
             entity.HasIndex(x => new { x.OrganizationId, x.VehicleId, x.RecordedAtUtc });
-            entity.Property(x => x.DeviceId).HasMaxLength(128);
+            entity.Property(x => x.DeviceId).HasMaxLength(64);
+            entity.Property(x => x.EventId).HasMaxLength(128);
+            entity.Property(x => x.RecordedAtUtc).HasPrecision(7);
+            entity.Property(x => x.IngestedAtUtc).HasPrecision(7);
+            entity.Property(x => x.HeadingDegrees).HasPrecision(6, 2);
+        });
+
+        builder.Entity<CurrentVehiclePosition>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.OrganizationId, x.VehicleId }).IsUnique();
+            entity.Property(x => x.DeviceId).HasMaxLength(64);
+            entity.Property(x => x.EventId).HasMaxLength(128);
+            entity.Property(x => x.RecordedAtUtc).HasPrecision(7);
+            entity.Property(x => x.HeadingDegrees).HasPrecision(6, 2);
         });
     }
 }

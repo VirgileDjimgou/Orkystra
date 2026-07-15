@@ -40,7 +40,8 @@ public static class FleetOpsSeedData
             var northVan = new Vehicle(north.Id, "NW-100", "Northwind Dispatch Van");
             var southHauler = new Vehicle(south.Id, "SR-200", "Southridge Line Hauler");
             var backupVan = new Vehicle(north.Id, "NW-101", "Northwind Reserve Van");
-            dbContext.Vehicles.AddRange(northVan, southHauler, backupVan);
+            var serviceVan = new Vehicle(north.Id, "NW-102", "Northwind Service Van");
+            dbContext.Vehicles.AddRange(northVan, southHauler, backupVan, serviceVan);
 
             var northDriver = new Driver(north.Id, "Alex North", "NW-DL-001", "+1-555-0100");
             var southDriver = new Driver(south.Id, "Sam South", "SR-DL-002", "+1-555-0200");
@@ -48,14 +49,17 @@ public static class FleetOpsSeedData
             inactiveDriver.Deactivate();
             dbContext.Drivers.AddRange(northDriver, southDriver, inactiveDriver);
 
-            var northDevice = new GpsDevice(north.Id, "NW-GPS-100", "Van tracker");
+            var northDevice = new GpsDevice(north.Id, "NW-GPS-100", "Dispatch van tracker");
             var southDevice = new GpsDevice(south.Id, "SR-GPS-200", "Line hauler tracker");
-            var northSpareDevice = new GpsDevice(north.Id, "NW-GPS-101", "Spare device");
-            dbContext.GpsDevices.AddRange(northDevice, southDevice, northSpareDevice);
+            var northSpareDevice = new GpsDevice(north.Id, "NW-GPS-101", "Reserve van tracker");
+            var northServiceDevice = new GpsDevice(north.Id, "NW-GPS-102", "Service van tracker");
+            dbContext.GpsDevices.AddRange(northDevice, southDevice, northSpareDevice, northServiceDevice);
 
             var historicalUtc = new DateTimeOffset(2026, 1, 1, 9, 0, 0, TimeSpan.Zero);
             dbContext.DeviceAssignments.AddRange(
                 new DeviceAssignment(north.Id, northDevice.Id, northVan.Id, historicalUtc),
+                new DeviceAssignment(north.Id, northSpareDevice.Id, backupVan.Id, historicalUtc),
+                new DeviceAssignment(north.Id, northServiceDevice.Id, serviceVan.Id, historicalUtc),
                 new DeviceAssignment(south.Id, southDevice.Id, southHauler.Id, historicalUtc));
 
             await dbContext.SaveChangesAsync(cancellationToken);

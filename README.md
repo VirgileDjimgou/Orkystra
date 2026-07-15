@@ -2,7 +2,7 @@
 
 Orkystra FleetOps is a modular fleet operations MVP for small and mid-sized transport businesses. The platform is designed to cover the operational chain from identity and tenant isolation to vehicle tracking, dispatch execution, driver workflows, proof of delivery, alerts, and production readiness.
 
-The repository currently delivers a solid technical foundation, Sprint 01 identity and multi-tenant access control, and Sprint 02 fleet registry capabilities:
+The repository currently delivers a solid technical foundation, Sprint 01 identity and multi-tenant access control, Sprint 02 fleet registry capabilities, and Sprint 03 live tracking simulation:
 
 - reproducible local environment;
 - modular ASP.NET Core backend;
@@ -13,8 +13,10 @@ The repository currently delivers a solid technical foundation, Sprint 01 identi
 - tenant-scoped vehicle, driver, and GPS device registry;
 - historized GPS device-to-vehicle assignments;
 - idempotent CSV imports for fleet master data;
-- live telemetry through SignalR;
-- deterministic GPS simulator for demos and validation.
+- persisted live telemetry with replay protection and current-position snapshots;
+- paged tracking history and tenant-scoped tracking metrics;
+- SignalR streaming for live fleet positions;
+- deterministic multi-vehicle GPS simulator for demos and validation.
 
 ## Product Goal
 
@@ -106,11 +108,6 @@ flowchart TD
   - JWT-based authentication;
   - claim-based tenant resolution;
   - audit logs for login and administrative actions.
-- Tracking bootstrap
-  - telemetry contract;
-  - in-memory latest position cache;
-  - SignalR push updates;
-  - development GPS simulator.
 - Fleet registry
   - tenant-aware `Vehicle`, `Driver`, `GpsDevice`, and `DeviceAssignment` entities;
   - unique vehicle registrations, driver license numbers, and GPS serial numbers per organization;
@@ -118,6 +115,13 @@ flowchart TD
   - historized GPS device assignments with a single active assignment per device;
   - CSV imports for vehicles, drivers, and devices;
   - server-side authorization and audit trails for registry operations.
+- Live tracking and simulation
+  - idempotent versioned telemetry ingestion;
+  - persisted telemetry history plus current vehicle positions;
+  - duplicate and out-of-order event handling;
+  - paged telemetry history for operators;
+  - tenant-scoped SignalR push updates and live tracking metrics;
+  - deterministic multi-vehicle simulator with replay and reset support.
 
 ## Fleet Registry Flow
 
@@ -144,6 +148,35 @@ flowchart LR
 - CSV imports are idempotent: existing records are updated by natural key and new records are created.
 - Device assignments are append-only history records; closing an assignment preserves the previous relationship and enables reassignment.
 - All registry queries are scoped by the authenticated tenant and never accept an organization identifier from the client.
+
+## Tracking Flow
+
+Sprint 03 turns the seeded fleet registry into a demonstrable live operations view.
+
+```mermaid
+sequenceDiagram
+    participant Simulator
+    participant API as "Tracking API"
+    participant DB as "SQL/EF Core"
+    participant Hub as "SignalR Hub"
+    participant Web as "Vue Tracking Console"
+
+    Simulator->>API: POST telemetry event (internal v1)
+    API->>API: validate tenant, vehicle, device assignment, idempotency
+    API->>DB: persist telemetry history
+    API->>DB: update current vehicle position if event is newer
+    API-->>Hub: publish current position change
+    Web->>API: GET current positions / history / metrics
+    Hub-->>Web: push live position update
+```
+
+### Tracking capabilities
+
+- Internal telemetry ingestion is versioned and idempotent.
+- Duplicate events are ignored without creating a second history point.
+- Out-of-order events are stored in history without replacing the current vehicle position.
+- Operators can inspect current positions, paged history, and tracking metrics inside the same authenticated web console.
+- The development simulator can reset a scenario, stream three vehicles at once, and optionally replay duplicates or older events for validation.
 
 ## Authentication and Tenant Isolation
 
@@ -214,6 +247,7 @@ flowchart LR
 - professional fleet registry screens for vehicles, drivers, and GPS devices;
 - CSV import panels with success, empty, loading, and error states;
 - role-aware controls that hide server-forbidden create/deactivate actions from non-admin users.
+- a live fleet map synchronized with a vehicle list, paged history, and connection-state feedback.
 
 ## Technology Stack
 
@@ -328,13 +362,19 @@ npm run dev -- --host 127.0.0.1
 Dry-run:
 
 ```powershell
-dotnet run --project simulators/GpsSimulator -- --dry-run
+dotnet run --project simulators/GpsSimulator -- --dry-run --once
 ```
 
 Connected mode:
 
 ```powershell
 dotnet run --project simulators/GpsSimulator
+```
+
+Replay duplicate and out-of-order events:
+
+```powershell
+dotnet run --project simulators/GpsSimulator -- --once --replay-duplicate --send-out-of-order
 ```
 
 ### 7. Optional: validate the Android app
@@ -346,7 +386,7 @@ Set-Location apps/android-driver
 
 ## Quality Gate
 
-The repository includes a local quality gate that validates the complete Sprint 00/01/02 baseline:
+The repository includes a local quality gate that validates the complete Sprint 00/01/02/03 baseline:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\quality-gate.ps1
@@ -370,9 +410,10 @@ Current local validation includes:
 - backend build in `Release`;
 - backend tests including integration coverage for auth, roles, tokens, and tenant isolation;
 - fleet registry unit and integration tests covering tenant isolation, role permissions, duplicate data, stale updates, CSV idempotency, and assignment invariants;
+- tracking unit and integration tests covering duplicate telemetry, out-of-order handling, paged history, tenant isolation, and multi-vehicle visibility;
 - web tests, lint, format, and production build;
-- authenticated tracking endpoints and SignalR hub;
-- EF Core migration for Sprint 01;
+- authenticated tracking endpoints, paged history, metrics, and SignalR hub;
+- EF Core migrations for Sprint 01, Sprint 02, and Sprint 03;
 - Android unit tests and debug assembly;
 - full local quality gate.
 
@@ -414,3 +455,4 @@ Admin/Operator and Driver workflows have different interaction models, offline r
 - [docs/02-engineering/ENGINEERING_STANDARDS.md](./docs/02-engineering/ENGINEERING_STANDARDS.md)
 - [sprints/SPRINT-01-IDENTITY-TENANCY.md](./sprints/SPRINT-01-IDENTITY-TENANCY.md)
 - [sprints/SPRINT-02-FLEET-REGISTRY.md](./sprints/SPRINT-02-FLEET-REGISTRY.md)
+- [sprints/SPRINT-03-TRACKING-SIMULATION.md](./sprints/SPRINT-03-TRACKING-SIMULATION.md)
