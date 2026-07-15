@@ -14,6 +14,9 @@ public sealed class FleetOpsDbContext(DbContextOptions<FleetOpsDbContext> option
     public DbSet<Organization> Organizations => Set<Organization>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<Vehicle> Vehicles => Set<Vehicle>();
+    public DbSet<Driver> Drivers => Set<Driver>();
+    public DbSet<GpsDevice> GpsDevices => Set<GpsDevice>();
+    public DbSet<DeviceAssignment> DeviceAssignments => Set<DeviceAssignment>();
     public DbSet<TelemetryPoint> TelemetryPoints => Set<TelemetryPoint>();
 
     protected override void OnModelCreating(ModelBuilder builder)
@@ -51,6 +54,37 @@ public sealed class FleetOpsDbContext(DbContextOptions<FleetOpsDbContext> option
             entity.HasIndex(x => new { x.OrganizationId, x.RegistrationNumber }).IsUnique();
             entity.Property(x => x.RegistrationNumber).HasMaxLength(32);
             entity.Property(x => x.DisplayName).HasMaxLength(128);
+            entity.Property(x => x.RowVersion).IsConcurrencyToken();
+        });
+
+        builder.Entity<Driver>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.OrganizationId, x.LicenseNumber }).IsUnique();
+            entity.Property(x => x.FullName).HasMaxLength(160);
+            entity.Property(x => x.LicenseNumber).HasMaxLength(64);
+            entity.Property(x => x.PhoneNumber).HasMaxLength(40);
+            entity.Property(x => x.RowVersion).IsConcurrencyToken();
+        });
+
+        builder.Entity<GpsDevice>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.OrganizationId, x.SerialNumber }).IsUnique();
+            entity.Property(x => x.SerialNumber).HasMaxLength(64);
+            entity.Property(x => x.DisplayName).HasMaxLength(128);
+            entity.Property(x => x.RowVersion).IsConcurrencyToken();
+        });
+
+        builder.Entity<DeviceAssignment>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.OrganizationId, x.DeviceId, x.UnassignedAtUtc })
+                .IsUnique()
+                .HasFilter("[UnassignedAtUtc] IS NULL");
+            entity.HasIndex(x => new { x.OrganizationId, x.VehicleId, x.UnassignedAtUtc });
+            entity.Property(x => x.AssignedAtUtc).HasPrecision(7);
+            entity.Property(x => x.UnassignedAtUtc).HasPrecision(7);
         });
 
         builder.Entity<TelemetryPoint>(entity =>

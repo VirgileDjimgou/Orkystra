@@ -2,11 +2,11 @@ using FleetOps.Core.Common;
 
 namespace FleetOps.Core.Modules.Fleet;
 
-public sealed class Vehicle : TenantEntity
+public sealed class GpsDevice : TenantEntity
 {
-    private Vehicle() { }
+    private GpsDevice() { }
 
-    public Vehicle(Guid organizationId, string registrationNumber, string displayName)
+    public GpsDevice(Guid organizationId, string serialNumber, string? displayName = null)
     {
         if (organizationId == Guid.Empty)
         {
@@ -14,18 +14,18 @@ public sealed class Vehicle : TenantEntity
         }
 
         OrganizationId = organizationId;
-        RegistrationNumber = RequireNonEmpty(registrationNumber, nameof(registrationNumber));
-        DisplayName = RequireNonEmpty(displayName, nameof(displayName));
+        SerialNumber = RequireNonEmpty(serialNumber, nameof(serialNumber));
+        DisplayName = NormalizeOptional(displayName);
     }
 
-    public string RegistrationNumber { get; private set; } = string.Empty;
-    public string DisplayName { get; private set; } = string.Empty;
+    public string SerialNumber { get; private set; } = string.Empty;
+    public string? DisplayName { get; private set; }
     public bool IsActive { get; private set; } = true;
     public long RowVersion { get; private set; }
 
-    public void Rename(string displayName)
+    public void Rename(string? displayName)
     {
-        DisplayName = RequireNonEmpty(displayName, nameof(displayName));
+        DisplayName = NormalizeOptional(displayName);
         RowVersion++;
     }
 
@@ -33,7 +33,7 @@ public sealed class Vehicle : TenantEntity
     {
         if (IsActive)
         {
-            throw new InvalidOperationException("Vehicle is already active.");
+            throw new InvalidOperationException("Device is already active.");
         }
 
         IsActive = true;
@@ -44,7 +44,7 @@ public sealed class Vehicle : TenantEntity
     {
         if (!IsActive)
         {
-            throw new InvalidOperationException("Vehicle is already inactive.");
+            throw new InvalidOperationException("Device is already inactive.");
         }
 
         IsActive = false;
@@ -55,4 +55,7 @@ public sealed class Vehicle : TenantEntity
         string.IsNullOrWhiteSpace(value)
             ? throw new ArgumentException("Value is required.", parameter)
             : value.Trim();
+
+    private static string? NormalizeOptional(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }

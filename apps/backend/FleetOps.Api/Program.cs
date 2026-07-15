@@ -4,6 +4,7 @@ using FleetOps.Api;
 using FleetOps.Api.Admin;
 using FleetOps.Api.Auditing;
 using FleetOps.Api.Auth;
+using FleetOps.Api.Fleet;
 using FleetOps.Api.Security;
 using FleetOps.Infrastructure;
 using FleetOps.Infrastructure.Persistence;
@@ -91,6 +92,9 @@ app.MapHealthChecks("/health");
 app.MapHub<TrackingHub>("/hubs/tracking").RequireAuthorization();
 app.MapAuthEndpoints();
 app.MapUserAdministrationEndpoints();
+app.MapVehicleEndpoints();
+app.MapDriverEndpoints();
+app.MapDeviceEndpoints();
 
 app.MapGet("/api/system/info", () => Results.Ok(new
 {

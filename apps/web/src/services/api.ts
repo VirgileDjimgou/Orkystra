@@ -3,16 +3,22 @@ const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "";
 type ApiRequestOptions = {
   method?: string;
   body?: unknown;
+  contentType?: string;
   token?: string | null;
 };
 
 export async function apiRequest<T>(
   path: string,
-  { method = "GET", body, token }: ApiRequestOptions = {},
+  { method = "GET", body, contentType, token }: ApiRequestOptions = {},
 ): Promise<T> {
   const headers = new Headers();
+  let requestBody: BodyInit | undefined;
   if (body !== undefined) {
-    headers.set("Content-Type", "application/json");
+    headers.set("Content-Type", contentType ?? "application/json");
+    requestBody =
+      contentType === "text/csv" || typeof body === "string"
+        ? String(body)
+        : JSON.stringify(body);
   }
   if (token) {
     headers.set("Authorization", `Bearer ${token}`);
@@ -21,7 +27,7 @@ export async function apiRequest<T>(
   const response = await fetch(`${apiBaseUrl}${path}`, {
     method,
     headers,
-    body: body === undefined ? undefined : JSON.stringify(body),
+    body: requestBody,
   });
 
   if (!response.ok) {

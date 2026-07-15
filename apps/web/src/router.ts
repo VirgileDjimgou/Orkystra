@@ -3,9 +3,12 @@ import { storeToRefs } from "pinia";
 import { pinia } from "./pinia";
 import { useSessionStore } from "./features/auth/store";
 import DashboardView from "./views/DashboardView.vue";
+import DevicesView from "./views/DevicesView.vue";
+import DriversView from "./views/DriversView.vue";
 import FleetMapView from "./views/FleetMapView.vue";
 import LoginView from "./views/LoginView.vue";
 import UsersAdminView from "./views/UsersAdminView.vue";
+import VehiclesView from "./views/VehiclesView.vue";
 
 export const router = createRouter({
   history: createWebHistory(),
@@ -13,6 +16,21 @@ export const router = createRouter({
     { path: "/login", component: LoginView, meta: { guestOnly: true } },
     { path: "/", component: DashboardView, meta: { requiresAuth: true } },
     { path: "/map", component: FleetMapView, meta: { requiresAuth: true } },
+    {
+      path: "/fleet/vehicles",
+      component: VehiclesView,
+      meta: { requiresAuth: true },
+    },
+    {
+      path: "/fleet/drivers",
+      component: DriversView,
+      meta: { requiresAuth: true },
+    },
+    {
+      path: "/fleet/devices",
+      component: DevicesView,
+      meta: { requiresAuth: true },
+    },
     {
       path: "/admin/users",
       component: UsersAdminView,

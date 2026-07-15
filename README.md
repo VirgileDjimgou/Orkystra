@@ -2,7 +2,7 @@
 
 Orkystra FleetOps is a modular fleet operations MVP for small and mid-sized transport businesses. The platform is designed to cover the operational chain from identity and tenant isolation to vehicle tracking, dispatch execution, driver workflows, proof of delivery, alerts, and production readiness.
 
-The repository currently delivers a solid technical foundation plus Sprint 01 identity and multi-tenant access control:
+The repository currently delivers a solid technical foundation, Sprint 01 identity and multi-tenant access control, and Sprint 02 fleet registry capabilities:
 
 - reproducible local environment;
 - modular ASP.NET Core backend;
@@ -10,6 +10,9 @@ The repository currently delivers a solid technical foundation plus Sprint 01 id
 - Android driver app foundation;
 - SQL Server persistence with Entity Framework Core migrations;
 - tenant-aware authentication and authorization;
+- tenant-scoped vehicle, driver, and GPS device registry;
+- historized GPS device-to-vehicle assignments;
+- idempotent CSV imports for fleet master data;
 - live telemetry through SignalR;
 - deterministic GPS simulator for demos and validation.
 
@@ -108,10 +111,39 @@ flowchart TD
   - in-memory latest position cache;
   - SignalR push updates;
   - development GPS simulator.
-- Fleet bootstrap
-  - tenant-aware `Vehicle` aggregate;
-  - initial persistence schema;
-  - seeded demo vehicles per organization.
+- Fleet registry
+  - tenant-aware `Vehicle`, `Driver`, `GpsDevice`, and `DeviceAssignment` entities;
+  - unique vehicle registrations, driver license numbers, and GPS serial numbers per organization;
+  - active/inactive status lifecycle;
+  - historized GPS device assignments with a single active assignment per device;
+  - CSV imports for vehicles, drivers, and devices;
+  - server-side authorization and audit trails for registry operations.
+
+## Fleet Registry Flow
+
+Sprint 02 adds the operational master data needed before live tracking and dispatch workflows can become meaningful.
+
+```mermaid
+flowchart LR
+    Admin["Admin"] --> WebFleet["Fleet Registry Screens"]
+    Operator["Operator"] --> WebFleet
+    WebFleet --> ApiFleet["/api/v1/fleet/*"]
+    ApiFleet --> Tenant["Tenant Claims<br/>OrganizationId"]
+    Tenant --> Vehicles["Vehicles"]
+    Tenant --> Drivers["Drivers"]
+    Tenant --> Devices["GPS Devices"]
+    Devices --> Assignments["Device Assignments<br/>historized"]
+    Assignments --> Vehicles
+    ApiFleet --> Audit["Audit Log"]
+```
+
+### Registry capabilities
+
+- `Admin` users can create, update, activate, deactivate, and import vehicles, drivers, and GPS devices.
+- `Operator` users can read registry data and manage GPS device assignments without being able to create or deactivate master data.
+- CSV imports are idempotent: existing records are updated by natural key and new records are created.
+- Device assignments are append-only history records; closing an assignment preserves the previous relationship and enables reassignment.
+- All registry queries are scoped by the authenticated tenant and never accept an organization identifier from the client.
 
 ## Authentication and Tenant Isolation
 
@@ -179,6 +211,9 @@ flowchart LR
 - role-aware navigation;
 - organization-scoped user administration;
 - authenticated telemetry fetch and SignalR connection.
+- professional fleet registry screens for vehicles, drivers, and GPS devices;
+- CSV import panels with success, empty, loading, and error states;
+- role-aware controls that hide server-forbidden create/deactivate actions from non-admin users.
 
 ## Technology Stack
 
@@ -311,7 +346,7 @@ Set-Location apps/android-driver
 
 ## Quality Gate
 
-The repository includes a local quality gate that validates the complete Sprint 00/01 baseline:
+The repository includes a local quality gate that validates the complete Sprint 00/01/02 baseline:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\quality-gate.ps1
@@ -334,6 +369,7 @@ Current local validation includes:
 
 - backend build in `Release`;
 - backend tests including integration coverage for auth, roles, tokens, and tenant isolation;
+- fleet registry unit and integration tests covering tenant isolation, role permissions, duplicate data, stale updates, CSV idempotency, and assignment invariants;
 - web tests, lint, format, and production build;
 - authenticated tracking endpoints and SignalR hub;
 - EF Core migration for Sprint 01;
@@ -377,3 +413,4 @@ Admin/Operator and Driver workflows have different interaction models, offline r
 - [docs/01-architecture/DOMAIN_MODEL.md](./docs/01-architecture/DOMAIN_MODEL.md)
 - [docs/02-engineering/ENGINEERING_STANDARDS.md](./docs/02-engineering/ENGINEERING_STANDARDS.md)
 - [sprints/SPRINT-01-IDENTITY-TENANCY.md](./sprints/SPRINT-01-IDENTITY-TENANCY.md)
+- [sprints/SPRINT-02-FLEET-REGISTRY.md](./sprints/SPRINT-02-FLEET-REGISTRY.md)

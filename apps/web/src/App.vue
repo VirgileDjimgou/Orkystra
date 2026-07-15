@@ -9,6 +9,9 @@
       <nav class="nav flex-column gap-1">
         <RouterLink class="nav-link" to="/">Overview</RouterLink>
         <RouterLink class="nav-link" to="/map">Fleet map</RouterLink>
+        <RouterLink class="nav-link" to="/fleet/vehicles">Vehicles</RouterLink>
+        <RouterLink class="nav-link" to="/fleet/drivers">Drivers</RouterLink>
+        <RouterLink class="nav-link" to="/fleet/devices">Devices</RouterLink>
         <RouterLink
           v-if="session.canManageUsers"
           class="nav-link"
@@ -33,7 +36,7 @@
         <div>
           <strong>Operations control center</strong>
           <div class="text-secondary small">
-            Role-aware Sprint 01 demonstration shell
+            Role-aware fleet registry demonstration console
           </div>
         </div>
         <span class="badge text-bg-success">Authenticated session</span>
