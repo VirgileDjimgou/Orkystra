@@ -72,9 +72,9 @@ Tout élément de `docs/00-product/FUTURE_SCOPE.md`, sauf décision explicite et
 - tests concernés verts ;
 - scénario démontrable exécuté ;
 - revue sécurité/tenant effectuée ;
-- documentation, changelog et état agent mis à jour ;
+- documentation, changelog et état du projet mis à jour ;
 - checkpoint créé.
 
-## Preuves à joindre dans `.agent/QUALITY_REPORT.md`
+## Preuves à joindre dans le rapport de qualité interne
 
 Commandes exécutées, résultats, captures ou logs synthétiques du scénario, migrations appliquées, limites restantes et dette créée.

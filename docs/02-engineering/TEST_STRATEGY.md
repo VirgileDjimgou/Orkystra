@@ -32,4 +32,4 @@ Une capacité est terminée quand :
 - scénario démontrable documenté ;
 - erreurs et observabilité couvertes ;
 - autorisation et tenant vérifiés ;
-- documentation et état agent mis à jour.
+- documentation et état du projet mis à jour.

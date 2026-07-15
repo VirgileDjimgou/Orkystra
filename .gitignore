@@ -3,12 +3,22 @@
 .env.*
 !.env.example
 secrets/
+private/
+backups/
+*.pem
+*.pfx
+*.p12
+*.cer
+*.crt
+*.key
+*.pub
 
 # .NET
 bin/
 obj/
 *.user
 *.suo
+*.rsuser
 TestResults/
 coverage/
 
@@ -28,17 +38,35 @@ local.properties
 
 # IDE
 .idea/
-.vscode/*.local.json
+.vscode/
+*.code-workspace
 .vscode/PythonImportHelper-*.json
 .DS_Store
 Thumbs.db
 
-# Agent runtime
-.agent/checkpoints/*.md
-!.agent/checkpoints/.gitkeep
-.agent/plans/*.local.md
-.agent/*.log
-.agent/*.err
+# Local runtime artifacts
+.runtime/
+tmp/
+temp/
+*.local.json
+*.local.md
+*.log
+*.err
+
+# AI / assistant / prompt tooling
+.agent/
+.codex/
+.opencode/
+opencode.json
+AGENTS.md
+**/AGENTS.md
+agent.md
+MANIFEST.json
+prompts/
+scripts/agent/
+.github/copilot-instructions.md
+.github/instructions/
+.github/prompts/
 
 # Infrastructure data
 .infrastructure-data/

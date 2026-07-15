@@ -6,7 +6,6 @@ Toutes les modifications fonctionnelles significatives sont documentées ici.
 
 ### Added
 
-- Kit de démarrage agentique.
 - Architecture initiale, roadmap, sprints et simulateur GPS minimal.
 
 ### Changed

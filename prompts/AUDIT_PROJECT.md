@@ -1,3 +1,0 @@
-# Prompt — audit complet avant reprise
-
-Audite FleetOps sans modifier le code dans un premier temps. Lis les instructions et l'état agent, compare l'implémentation au sprint annoncé, exécute tous les builds et tests disponibles, inspecte les migrations, secrets, dépendances, autorisations, frontières de modules, isolation multi-tenant, contrats API, offline Android et scénarios simulateurs. Classe chaque constat par criticité et propose un plan de réparation ordonné. Modifie ensuite uniquement ce qui est nécessaire pour rétablir une baseline verte, puis mets à jour `.agent/QUALITY_REPORT.md` et `.agent/HANDOFF.md`.

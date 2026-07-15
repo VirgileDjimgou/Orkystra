@@ -46,10 +46,16 @@ try {
   Invoke-Step "Backend Test" { dotnet test FleetOps.slnx --no-build -c Release }
 
   Invoke-Step "GPS Dry Run" {
-    $logPath = Join-Path $root ".agent\quality-gps.log"
-    $errPath = Join-Path $root ".agent\quality-gps.err"
+    $runtimeDir = Join-Path $root ".runtime"
+    $gpsDll = "simulators\GpsSimulator\bin\Release\net10.0\GpsSimulator.dll"
+    if (-not (Test-Path (Join-Path $root $gpsDll))) {
+      throw "Missing GPS simulator build output: $gpsDll"
+    }
+    New-Item -ItemType Directory -Path $runtimeDir -Force | Out-Null
+    $logPath = Join-Path $runtimeDir "quality-gps.log"
+    $errPath = Join-Path $runtimeDir "quality-gps.err"
     Remove-Item $logPath, $errPath -ErrorAction SilentlyContinue
-    $process = Start-Process dotnet -ArgumentList @('run', '--project', 'simulators/GpsSimulator', '--', '--dry-run') `
+    $process = Start-Process dotnet -ArgumentList @('exec', $gpsDll, '--dry-run') `
       -WorkingDirectory $root `
       -WindowStyle Hidden `
       -RedirectStandardOutput $logPath `
@@ -86,18 +92,40 @@ try {
   }
 
   Invoke-Step "API Health Check" {
-    $logPath = Join-Path $root ".agent\quality-api.log"
-    $errPath = Join-Path $root ".agent\quality-api.err"
+    $runtimeDir = Join-Path $root ".runtime"
+    $apiDll = "apps\backend\FleetOps.Api\bin\Release\net10.0\FleetOps.Api.dll"
+    if (-not (Test-Path (Join-Path $root $apiDll))) {
+      throw "Missing API build output: $apiDll"
+    }
+    New-Item -ItemType Directory -Path $runtimeDir -Force | Out-Null
+    $logPath = Join-Path $runtimeDir "quality-api.log"
+    $errPath = Join-Path $runtimeDir "quality-api.err"
     Remove-Item $logPath, $errPath -ErrorAction SilentlyContinue
-    $process = Start-Process dotnet -ArgumentList @('run', '--project', 'apps/backend/FleetOps.Api') `
+    $previousEnvironment = $env:ASPNETCORE_ENVIRONMENT
+    $previousUrls = $env:ASPNETCORE_URLS
+    $env:ASPNETCORE_ENVIRONMENT = "Development"
+    $env:ASPNETCORE_URLS = "http://localhost:5080"
+    $process = Start-Process dotnet -ArgumentList @('exec', $apiDll) `
       -WorkingDirectory $root `
       -WindowStyle Hidden `
       -RedirectStandardOutput $logPath `
       -RedirectStandardError $errPath `
       -PassThru
     try {
-      Start-Sleep -Seconds 8
-      $response = Invoke-WebRequest -UseBasicParsing 'http://localhost:5080/health'
+      $deadline = (Get-Date).AddSeconds(20)
+      $response = $null
+      do {
+        Start-Sleep -Seconds 1
+        try {
+          $response = Invoke-WebRequest -UseBasicParsing 'http://localhost:5080/health'
+        }
+        catch {
+          $response = $null
+        }
+      } while (-not $response -and (Get-Date) -lt $deadline)
+      if (-not $response) {
+        throw "API health endpoint did not become reachable on http://localhost:5080/health"
+      }
       if ($response.StatusCode -ne 200) {
         throw "Unexpected health status code: $($response.StatusCode)"
       }
@@ -106,6 +134,8 @@ try {
       if (-not $process.HasExited) {
         Stop-Process -Id $process.Id -Force
       }
+      $env:ASPNETCORE_ENVIRONMENT = $previousEnvironment
+      $env:ASPNETCORE_URLS = $previousUrls
     }
   }
 

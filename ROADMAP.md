@@ -41,7 +41,7 @@ Sprint 09. Le système est déployable, observable, sauvegardé, documenté et p
 
 ## Règles de passage
 
-- Aucun sprint suivant tant que le précédent n'est pas `DONE` dans `.agent/PROJECT_STATE.json`.
+- Aucun sprint suivant tant que le précédent n'est pas formellement clôturé dans le suivi interne du projet.
 - Toute dette reportée reçoit un identifiant et une échéance.
 - Chaque sprint fournit au moins un scénario E2E ou un scénario de simulation reproductible.
 - Les tests multi-tenant, autorisation et erreurs réseau sont obligatoires dès que la fonctionnalité les concerne.

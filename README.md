@@ -194,9 +194,8 @@ Set-Location apps/android-driver
 - [ROADMAP.md](/C:/Users/djimg/source/repos/Orkystra%20FleetOps/ROADMAP.md)
 - [sprints/SPRINT-00-FOUNDATION.md](/C:/Users/djimg/source/repos/Orkystra%20FleetOps/sprints/SPRINT-00-FOUNDATION.md)
 - [VALIDATION.md](/C:/Users/djimg/source/repos/Orkystra%20FleetOps/VALIDATION.md)
-- [.agent/CURRENT_SPRINT.md](/C:/Users/djimg/source/repos/Orkystra%20FleetOps/.agent/CURRENT_SPRINT.md)
 
-## Prochaine commande agentique
+## Prochaine étape
 
 ```text
 Préparer SPRINT-01 à partir du Sprint 00 clôturé, sans élargir rétroactivement le périmètre du bootstrap.

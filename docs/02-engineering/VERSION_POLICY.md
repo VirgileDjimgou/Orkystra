@@ -8,4 +8,4 @@ Les versions initiales reflètent les versions stables disponibles lors de la g�
 4. rendre CI et builds verts ;
 5. enregistrer toute modification dans le changelog.
 
-Les agents ne doivent pas effectuer de mise à niveau majeure pendant un sprint fonctionnel sans ExecPlan distinct.
+Ne pas effectuer de mise à niveau majeure pendant un sprint fonctionnel sans plan d'exécution distinct.
