@@ -1,0 +1,41 @@
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+secrets/
+
+# .NET
+bin/
+obj/
+*.user
+*.suo
+TestResults/
+coverage/
+
+# Node
+node_modules/
+dist/
+.vite/
+playwright-report/
+test-results/
+
+# Android/Gradle
+.gradle/
+**/build/
+local.properties
+*.jks
+*.keystore
+
+# IDE
+.idea/
+.vscode/*.local.json
+.DS_Store
+Thumbs.db
+
+# Agent runtime
+.agent/checkpoints/*.md
+!.agent/checkpoints/.gitkeep
+.agent/plans/*.local.md
+
+# Infrastructure data
+.infrastructure-data/

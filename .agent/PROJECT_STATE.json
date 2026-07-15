@@ -1,0 +1,32 @@
+{
+  "project": "FleetOps",
+  "phase": "bootstrap",
+  "activeSprint": "SPRINT-00",
+  "sprints": {
+    "SPRINT-00": "IN_PROGRESS",
+    "SPRINT-01": "NOT_STARTED",
+    "SPRINT-02": "NOT_STARTED",
+    "SPRINT-03": "NOT_STARTED",
+    "SPRINT-04": "NOT_STARTED",
+    "SPRINT-05": "NOT_STARTED",
+    "SPRINT-06": "NOT_STARTED",
+    "SPRINT-07": "NOT_STARTED",
+    "SPRINT-08": "NOT_STARTED",
+    "SPRINT-09": "NOT_STARTED"
+  },
+  "lastQualityGate": {
+    "status": "PARTIAL",
+    "timestampUtc": "2026-07-15T21:22:00+00:00",
+    "report": ".agent/QUALITY_REPORT.md"
+  },
+  "lastCheckpoint": null,
+  "knownBlockers": [
+    "Backend non compilé dans l’environnement de génération: SDK .NET absent.",
+    "Android non compilé: Gradle/Android SDK absents et wrapper à générer pendant SPRINT-00.",
+    "Docker Compose non validé dans l’environnement de génération: Docker absent."
+  ],
+  "openDecisions": [
+    "Choisir le nom commercial définitif avant publication publique."
+  ],
+  "schemaVersion": 1
+}

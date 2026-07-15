@@ -1,0 +1,15 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "FleetOps API",
+      "type": "coreclr",
+      "request": "launch",
+      "program": "${workspaceFolder}/apps/backend/FleetOps.Api/bin/Debug/net10.0/FleetOps.Api.dll",
+      "cwd": "${workspaceFolder}/apps/backend/FleetOps.Api",
+      "env": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    }
+  ]
+}

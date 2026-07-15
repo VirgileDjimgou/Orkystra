@@ -1,0 +1,40 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "FleetOps: Infrastructure up",
+      "type": "shell",
+      "command": "docker compose up -d",
+      "problemMatcher": []
+    },
+    {
+      "label": "FleetOps: Backend",
+      "type": "shell",
+      "command": "dotnet run --project apps/backend/FleetOps.Api",
+      "isBackground": true,
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "FleetOps: Web",
+      "type": "npm",
+      "script": "dev",
+      "path": "apps/web",
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "FleetOps: GPS simulator",
+      "type": "shell",
+      "command": "dotnet run --project simulators/GpsSimulator",
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "FleetOps: Quality gate",
+      "type": "shell",
+      "windows": { "command": "./scripts/quality-gate.ps1" },
+      "linux": { "command": "./scripts/quality-gate.sh" },
+      "osx": { "command": "./scripts/quality-gate.sh" },
+      "problemMatcher": []
+    }
+  ]
+}
