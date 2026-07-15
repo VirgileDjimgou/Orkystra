@@ -44,10 +44,9 @@ jobs:
           distribution: temurin
           java-version: '21'
       - uses: gradle/actions/setup-gradle@v4
+      - name: Install Android SDK components
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.1" "platform-tools"
       - name: Android build
         run: |
-          if [ -x ./gradlew ]; then
-            ./gradlew testDebugUnitTest assembleDebug
-          else
-            echo "Gradle wrapper pending SPRINT-00"
-          fi
+          chmod +x ./gradlew
+          ./gradlew testDebugUnitTest assembleDebug

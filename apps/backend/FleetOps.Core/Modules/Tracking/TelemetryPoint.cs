@@ -15,9 +15,10 @@ public sealed class TelemetryPoint : TenantEntity
         double longitude,
         double speedKph)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(deviceId);
         if (latitude is < -90 or > 90) throw new ArgumentOutOfRangeException(nameof(latitude));
         if (longitude is < -180 or > 180) throw new ArgumentOutOfRangeException(nameof(longitude));
-        if (speedKph < 0) throw new ArgumentOutOfRangeException(nameof(speedKph));
+        ArgumentOutOfRangeException.ThrowIfNegative(speedKph);
 
         OrganizationId = organizationId;
         VehicleId = vehicleId;

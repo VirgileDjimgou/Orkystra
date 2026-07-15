@@ -29,6 +29,7 @@ local.properties
 # IDE
 .idea/
 .vscode/*.local.json
+.vscode/PythonImportHelper-*.json
 .DS_Store
 Thumbs.db
 
@@ -36,6 +37,8 @@ Thumbs.db
 .agent/checkpoints/*.md
 !.agent/checkpoints/.gitkeep
 .agent/plans/*.local.md
+.agent/*.log
+.agent/*.err
 
 # Infrastructure data
 .infrastructure-data/

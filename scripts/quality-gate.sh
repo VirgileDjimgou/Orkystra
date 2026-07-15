@@ -1,26 +1,55 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-echo "== Backend =="
-dotnet restore FleetOps.slnx
-dotnet format FleetOps.slnx --verify-no-changes
-dotnet build FleetOps.slnx --no-restore -c Release
-dotnet test FleetOps.slnx --no-build -c Release
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SUMMARY=()
 
-echo "== Web =="
-npm --prefix apps/web ci
-npm --prefix apps/web run format:check
-npm --prefix apps/web run lint
-npm --prefix apps/web run test
-npm --prefix apps/web run build
+run_step() {
+  local name="$1"
+  shift
+  echo "== ${name} =="
+  "$@"
+  SUMMARY+=("PASSED :: ${name}")
+}
 
-echo "== Android =="
-if [[ -x apps/android-driver/gradlew ]]; then
-  (cd apps/android-driver && ./gradlew testDebugUnitTest assembleDebug --stacktrace)
-else
-  echo "AVERTISSEMENT: Gradle wrapper absent; le générer pendant SPRINT-00."
+cd "$ROOT"
+
+if [[ ! -f .env ]]; then
+  echo "Missing .env. Copy .env.example to .env before running the quality gate." >&2
+  exit 1
 fi
 
-echo "== Docker Compose =="
-docker compose --env-file .env.example config --quiet
-echo "Quality gate verte."
+if [[ -z "${ANDROID_HOME:-}" && -d "$HOME/Android/Sdk" ]]; then
+  export ANDROID_HOME="$HOME/Android/Sdk"
+  export ANDROID_SDK_ROOT="$ANDROID_HOME"
+fi
+
+run_step "Git Status" git status --short --branch
+run_step "Dotnet Tools" dotnet tool restore
+run_step "Docker Compose Config" docker compose --env-file .env config --quiet
+run_step "Backend Restore" dotnet restore FleetOps.slnx
+run_step "Backend Format" dotnet format FleetOps.slnx --verify-no-changes
+run_step "Backend Build" dotnet build FleetOps.slnx --no-restore -c Release
+run_step "Backend Test" dotnet test FleetOps.slnx --no-build -c Release
+run_step "GPS Dry Run" bash -lc 'tmp_log=".agent/quality-gps.log"; rm -f "$tmp_log" ".agent/quality-gps.err"; timeout 5s dotnet run --project simulators/GpsSimulator -- --dry-run >"$tmp_log" 2>".agent/quality-gps.err" || true; grep -q "\"VehicleId\"" "$tmp_log"'
+run_step "Web Install" bash -lc 'cd apps/web && npm ci'
+run_step "Web Format" bash -lc 'cd apps/web && npm run format:check'
+run_step "Web Lint" bash -lc 'cd apps/web && npm run lint'
+run_step "Web Test" bash -lc 'cd apps/web && npm run test'
+run_step "Web Build" bash -lc 'cd apps/web && npm run build'
+run_step "API Health Check" bash -lc 'tmp_api=".agent/quality-api.log"; tmp_err=".agent/quality-api.err"; rm -f "$tmp_api" "$tmp_err"; dotnet run --project apps/backend/FleetOps.Api >"$tmp_api" 2>"$tmp_err" & pid=$!; trap "kill $pid 2>/dev/null || true" EXIT; sleep 8; curl -fsS http://localhost:5080/health >/dev/null; kill $pid 2>/dev/null || true; wait $pid 2>/dev/null || true; trap - EXIT'
+
+if [[ ! -x apps/android-driver/gradlew ]]; then
+  echo "Gradle wrapper missing in apps/android-driver." >&2
+  exit 1
+fi
+if [[ -z "${ANDROID_HOME:-}" || ! -d "$ANDROID_HOME" ]]; then
+  echo "ANDROID_HOME is not set to a valid Android SDK path." >&2
+  exit 1
+fi
+
+run_step "Android Build" bash -lc 'cd apps/android-driver && ./gradlew testDebugUnitTest assembleDebug --stacktrace'
+
+echo "== Summary =="
+printf '%s\n' "${SUMMARY[@]}"
+echo "Quality gate passed."

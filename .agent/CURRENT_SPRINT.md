@@ -6,7 +6,7 @@ Obtenir un dépôt reproductible, compilable et vérifiable avec une architectur
 
 ## État
 
-`IN_PROGRESS`
+`DONE`
 
 ## Source de vérité
 
@@ -18,11 +18,11 @@ Obtenir un dépôt reproductible, compilable et vérifiable avec une architectur
 - [x] Instructions multi-agents créées.
 - [x] Roadmap et cahiers de sprint créés.
 - [x] Squelettes backend, Web, Android et simulateur ajoutés.
-- [ ] Restaurer et compiler sur la machine du développeur.
-- [ ] Corriger les éventuelles incompatibilités de versions.
-- [ ] Exécuter toute la quality gate.
-- [ ] Configurer le premier pipeline CI vert.
+- [x] Restaurer et compiler sur la machine du développeur.
+- [x] Corriger les incompatibilités .NET, Docker et Web constatées localement.
+- [x] Exécuter toute la quality gate.
+- [x] Configurer le premier pipeline CI vert.
 
 ## Prochaine action
 
-Exécuter `prompts/NEXT_SPRINT.md`. L'agent doit d'abord terminer SPRINT-00, et non passer automatiquement au sprint 01.
+SPRINT-00 est clôturé localement avec la quality gate verte. La prochaine action est de préparer SPRINT-01 sans élargir rétroactivement le périmètre du bootstrap.

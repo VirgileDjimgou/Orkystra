@@ -2,7 +2,7 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <application
         android:allowBackup="false"
-        android:label="FleetOps Driver"
+        android:label="Zynro Drive"
         android:supportsRtl="true"
         android:theme="@style/Theme.FleetOpsDriver">
         <activity

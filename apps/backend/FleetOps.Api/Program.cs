@@ -4,13 +4,14 @@ using FleetOps.Infrastructure;
 using Microsoft.AspNetCore.SignalR;
 
 var builder = WebApplication.CreateBuilder(args);
+var webOrigin = builder.Configuration["FLEETOPS_WEB_URL"] ?? "http://localhost:5183";
 
 builder.Services.AddOpenApi();
 builder.Services.AddHealthChecks();
 builder.Services.AddSignalR();
 builder.Services.AddFleetOpsInfrastructure(builder.Configuration);
 builder.Services.AddCors(options => options.AddDefaultPolicy(policy =>
-    policy.WithOrigins("http://localhost:5173")
+    policy.WithOrigins(webOrigin)
         .AllowAnyHeader()
         .AllowAnyMethod()
         .AllowCredentials()));
@@ -34,7 +35,7 @@ app.MapHub<TrackingHub>("/hubs/tracking");
 
 app.MapGet("/api/system/info", () => Results.Ok(new
 {
-    name = "FleetOps",
+    name = "Zynro Fleet",
     status = "bootstrap",
     utc = DateTimeOffset.UtcNow
 }));
@@ -69,15 +70,5 @@ app.MapPost("/api/simulation/telemetry", async (
 });
 
 app.Run();
-
-public sealed record TelemetryContract(
-    Guid OrganizationId,
-    Guid VehicleId,
-    string DeviceId,
-    DateTimeOffset RecordedAtUtc,
-    double Latitude,
-    double Longitude,
-    double SpeedKph,
-    double HeadingDegrees);
 
 public partial class Program;

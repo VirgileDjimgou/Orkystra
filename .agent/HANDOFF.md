@@ -2,20 +2,18 @@
 
 ## Contexte actuel
 
-Le dépôt vient d'être généré. Les fichiers de configuration donnent la structure cible, mais le scaffold doit être restauré et compilé dans l'environnement réel du développeur.
+Le dépôt a été restauré et validé localement pour Docker, backend .NET, EF Core, Web, simulateur GPS et Android. Le flux démo jusqu'à la carte a été vérifié sur cette machine.
 
 ## Priorité immédiate
 
-Terminer SPRINT-00 : vérifier .NET, Node, Java/Android SDK, Docker, restaurer les dépendances, lancer les composants et rendre la CI verte.
+Préparer SPRINT-01 à partir d'un SPRINT-00 clôturé et d'une quality gate verte.
 
 ## Hypothèses à confirmer
 
-- .NET SDK 10 disponible.
-- Node.js 22 ou version LTS compatible disponible.
-- JDK 21 et Android SDK installés.
-- Docker Desktop ou Docker Engine disponible.
-- Les versions Android épinglées sont compatibles dans l'environnement local.
+- Le wrapper Gradle Android est versionné dans `apps/android-driver`.
+- La quality gate PowerShell force le JBR Android Studio local quand il est disponible.
+- Le SDK Android local est détecté depuis `%LOCALAPPDATA%\Android\Sdk`.
 
 ## Interdictions
 
-Ne pas commencer l'authentification, le multi-tenant métier ou la télémétrie persistante avant d'avoir un bootstrap totalement vert.
+Ne pas commencer l'authentification, le multi-tenant métier ou la télémétrie persistante sans ouvrir explicitement SPRINT-01.
