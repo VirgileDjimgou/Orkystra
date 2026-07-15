@@ -5,6 +5,7 @@
   <ItemGroup>
     <ProjectReference Include="../FleetOps.Core/FleetOps.Core.csproj" />
     <ProjectReference Include="../FleetOps.Infrastructure/FleetOps.Infrastructure.csproj" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" PrivateAssets="all" />
     <PackageReference Include="Microsoft.OpenApi" />

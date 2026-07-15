@@ -103,8 +103,12 @@ try {
     Remove-Item $logPath, $errPath -ErrorAction SilentlyContinue
     $previousEnvironment = $env:ASPNETCORE_ENVIRONMENT
     $previousUrls = $env:ASPNETCORE_URLS
+    $previousUseInMemory = $env:Testing__UseInMemoryDatabase
+    $previousDatabaseName = $env:Testing__DatabaseName
     $env:ASPNETCORE_ENVIRONMENT = "Development"
     $env:ASPNETCORE_URLS = "http://localhost:5080"
+    $env:Testing__UseInMemoryDatabase = "true"
+    $env:Testing__DatabaseName = "quality-gate-api"
     $process = Start-Process dotnet -ArgumentList @('exec', $apiDll) `
       -WorkingDirectory $root `
       -WindowStyle Hidden `
@@ -136,6 +140,8 @@ try {
       }
       $env:ASPNETCORE_ENVIRONMENT = $previousEnvironment
       $env:ASPNETCORE_URLS = $previousUrls
+      $env:Testing__UseInMemoryDatabase = $previousUseInMemory
+      $env:Testing__DatabaseName = $previousDatabaseName
     }
   }
 

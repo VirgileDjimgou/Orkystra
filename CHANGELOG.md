@@ -7,6 +7,8 @@ Toutes les modifications fonctionnelles significatives sont documentées ici.
 ### Added
 
 - Architecture initiale, roadmap, sprints et simulateur GPS minimal.
+- Multi-tenant identity baseline with organizations, roles, JWT authentication, audit logs, and seeded demo users.
+- Admin-only user management shell for the Vue application.
 
 ### Changed
 
@@ -15,3 +17,5 @@ Toutes les modifications fonctionnelles significatives sont documentées ici.
 - Quality gate durcie avec vérifications Docker, .NET, Web, simulateur et health check API.
 - Branding visible mis à jour vers `Zynro Fleet` et `Zynro Drive` sans renommage technique massif.
 - Android Sprint 00 rendu reproductible avec wrapper Gradle versionné, JDK/SDK détectés et build `testDebugUnitTest assembleDebug` vert.
+- Tracking APIs and SignalR flow are now authenticated and tenant-scoped.
+- Public README rewritten in English with architecture, modules, stack, and Mermaid diagrams.

@@ -1,9 +1,9 @@
 <template>
   <div>
     <div class="mb-3">
-      <h1 class="h3 mb-1">Carte flotte</h1>
+      <h1 class="h3 mb-1">Fleet map</h1>
       <p class="text-secondary mb-0">
-        Positions reçues du simulateur de développement.
+        Live positions streamed for the signed-in organization only.
       </p>
     </div>
     <div v-if="error" class="alert alert-danger">{{ error }}</div>
@@ -14,9 +14,9 @@
         aria-label="Carte des véhicules"
       ></div>
       <aside class="vehicle-panel">
-        <h2 class="h6">Véhicules ({{ positions.length }})</h2>
+        <h2 class="h6">Vehicles ({{ positions.length }})</h2>
         <div v-if="positions.length === 0" class="empty-state">
-          Aucune position reçue.
+          No telemetry received yet.
         </div>
         <article
           v-for="position in positions"
@@ -38,6 +38,7 @@
 import { onBeforeUnmount, onMounted, ref } from "vue";
 import L from "leaflet";
 import * as signalR from "@microsoft/signalr";
+import { useSessionStore } from "../features/auth/store";
 
 type Telemetry = {
   vehicleId: string;
@@ -51,6 +52,7 @@ type Telemetry = {
 const mapElement = ref<HTMLElement | null>(null);
 const positions = ref<Telemetry[]>([]);
 const error = ref("");
+const session = useSessionStore();
 let map: L.Map | undefined;
 let connection: signalR.HubConnection | undefined;
 const markers = new Map<string, L.CircleMarker>();
@@ -83,19 +85,24 @@ onMounted(async () => {
   }).addTo(map);
 
   try {
-    const response = await fetch("/api/tracking/latest");
+    const response = await fetch("/api/tracking/latest", {
+      headers: {
+        Authorization: `Bearer ${session.accessToken}`,
+      },
+    });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     ((await response.json()) as Telemetry[]).forEach(updatePosition);
 
     connection = new signalR.HubConnectionBuilder()
-      .withUrl("/hubs/tracking")
+      .withUrl("/hubs/tracking", {
+        accessTokenFactory: () => session.accessToken ?? "",
+      })
       .withAutomaticReconnect()
       .build();
     connection.on("telemetryUpdated", updatePosition);
     await connection.start();
   } catch (cause) {
-    error.value =
-      cause instanceof Error ? cause.message : "Connexion impossible.";
+    error.value = cause instanceof Error ? cause.message : "Connection failed.";
   }
 });
 

@@ -1,31 +1,31 @@
-# Validation Sprint 00
+# Validation Status
 
-Validation réellement rejouée le `2026-07-15` sur Windows.
+Validation replayed locally on `2026-07-15` on Windows.
 
-## Validé
+## Verified
 
-- `docker compose --env-file .env config`
-- démarrage Docker de SQL Server, MinIO, Mosquitto et Mailpit
-- build .NET `Debug` et `Release`
-- tests backend `Debug` et `Release`
-- `dotnet list FleetOps.slnx package --vulnerable`
-- dry-run du simulateur GPS
-- migration EF initiale créée et appliquée
+- `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\quality-gate.ps1`
+- `dotnet build FleetOps.slnx -c Release`
+- `dotnet test FleetOps.slnx -c Release`
 - `npm ci`
 - `npm run format:check`
 - `npm run lint`
 - `npm run test`
 - `npm run build`
-- wrapper Gradle Android versionné
-- build Android `testDebugUnitTest assembleDebug`
-- quality gate PowerShell complète
-- endpoints `GET /health`, `GET /api/system/info` et OpenAPI en développement
-- flux démo `simulateur GPS -> API -> SignalR -> carte`
+- EF Core migration `Sprint01IdentityAndTenancy`
+- Android `testDebugUnitTest assembleDebug`
+- authentication login flow and `/api/auth/me`
+- role enforcement for `Admin` versus `Operator`
+- tenant isolation on user administration and tracking endpoints
+- audit log persistence for login and administrative actions
+- GPS simulator dry-run
 
-## Partiellement validé
+## Remaining limits
 
-- worker .NET: démarrage et arrêt vérifiés, mais comportement métier encore minimal par conception Sprint 00
+- Docker Desktop is unstable on this workstation at the moment, so the quality gate uses the in-memory provider for the isolated API health-check path.
+- The Worker remains intentionally minimal because background business workflows belong to later sprints.
+- The Android application is still only at foundation level for business functionality.
 
 ## Conclusion
 
-Le Sprint 00 est terminé localement. La quality gate est verte sur Docker Compose config, backend, simulateur GPS, Web, health check API et Android.
+Sprint 00 and Sprint 01 are complete locally. The repository now provides a reproducible foundation plus a tenant-aware identity and authorization baseline.
