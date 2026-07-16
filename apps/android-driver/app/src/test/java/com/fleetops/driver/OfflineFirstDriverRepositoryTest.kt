@@ -5,8 +5,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.IOException
+import java.util.Base64
 
 class OfflineFirstDriverRepositoryTest {
     @Test
@@ -41,6 +43,52 @@ class OfflineFirstDriverRepositoryTest {
         assertEquals(1, localStore.pending.size)
         assertEquals(MissionSyncState.Offline, localStore.missions.value.single().syncState)
     }
+
+    @Test
+    fun inspectionSyncsBeforeMissionStart() = runTest {
+        val localStore = FakeDriverLocalStore().apply {
+            session.value = fakeSession()
+            missions.value = listOf(fakeMission())
+        }
+        val remote = FakeDriverRemoteDataSource()
+        val repository = OfflineFirstDriverRepository(
+            localStore = localStore,
+            remoteDataSource = remote,
+            syncScheduler = FakeDriverSyncScheduler(),
+        )
+
+        repository.queueInspection("mission-1", hasCriticalDefect = false)
+        repository.queueMissionAction("mission-1", DriverMissionAction.Start)
+
+        assertTrue(remote.events.indexOf("inspection:mission-1") < remote.events.indexOf("command:Start"))
+        assertTrue(localStore.workflowOperations.isEmpty())
+        assertTrue(localStore.pending.isEmpty())
+    }
+
+    @Test
+    fun deliveryProofUploadResumesAcrossFlushes() = runTest {
+        val localStore = FakeDriverLocalStore().apply {
+            session.value = fakeSession()
+            missions.value = listOf(fakeMission(status = DriverMissionStatus.Arrived))
+        }
+        val remote = FakeDriverRemoteDataSource()
+        val repository = OfflineFirstDriverRepository(
+            localStore = localStore,
+            remoteDataSource = remote,
+            syncScheduler = FakeDriverSyncScheduler(),
+        )
+
+        repository.queueDeliveryProof("mission-1", "stop-2", "Taylor Receiver", "Taylor Receiver")
+
+        assertEquals(1, localStore.workflowOperations.size)
+        assertEquals(0, remote.completedUploadCount)
+
+        repository.flushPendingCommands()
+
+        assertTrue(localStore.workflowOperations.isEmpty())
+        assertEquals(1, remote.completedUploadCount)
+        assertTrue(remote.events.contains("proof:mission-1:stop-2"))
+    }
 }
 
 private class FakeDriverSyncScheduler : DriverSyncScheduler {
@@ -52,6 +100,7 @@ private class FakeDriverLocalStore : DriverLocalStore {
     val session = MutableStateFlow<DriverSession?>(null)
     val missions = MutableStateFlow<List<DriverMission>>(emptyList())
     val pending = mutableListOf<PendingMissionCommand>()
+    val workflowOperations = mutableListOf<PendingWorkflowOperation>()
 
     override fun observeSession(): Flow<DriverSession?> = session
 
@@ -103,16 +152,38 @@ private class FakeDriverLocalStore : DriverLocalStore {
         pending.removeAll { it.commandId == commandId }
     }
 
+    override suspend fun enqueueWorkflowOperation(operation: PendingWorkflowOperation) {
+        workflowOperations.removeAll { it.commandId == operation.commandId }
+        workflowOperations += operation
+    }
+
+    override suspend fun pendingWorkflowOperations(): List<PendingWorkflowOperation> = workflowOperations.toList()
+
+    override suspend fun saveWorkflowOperation(operation: PendingWorkflowOperation) {
+        workflowOperations.removeAll { it.commandId == operation.commandId }
+        workflowOperations += operation
+    }
+
+    override suspend fun removeWorkflowOperation(commandId: String) {
+        workflowOperations.removeAll { it.commandId == commandId }
+    }
+
     override suspend fun clearAll() {
         session.value = null
         missions.value = emptyList()
         pending.clear()
+        workflowOperations.clear()
     }
 }
 
 private class FakeDriverRemoteDataSource(
     private val throwOfflineOnSync: Boolean = false,
 ) : DriverRemoteDataSource {
+    val events = mutableListOf<String>()
+    var completedUploadCount = 0
+    private val uploadProgress = mutableMapOf<String, Long>()
+    private val totalDemoBytes = Base64.getDecoder().decode(SAMPLE_PNG_BASE64).size.toLong()
+
     override suspend fun login(email: String, password: String): DriverSession = fakeSession()
 
     override suspend fun listMissionDetails(session: DriverSession): List<DriverMission> = listOf(fakeMission())
@@ -122,6 +193,7 @@ private class FakeDriverRemoteDataSource(
             throw IOException("offline")
         }
 
+        events += "command:${command.action.name}"
         return fakeMission().copy(
             status = when (command.action) {
                 DriverMissionAction.Start -> DriverMissionStatus.EnRoute
@@ -131,6 +203,69 @@ private class FakeDriverRemoteDataSource(
             syncState = MissionSyncState.Synced,
             rowVersion = fakeMission().rowVersion + 1,
         )
+    }
+
+    override suspend fun createUploadSession(
+        session: DriverSession,
+        fileName: String,
+        contentType: String,
+        totalBytes: Long,
+        purpose: String,
+    ): UploadSessionResponseDto =
+        UploadSessionResponseDto(
+            uploadSessionId = "upload-1",
+            uploadedBytes = uploadProgress["upload-1"] ?: 0,
+            totalBytes = totalBytes,
+            expiresAtUtc = "2026-07-16T12:30:00Z",
+            isCompleted = false,
+            mediaAssetId = null,
+        )
+
+    override suspend fun appendUploadChunk(
+        session: DriverSession,
+        sessionId: String,
+        offset: Long,
+        base64Content: String,
+    ): UploadSessionResponseDto {
+        val bytes = Base64.getDecoder().decode(base64Content)
+        val uploaded = offset + bytes.size
+        uploadProgress[sessionId] = uploaded
+        return UploadSessionResponseDto(
+            uploadSessionId = sessionId,
+            uploadedBytes = uploaded,
+            totalBytes = totalDemoBytes,
+            expiresAtUtc = "2026-07-16T12:30:00Z",
+            isCompleted = uploaded >= totalDemoBytes,
+            mediaAssetId = null,
+        )
+    }
+
+    override suspend fun completeUploadSession(session: DriverSession, sessionId: String): MediaAssetResponseDto {
+        completedUploadCount += 1
+        return MediaAssetResponseDto(
+            assetId = "asset-1",
+            fileName = "demo.png",
+            contentType = "image/png",
+            sizeBytes = totalDemoBytes,
+            readUrl = "https://example.test/media/asset-1",
+        )
+    }
+
+    override suspend fun submitInspection(
+        session: DriverSession,
+        missionId: String,
+        request: SubmitPreDepartureInspectionRequestDto,
+    ) {
+        events += "inspection:$missionId"
+    }
+
+    override suspend fun submitDeliveryProof(
+        session: DriverSession,
+        missionId: String,
+        stopId: String,
+        request: SubmitDeliveryProofRequestDto,
+    ) {
+        events += "proof:$missionId:$stopId"
     }
 }
 
@@ -146,12 +281,12 @@ private fun fakeSession(): DriverSession =
         roles = listOf("Driver"),
     )
 
-private fun fakeMission(): DriverMission =
+private fun fakeMission(status: DriverMissionStatus = DriverMissionStatus.Assigned): DriverMission =
     DriverMission(
         id = "mission-1",
         reference = "NW-M-1",
         title = "Morning route",
-        status = DriverMissionStatus.Assigned,
+        status = status,
         scheduledStartUtc = "2026-07-16T08:00:00Z",
         scheduledEndUtc = "2026-07-16T10:00:00Z",
         vehicleRegistrationNumber = "NW-100",

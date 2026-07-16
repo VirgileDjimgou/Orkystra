@@ -1,0 +1,61 @@
+services:
+  sqlserver:
+    volumes:
+      - sqlserver-data:/var/opt/mssql
+      - ./backups:/var/opt/mssql/backups
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/backend/FleetOps.Api/Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      FLEETOPS_WEB_URL: http://localhost:${FLEETOPS_WEB_PORT:-8081}
+      ConnectionStrings__FleetOps: Server=sqlserver,1433;Database=FleetOps;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True
+      ObjectStorage__RootPath: /var/opt/fleetops/private-media
+      ObjectStorage__MediaSigningKey: ${MEDIA_SIGNING_KEY:-FleetOps_Pilot_Signing_Key_Change_Me_123456789}
+      Tracking__RetentionDays: ${TRACKING_RETENTION_DAYS:-7}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+      minio:
+        condition: service_started
+      mosquitto:
+        condition: service_started
+    ports:
+      - "${FLEETOPS_API_PORT:-5080}:8080"
+    volumes:
+      - private-media:/var/opt/fleetops/private-media
+
+  worker:
+    build:
+      context: .
+      dockerfile: apps/backend/FleetOps.Worker/Dockerfile
+    environment:
+      ConnectionStrings__FleetOps: Server=sqlserver,1433;Database=FleetOps;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True
+      Alerting__WorkerScanIntervalMinutes: ${ALERT_SCAN_INTERVAL_MINUTES:-15}
+      ObjectStorage__RootPath: /var/opt/fleetops/private-media
+      ObjectStorage__MediaSigningKey: ${MEDIA_SIGNING_KEY:-FleetOps_Pilot_Signing_Key_Change_Me_123456789}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+      api:
+        condition: service_started
+    volumes:
+      - private-media:/var/opt/fleetops/private-media
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    depends_on:
+      api:
+        condition: service_started
+    ports:
+      - "${FLEETOPS_WEB_PORT:-8081}:8080"
+
+volumes:
+  private-media:

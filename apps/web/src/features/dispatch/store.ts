@@ -7,7 +7,11 @@ import type {
   MissionSummaryResponse,
   SetMissionAssignmentRequest,
   SimulateMissionDelayRequest,
-  TransitionMissionStatusRequest,
+} from "./contracts";
+import {
+  normalizeMissionDetailResponse,
+  normalizeMissionSummaryResponse,
+  serializeMissionStatus,
 } from "./contracts";
 
 type AsyncStatus = "idle" | "loading" | "success" | "error";
@@ -27,10 +31,11 @@ export const useDispatchStore = defineStore("dispatch", {
       this.missionsStatus = "loading";
       this.missionsError = "";
       try {
-        this.missions = await apiRequest<MissionSummaryResponse[]>(
+        const missions = await apiRequest<MissionSummaryResponse[]>(
           "/api/v1/dispatch/missions",
           { token },
         );
+        this.missions = missions.map(normalizeMissionSummaryResponse);
         this.missionsStatus = "success";
       } catch {
         this.missionsStatus = "error";
@@ -41,10 +46,11 @@ export const useDispatchStore = defineStore("dispatch", {
       this.detailStatus = "loading";
       this.detailError = "";
       try {
-        this.selectedMission = await apiRequest<MissionDetailResponse>(
+        const mission = await apiRequest<MissionDetailResponse>(
           `/api/v1/dispatch/missions/${missionId}`,
           { token },
         );
+        this.selectedMission = normalizeMissionDetailResponse(mission);
         this.detailStatus = "success";
       } catch {
         this.detailStatus = "error";
@@ -57,9 +63,12 @@ export const useDispatchStore = defineStore("dispatch", {
     ): Promise<MissionDetailResponse | null> {
       this.actionError = "";
       try {
-        const created = await apiRequest<MissionDetailResponse>(
-          "/api/v1/dispatch/missions",
-          { method: "POST", token, body: request },
+        const created = normalizeMissionDetailResponse(
+          await apiRequest<MissionDetailResponse>("/api/v1/dispatch/missions", {
+            method: "POST",
+            token,
+            body: request,
+          }),
         );
         await this.loadMissions(token);
         this.selectedMission = created;
@@ -76,9 +85,11 @@ export const useDispatchStore = defineStore("dispatch", {
     ): Promise<MissionDetailResponse | null> {
       this.actionError = "";
       try {
-        const updated = await apiRequest<MissionDetailResponse>(
-          `/api/v1/dispatch/missions/${missionId}/assignment`,
-          { method: "PUT", token, body: request },
+        const updated = normalizeMissionDetailResponse(
+          await apiRequest<MissionDetailResponse>(
+            `/api/v1/dispatch/missions/${missionId}/assignment`,
+            { method: "PUT", token, body: request },
+          ),
         );
         await this.loadMissions(token);
         this.selectedMission = updated;
@@ -95,14 +106,16 @@ export const useDispatchStore = defineStore("dispatch", {
       rowVersion: number,
     ): Promise<MissionDetailResponse | null> {
       this.actionError = "";
-      const request: TransitionMissionStatusRequest = {
-        targetStatus,
+      const request = {
+        targetStatus: serializeMissionStatus(targetStatus),
         rowVersion,
       };
       try {
-        const updated = await apiRequest<MissionDetailResponse>(
-          `/api/v1/dispatch/missions/${missionId}/status`,
-          { method: "POST", token, body: request },
+        const updated = normalizeMissionDetailResponse(
+          await apiRequest<MissionDetailResponse>(
+            `/api/v1/dispatch/missions/${missionId}/status`,
+            { method: "POST", token, body: request },
+          ),
         );
         await this.loadMissions(token);
         this.selectedMission = updated;
@@ -119,9 +132,11 @@ export const useDispatchStore = defineStore("dispatch", {
     ): Promise<MissionDetailResponse | null> {
       this.actionError = "";
       try {
-        const updated = await apiRequest<MissionDetailResponse>(
-          `/api/v1/dispatch/missions/${missionId}/delay-simulation`,
-          { method: "POST", token, body: request },
+        const updated = normalizeMissionDetailResponse(
+          await apiRequest<MissionDetailResponse>(
+            `/api/v1/dispatch/missions/${missionId}/delay-simulation`,
+            { method: "POST", token, body: request },
+          ),
         );
         await this.loadMissions(token);
         this.selectedMission = updated;

@@ -13,10 +13,11 @@ import {
 } from "./session";
 
 type SessionStatus = "anonymous" | "authenticating" | "authenticated";
+type ExtendedSessionStatus = SessionStatus | "twoFactorRequired";
 
 export const useSessionStore = defineStore("session", {
   state: () => ({
-    status: "anonymous" as SessionStatus,
+    status: "anonymous" as ExtendedSessionStatus,
     accessToken: null as string | null,
     expiresAtUtc: null as string | null,
     user: null as AuthenticatedUser | null,
@@ -27,6 +28,9 @@ export const useSessionStore = defineStore("session", {
       state.status === "authenticated" && !!state.accessToken,
     isAdmin: (state) => !!state.user?.roles.includes("Admin"),
     canManageUsers(): boolean {
+      return this.isAdmin;
+    },
+    canManageIntegrations(): boolean {
       return this.isAdmin;
     },
   },
@@ -50,7 +54,20 @@ export const useSessionStore = defineStore("session", {
           body: payload,
         });
 
+        if (response.requiresTwoFactor) {
+          this.status = "twoFactorRequired";
+          this.accessToken = null;
+          this.expiresAtUtc = null;
+          this.user = null;
+          this.error =
+            response.challengeMessage ??
+            "Enter the 6-digit code from your authenticator app.";
+          clearStoredSession();
+          return response;
+        }
+
         this.applySession(response);
+        return response;
       } catch (error) {
         this.reset();
         this.error =

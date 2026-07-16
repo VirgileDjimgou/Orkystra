@@ -1,36 +1,98 @@
 using System.Text;
+using System.Threading.RateLimiting;
 using FleetOps.Api;
 using FleetOps.Api.Admin;
+using FleetOps.Api.Alerts;
 using FleetOps.Api.Auditing;
 using FleetOps.Api.Auth;
 using FleetOps.Api.Dispatch;
 using FleetOps.Api.DriverApp;
 using FleetOps.Api.Fleet;
+using FleetOps.Api.Integrations;
+using FleetOps.Api.Media;
+using FleetOps.Api.Observability;
+using FleetOps.Api.Operations;
 using FleetOps.Api.Security;
 using FleetOps.Api.Tracking;
+using FleetOps.Core.Modules.Integrations;
 using FleetOps.Infrastructure;
+using FleetOps.Infrastructure.Integrations;
 using FleetOps.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
 
 var builder = WebApplication.CreateBuilder(args);
 var webOrigin = builder.Configuration["FLEETOPS_WEB_URL"] ?? "http://localhost:5183";
+var otlpEndpoint = builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"];
 
 builder.Services.AddOpenApi();
-builder.Services.AddHealthChecks();
+builder.Logging.AddJsonConsole(options =>
+{
+    options.IncludeScopes = true;
+    options.TimestampFormat = "O";
+});
+builder.Services.AddHealthChecks()
+    .AddCheck<DatabaseReadyHealthCheck>("database", tags: ["ready"]);
 builder.Services.AddSignalR();
 builder.Services.AddFleetOpsInfrastructure(builder.Configuration);
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
 builder.Services.Configure<TrackingOptions>(builder.Configuration.GetSection(TrackingOptions.SectionName));
+builder.Services.AddOpenTelemetry()
+    .ConfigureResource(resource => resource.AddService(
+        serviceName: "fleetops-api",
+        serviceVersion: typeof(Program).Assembly.GetName().Version?.ToString() ?? "dev"))
+    .WithTracing(tracing =>
+    {
+        tracing
+            .AddAspNetCoreInstrumentation(options =>
+            {
+                options.RecordException = true;
+                options.Filter = context => !context.Request.Path.StartsWithSegments("/health");
+            })
+            .AddHttpClientInstrumentation(options => options.RecordException = true);
+
+        if (!string.IsNullOrWhiteSpace(otlpEndpoint))
+        {
+            tracing.AddOtlpExporter();
+        }
+    })
+    .WithMetrics(metrics =>
+    {
+        metrics
+            .AddAspNetCoreInstrumentation()
+            .AddHttpClientInstrumentation()
+            .AddRuntimeInstrumentation()
+            .AddMeter("Microsoft.AspNetCore.Hosting")
+            .AddMeter("Microsoft.AspNetCore.Server.Kestrel")
+            .AddMeter("System.Net.Http");
+
+        if (!string.IsNullOrWhiteSpace(otlpEndpoint))
+        {
+            metrics.AddOtlpExporter();
+        }
+    });
 builder.Services.AddSingleton<ICurrentTenantAccessor, CurrentTenantAccessor>();
 builder.Services.AddScoped<IJwtTokenIssuer, JwtTokenIssuer>();
 builder.Services.AddScoped<IAuditService, AuditService>();
 builder.Services.AddScoped<TrackingIngestionService>();
 builder.Services.AddSingleton<TrackingMetricsStore>();
 builder.Services.AddSingleton(TimeProvider.System);
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+builder.Services.AddSingleton<IMediaUrlSigner, MediaUrlSigner>();
+builder.Services.AddSingleton<IAuthorizationHandler, ApiKeyScopeHandler>();
+builder.Services.AddAuthentication(options =>
+    {
+        options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+        options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+        options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
+    })
     .AddJwtBearer(options =>
     {
         var jwt = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>() ?? new JwtOptions();
@@ -59,8 +121,46 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 return Task.CompletedTask;
             }
         };
+    })
+    .AddScheme<AuthenticationSchemeOptions, ApiKeyAuthenticationHandler>(
+        ApiKeyAuthenticationHandler.SchemeName,
+        _ => { });
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("partner-fleet-read", policy =>
+    {
+        policy.AuthenticationSchemes.Add(ApiKeyAuthenticationHandler.SchemeName);
+        policy.RequireAuthenticatedUser();
+        policy.Requirements.Add(new ApiKeyScopeRequirement(IntegrationScope.PartnerFleetRead));
     });
-builder.Services.AddAuthorization();
+    options.AddPolicy("device-tracking-write", policy =>
+    {
+        policy.AuthenticationSchemes.Add(ApiKeyAuthenticationHandler.SchemeName);
+        policy.RequireAuthenticatedUser();
+        policy.Requirements.Add(new ApiKeyScopeRequirement(IntegrationScope.DeviceTrackingWrite));
+    });
+    options.AddPolicy("partner-webhook-read", policy =>
+    {
+        policy.AuthenticationSchemes.Add(ApiKeyAuthenticationHandler.SchemeName);
+        policy.RequireAuthenticatedUser();
+        policy.Requirements.Add(new ApiKeyScopeRequirement(IntegrationScope.PartnerWebhookRead));
+    });
+});
+builder.Services.AddRateLimiter(options =>
+{
+    options.AddFixedWindowLimiter("integration-admin", limiter =>
+    {
+        limiter.PermitLimit = 20;
+        limiter.Window = TimeSpan.FromMinutes(1);
+        limiter.QueueLimit = 0;
+    });
+    options.AddFixedWindowLimiter("integration-api-key", limiter =>
+    {
+        limiter.PermitLimit = 60;
+        limiter.Window = TimeSpan.FromMinutes(1);
+        limiter.QueueLimit = 0;
+    });
+});
 builder.Services.AddCors(options => options.AddDefaultPolicy(policy =>
     policy.WithOrigins(webOrigin)
         .AllowAnyHeader()
@@ -90,16 +190,30 @@ if (!app.Environment.IsDevelopment())
 app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseRateLimiter();
 app.MapHealthChecks("/health");
+app.MapHealthChecks("/health/ready", new HealthCheckOptions
+{
+    Predicate = registration => registration.Tags.Contains("ready")
+});
 app.MapHub<TrackingHub>("/hubs/tracking").RequireAuthorization();
 app.MapAuthEndpoints();
 app.MapUserAdministrationEndpoints();
+app.MapSecurityAdministrationEndpoints();
+app.MapDataLifecycleAdministrationEndpoints();
+app.MapIntegrationAdministrationEndpoints();
+app.MapIntegrationPartnerEndpoints();
+app.MapIntegrationSandboxEndpoints();
 app.MapVehicleEndpoints();
 app.MapDriverEndpoints();
 app.MapDeviceEndpoints();
+app.MapFleetAlertConfigurationEndpoints();
 app.MapDispatchEndpoints();
 app.MapDriverAppEndpoints();
+app.MapDriverOperationsEndpoints();
+app.MapMediaEndpoints();
 app.MapTrackingEndpoints();
+app.MapAlertEndpoints();
 
 app.MapGet("/api/system/info", () => Results.Ok(new
 {

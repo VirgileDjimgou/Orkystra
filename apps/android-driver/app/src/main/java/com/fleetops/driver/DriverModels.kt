@@ -81,6 +81,62 @@ data class PendingMissionCommand(
     val occurredAtUtc: String,
 )
 
+enum class DriverWorkflowOperationType {
+    Inspection,
+    DeliveryProof,
+}
+
+enum class DriverDefectSeverity {
+    None,
+    Minor,
+    Major,
+    Critical,
+}
+
+data class PendingPhotoUpload(
+    val localId: String,
+    val fileName: String,
+    val contentType: String,
+    val base64Content: String,
+    val uploadSessionId: String? = null,
+    val uploadedBytes: Long = 0,
+    val remoteAssetId: String? = null,
+)
+
+data class PendingInspectionOperation(
+    val notes: String?,
+    val completedAtUtc: String,
+    val items: List<PendingInspectionItem>,
+)
+
+data class PendingInspectionItem(
+    val sequence: Int,
+    val code: String,
+    val label: String,
+    val isPass: Boolean,
+    val defectSeverity: DriverDefectSeverity,
+    val notes: String?,
+    val photoLocalId: String?,
+)
+
+data class PendingDeliveryProofOperation(
+    val recipientName: String,
+    val signatureName: String,
+    val deliveredAtUtc: String,
+    val notes: String?,
+    val stopId: String,
+    val photoLocalIds: List<String>,
+)
+
+data class PendingWorkflowOperation(
+    val commandId: String,
+    val missionId: String,
+    val operationType: DriverWorkflowOperationType,
+    val payloadJson: String,
+    val photos: List<PendingPhotoUpload>,
+    val createdAtUtc: String,
+)
+
 data class DriverAppUiState(
     val session: DriverSession? = null,
     val missions: List<DriverMission> = emptyList(),
@@ -138,3 +194,6 @@ fun String.toFriendlyDateTime(): String =
             .withZone(ZoneId.systemDefault())
             .format(Instant.parse(this))
     }.getOrElse { this }
+
+const val SAMPLE_PNG_BASE64 =
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9pN96ZQAAAAASUVORK5CYII="

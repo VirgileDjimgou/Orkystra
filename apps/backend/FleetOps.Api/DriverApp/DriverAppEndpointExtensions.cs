@@ -1,7 +1,10 @@
 using FleetOps.Api.Auditing;
+using FleetOps.Api.Media;
+using FleetOps.Api.Operations;
 using FleetOps.Api.Security;
 using FleetOps.Core.Modules.Dispatch;
 using FleetOps.Core.Modules.Identity;
+using FleetOps.Core.Modules.Operations;
 using FleetOps.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
@@ -151,6 +154,31 @@ public static class DriverAppEndpointExtensions
 
         try
         {
+            if (request.Action == DriverMissionCommandAction.Start)
+            {
+                var latestInspection = await DriverOperationsEndpointExtensions.LoadLatestInspectionAsync(
+                    mission.Id,
+                    tenant.OrganizationId,
+                    dbContext,
+                    new NoOpMediaUrlSigner(),
+                    cancellationToken);
+                if (latestInspection is null)
+                {
+                    return Results.ValidationProblem(new Dictionary<string, string[]>
+                    {
+                        ["inspection"] = ["A pre-departure inspection must be completed before mission start."]
+                    }, statusCode: StatusCodes.Status409Conflict);
+                }
+
+                if (latestInspection.HasBlockingCriticalDefect)
+                {
+                    return Results.ValidationProblem(new Dictionary<string, string[]>
+                    {
+                        ["inspection"] = ["Mission start is blocked by a critical inspection defect."]
+                    }, statusCode: StatusCodes.Status409Conflict);
+                }
+            }
+
             mission.TransitionTo(ToMissionStatus(request.Action), request.OccurredAtUtc);
             dbContext.MissionTimelineEvents.Add(mission.Timeline.OrderByDescending(x => x.OccurredAtUtc).First());
             dbContext.DriverSyncCommandReceipts.Add(new DriverSyncCommandReceipt(
@@ -195,6 +223,13 @@ public static class DriverAppEndpointExtensions
 
         var updatedMission = await LoadAssignedMissionAsync(id, tenant.OrganizationId, driverId, dbContext, cancellationToken);
         return Results.Ok(new SyncMissionCommandResponse(updatedMission!, WasDuplicate: false));
+    }
+
+    private sealed class NoOpMediaUrlSigner : IMediaUrlSigner
+    {
+        public string CreateReadUrl(Guid assetId, TimeSpan lifetime) => string.Empty;
+
+        public bool IsValid(Guid assetId, long expiresUnixSeconds, string signature) => false;
     }
 
     private static MissionStatus ToMissionStatus(DriverMissionCommandAction action) =>

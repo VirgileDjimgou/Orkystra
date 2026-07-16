@@ -16,6 +16,10 @@ Toutes les modifications fonctionnelles significatives sont documentées ici.
 - Dispatch missions with ordered stops, explicit lifecycle transitions, conflict-aware driver and vehicle assignment, delay simulation, and audited mission timelines.
 - Vue dispatch board for mission planning, assignment, status progression, and mission-to-map navigation.
 - Android driver workflow with secure login, offline mission cache, Room persistence, idempotent command outbox, and background sync.
+- Pre-departure inspections, delivery proof capture, resumable private media uploads, and operator-facing proof review.
+- Deterministic alerting, compliance document tracking, light maintenance planning, worker re-scan support, and a role-aware alert center.
+- Partner and device integration APIs with scoped API keys, signed webhooks, SQL outbox retries, sandbox receipts, immutable audit enforcement, and an admin integration console.
+- Production hardening and pilot readiness with administrator MFA, tenant lifecycle export/purge, OTLP observability, readiness checks, pilot Docker packaging, and SQL backup/restore scripts.
 
 ### Changed
 
@@ -29,3 +33,6 @@ Toutes les modifications fonctionnelles significatives sont documentées ici.
 - Public README updated in English with architecture, modules, stack, fleet registry flow, and Mermaid diagrams.
 - README expanded with dispatch architecture, mission flow, and Sprint 04 validation scope.
 - README expanded with Sprint 05 mobile architecture, offline sync flow, and Android stack details.
+- README, validation, and project status refreshed for Sprint 06 inspections, delivery proof, and signed private media access.
+- README expanded with professional Sprint 09 architecture notes and real screenshots for admin, operator, isolated tenant, and Android surfaces.
+- Android driver app now tolerates numeric enum contracts from the backend and allows local emulator loopback cleartext access for reproducible demos.

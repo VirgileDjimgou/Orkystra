@@ -14,6 +14,7 @@ import retrofit2.HttpException
 import java.io.IOException
 import java.time.Duration
 import java.time.Instant
+import java.util.Base64
 import java.util.UUID
 
 interface DriverRepository {
@@ -23,6 +24,8 @@ interface DriverRepository {
     suspend fun login(email: String, password: String)
     suspend fun refresh()
     suspend fun queueMissionAction(missionId: String, action: DriverMissionAction)
+    suspend fun queueInspection(missionId: String, hasCriticalDefect: Boolean)
+    suspend fun queueDeliveryProof(missionId: String, stopId: String, recipientName: String, signatureName: String)
     suspend fun flushPendingCommands()
     suspend fun signOut()
 }
@@ -113,8 +116,131 @@ class OfflineFirstDriverRepository(
         }
     }
 
+    override suspend fun queueInspection(missionId: String, hasCriticalDefect: Boolean) {
+        val operation = PendingWorkflowOperation(
+            commandId = UUID.randomUUID().toString(),
+            missionId = missionId,
+            operationType = DriverWorkflowOperationType.Inspection,
+            payloadJson = driverJson.encodeInspectionOperation(
+                PendingInspectionOperation(
+                    notes = if (hasCriticalDefect) "Critical brake defect detected." else "Vehicle ready for departure.",
+                    completedAtUtc = Instant.now().toString(),
+                    items = listOf(
+                        PendingInspectionItem(1, "brakes", "Brakes and steering", !hasCriticalDefect, if (hasCriticalDefect) DriverDefectSeverity.Critical else DriverDefectSeverity.None, if (hasCriticalDefect) "Brake pedal unstable." else null, "photo-1"),
+                        PendingInspectionItem(2, "lights", "Lights and signals", true, DriverDefectSeverity.None, null, null),
+                        PendingInspectionItem(3, "cargo-secured", "Cargo and doors secured", true, DriverDefectSeverity.None, null, null),
+                    ),
+                ),
+            ),
+            photos = listOf(samplePendingPhoto("photo-1", "inspection-demo.jpg")),
+            createdAtUtc = Instant.now().toString(),
+        )
+        localStore.enqueueWorkflowOperation(operation)
+        localStore.updateMissionSyncState(missionId, MissionSyncState.Pending)
+        try {
+            flushPendingCommands()
+        } catch (_: IOException) {
+            localStore.updateMissionSyncState(missionId, MissionSyncState.Offline)
+        }
+    }
+
+    override suspend fun queueDeliveryProof(missionId: String, stopId: String, recipientName: String, signatureName: String) {
+        val operation = PendingWorkflowOperation(
+            commandId = UUID.randomUUID().toString(),
+            missionId = missionId,
+            operationType = DriverWorkflowOperationType.DeliveryProof,
+            payloadJson = driverJson.encodeDeliveryProofOperation(
+                PendingDeliveryProofOperation(
+                    recipientName = recipientName.trim(),
+                    signatureName = signatureName.trim(),
+                    deliveredAtUtc = Instant.now().toString(),
+                    notes = "Delivered on site.",
+                    stopId = stopId,
+                    photoLocalIds = listOf("photo-1"),
+                ),
+            ),
+            photos = listOf(samplePendingPhoto("photo-1", "proof-demo.jpg")),
+            createdAtUtc = Instant.now().toString(),
+        )
+        localStore.enqueueWorkflowOperation(operation)
+        localStore.updateMissionSyncState(missionId, MissionSyncState.Pending)
+        try {
+            flushPendingCommands()
+        } catch (_: IOException) {
+            localStore.updateMissionSyncState(missionId, MissionSyncState.Offline)
+        }
+    }
+
     override suspend fun flushPendingCommands() {
         val session = requireSession()
+        val workflowOperations = localStore.pendingWorkflowOperations()
+        for (operation in workflowOperations) {
+            try {
+                val processed = flushWorkflowOperation(session, operation)
+                localStore.saveWorkflowOperation(processed)
+                if (processed.photos.all { it.remoteAssetId != null }) {
+                    when (processed.operationType) {
+                        DriverWorkflowOperationType.Inspection -> {
+                            val payload = driverJson.decodeInspectionOperation(processed.payloadJson)
+                            remoteDataSource.submitInspection(
+                                session,
+                                processed.missionId,
+                                SubmitPreDepartureInspectionRequestDto(
+                                    commandId = processed.commandId,
+                                    completedAtUtc = payload.completedAtUtc,
+                                    notes = payload.notes,
+                                    items = payload.items.map { item ->
+                                        InspectionItemResultRequestDto(
+                                            sequence = item.sequence,
+                                            code = item.code,
+                                            label = item.label,
+                                            isPass = item.isPass,
+                                            defectSeverity = item.defectSeverity.name,
+                                            notes = item.notes,
+                                            photoAssetId = item.photoLocalId?.let { localId ->
+                                                processed.photos.firstOrNull { it.localId == localId }?.remoteAssetId
+                                            },
+                                        )
+                                    },
+                                ),
+                            )
+                        }
+                        DriverWorkflowOperationType.DeliveryProof -> {
+                            val payload = driverJson.decodeDeliveryProofOperation(processed.payloadJson)
+                            remoteDataSource.submitDeliveryProof(
+                                session,
+                                processed.missionId,
+                                payload.stopId,
+                                SubmitDeliveryProofRequestDto(
+                                    commandId = processed.commandId,
+                                    recipientName = payload.recipientName,
+                                    signatureName = payload.signatureName,
+                                    deliveredAtUtc = payload.deliveredAtUtc,
+                                    notes = payload.notes,
+                                    photos = payload.photoLocalIds.mapNotNull { localId ->
+                                        processed.photos.firstOrNull { it.localId == localId }?.remoteAssetId?.let { remoteAssetId ->
+                                            DeliveryProofPhotoRequestDto(remoteAssetId, "Demo capture")
+                                        }
+                                    },
+                                ),
+                            )
+                        }
+                    }
+
+                    localStore.removeWorkflowOperation(processed.commandId)
+                    refresh()
+                }
+            } catch (exception: HttpException) {
+                if (exception.code() == 401) {
+                    localStore.clearSession()
+                }
+                throw exception
+            } catch (exception: IOException) {
+                localStore.updateMissionSyncState(operation.missionId, MissionSyncState.Offline)
+                throw exception
+            }
+        }
+
         val pending = localStore.pendingCommands()
         for (command in pending) {
             try {
@@ -147,7 +273,79 @@ class OfflineFirstDriverRepository(
 
     private suspend fun requireSession(): DriverSession =
         localStore.getSession() ?: throw IllegalStateException("No driver session available.")
+
+    private suspend fun flushWorkflowOperation(
+        session: DriverSession,
+        operation: PendingWorkflowOperation,
+    ): PendingWorkflowOperation {
+        val updatedPhotos = operation.photos.map { photo ->
+            if (photo.remoteAssetId != null) {
+                photo
+            } else {
+                uploadPhoto(session, photo, operation.operationType)
+            }
+        }
+
+        return operation.copy(photos = updatedPhotos)
+    }
+
+    private suspend fun uploadPhoto(
+        session: DriverSession,
+        photo: PendingPhotoUpload,
+        operationType: DriverWorkflowOperationType,
+    ): PendingPhotoUpload {
+        val bytes = Base64.getDecoder().decode(photo.base64Content)
+        val uploadSessionId = photo.uploadSessionId
+            ?: remoteDataSource.createUploadSession(
+                session,
+                photo.fileName,
+                photo.contentType,
+                bytes.size.toLong(),
+                when (operationType) {
+                    DriverWorkflowOperationType.Inspection -> "InspectionPhoto"
+                    DriverWorkflowOperationType.DeliveryProof -> "DeliveryProofPhoto"
+                },
+            ).uploadSessionId
+
+        val chunkSize = maxOf(1, bytes.size / 2)
+        val remaining = bytes.size.toLong() - photo.uploadedBytes
+        if (remaining > 0) {
+            val start = photo.uploadedBytes.toInt()
+            val endExclusive = minOf(bytes.size, start + chunkSize)
+            val chunk = bytes.copyOfRange(start, endExclusive)
+            val response = remoteDataSource.appendUploadChunk(
+                session,
+                uploadSessionId,
+                photo.uploadedBytes,
+                Base64.getEncoder().encodeToString(chunk),
+            )
+
+            val progressed = photo.copy(
+                uploadSessionId = uploadSessionId,
+                uploadedBytes = response.uploadedBytes,
+            )
+
+            if (response.uploadedBytes < response.totalBytes) {
+                return progressed
+            }
+        }
+
+        val asset = remoteDataSource.completeUploadSession(session, uploadSessionId)
+        return photo.copy(
+            uploadSessionId = uploadSessionId,
+            uploadedBytes = bytes.size.toLong(),
+            remoteAssetId = asset.assetId,
+        )
+    }
 }
+
+private fun samplePendingPhoto(localId: String, fileName: String): PendingPhotoUpload =
+    PendingPhotoUpload(
+        localId = localId,
+        fileName = fileName,
+        contentType = "image/png",
+        base64Content = SAMPLE_PNG_BASE64,
+    )
 
 class DriverSyncWorker(
     appContext: Context,

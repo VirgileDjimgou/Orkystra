@@ -333,6 +333,73 @@
                   </article>
                 </div>
               </div>
+
+              <div class="dispatch-inline-panel">
+                <h3>Pre-departure inspection</h3>
+                <div
+                  v-if="!dispatch.selectedMission.latestInspection"
+                  class="text-secondary"
+                >
+                  No inspection recorded yet.
+                </div>
+                <template v-else>
+                  <div class="d-flex flex-wrap gap-2 align-items-center">
+                    <span :class="inspectionOutcomeBadgeClass">
+                      {{ dispatch.selectedMission.latestInspection.outcome }}
+                    </span>
+                    <span
+                      v-if="
+                        dispatch.selectedMission.latestInspection
+                          .hasBlockingCriticalDefect
+                      "
+                      class="badge text-bg-danger"
+                    >
+                      Critical defect blocks departure
+                    </span>
+                  </div>
+                  <small class="text-secondary">
+                    {{
+                      formatDateTime(
+                        dispatch.selectedMission.latestInspection
+                          .completedAtUtc,
+                      )
+                    }}
+                  </small>
+                  <div
+                    v-if="dispatch.selectedMission.latestInspection.notes"
+                    class="text-secondary small"
+                  >
+                    {{ dispatch.selectedMission.latestInspection.notes }}
+                  </div>
+                  <div class="dispatch-stop-stack">
+                    <article
+                      v-for="item in dispatch.selectedMission.latestInspection
+                        .items"
+                      :key="`${item.code}-${item.sequence}`"
+                      class="dispatch-stop-card"
+                    >
+                      <strong>{{ item.label }}</strong>
+                      <span>
+                        {{
+                          item.isPass
+                            ? "Passed"
+                            : `Defect: ${item.defectSeverity}`
+                        }}
+                      </span>
+                      <small v-if="item.notes">{{ item.notes }}</small>
+                      <a
+                        v-if="item.photoReadUrl"
+                        class="link-secondary small"
+                        :href="item.photoReadUrl"
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Open attached photo
+                      </a>
+                    </article>
+                  </div>
+                </template>
+              </div>
             </section>
 
             <section class="dispatch-detail-section">
@@ -347,6 +414,42 @@
                   <span>{{ item.description }}</span>
                   <small>{{ formatDateTime(item.occurredAtUtc) }}</small>
                 </article>
+              </div>
+
+              <div class="dispatch-inline-panel">
+                <h3>Delivery proofs</h3>
+                <div
+                  v-if="dispatch.selectedMission.deliveryProofs.length === 0"
+                  class="text-secondary"
+                >
+                  No delivery proof recorded yet.
+                </div>
+                <div v-else class="dispatch-stop-stack">
+                  <article
+                    v-for="proof in dispatch.selectedMission.deliveryProofs"
+                    :key="proof.proofId"
+                    class="dispatch-stop-card"
+                  >
+                    <strong>{{ proof.recipientName }}</strong>
+                    <span>
+                      Signed by {{ proof.signatureName }} on
+                      {{ formatDateTime(proof.deliveredAtUtc) }}
+                    </span>
+                    <small v-if="proof.notes">{{ proof.notes }}</small>
+                    <div class="d-flex flex-column gap-1">
+                      <a
+                        v-for="photo in proof.photos"
+                        :key="photo.mediaAssetId"
+                        class="link-secondary small"
+                        :href="photo.photoReadUrl"
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {{ photo.caption || "Open delivery photo" }}
+                      </a>
+                    </div>
+                  </article>
+                </div>
               </div>
             </section>
           </div>
@@ -453,6 +556,11 @@ const availableTransitions = computed<MissionStatus[]>(() => {
       return [];
   }
 });
+const inspectionOutcomeBadgeClass = computed(() =>
+  dispatch.selectedMission?.latestInspection?.outcome === "Passed"
+    ? "badge text-bg-success"
+    : "badge text-bg-danger",
+);
 
 function toLocalInputValue(value: Date): string {
   return new Date(value.getTime() - value.getTimezoneOffset() * 60000)

@@ -1,6 +1,6 @@
 namespace FleetOps.Api.Auth;
 
-public sealed record LoginRequest(string Email, string Password);
+public sealed record LoginRequest(string Email, string Password, string? TwoFactorCode = null);
 
 public sealed record AuthenticatedUserResponse(
     Guid UserId,
@@ -8,9 +8,13 @@ public sealed record AuthenticatedUserResponse(
     string FullName,
     string OrganizationName,
     Guid? DriverId,
-    string[] Roles);
+    string[] Roles,
+    bool TwoFactorEnabled);
 
 public sealed record LoginResponse(
     string AccessToken,
     DateTimeOffset ExpiresAtUtc,
-    AuthenticatedUserResponse User);
+    AuthenticatedUserResponse User,
+    bool RequiresTwoFactor,
+    string? TwoFactorProvider,
+    string? ChallengeMessage);

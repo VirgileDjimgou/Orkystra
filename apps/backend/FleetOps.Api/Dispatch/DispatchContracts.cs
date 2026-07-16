@@ -1,4 +1,5 @@
 using FleetOps.Core.Modules.Dispatch;
+using FleetOps.Core.Modules.Operations;
 
 namespace FleetOps.Api.Dispatch;
 
@@ -48,6 +49,37 @@ public sealed record MissionTimelineEventResponse(
     string Description,
     DateTimeOffset OccurredAtUtc);
 
+public sealed record MissionInspectionItemResponse(
+    int Sequence,
+    string Code,
+    string Label,
+    bool IsPass,
+    DefectSeverity DefectSeverity,
+    string? Notes,
+    string? PhotoReadUrl);
+
+public sealed record MissionInspectionResponse(
+    Guid InspectionId,
+    InspectionOutcome Outcome,
+    bool HasBlockingCriticalDefect,
+    DateTimeOffset CompletedAtUtc,
+    string? Notes,
+    IReadOnlyList<MissionInspectionItemResponse> Items);
+
+public sealed record MissionProofPhotoResponse(
+    Guid MediaAssetId,
+    string? Caption,
+    string PhotoReadUrl);
+
+public sealed record MissionStopProofResponse(
+    Guid ProofId,
+    Guid MissionStopId,
+    string RecipientName,
+    string SignatureName,
+    DateTimeOffset DeliveredAtUtc,
+    string? Notes,
+    IReadOnlyList<MissionProofPhotoResponse> Photos);
+
 public sealed record MissionSummaryResponse(
     Guid Id,
     string Reference,
@@ -78,5 +110,7 @@ public sealed record MissionDetailResponse(
     string? VehicleRegistrationNumber,
     int SimulatedDelayMinutes,
     long RowVersion,
+    MissionInspectionResponse? LatestInspection,
+    IReadOnlyList<MissionStopProofResponse> DeliveryProofs,
     IReadOnlyList<MissionStopResponse> Stops,
     IReadOnlyList<MissionTimelineEventResponse> Timeline);

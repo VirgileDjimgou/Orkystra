@@ -7,6 +7,7 @@ public sealed record VehicleResponse(
     string RegistrationNumber,
     string DisplayName,
     bool IsActive,
+    int CurrentOdometerKm,
     long RowVersion);
 
 public sealed record CreateVehicleRequest(string RegistrationNumber, string DisplayName);

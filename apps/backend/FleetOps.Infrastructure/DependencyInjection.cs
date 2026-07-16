@@ -1,5 +1,9 @@
+using FleetOps.Core.Modules.Operations;
+using FleetOps.Infrastructure.Alerts;
 using FleetOps.Infrastructure.Identity;
+using FleetOps.Infrastructure.Integrations;
 using FleetOps.Infrastructure.Persistence;
+using FleetOps.Infrastructure.Storage;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -40,7 +44,18 @@ public static class DependencyInjection
             })
             .AddRoles<IdentityRole<Guid>>()
             .AddEntityFrameworkStores<FleetOpsDbContext>()
-            .AddSignInManager();
+            .AddSignInManager()
+            .AddDefaultTokenProviders();
+        services.Configure<ObjectStorageOptions>(configuration.GetSection(ObjectStorageOptions.SectionName));
+        services.Configure<AlertingOptions>(configuration.GetSection(AlertingOptions.SectionName));
+        services.Configure<IntegrationOptions>(configuration.GetSection(IntegrationOptions.SectionName));
+        services.AddSingleton<IPrivateMediaStorage, FileSystemPrivateMediaStorage>();
+        services.AddScoped<IAlertScanningService, AlertScanningService>();
+        services.AddSingleton<IDevAlertNotifier, LoggingDevAlertNotifier>();
+        services.AddScoped<IApiKeyCredentialService, ApiKeyCredentialService>();
+        services.AddScoped<IIntegrationOutboxService, IntegrationOutboxService>();
+        services.AddScoped<IWebhookDispatchService, WebhookDispatchService>();
+        services.AddHttpClient(nameof(WebhookDispatchService));
         return services;
     }
 }

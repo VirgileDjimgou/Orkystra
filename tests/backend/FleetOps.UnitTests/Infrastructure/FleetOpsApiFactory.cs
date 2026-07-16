@@ -31,7 +31,9 @@ public sealed class FleetOpsApiFactory : WebApplicationFactory<Program>, IAsyncL
                 ["Jwt:TokenLifetimeMinutes"] = "60",
                 ["FLEETOPS_WEB_URL"] = "http://localhost:5173",
                 ["Testing:UseInMemoryDatabase"] = "true",
-                ["Testing:DatabaseName"] = _databaseName
+                ["Testing:DatabaseName"] = _databaseName,
+                ["Integrations:RetryBaseDelaySeconds"] = "0",
+                ["Integrations:MaxWebhookAttempts"] = "3"
             });
         });
 

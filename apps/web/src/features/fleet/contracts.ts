@@ -3,6 +3,7 @@ export type VehicleResponse = {
   registrationNumber: string;
   displayName: string;
   isActive: boolean;
+  currentOdometerKm: number;
   rowVersion: number;
 };
 

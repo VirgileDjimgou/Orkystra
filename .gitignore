@@ -58,6 +58,7 @@ Thumbs.db
 .runtime/
 tmp/
 temp/
+.tmp*
 cache/
 logs/
 *.local.json

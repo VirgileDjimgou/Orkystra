@@ -3,6 +3,8 @@ using FleetOps.Api.Auditing;
 using FleetOps.Api.Security;
 using FleetOps.Core.Modules.Fleet;
 using FleetOps.Core.Modules.Identity;
+using FleetOps.Core.Modules.Integrations;
+using FleetOps.Infrastructure.Integrations;
 using FleetOps.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
@@ -20,6 +22,7 @@ public static class VehicleEndpointExtensions
             .RequireAuthorization(new AuthorizeAttribute { Roles = ReaderRoles });
 
         group.MapGet("/", ListVehiclesAsync);
+        group.MapGet("/export", ExportVehiclesAsync);
         group.MapGet("/{id:guid}", GetVehicleAsync);
         group.MapPost("/", CreateVehicleAsync).RequireAuthorization(new AuthorizeAttribute { Roles = AdminRole });
         group.MapPut("/{id:guid}", UpdateVehicleAsync).RequireAuthorization(new AuthorizeAttribute { Roles = AdminRole });
@@ -45,6 +48,7 @@ public static class VehicleEndpointExtensions
                 x.RegistrationNumber,
                 x.DisplayName,
                 x.IsActive,
+                x.CurrentOdometerKm,
                 x.RowVersion))
             .ToListAsync(cancellationToken);
 
@@ -66,6 +70,7 @@ public static class VehicleEndpointExtensions
                 x.RegistrationNumber,
                 x.DisplayName,
                 x.IsActive,
+                x.CurrentOdometerKm,
                 x.RowVersion))
             .FirstOrDefaultAsync(cancellationToken);
 
@@ -78,6 +83,7 @@ public static class VehicleEndpointExtensions
         FleetOpsDbContext dbContext,
         ICurrentTenantAccessor currentTenantAccessor,
         IAuditService auditService,
+        IIntegrationOutboxService integrationOutboxService,
         CancellationToken cancellationToken)
     {
         var tenant = currentTenantAccessor.GetRequiredTenant(httpContext.User);
@@ -128,12 +134,54 @@ public static class VehicleEndpointExtensions
             new { vehicle.RegistrationNumber, vehicle.DisplayName },
             cancellationToken);
 
+        await integrationOutboxService.PublishAsync(
+            tenant.OrganizationId,
+            IntegrationEventType.FleetVehicleCreated,
+            "vehicle",
+            vehicle.Id.ToString(),
+            new
+            {
+                vehicleId = vehicle.Id,
+                vehicle.RegistrationNumber,
+                vehicle.DisplayName,
+                vehicle.IsActive,
+                vehicle.CurrentOdometerKm
+            },
+            cancellationToken);
+
         return Results.Created($"/api/v1/fleet/vehicles/{vehicle.Id}", new VehicleResponse(
             vehicle.Id,
             vehicle.RegistrationNumber,
             vehicle.DisplayName,
             vehicle.IsActive,
+            vehicle.CurrentOdometerKm,
             vehicle.RowVersion));
+    }
+
+    private static async Task<IResult> ExportVehiclesAsync(
+        HttpContext httpContext,
+        FleetOpsDbContext dbContext,
+        ICurrentTenantAccessor currentTenantAccessor,
+        CancellationToken cancellationToken)
+    {
+        var tenant = currentTenantAccessor.GetRequiredTenant(httpContext.User);
+        var vehicles = await dbContext.Vehicles
+            .Where(x => x.OrganizationId == tenant.OrganizationId)
+            .OrderBy(x => x.RegistrationNumber)
+            .Select(x => new
+            {
+                x.RegistrationNumber,
+                x.DisplayName,
+                x.IsActive,
+                x.CurrentOdometerKm
+            })
+            .ToListAsync(cancellationToken);
+
+        var lines = new List<string> { "registrationNumber,displayName,isActive,currentOdometerKm" };
+        lines.AddRange(vehicles.Select(x =>
+            $"{Escape(x.RegistrationNumber)},{Escape(x.DisplayName)},{x.IsActive.ToString().ToLowerInvariant()},{x.CurrentOdometerKm}"));
+
+        return Results.Text(string.Join('\n', lines), "text/csv");
     }
 
     private static async Task<IResult> UpdateVehicleAsync(
@@ -190,6 +238,7 @@ public static class VehicleEndpointExtensions
             vehicle.RegistrationNumber,
             vehicle.DisplayName,
             vehicle.IsActive,
+            vehicle.CurrentOdometerKm,
             vehicle.RowVersion));
     }
 
@@ -268,6 +317,7 @@ public static class VehicleEndpointExtensions
             vehicle.RegistrationNumber,
             vehicle.DisplayName,
             vehicle.IsActive,
+            vehicle.CurrentOdometerKm,
             vehicle.RowVersion));
     }
 
@@ -362,5 +412,12 @@ public static class VehicleEndpointExtensions
             cancellationToken);
 
         return Results.Ok(finalSummary);
+    }
+
+    private static string Escape(string value)
+    {
+        return value.Contains(',') || value.Contains('"')
+            ? $"\"{value.Replace("\"", "\"\"", StringComparison.Ordinal)}\""
+            : value;
     }
 }

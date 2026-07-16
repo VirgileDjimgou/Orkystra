@@ -39,6 +39,7 @@ try {
   Invoke-Step "Git Status" { git status --short --branch }
   Invoke-Step "Dotnet Tools" { dotnet tool restore }
   Invoke-Step "Docker Compose Config" { docker compose --env-file .env config --quiet }
+  Invoke-Step "Pilot Compose Config" { docker compose --env-file .env -f docker-compose.yml -f docker-compose.pilot.yml config --quiet }
 
   Invoke-Step "Backend Restore" { dotnet restore FleetOps.slnx }
   Invoke-Step "Backend Format" { dotnet format FleetOps.slnx --verify-no-changes }
@@ -118,20 +119,29 @@ try {
     try {
       $deadline = (Get-Date).AddSeconds(20)
       $response = $null
+      $readinessResponse = $null
       do {
         Start-Sleep -Seconds 1
         try {
           $response = Invoke-WebRequest -UseBasicParsing 'http://localhost:5080/health'
+          $readinessResponse = Invoke-WebRequest -UseBasicParsing 'http://localhost:5080/health/ready'
         }
         catch {
           $response = $null
+          $readinessResponse = $null
         }
-      } while (-not $response -and (Get-Date) -lt $deadline)
+      } while ((-not $response -or -not $readinessResponse) -and (Get-Date) -lt $deadline)
       if (-not $response) {
         throw "API health endpoint did not become reachable on http://localhost:5080/health"
       }
       if ($response.StatusCode -ne 200) {
         throw "Unexpected health status code: $($response.StatusCode)"
+      }
+      if (-not $readinessResponse) {
+        throw "API readiness endpoint did not become reachable on http://localhost:5080/health/ready"
+      }
+      if ($readinessResponse.StatusCode -ne 200) {
+        throw "Unexpected readiness status code: $($readinessResponse.StatusCode)"
       }
     }
     finally {

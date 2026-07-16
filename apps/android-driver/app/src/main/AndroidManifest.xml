@@ -5,6 +5,7 @@
         android:name=".DriverApplication"
         android:allowBackup="false"
         android:label="FleetOps Driver"
+        android:networkSecurityConfig="@xml/network_security_config"
         android:supportsRtl="true"
         android:theme="@style/Theme.FleetOpsDriver">
         <activity

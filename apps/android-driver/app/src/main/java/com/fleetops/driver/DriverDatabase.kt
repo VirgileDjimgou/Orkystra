@@ -73,6 +73,16 @@ data class PendingMissionCommandEntity(
     val occurredAtUtc: String,
 )
 
+@Entity(tableName = "driver_workflow_outbox")
+data class PendingWorkflowOperationEntity(
+    @PrimaryKey val commandId: String,
+    val missionId: String,
+    val operationType: String,
+    val payloadJson: String,
+    val photosJson: String,
+    val createdAtUtc: String,
+)
+
 data class DriverMissionAggregate(
     @Embedded val mission: DriverMissionEntity,
     @Relation(parentColumn = "id", entityColumn = "missionId")
@@ -160,6 +170,21 @@ interface PendingMissionCommandDao {
     suspend fun clear()
 }
 
+@Dao
+interface PendingWorkflowOperationDao {
+    @Query("SELECT * FROM driver_workflow_outbox ORDER BY createdAtUtc")
+    suspend fun listPending(): List<PendingWorkflowOperationEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun enqueue(operation: PendingWorkflowOperationEntity)
+
+    @Query("DELETE FROM driver_workflow_outbox WHERE commandId = :commandId")
+    suspend fun delete(commandId: String)
+
+    @Query("DELETE FROM driver_workflow_outbox")
+    suspend fun clear()
+}
+
 @Database(
     entities = [
         DriverSessionEntity::class,
@@ -167,14 +192,16 @@ interface PendingMissionCommandDao {
         DriverMissionStopEntity::class,
         DriverMissionTimelineEventEntity::class,
         PendingMissionCommandEntity::class,
+        PendingWorkflowOperationEntity::class,
     ],
-    version = 1,
+    version = 2,
     exportSchema = false,
 )
 abstract class DriverDatabase : RoomDatabase() {
     abstract fun sessionDao(): DriverSessionDao
     abstract fun missionDao(): DriverMissionDao
     abstract fun outboxDao(): PendingMissionCommandDao
+    abstract fun workflowOutboxDao(): PendingWorkflowOperationDao
 
     companion object {
         fun build(context: Context): DriverDatabase =
@@ -199,6 +226,10 @@ interface DriverLocalStore {
     suspend fun enqueue(command: PendingMissionCommand)
     suspend fun pendingCommands(): List<PendingMissionCommand>
     suspend fun removePendingCommand(commandId: String)
+    suspend fun enqueueWorkflowOperation(operation: PendingWorkflowOperation)
+    suspend fun pendingWorkflowOperations(): List<PendingWorkflowOperation>
+    suspend fun saveWorkflowOperation(operation: PendingWorkflowOperation)
+    suspend fun removeWorkflowOperation(commandId: String)
     suspend fun clearAll()
 }
 
@@ -208,6 +239,7 @@ class RoomDriverLocalStore(
     private val sessionDao = database.sessionDao()
     private val missionDao = database.missionDao()
     private val outboxDao = database.outboxDao()
+    private val workflowOutboxDao = database.workflowOutboxDao()
 
     override fun observeSession(): Flow<DriverSession?> = sessionDao.observe().map { it?.toDomain() }
 
@@ -288,9 +320,25 @@ class RoomDriverLocalStore(
         outboxDao.delete(commandId)
     }
 
+    override suspend fun enqueueWorkflowOperation(operation: PendingWorkflowOperation) {
+        workflowOutboxDao.enqueue(operation.toEntity())
+    }
+
+    override suspend fun pendingWorkflowOperations(): List<PendingWorkflowOperation> =
+        workflowOutboxDao.listPending().map { it.toDomain() }
+
+    override suspend fun saveWorkflowOperation(operation: PendingWorkflowOperation) {
+        workflowOutboxDao.enqueue(operation.toEntity())
+    }
+
+    override suspend fun removeWorkflowOperation(commandId: String) {
+        workflowOutboxDao.delete(commandId)
+    }
+
     override suspend fun clearAll() {
         database.withTransaction {
             outboxDao.clear()
+            workflowOutboxDao.clear()
             missionDao.clearTimeline()
             missionDao.clearStops()
             missionDao.clearMissions()
@@ -405,6 +453,26 @@ private fun PendingMissionCommandEntity.toDomain(): PendingMissionCommand =
         action = enumValueOf(action),
         rowVersion = rowVersion,
         occurredAtUtc = occurredAtUtc,
+    )
+
+private fun PendingWorkflowOperation.toEntity(): PendingWorkflowOperationEntity =
+    PendingWorkflowOperationEntity(
+        commandId = commandId,
+        missionId = missionId,
+        operationType = operationType.name,
+        payloadJson = payloadJson,
+        photosJson = driverJson.encodeToString(photos),
+        createdAtUtc = createdAtUtc,
+    )
+
+private fun PendingWorkflowOperationEntity.toDomain(): PendingWorkflowOperation =
+    PendingWorkflowOperation(
+        commandId = commandId,
+        missionId = missionId,
+        operationType = enumValueOf(operationType),
+        payloadJson = payloadJson,
+        photos = driverJson.decodePendingPhotos(photosJson),
+        createdAtUtc = createdAtUtc,
     )
 
 private fun String.toMissionSyncState(): MissionSyncState =

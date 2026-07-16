@@ -21,6 +21,7 @@ public sealed class Vehicle : TenantEntity
     public string RegistrationNumber { get; private set; } = string.Empty;
     public string DisplayName { get; private set; } = string.Empty;
     public bool IsActive { get; private set; } = true;
+    public int CurrentOdometerKm { get; private set; }
     public long RowVersion { get; private set; }
 
     public void Rename(string displayName)
@@ -48,6 +49,13 @@ public sealed class Vehicle : TenantEntity
         }
 
         IsActive = false;
+        RowVersion++;
+    }
+
+    public void UpdateCurrentOdometer(int currentOdometerKm)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(currentOdometerKm);
+        CurrentOdometerKm = currentOdometerKm;
         RowVersion++;
     }
 

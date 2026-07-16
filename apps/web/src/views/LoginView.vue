@@ -6,7 +6,7 @@
         <h1>Secure access for every organization.</h1>
         <p>
           Sign in with a seeded demo account to validate role-based access,
-          tenant isolation, and the Sprint 01 administration shell.
+          tenant isolation, admin MFA, and the production-hardening controls.
         </p>
       </div>
 
@@ -31,6 +31,22 @@
           required
         />
 
+        <template v-if="requiresTwoFactor">
+          <label class="form-label mt-3" for="twoFactorCode">
+            Authenticator code
+          </label>
+          <input
+            id="twoFactorCode"
+            v-model="form.twoFactorCode"
+            class="form-control"
+            inputmode="numeric"
+            autocomplete="one-time-code"
+            maxlength="8"
+            placeholder="123456"
+            required
+          />
+        </template>
+
         <div v-if="session.error" class="alert alert-danger mt-3 mb-0">
           {{ session.error }}
         </div>
@@ -40,7 +56,13 @@
           :disabled="isBusy"
           type="submit"
         >
-          {{ isBusy ? "Signing in..." : "Sign in" }}
+          {{
+            isBusy
+              ? "Signing in..."
+              : requiresTwoFactor
+                ? "Verify and sign in"
+                : "Sign in"
+          }}
         </button>
       </form>
     </section>
@@ -77,6 +99,7 @@ const session = useSessionStore();
 const form = reactive({
   email: "admin@northwind.local",
   password: "Admin123!",
+  twoFactorCode: "",
 });
 
 const demoAccounts = [
@@ -101,11 +124,20 @@ const demoAccounts = [
 ];
 
 const isBusy = computed(() => session.status === "authenticating");
+const requiresTwoFactor = computed(
+  () => session.status === "twoFactorRequired",
+);
 
 async function submit() {
   try {
-    await session.login(form);
-    await router.push("/");
+    await session.login({
+      email: form.email,
+      password: form.password,
+      twoFactorCode: form.twoFactorCode.trim() || undefined,
+    });
+    if (session.isAuthenticated) {
+      await router.push("/");
+    }
   } catch {
     // The store already exposes a user-friendly message.
   }
@@ -114,5 +146,6 @@ async function submit() {
 function fill(account: { email: string; password: string }) {
   form.email = account.email;
   form.password = account.password;
+  form.twoFactorCode = "";
 }
 </script>

@@ -8,6 +8,7 @@
       </div>
       <nav class="nav flex-column gap-1">
         <RouterLink class="nav-link" to="/">Overview</RouterLink>
+        <RouterLink class="nav-link" to="/alerts">Alert center</RouterLink>
         <RouterLink class="nav-link" to="/dispatch/missions">
           Dispatch
         </RouterLink>
@@ -21,6 +22,20 @@
           to="/admin/users"
         >
           User administration
+        </RouterLink>
+        <RouterLink
+          v-if="session.canManageUsers"
+          class="nav-link"
+          to="/admin/security"
+        >
+          Security & data
+        </RouterLink>
+        <RouterLink
+          v-if="session.canManageIntegrations"
+          class="nav-link"
+          to="/admin/integrations"
+        >
+          Integrations
         </RouterLink>
       </nav>
       <div class="sidebar-footer">
@@ -39,7 +54,7 @@
         <div>
           <strong>Operations control center</strong>
           <div class="text-secondary small">
-            Role-aware fleet registry demonstration console
+            Role-aware fleet operations console with pilot-readiness controls
           </div>
         </div>
         <span class="badge text-bg-success">Authenticated session</span>

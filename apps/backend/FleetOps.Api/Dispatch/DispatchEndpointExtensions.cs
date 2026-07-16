@@ -1,7 +1,12 @@
 using FleetOps.Api.Auditing;
+using FleetOps.Api.Integrations;
+using FleetOps.Api.Media;
+using FleetOps.Api.Operations;
 using FleetOps.Api.Security;
 using FleetOps.Core.Modules.Dispatch;
 using FleetOps.Core.Modules.Identity;
+using FleetOps.Core.Modules.Integrations;
+using FleetOps.Infrastructure.Integrations;
 using FleetOps.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
@@ -97,11 +102,12 @@ public static class DispatchEndpointExtensions
         Guid id,
         HttpContext httpContext,
         FleetOpsDbContext dbContext,
+        IMediaUrlSigner signer,
         ICurrentTenantAccessor currentTenantAccessor,
         CancellationToken cancellationToken)
     {
         var tenant = currentTenantAccessor.GetRequiredTenant(httpContext.User);
-        var mission = await LoadMissionAggregateAsync(id, tenant.OrganizationId, dbContext, cancellationToken);
+        var mission = await LoadMissionAggregateAsync(id, tenant.OrganizationId, dbContext, signer, cancellationToken);
         return mission is null ? Results.NotFound() : Results.Ok(mission);
     }
 
@@ -138,8 +144,10 @@ public static class DispatchEndpointExtensions
         CreateMissionRequest request,
         HttpContext httpContext,
         FleetOpsDbContext dbContext,
+        IMediaUrlSigner signer,
         ICurrentTenantAccessor currentTenantAccessor,
         IAuditService auditService,
+        IIntegrationOutboxService integrationOutboxService,
         CancellationToken cancellationToken)
     {
         var tenant = currentTenantAccessor.GetRequiredTenant(httpContext.User);
@@ -196,7 +204,7 @@ public static class DispatchEndpointExtensions
 
         return Results.Created(
             $"/api/v1/dispatch/missions/{mission.Id}",
-            await LoadMissionAggregateAsync(mission.Id, tenant.OrganizationId, dbContext, cancellationToken));
+            await LoadMissionAggregateAsync(mission.Id, tenant.OrganizationId, dbContext, signer, cancellationToken));
     }
 
     private static async Task<IResult> UpdateMissionAsync(
@@ -204,6 +212,7 @@ public static class DispatchEndpointExtensions
         UpdateMissionRequest request,
         HttpContext httpContext,
         FleetOpsDbContext dbContext,
+        IMediaUrlSigner signer,
         ICurrentTenantAccessor currentTenantAccessor,
         IAuditService auditService,
         CancellationToken cancellationToken)
@@ -260,7 +269,7 @@ public static class DispatchEndpointExtensions
             new { mission.Title, mission.RowVersion },
             cancellationToken);
 
-        return Results.Ok(await LoadMissionAggregateAsync(mission.Id, tenant.OrganizationId, dbContext, cancellationToken));
+        return Results.Ok(await LoadMissionAggregateAsync(mission.Id, tenant.OrganizationId, dbContext, signer, cancellationToken));
     }
 
     private static async Task<IResult> SetAssignmentAsync(
@@ -268,6 +277,7 @@ public static class DispatchEndpointExtensions
         SetMissionAssignmentRequest request,
         HttpContext httpContext,
         FleetOpsDbContext dbContext,
+        IMediaUrlSigner signer,
         ICurrentTenantAccessor currentTenantAccessor,
         IAuditService auditService,
         CancellationToken cancellationToken)
@@ -350,7 +360,7 @@ public static class DispatchEndpointExtensions
             new { mission.DriverId, mission.VehicleId },
             cancellationToken);
 
-        return Results.Ok(await LoadMissionAggregateAsync(mission.Id, tenant.OrganizationId, dbContext, cancellationToken));
+        return Results.Ok(await LoadMissionAggregateAsync(mission.Id, tenant.OrganizationId, dbContext, signer, cancellationToken));
     }
 
     private static async Task<IResult> TransitionStatusAsync(
@@ -358,8 +368,10 @@ public static class DispatchEndpointExtensions
         TransitionMissionStatusRequest request,
         HttpContext httpContext,
         FleetOpsDbContext dbContext,
+        IMediaUrlSigner signer,
         ICurrentTenantAccessor currentTenantAccessor,
         IAuditService auditService,
+        IIntegrationOutboxService integrationOutboxService,
         CancellationToken cancellationToken)
     {
         var tenant = currentTenantAccessor.GetRequiredTenant(httpContext.User);
@@ -404,7 +416,22 @@ public static class DispatchEndpointExtensions
             new { mission.Status },
             cancellationToken);
 
-        return Results.Ok(await LoadMissionAggregateAsync(mission.Id, tenant.OrganizationId, dbContext, cancellationToken));
+        await integrationOutboxService.PublishAsync(
+            tenant.OrganizationId,
+            IntegrationEventType.MissionStatusChanged,
+            "mission",
+            mission.Id.ToString(),
+            new
+            {
+                missionId = mission.Id,
+                mission.Reference,
+                status = mission.Status.ToString(),
+                mission.DriverId,
+                mission.VehicleId
+            },
+            cancellationToken);
+
+        return Results.Ok(await LoadMissionAggregateAsync(mission.Id, tenant.OrganizationId, dbContext, signer, cancellationToken));
     }
 
     private static async Task<IResult> SimulateDelayAsync(
@@ -412,6 +439,7 @@ public static class DispatchEndpointExtensions
         SimulateMissionDelayRequest request,
         HttpContext httpContext,
         FleetOpsDbContext dbContext,
+        IMediaUrlSigner signer,
         ICurrentTenantAccessor currentTenantAccessor,
         IAuditService auditService,
         CancellationToken cancellationToken)
@@ -464,7 +492,7 @@ public static class DispatchEndpointExtensions
             new { mission.SimulatedDelayMinutes, mission.Status },
             cancellationToken);
 
-        return Results.Ok(await LoadMissionAggregateAsync(mission.Id, tenant.OrganizationId, dbContext, cancellationToken));
+        return Results.Ok(await LoadMissionAggregateAsync(mission.Id, tenant.OrganizationId, dbContext, signer, cancellationToken));
     }
 
     private static List<MissionStop> BuildStops(
@@ -508,6 +536,7 @@ public static class DispatchEndpointExtensions
         Guid missionId,
         Guid organizationId,
         FleetOpsDbContext dbContext,
+        IMediaUrlSigner signer,
         CancellationToken cancellationToken)
     {
         var mission = await dbContext.Missions
@@ -534,6 +563,37 @@ public static class DispatchEndpointExtensions
                 .FirstOrDefaultAsync(cancellationToken)
             : null;
 
+        var latestInspection = await DriverOperationsEndpointExtensions.LoadLatestInspectionAsync(
+            mission.Id,
+            organizationId,
+            dbContext,
+            signer,
+            cancellationToken);
+        var deliveryProofs = new List<MissionStopProofResponse>();
+        foreach (var stop in mission.Stops.OrderBy(x => x.Sequence))
+        {
+            var proof = await DriverOperationsEndpointExtensions.LoadDeliveryProofAsync(
+                mission.Id,
+                stop.Id,
+                organizationId,
+                dbContext,
+                signer,
+                cancellationToken);
+            if (proof is not null)
+            {
+                deliveryProofs.Add(new MissionStopProofResponse(
+                    proof.ProofId,
+                    proof.MissionStopId,
+                    proof.RecipientName,
+                    proof.SignatureName,
+                    proof.DeliveredAtUtc,
+                    proof.Notes,
+                    proof.Photos
+                        .Select(x => new MissionProofPhotoResponse(x.MediaAssetId, x.Caption, x.Photo.ReadUrl))
+                        .ToList()));
+            }
+        }
+
         return new MissionDetailResponse(
             mission.Id,
             mission.Reference,
@@ -547,6 +607,25 @@ public static class DispatchEndpointExtensions
             vehicleRegistration,
             mission.SimulatedDelayMinutes,
             mission.RowVersion,
+            latestInspection is null
+                ? null
+                : new MissionInspectionResponse(
+                    latestInspection.InspectionId,
+                    latestInspection.Outcome,
+                    latestInspection.HasBlockingCriticalDefect,
+                    latestInspection.CompletedAtUtc,
+                    latestInspection.Notes,
+                    latestInspection.Items
+                        .Select(x => new MissionInspectionItemResponse(
+                            x.Sequence,
+                            x.Code,
+                            x.Label,
+                            x.IsPass,
+                            x.DefectSeverity,
+                            x.Notes,
+                            x.Photo?.ReadUrl))
+                        .ToList()),
+            deliveryProofs,
             mission.Stops
                 .OrderBy(x => x.Sequence)
                 .Select(x => new MissionStopResponse(

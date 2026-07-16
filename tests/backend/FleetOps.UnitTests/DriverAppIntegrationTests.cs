@@ -2,7 +2,9 @@ using System.Net;
 using System.Net.Http.Json;
 using FleetOps.Api.Dispatch;
 using FleetOps.Api.DriverApp;
+using FleetOps.Api.Operations;
 using FleetOps.Core.Modules.Dispatch;
+using FleetOps.Core.Modules.Operations;
 using FleetOps.Infrastructure.Identity;
 using FleetOps.Infrastructure.Persistence;
 using FleetOps.UnitTests.Infrastructure;
@@ -57,6 +59,19 @@ public sealed class DriverAppIntegrationTests(FleetOpsApiFactory factory) : ICla
         using var driverClient = factory.CreateClient();
         var driverLogin = await driverClient.LoginAsync("driver@northwind.local", "Driver123!");
         driverClient.SetBearer(driverLogin.AccessToken);
+
+        var inspectionResponse = await driverClient.PostAsJsonAsync(
+            $"/api/v1/driver/missions/{assignedMission.Id}/inspection",
+            new SubmitPreDepartureInspectionRequest(
+                "inspection-driver-idempotent-001",
+                DateTimeOffset.UtcNow,
+                "Vehicle ready",
+                [
+                    new InspectionItemResultRequest(1, "brakes", "Brakes and steering", true, DefectSeverity.None, null, null),
+                    new InspectionItemResultRequest(2, "lights", "Lights and signals", true, DefectSeverity.None, null, null),
+                    new InspectionItemResultRequest(3, "cargo-secured", "Cargo and doors secured", true, DefectSeverity.None, null, null),
+                ]));
+        Assert.Equal(HttpStatusCode.OK, inspectionResponse.StatusCode);
 
         var request = new SyncMissionCommandRequest(
             "sync-start-001",

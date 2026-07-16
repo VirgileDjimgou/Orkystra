@@ -1,5 +1,6 @@
 using FleetOps.Core.Modules.Fleet;
 using FleetOps.Core.Modules.Identity;
+using FleetOps.Core.Modules.Operations;
 using FleetOps.Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -64,12 +65,67 @@ public static class FleetOpsSeedData
 
             await dbContext.SaveChangesAsync(cancellationToken);
 
+            SeedChecklistTemplates(dbContext, north, south);
+            await dbContext.SaveChangesAsync(cancellationToken);
+
             await EnsureUserAsync(userManager, north, "admin@northwind.local", "Northwind Admin", "Admin123!", SystemRoles.Admin);
             await EnsureUserAsync(userManager, north, "operator@northwind.local", "Northwind Operator", "Operator123!", SystemRoles.Operator);
             await EnsureUserAsync(userManager, north, "driver@northwind.local", "Northwind Driver", "Driver123!", SystemRoles.Driver, northDriver.Id);
             await EnsureUserAsync(userManager, south, "admin@southridge.local", "Southridge Admin", "Admin123!", SystemRoles.Admin);
             await EnsureUserAsync(userManager, south, "operator@southridge.local", "Southridge Operator", "Operator123!", SystemRoles.Operator);
         }
+    }
+
+    private static void SeedChecklistTemplates(
+        FleetOpsDbContext dbContext,
+        Organization north,
+        Organization south)
+    {
+        if (dbContext.ChecklistTemplates.Any())
+        {
+            return;
+        }
+
+        dbContext.ChecklistTemplates.AddRange(
+            BuildPreDepartureTemplate(
+                north.Id,
+                "vehicle-ready",
+                "Vehicle readiness",
+                [
+                    ("brakes", "Brakes and steering"),
+                    ("lights", "Lights and signals"),
+                    ("cargo-secured", "Cargo and doors secured"),
+                ]),
+            BuildPreDepartureTemplate(
+                south.Id,
+                "vehicle-ready",
+                "Vehicle readiness",
+                [
+                    ("brakes", "Brakes and steering"),
+                    ("lights", "Lights and signals"),
+                    ("cargo-secured", "Cargo and doors secured"),
+                ]));
+    }
+
+    private static ChecklistTemplate BuildPreDepartureTemplate(
+        Guid organizationId,
+        string code,
+        string name,
+        IReadOnlyList<(string Code, string Label)> items)
+    {
+        var template = new ChecklistTemplate(organizationId, code, name);
+        for (var index = 0; index < items.Count; index++)
+        {
+            var (itemCode, label) = items[index];
+            template.AddItem(new ChecklistTemplateItem(
+                organizationId,
+                template.Id,
+                index + 1,
+                itemCode,
+                label));
+        }
+
+        return template;
     }
 
     private static async Task EnsureUserAsync(

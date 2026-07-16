@@ -19,6 +19,7 @@ public static class DriverEndpointExtensions
             .RequireAuthorization(new AuthorizeAttribute { Roles = ReaderRoles });
 
         group.MapGet("/", ListDriversAsync);
+        group.MapGet("/export", ExportDriversAsync);
         group.MapGet("/{id:guid}", GetDriverAsync);
         group.MapPost("/", CreateDriverAsync).RequireAuthorization(new AuthorizeAttribute { Roles = AdminRole });
         group.MapPut("/{id:guid}", UpdateDriverAsync).RequireAuthorization(new AuthorizeAttribute { Roles = AdminRole });
@@ -49,6 +50,32 @@ public static class DriverEndpointExtensions
             .ToListAsync(cancellationToken);
 
         return Results.Ok(drivers);
+    }
+
+    private static async Task<IResult> ExportDriversAsync(
+        HttpContext httpContext,
+        FleetOpsDbContext dbContext,
+        ICurrentTenantAccessor currentTenantAccessor,
+        CancellationToken cancellationToken)
+    {
+        var tenant = currentTenantAccessor.GetRequiredTenant(httpContext.User);
+        var drivers = await dbContext.Drivers
+            .Where(x => x.OrganizationId == tenant.OrganizationId)
+            .OrderBy(x => x.FullName)
+            .Select(x => new
+            {
+                x.FullName,
+                x.LicenseNumber,
+                x.PhoneNumber,
+                x.IsActive
+            })
+            .ToListAsync(cancellationToken);
+
+        var lines = new List<string> { "fullName,licenseNumber,phoneNumber,isActive" };
+        lines.AddRange(drivers.Select(x =>
+            $"{Escape(x.FullName)},{Escape(x.LicenseNumber)},{Escape(x.PhoneNumber ?? string.Empty)},{x.IsActive.ToString().ToLowerInvariant()}"));
+
+        return Results.Text(string.Join('\n', lines), "text/csv");
     }
 
     private static async Task<IResult> GetDriverAsync(
@@ -367,5 +394,12 @@ public static class DriverEndpointExtensions
             cancellationToken);
 
         return Results.Ok(summary);
+    }
+
+    private static string Escape(string value)
+    {
+        return value.Contains(',') || value.Contains('"')
+            ? $"\"{value.Replace("\"", "\"\"", StringComparison.Ordinal)}\""
+            : value;
     }
 }

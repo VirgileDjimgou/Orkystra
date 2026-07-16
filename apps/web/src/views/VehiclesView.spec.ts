@@ -88,6 +88,7 @@ describe("VehiclesView", () => {
         registrationNumber: "NW-100",
         displayName: "Dispatch van",
         isActive: true,
+        currentOdometerKm: 12000,
         rowVersion: 0,
       },
     ];

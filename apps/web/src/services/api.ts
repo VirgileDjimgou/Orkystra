@@ -5,11 +5,18 @@ type ApiRequestOptions = {
   body?: unknown;
   contentType?: string;
   token?: string | null;
+  responseType?: "json" | "text";
 };
 
 export async function apiRequest<T>(
   path: string,
-  { method = "GET", body, contentType, token }: ApiRequestOptions = {},
+  {
+    method = "GET",
+    body,
+    contentType,
+    token,
+    responseType = "json",
+  }: ApiRequestOptions = {},
 ): Promise<T> {
   const headers = new Headers();
   let requestBody: BodyInit | undefined;
@@ -37,6 +44,10 @@ export async function apiRequest<T>(
 
   if (response.status === 204) {
     return undefined as T;
+  }
+
+  if (responseType === "text") {
+    return (await response.text()) as T;
   }
 
   return (await response.json()) as T;

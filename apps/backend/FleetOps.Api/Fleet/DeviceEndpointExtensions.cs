@@ -19,6 +19,7 @@ public static class DeviceEndpointExtensions
             .RequireAuthorization(new AuthorizeAttribute { Roles = ReaderRoles });
 
         group.MapGet("/", ListDevicesAsync);
+        group.MapGet("/export", ExportDevicesAsync);
         group.MapGet("/{id:guid}", GetDeviceAsync);
         group.MapPost("/", CreateDeviceAsync).RequireAuthorization(new AuthorizeAttribute { Roles = AdminRole });
         group.MapPut("/{id:guid}", UpdateDeviceAsync).RequireAuthorization(new AuthorizeAttribute { Roles = AdminRole });
@@ -81,6 +82,31 @@ public static class DeviceEndpointExtensions
         }
 
         return Results.Ok(devices);
+    }
+
+    private static async Task<IResult> ExportDevicesAsync(
+        HttpContext httpContext,
+        FleetOpsDbContext dbContext,
+        ICurrentTenantAccessor currentTenantAccessor,
+        CancellationToken cancellationToken)
+    {
+        var tenant = currentTenantAccessor.GetRequiredTenant(httpContext.User);
+        var devices = await dbContext.GpsDevices
+            .Where(x => x.OrganizationId == tenant.OrganizationId)
+            .OrderBy(x => x.SerialNumber)
+            .Select(x => new
+            {
+                x.SerialNumber,
+                x.DisplayName,
+                x.IsActive
+            })
+            .ToListAsync(cancellationToken);
+
+        var lines = new List<string> { "serialNumber,displayName,isActive" };
+        lines.AddRange(devices.Select(x =>
+            $"{Escape(x.SerialNumber)},{Escape(x.DisplayName ?? string.Empty)},{x.IsActive.ToString().ToLowerInvariant()}"));
+
+        return Results.Text(string.Join('\n', lines), "text/csv");
     }
 
     private static async Task<IResult> GetDeviceAsync(
@@ -582,5 +608,12 @@ public static class DeviceEndpointExtensions
             active.AssignedAtUtc,
             active.UnassignedAtUtc,
             active.IsActive));
+    }
+
+    private static string Escape(string value)
+    {
+        return value.Contains(',') || value.Contains('"')
+            ? $"\"{value.Replace("\"", "\"\"", StringComparison.Ordinal)}\""
+            : value;
     }
 }

@@ -1,8 +1,8 @@
 # Orkystra FleetOps
 
-Orkystra FleetOps is a modular fleet operations MVP for small and mid-sized transport businesses. The platform is designed to cover the operational chain from identity and tenant isolation to vehicle tracking, dispatch execution, offline-capable driver workflows, proof of delivery, alerts, and production readiness.
+Orkystra FleetOps is a modular fleet operations MVP for small and mid-sized transport businesses. The platform covers the operational chain from identity and tenant isolation to vehicle tracking, dispatch execution, offline-capable driver workflows, proof of delivery, deterministic alerting, maintenance coordination, external integrations, and pilot-grade production readiness.
 
-The repository currently delivers a solid technical foundation, Sprint 01 identity and multi-tenant access control, Sprint 02 fleet registry capabilities, Sprint 03 live tracking simulation, Sprint 04 dispatch mission orchestration, and Sprint 05 Android driver mission execution:
+The repository currently delivers a complete Sprint 00 through Sprint 09 baseline:
 
 - reproducible local environment;
 - modular ASP.NET Core backend;
@@ -19,6 +19,11 @@ The repository currently delivers a solid technical foundation, Sprint 01 identi
 - deterministic multi-vehicle GPS simulator for demos and validation.
 - dispatch missions with explicit state transitions, assignment checks, audited timelines, and mission-to-map linkage.
 - Android driver login, offline mission cache, Room persistence, idempotent action outbox, and WorkManager-based background sync.
+- pre-departure inspections, critical defect blocking, private media uploads with resumable sessions, and operator-visible delivery proof.
+- deterministic alert scans for compliance, maintenance, and inactive vehicles with worker-backed retries.
+- web alert center for scan triggering, assignment, acknowledgment, compliance setup, and odometer-driven maintenance configuration.
+- scoped API keys for partners and devices, SQL outbox-backed webhooks, sandbox receipts, OpenAPI exposure, and web administration for integrations;
+- administrator MFA with authenticator challenge, tenant export and controlled purge tooling, OpenTelemetry OTLP wiring, JSON logs, readiness checks, pilot container packaging, and SQL backup/restore scripts.
 
 ## Product Goal
 
@@ -32,7 +37,7 @@ The MVP is intentionally staged in vertical sprints:
 4. live tracking and simulation;
 5. dispatch and mission execution;
 6. driver mobile workflows;
-7. inspections, POD, alerts, and maintenance;
+7. inspections and proof of delivery;
 8. integrations and auditability;
 9. production hardening and pilot readiness.
 
@@ -51,6 +56,8 @@ flowchart LR
     Api --> Mqtt["MQTT (device edge only)"]
     Worker["Background Worker"] --> Db
     Worker --> Api
+    Api --> OTel["OpenTelemetry / OTLP"]
+    Worker --> OTel
 ```
 
 ### Architectural principles
@@ -137,6 +144,32 @@ flowchart TD
   - local Room cache for missions, stops, timeline, session, and pending commands;
   - idempotent mobile outbox commands for `Start`, `Arrive`, and `Complete`;
   - background sync with WorkManager and conflict/offline states surfaced in the UI.
+- Field operations proof
+  - checklist templates and checklist items seeded per tenant;
+  - pre-departure inspections with pass/fail outcomes and defect severity;
+  - delivery proof records linked to mission stops;
+  - resumable media upload sessions and signed private media access;
+  - operator mission detail enriched with inspection and POD evidence.
+- Alerting and light maintenance
+  - tenant-scoped compliance documents for vehicles and drivers;
+  - maintenance plans driven by date and odometer thresholds;
+  - deterministic deduplicated `OperationalAlert` and `AlertNotification` records;
+  - in-app and development-email notification traces;
+  - role-aware assignment and acknowledgment APIs;
+  - alert worker re-scan behavior resilient to process restart.
+- Integrations and auditability
+  - scoped `ApiClientCredential` records for partner and device access;
+  - immutable audit persistence guarded in the EF Core unit of work;
+  - SQL outbox messages and webhook delivery attempts with retry and dead-letter states;
+  - HMAC-signed sandbox and external webhook delivery contracts;
+  - tenant-safe integration administration APIs plus CSV export endpoints.
+- Production hardening and pilot readiness
+  - administrator MFA setup, verification, disablement, and login challenge flow;
+  - tenant-scoped lifecycle summary, JSON export package, and controlled purge categories;
+  - JSON console logging plus OpenTelemetry OTLP hooks for API and worker services;
+  - `/health` and `/health/ready` endpoints for runtime supervision;
+  - container images for API, worker, and web console with reverse-proxy web routing;
+  - SQL backup and restore scripts aligned with the pilot compose stack.
 
 ## Fleet Registry Flow
 
@@ -261,6 +294,132 @@ sequenceDiagram
 - Background sync retries automatically when connectivity returns.
 - The mobile UI surfaces `Synced`, `Pending sync`, `Offline`, and `Needs reload` states.
 
+## Inspection and POD Flow
+
+Sprint 06 extends the mobile execution flow with pre-departure checks, signed private media access, and stop-level proof of delivery.
+
+```mermaid
+sequenceDiagram
+    participant Driver
+    participant App as "Android Driver App"
+    participant API as "Driver Operations API"
+    participant Store as "Private Media Store"
+    participant Dispatch as "Vue Dispatch Board"
+
+    Driver->>App: complete pre-departure inspection
+    App->>API: create resumable upload session
+    App->>API: append photo chunks with offset resume
+    API->>Store: persist private media
+    App->>API: submit inspection with uploaded asset ids
+    API->>API: block Start if inspection missing or critical defect remains
+    Driver->>App: submit delivery proof for a mission stop
+    App->>API: submit recipient, signature, notes, and photo asset ids
+    Dispatch->>API: read mission detail
+    API-->>Dispatch: latest inspection + delivery proofs + signed read URLs
+```
+
+### Sprint 06 capabilities
+
+- Checklist-based pre-departure inspections bound to a mission.
+- Critical defects prevent the mission from starting until a compliant inspection exists.
+- Delivery proof is captured per mission stop with recipient name, signature name, notes, and photo references.
+- Private media downloads are never exposed as public static files; the API returns short-lived signed URLs.
+- The Android repository persists pending workflow operations and resumes media upload from the last acknowledged byte offset.
+
+## Alerting and Maintenance Flow
+
+Sprint 07 turns compliance and maintenance signals into deterministic operational alerts that can be reproduced on demand or by the worker after a restart.
+
+```mermaid
+sequenceDiagram
+    participant Admin as "Admin / Operator"
+    participant Web as "Vue Alert Center"
+    participant API as "Alerts API"
+    participant Worker as "FleetOps Worker"
+    participant DB as "SQL/EF Core"
+
+    Admin->>Web: create document / maintenance plan / odometer update
+    Web->>API: POST compliance or maintenance endpoint
+    API->>DB: persist tenant-scoped setup data
+    Admin->>Web: run scan
+    Web->>API: POST /api/v1/alerts/scan
+    Worker->>DB: periodic re-scan after restart
+    API->>DB: evaluate deterministic rules and dedupe by business key
+    API->>DB: create/update/resolve alerts + notifications
+    Web->>API: GET dashboard / alerts / notifications / assignees
+    Admin->>Web: assign owner or acknowledge alert
+    Web->>API: POST /assign or /acknowledge
+```
+
+### Sprint 07 capabilities
+
+- Vehicle and driver compliance expirations are stored explicitly and scanned in UTC-safe rules.
+- Maintenance plans can trigger by elapsed days, odometer intervals, or both.
+- Inactive vehicle alerts are derived from stale or missing latest telemetry snapshots.
+- Each alert is deduplicated by a deterministic business key so repeated scans do not multiply incidents.
+- Development-email delivery failures are tolerated without losing the in-app alert trace.
+- The web console exposes only role-allowed actions: Admin and Operator can triage alerts, while Admin keeps setup-only flows.
+
+## Integration Flow
+
+Sprint 08 opens the platform to controlled external connectivity without giving up tenant safety, delivery traceability, or replay protection.
+
+```mermaid
+sequenceDiagram
+    participant Admin as "Admin"
+    participant Web as "Integrations Console"
+    participant API as "FleetOps API"
+    participant DB as "SQL/EF Core"
+    participant Worker as "Webhook Worker"
+    participant Partner as "Partner System"
+
+    Admin->>Web: issue API key / create webhook
+    Web->>API: POST admin integration endpoints
+    API->>DB: persist credential, endpoint, immutable audit trail
+    Partner->>API: call partner/device endpoints with X-Api-Key
+    API->>API: validate scope, type, tenant, and rate limit
+    API->>DB: enqueue outbox event after business action
+    Worker->>DB: fetch pending outbox messages
+    Worker->>Partner: POST HMAC-signed webhook
+    Worker->>DB: mark delivered, retry, or dead-letter
+    Web->>API: inspect contracts, outbox, attempts, and sandbox receipts
+```
+
+### Sprint 08 capabilities
+
+- Partner and device API keys are isolated by tenant, type, and scope.
+- OpenAPI exposes the documented integration routes.
+- Webhook signatures use HMAC SHA-256 and forged sandbox requests are rejected.
+- Delivery retries are persisted and eventually dead-lettered instead of disappearing in logs.
+- Fleet CSV exports complement replayable imports for operational data exchange.
+- The web console exposes contracts, credentials, webhooks, outbox state, and CSV operations only to administrators.
+
+## Production Hardening Flow
+
+Sprint 09 turns the MVP into a pilot-ready package with explicit security, observability, packaging, and data-governance controls.
+
+```mermaid
+flowchart LR
+    Admin["Admin"] --> Security["Security & Data Console"]
+    Security --> MFA["Authenticator MFA"]
+    Security --> Export["Tenant Export"]
+    Security --> Purge["Controlled Purge"]
+    Web["Nginx Web Container"] --> Api["FleetOps API"]
+    Api --> Ready["/health/ready"]
+    Api --> Otlp["OTLP Collector"]
+    Worker["FleetOps Worker"] --> Otlp
+    Scripts["Backup / Restore Scripts"] --> Sql["SQL Server"]
+```
+
+### Sprint 09 capabilities
+
+- administrators can rotate an authenticator secret, verify MFA, receive recovery codes, and must provide a code once MFA is enabled;
+- tenant data can be summarized, exported as JSON, and purged selectively for tracking history, integration history, or upload sessions;
+- API and worker emit JSON logs and OpenTelemetry telemetry when `OTEL_EXPORTER_OTLP_ENDPOINT` is configured;
+- readiness is separated from liveness through `/health/ready`;
+- pilot deployments can run from Docker images using `docker-compose.pilot.yml`;
+- SQL backup and restore scripts support recovery drills before onboarding pilot users.
+
 ## Authentication and Tenant Isolation
 
 Sprint 01 introduces a real authentication and authorization baseline.
@@ -316,6 +475,7 @@ flowchart LR
     Shell --> Dashboard["Overview"]
     Shell --> Map["Fleet map"]
     Shell --> Admin["User administration"]
+    Shell --> Integrations["Integrations console"]
     Map --> SignalR["SignalR tracking hub"]
     ApiClient --> Backend["FleetOps API"]
 ```
@@ -331,7 +491,9 @@ flowchart LR
 - CSV import panels with success, empty, loading, and error states;
 - role-aware controls that hide server-forbidden create/deactivate actions from non-admin users.
 - a live fleet map synchronized with a vehicle list, paged history, and connection-state feedback.
-- a dispatch board for mission creation, assignment, lifecycle transitions, delay simulation, and timeline review.
+- a dispatch board for mission creation, assignment, lifecycle transitions, delay simulation, timeline review, inspection evidence, and delivery proof review.
+- an alert center dashboard for scan execution, notifications, ownership assignment, acknowledgment, and admin-only compliance or maintenance setup.
+- an integrations console for API credentials, webhook supervision, published contracts, outbox visibility, and CSV exchange operations.
 
 ## Technology Stack
 
@@ -345,6 +507,7 @@ flowchart LR
 - `Entity Framework Core`
 - `SQL Server`
 - `Minimal APIs`
+- `OpenTelemetry OTLP`
 
 ### Frontend
 
@@ -372,6 +535,12 @@ flowchart LR
 - `KSP`
 - `Android Gradle Plugin`
 
+### Storage and Media
+
+- `Private filesystem-backed object storage abstraction`
+- `Signed download URLs`
+- `Chunked resumable upload sessions`
+
 ### Tooling and Infrastructure
 
 - `Docker Compose`
@@ -380,6 +549,43 @@ flowchart LR
 - `Mosquitto`
 - `Mailpit`
 - `dotnet-ef`
+- `Nginx`
+
+## Product Surfaces
+
+The following captures were produced from a deterministic pilot walkthrough on July 16, 2026. They show the same product baseline across role-specific surfaces and two isolated demo tenants.
+
+### Northwind Logistics admin security and governance
+
+Northwind administrators can manage MFA, review tenant lifecycle metrics, export a tenant package, and run controlled purge actions from the same hardened console.
+
+![Northwind admin security console](docs/assets/screenshots/admin-security-northwind.png)
+
+### Northwind Logistics operator dashboard
+
+The operator dashboard consolidates fleet health, alert pressure, maintenance workload, and notification traces in a single operational view.
+
+![Northwind operator dashboard](docs/assets/screenshots/operator-dashboard-northwind.png)
+
+### Northwind Logistics dispatch board
+
+The dispatch board links mission planning, execution status, delay simulation, and route timelines with the same tenant-scoped mission model consumed by the Android driver app.
+
+![Northwind dispatch board](docs/assets/screenshots/operator-dispatch-northwind.png)
+
+### Southridge Transport isolated tenant view
+
+Southridge starts with its own clean tenant workspace, proving that dashboard data, alerts, and fleet context do not bleed across organizations.
+
+![Southridge isolated admin dashboard](docs/assets/screenshots/admin-dashboard-southridge.png)
+
+### Android driver app
+
+The native driver surface keeps missions readable offline, reflects sync state explicitly, and exposes the same route context used by dispatch and proof-of-delivery workflows.
+
+![Android driver mission list](docs/assets/screenshots/android-driver-missions.png)
+
+![Android driver mission detail](docs/assets/screenshots/android-driver-mission-detail.png)
 
 ## Demo Accounts
 
@@ -479,9 +685,41 @@ If your API is running on a host other than the Android emulator loopback, set:
 $env:FLEETOPS_API_URL="http://10.0.2.2:5080/"
 ```
 
+### 8. Pilot container deployment
+
+```powershell
+docker compose --env-file .env -f docker-compose.yml -f docker-compose.pilot.yml up -d --build
+```
+
+Pilot defaults:
+
+- web console: `http://localhost:8081`
+- API: `http://localhost:5080`
+- readiness probe: `http://localhost:5080/health/ready`
+
+Optional observability:
+
+```powershell
+$env:OTEL_EXPORTER_OTLP_ENDPOINT="http://localhost:4317"
+```
+
+### 9. Backup and restore drills
+
+Create a SQL backup:
+
+```powershell
+./scripts/sql-backup.ps1
+```
+
+Restore a SQL backup:
+
+```powershell
+./scripts/sql-restore.ps1 -InputPath backups/fleetops-YYYYMMDD-HHMMSS.bak
+```
+
 ## Quality Gate
 
-The repository includes a local quality gate that validates the complete Sprint 00/01/02/03/04/05 baseline:
+The repository includes a local quality gate that validates the complete Sprint 00 through Sprint 09 baseline:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\quality-gate.ps1
@@ -496,6 +734,7 @@ It covers:
 - GPS simulator dry-run;
 - web install, format, lint, tests, and build;
 - API health check;
+- API readiness check through the production boot path;
 - Android wrapper and Android build.
 
 ## Validation Summary
@@ -507,11 +746,16 @@ Current local validation includes:
 - fleet registry unit and integration tests covering tenant isolation, role permissions, duplicate data, stale updates, CSV idempotency, and assignment invariants;
 - tracking unit and integration tests covering duplicate telemetry, out-of-order handling, paged history, tenant isolation, and multi-vehicle visibility;
 - dispatch domain and integration tests covering mission lifecycle, illegal transitions, tenant-safe assignment, schedule conflicts, and mission-to-map linkage;
-- driver mobile integration tests covering assigned-mission filtering, idempotent command sync, and stale row-version conflicts;
+- driver mobile integration tests covering assigned-mission filtering, idempotent command sync, stale row-version conflicts, inspection blocking, resumable uploads, and proof visibility;
 - web tests, lint, format, and production build;
 - web dispatch board coverage for mission rendering, assignment context, timeline visibility, and map linkage;
 - authenticated tracking endpoints, paged history, metrics, and SignalR hub;
-- EF Core migrations for Sprint 01, Sprint 02, Sprint 03, Sprint 04, and Sprint 05;
+- alerting and maintenance tests covering deduplication, UTC handling, notification failure tolerance, role permissions, tenant isolation, and restart-safe re-scans;
+- integration tests covering OpenAPI exposure, API key scope isolation, forged webhook rejection, retry/dead-letter handling, and CSV exports;
+- integration tests covering administrator MFA enablement and login challenge plus tenant-scoped lifecycle export and controlled purge;
+- EF Core migrations for Sprint 01, Sprint 02, Sprint 03, Sprint 04, Sprint 05, Sprint 06, Sprint 07, and Sprint 08;
+- OpenTelemetry OTLP wiring and JSON logs for the API and worker runtime;
+- pilot Docker packaging plus SQL backup and restore scripts;
 - Android unit tests and debug assembly;
 - full local quality gate.
 
@@ -551,8 +795,14 @@ Admin/Operator and Driver workflows have different interaction models, offline r
 - [docs/01-architecture/ARCHITECTURE.md](./docs/01-architecture/ARCHITECTURE.md)
 - [docs/01-architecture/DOMAIN_MODEL.md](./docs/01-architecture/DOMAIN_MODEL.md)
 - [docs/02-engineering/ENGINEERING_STANDARDS.md](./docs/02-engineering/ENGINEERING_STANDARDS.md)
+- [docs/02-engineering/PILOT_RUNBOOK.md](./docs/02-engineering/PILOT_RUNBOOK.md)
+- [docs/03-commercial/PILOT_ONBOARDING.md](./docs/03-commercial/PILOT_ONBOARDING.md)
 - [sprints/SPRINT-01-IDENTITY-TENANCY.md](./sprints/SPRINT-01-IDENTITY-TENANCY.md)
 - [sprints/SPRINT-02-FLEET-REGISTRY.md](./sprints/SPRINT-02-FLEET-REGISTRY.md)
 - [sprints/SPRINT-03-TRACKING-SIMULATION.md](./sprints/SPRINT-03-TRACKING-SIMULATION.md)
 - [sprints/SPRINT-04-DISPATCH-MISSIONS.md](./sprints/SPRINT-04-DISPATCH-MISSIONS.md)
 - [sprints/SPRINT-05-ANDROID-DRIVER.md](./sprints/SPRINT-05-ANDROID-DRIVER.md)
+- [sprints/SPRINT-06-INSPECTIONS-POD.md](./sprints/SPRINT-06-INSPECTIONS-POD.md)
+- [sprints/SPRINT-07-ALERTS-MAINTENANCE.md](./sprints/SPRINT-07-ALERTS-MAINTENANCE.md)
+- [sprints/SPRINT-08-INTEGRATIONS-AUDIT.md](./sprints/SPRINT-08-INTEGRATIONS-AUDIT.md)
+- [sprints/SPRINT-09-PRODUCTION-PILOT.md](./sprints/SPRINT-09-PRODUCTION-PILOT.md)

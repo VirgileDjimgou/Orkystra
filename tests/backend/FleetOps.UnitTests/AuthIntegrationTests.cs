@@ -129,4 +129,64 @@ public sealed class AuthIntegrationTests(FleetOpsApiFactory factory) : IClassFix
         Assert.Single(response!);
         Assert.All(response!, point => Assert.StartsWith("NW-", point.RegistrationNumber, StringComparison.OrdinalIgnoreCase));
     }
+
+    [Fact]
+    public async Task AdminCanEnableMfaAndThenMustProvideAuthenticatorCodeAtLogin()
+    {
+        using var adminClient = factory.CreateClient();
+        var login = await adminClient.LoginAsync("admin@northwind.local", "Admin123!");
+        adminClient.SetBearer(login.AccessToken!);
+
+        var setupResponse = await adminClient.PostAsync("/api/admin/security/mfa/setup", null);
+        setupResponse.EnsureSuccessStatusCode();
+        var setup = await setupResponse.Content.ReadFromJsonAsync<MfaSetupResponse>();
+
+        Assert.NotNull(setup);
+        Assert.False(setup!.IsEnabled);
+        Assert.False(string.IsNullOrWhiteSpace(setup.ManualEntryKey));
+        Assert.StartsWith("otpauth://totp/", setup.AuthenticatorUri, StringComparison.Ordinal);
+
+        var verificationCode = AuthTestExtensions.CreateAuthenticatorCode(setup.ManualEntryKey);
+        var verifyResponse = await adminClient.PostAsJsonAsync(
+            "/api/admin/security/mfa/verify",
+            new VerifyMfaRequest(verificationCode));
+        verifyResponse.EnsureSuccessStatusCode();
+
+        var verified = await verifyResponse.Content.ReadFromJsonAsync<VerifyMfaResponse>();
+        Assert.NotNull(verified);
+        Assert.True(verified!.IsEnabled);
+        Assert.Equal(8, verified.RecoveryCodes.Length);
+
+        using var challengedClient = factory.CreateClient();
+        var challengedLogin = await challengedClient.RequestLoginAsync("admin@northwind.local", "Admin123!");
+        Assert.True(challengedLogin.RequiresTwoFactor);
+        Assert.Equal("authenticator", challengedLogin.TwoFactorProvider);
+        Assert.Contains("authenticator", challengedLogin.ChallengeMessage ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(string.Empty, challengedLogin.AccessToken);
+
+        var completedLogin = await challengedClient.LoginAsync(
+            "admin@northwind.local",
+            "Admin123!",
+            AuthTestExtensions.CreateAuthenticatorCode(setup.ManualEntryKey));
+        Assert.False(completedLogin.RequiresTwoFactor);
+        Assert.NotNull(completedLogin.AccessToken);
+        Assert.True(completedLogin.User!.TwoFactorEnabled);
+
+        var disableResponse = await adminClient.PostAsJsonAsync(
+            "/api/admin/security/mfa/disable",
+            new DisableMfaRequest(AuthTestExtensions.CreateAuthenticatorCode(setup.ManualEntryKey)));
+        disableResponse.EnsureSuccessStatusCode();
+        var disabled = await disableResponse.Content.ReadFromJsonAsync<MfaStatusResponse>();
+
+        Assert.NotNull(disabled);
+        Assert.False(disabled!.IsEnabled);
+        Assert.False(disabled.HasSharedKey);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<FleetOpsDbContext>();
+        var auditEntries = dbContext.AuditLogs.OrderBy(x => x.OccurredAtUtc).ToList();
+        Assert.Contains(auditEntries, x => x.ActionType == "admin.security.mfa_setup_generated");
+        Assert.Contains(auditEntries, x => x.ActionType == "admin.security.mfa_enabled");
+        Assert.Contains(auditEntries, x => x.ActionType == "admin.security.mfa_disabled");
+    }
 }

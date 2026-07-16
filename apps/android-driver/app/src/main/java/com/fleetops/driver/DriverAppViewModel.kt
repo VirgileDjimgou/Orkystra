@@ -85,6 +85,23 @@ class DriverAppViewModel(
         infoMessage.value = "${action.name} queued for sync."
     }
 
+    fun submitInspection(hasCriticalDefect: Boolean) = runTask {
+        val missionId = selectedMissionId.value ?: return@runTask
+        repository.queueInspection(missionId, hasCriticalDefect)
+        infoMessage.value =
+            if (hasCriticalDefect) {
+                "Inspection queued with a critical defect."
+            } else {
+                "Inspection queued and ready to sync."
+            }
+    }
+
+    fun submitDeliveryProof(stopId: String, recipientName: String, signatureName: String) = runTask {
+        val missionId = selectedMissionId.value ?: return@runTask
+        repository.queueDeliveryProof(missionId, stopId, recipientName, signatureName)
+        infoMessage.value = "Delivery proof queued for sync."
+    }
+
     fun signOut() = runTask {
         repository.signOut()
         selectedMissionId.value = null

@@ -27,6 +27,7 @@ fi
 run_step "Git Status" git status --short --branch
 run_step "Dotnet Tools" dotnet tool restore
 run_step "Docker Compose Config" docker compose --env-file .env config --quiet
+run_step "Pilot Compose Config" docker compose --env-file .env -f docker-compose.yml -f docker-compose.pilot.yml config --quiet
 run_step "Backend Restore" dotnet restore FleetOps.slnx
 run_step "Backend Format" dotnet format FleetOps.slnx --verify-no-changes
 run_step "Backend Build" dotnet build FleetOps.slnx --no-restore -c Release
@@ -37,7 +38,7 @@ run_step "Web Format" bash -lc 'cd apps/web && npm run format:check'
 run_step "Web Lint" bash -lc 'cd apps/web && npm run lint'
 run_step "Web Test" bash -lc 'cd apps/web && npm run test'
 run_step "Web Build" bash -lc 'cd apps/web && npm run build'
-run_step "API Health Check" bash -lc 'mkdir -p .runtime; api_dll="apps/backend/FleetOps.Api/bin/Release/net10.0/FleetOps.Api.dll"; [[ -f "$api_dll" ]]; tmp_api=".runtime/quality-api.log"; tmp_err=".runtime/quality-api.err"; rm -f "$tmp_api" "$tmp_err"; ASPNETCORE_ENVIRONMENT=Development ASPNETCORE_URLS=http://localhost:5080 Testing__UseInMemoryDatabase=true Testing__DatabaseName=quality-gate-api dotnet exec "$api_dll" >"$tmp_api" 2>"$tmp_err" & pid=$!; trap "kill $pid 2>/dev/null || true" EXIT; for _ in $(seq 1 20); do if curl -fsS http://localhost:5080/health >/dev/null; then ok=1; break; fi; sleep 1; done; [[ "${ok:-0}" = "1" ]]; kill $pid 2>/dev/null || true; wait $pid 2>/dev/null || true; trap - EXIT'
+run_step "API Health Check" bash -lc 'mkdir -p .runtime; api_dll="apps/backend/FleetOps.Api/bin/Release/net10.0/FleetOps.Api.dll"; [[ -f "$api_dll" ]]; tmp_api=".runtime/quality-api.log"; tmp_err=".runtime/quality-api.err"; rm -f "$tmp_api" "$tmp_err"; ASPNETCORE_ENVIRONMENT=Development ASPNETCORE_URLS=http://localhost:5080 Testing__UseInMemoryDatabase=true Testing__DatabaseName=quality-gate-api dotnet exec "$api_dll" >"$tmp_api" 2>"$tmp_err" & pid=$!; trap "kill $pid 2>/dev/null || true" EXIT; for _ in $(seq 1 20); do if curl -fsS http://localhost:5080/health >/dev/null && curl -fsS http://localhost:5080/health/ready >/dev/null; then ok=1; break; fi; sleep 1; done; [[ "${ok:-0}" = "1" ]]; kill $pid 2>/dev/null || true; wait $pid 2>/dev/null || true; trap - EXIT'
 
 if [[ ! -x apps/android-driver/gradlew ]]; then
   echo "Gradle wrapper missing in apps/android-driver." >&2

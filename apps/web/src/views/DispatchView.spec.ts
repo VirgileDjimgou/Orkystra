@@ -33,7 +33,7 @@ describe("DispatchView", () => {
               id: "mission-1",
               reference: "NW-M-100",
               title: "Morning downtown loop",
-              status: "Assigned",
+              status: 2,
               scheduledStartUtc: "2026-07-16T08:00:00Z",
               scheduledEndUtc: "2026-07-16T10:00:00Z",
               driverId: "driver-1",
@@ -42,6 +42,43 @@ describe("DispatchView", () => {
               vehicleRegistrationNumber: "NW-100",
               simulatedDelayMinutes: 0,
               rowVersion: 3,
+              latestInspection: {
+                inspectionId: "inspection-1",
+                outcome: 2,
+                hasBlockingCriticalDefect: true,
+                completedAtUtc: "2026-07-16T07:10:00Z",
+                notes: "Front-right brake issue",
+                items: [
+                  {
+                    sequence: 1,
+                    code: "brakes",
+                    label: "Brakes and steering",
+                    isPass: false,
+                    defectSeverity: 3,
+                    notes: "Pedal pressure is unstable.",
+                    photoReadUrl:
+                      "/api/v1/media/asset-1?expires=123&signature=abc",
+                  },
+                ],
+              },
+              deliveryProofs: [
+                {
+                  proofId: "proof-1",
+                  missionStopId: "stop-1",
+                  recipientName: "Taylor Receiver",
+                  signatureName: "Taylor Receiver",
+                  deliveredAtUtc: "2026-07-16T09:30:00Z",
+                  notes: "Left at reception",
+                  photos: [
+                    {
+                      mediaAssetId: "asset-2",
+                      caption: "Doorstep",
+                      photoReadUrl:
+                        "/api/v1/media/asset-2?expires=123&signature=abc",
+                    },
+                  ],
+                },
+              ],
               stops: [
                 {
                   id: "stop-1",
@@ -54,13 +91,13 @@ describe("DispatchView", () => {
               timeline: [
                 {
                   id: "event-1",
-                  eventType: "Created",
+                  eventType: 0,
                   description: "Mission NW-M-100 created.",
                   occurredAtUtc: "2026-07-16T07:00:00Z",
                 },
                 {
                   id: "event-2",
-                  eventType: "StatusChanged",
+                  eventType: 3,
                   description: "Mission status changed to Assigned.",
                   occurredAtUtc: "2026-07-16T07:20:00Z",
                 },
@@ -76,7 +113,7 @@ describe("DispatchView", () => {
                 id: "mission-1",
                 reference: "NW-M-100",
                 title: "Morning downtown loop",
-                status: "Assigned",
+                status: 2,
                 scheduledStartUtc: "2026-07-16T08:00:00Z",
                 scheduledEndUtc: "2026-07-16T10:00:00Z",
                 driverId: "driver-1",
@@ -116,6 +153,7 @@ describe("DispatchView", () => {
                 registrationNumber: "NW-100",
                 displayName: "Dispatch van",
                 isActive: true,
+                currentOdometerKm: 0,
                 rowVersion: 0,
               },
             ]),
@@ -149,6 +187,9 @@ describe("DispatchView", () => {
     expect(wrapper.text()).toContain("Mission control board");
     expect(wrapper.text()).toContain("NW-M-100");
     expect(wrapper.text()).toContain("Alex North");
+    expect(wrapper.text()).toContain("Critical defect blocks departure");
+    expect(wrapper.text()).toContain("Taylor Receiver");
+    expect(wrapper.text()).toContain("StatusChanged");
     expect(wrapper.text()).toContain("Mission status changed to Assigned.");
     expect(wrapper.text()).toContain("Open in fleet map");
   });

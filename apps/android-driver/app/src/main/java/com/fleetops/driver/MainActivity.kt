@@ -107,6 +107,8 @@ private fun FleetOpsDriverApp(viewModel: DriverAppViewModel) {
                     isBusy = state.isBusy,
                     onBack = viewModel::closeMission,
                     onAction = viewModel::executeAction,
+                    onSubmitInspection = viewModel::submitInspection,
+                    onSubmitDeliveryProof = viewModel::submitDeliveryProof,
                     modifier = Modifier.padding(padding),
                 )
             }
@@ -272,6 +274,8 @@ private fun MissionDetailScreen(
     isBusy: Boolean,
     onBack: () -> Unit,
     onAction: (DriverMissionAction) -> Unit,
+    onSubmitInspection: (Boolean) -> Unit,
+    onSubmitDeliveryProof: (String, String, String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     if (mission == null) {
@@ -335,7 +339,7 @@ private fun MissionDetailScreen(
                 modifier = Modifier.navigationBarsPadding(),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                mission.availableActions().forEach { action ->
+                    mission.availableActions().forEach { action ->
                     Button(
                         onClick = { onAction(action) },
                         enabled = !isBusy,
@@ -355,6 +359,97 @@ private fun MissionDetailScreen(
                         Text("Mission has no remaining driver action")
                     }
                 }
+            }
+        }
+
+        item {
+            InspectionPanel(
+                isBusy = isBusy,
+                onCleanInspection = { onSubmitInspection(false) },
+                onCriticalInspection = { onSubmitInspection(true) },
+            )
+        }
+
+        item {
+            DeliveryProofPanel(
+                mission = mission,
+                isBusy = isBusy,
+                onSubmitDeliveryProof = onSubmitDeliveryProof,
+            )
+        }
+    }
+}
+
+@Composable
+private fun InspectionPanel(
+    isBusy: Boolean,
+    onCleanInspection: () -> Unit,
+    onCriticalInspection: () -> Unit,
+) {
+    Card(colors = CardDefaults.cardColors(containerColor = Color(0xFFEFF6FF))) {
+        Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text("Sprint 06 demo inspection", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "Queue a clean or blocking pre-departure inspection locally. Sync uploads the evidence first, then sends the inspection before any mission start command.",
+                style = MaterialTheme.typography.bodySmall,
+            )
+            Button(onClick = onCleanInspection, enabled = !isBusy, modifier = Modifier.fillMaxWidth()) {
+                Text("Queue ready-to-drive inspection")
+            }
+            OutlinedButton(onClick = onCriticalInspection, enabled = !isBusy, modifier = Modifier.fillMaxWidth()) {
+                Text("Queue blocking defect")
+            }
+        }
+    }
+}
+
+@Composable
+private fun DeliveryProofPanel(
+    mission: DriverMission,
+    isBusy: Boolean,
+    onSubmitDeliveryProof: (String, String, String) -> Unit,
+) {
+    var recipientName by rememberSaveable(mission.id) { mutableStateOf("Taylor Receiver") }
+    var signatureName by rememberSaveable(mission.id) { mutableStateOf("Taylor Receiver") }
+    val targetStop = mission.stops.maxByOrNull { it.sequence }
+
+    Card(colors = CardDefaults.cardColors(containerColor = Color(0xFFECFDF5))) {
+        Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text("Delivery proof", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "Capture a simple offline recipient proof. The demo media upload resumes from the stored offset until the server finalizes the asset.",
+                style = MaterialTheme.typography.bodySmall,
+            )
+            Text(
+                "Target stop: ${targetStop?.name ?: "No delivery stop available"}",
+                style = MaterialTheme.typography.bodySmall,
+                color = Color(0xFF166534),
+            )
+            OutlinedTextField(
+                value = recipientName,
+                onValueChange = { recipientName = it },
+                label = { Text("Recipient name") },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isBusy && targetStop != null,
+            )
+            OutlinedTextField(
+                value = signatureName,
+                onValueChange = { signatureName = it },
+                label = { Text("Signature name") },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isBusy && targetStop != null,
+            )
+            Button(
+                onClick = {
+                    val stopId = targetStop?.id ?: return@Button
+                    onSubmitDeliveryProof(stopId, recipientName, signatureName)
+                },
+                enabled = !isBusy && targetStop != null && recipientName.isNotBlank() && signatureName.isNotBlank(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding(),
+            ) {
+                Text("Queue delivery proof")
             }
         }
     }

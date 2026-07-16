@@ -1,5 +1,6 @@
 package com.fleetops.driver
 
+import com.google.gson.JsonElement
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.HttpException
@@ -35,7 +36,7 @@ data class DriverMissionSummaryDto(
     val id: String,
     val reference: String,
     val title: String,
-    val status: String,
+    val status: JsonElement,
     val scheduledStartUtc: String,
     val scheduledEndUtc: String,
     val vehicleRegistrationNumber: String?,
@@ -54,7 +55,7 @@ data class DriverMissionStopDto(
 
 data class DriverMissionTimelineEventDto(
     val id: String,
-    val eventType: String,
+    val eventType: JsonElement,
     val description: String,
     val occurredAtUtc: String,
 )
@@ -63,7 +64,7 @@ data class DriverMissionDetailDto(
     val id: String,
     val reference: String,
     val title: String,
-    val status: String,
+    val status: JsonElement,
     val scheduledStartUtc: String,
     val scheduledEndUtc: String,
     val vehicleRegistrationNumber: String?,
@@ -85,6 +86,66 @@ data class SyncMissionCommandResponseDto(
     val wasDuplicate: Boolean,
 )
 
+data class UploadSessionRequestDto(
+    val fileName: String,
+    val contentType: String,
+    val totalBytes: Long,
+    val purpose: String,
+)
+
+data class UploadSessionResponseDto(
+    val uploadSessionId: String,
+    val uploadedBytes: Long,
+    val totalBytes: Long,
+    val expiresAtUtc: String,
+    val isCompleted: Boolean,
+    val mediaAssetId: String?,
+)
+
+data class AppendUploadChunkRequestDto(
+    val offset: Long,
+    val base64Content: String,
+)
+
+data class MediaAssetResponseDto(
+    val assetId: String,
+    val fileName: String,
+    val contentType: String,
+    val sizeBytes: Long,
+    val readUrl: String,
+)
+
+data class InspectionItemResultRequestDto(
+    val sequence: Int,
+    val code: String,
+    val label: String,
+    val isPass: Boolean,
+    val defectSeverity: String,
+    val notes: String?,
+    val photoAssetId: String?,
+)
+
+data class SubmitPreDepartureInspectionRequestDto(
+    val commandId: String,
+    val completedAtUtc: String,
+    val notes: String?,
+    val items: List<InspectionItemResultRequestDto>,
+)
+
+data class DeliveryProofPhotoRequestDto(
+    val mediaAssetId: String,
+    val caption: String?,
+)
+
+data class SubmitDeliveryProofRequestDto(
+    val commandId: String,
+    val recipientName: String,
+    val signatureName: String,
+    val deliveredAtUtc: String,
+    val notes: String?,
+    val photos: List<DeliveryProofPhotoRequestDto>,
+)
+
 interface DriverApiService {
     @POST("/api/auth/login")
     suspend fun login(@Body request: LoginRequestDto): LoginResponseDto
@@ -104,12 +165,62 @@ interface DriverApiService {
         @Path("missionId") missionId: String,
         @Body request: SyncMissionCommandRequestDto,
     ): SyncMissionCommandResponseDto
+
+    @POST("/api/v1/driver/uploads/sessions")
+    suspend fun createUploadSession(
+        @Header("Authorization") authorization: String,
+        @Body request: UploadSessionRequestDto,
+    ): UploadSessionResponseDto
+
+    @POST("/api/v1/driver/uploads/sessions/{sessionId}/chunks")
+    suspend fun appendUploadChunk(
+        @Header("Authorization") authorization: String,
+        @Path("sessionId") sessionId: String,
+        @Body request: AppendUploadChunkRequestDto,
+    ): UploadSessionResponseDto
+
+    @POST("/api/v1/driver/uploads/sessions/{sessionId}/complete")
+    suspend fun completeUploadSession(
+        @Header("Authorization") authorization: String,
+        @Path("sessionId") sessionId: String,
+    ): MediaAssetResponseDto
+
+    @POST("/api/v1/driver/missions/{missionId}/inspection")
+    suspend fun submitInspection(
+        @Header("Authorization") authorization: String,
+        @Path("missionId") missionId: String,
+        @Body request: SubmitPreDepartureInspectionRequestDto,
+    )
+
+    @POST("/api/v1/driver/missions/{missionId}/stops/{stopId}/proof")
+    suspend fun submitDeliveryProof(
+        @Header("Authorization") authorization: String,
+        @Path("missionId") missionId: String,
+        @Path("stopId") stopId: String,
+        @Body request: SubmitDeliveryProofRequestDto,
+    )
 }
 
 interface DriverRemoteDataSource {
     suspend fun login(email: String, password: String): DriverSession
     suspend fun listMissionDetails(session: DriverSession): List<DriverMission>
     suspend fun syncMissionCommand(session: DriverSession, command: PendingMissionCommand): DriverMission
+    suspend fun createUploadSession(
+        session: DriverSession,
+        fileName: String,
+        contentType: String,
+        totalBytes: Long,
+        purpose: String,
+    ): UploadSessionResponseDto
+    suspend fun appendUploadChunk(
+        session: DriverSession,
+        sessionId: String,
+        offset: Long,
+        base64Content: String,
+    ): UploadSessionResponseDto
+    suspend fun completeUploadSession(session: DriverSession, sessionId: String): MediaAssetResponseDto
+    suspend fun submitInspection(session: DriverSession, missionId: String, request: SubmitPreDepartureInspectionRequestDto)
+    suspend fun submitDeliveryProof(session: DriverSession, missionId: String, stopId: String, request: SubmitDeliveryProofRequestDto)
 }
 
 class RetrofitDriverRemoteDataSource(
@@ -159,6 +270,50 @@ class RetrofitDriverRemoteDataSource(
             syncState = MissionSyncState.Synced,
         )
     }
+
+    override suspend fun createUploadSession(
+        session: DriverSession,
+        fileName: String,
+        contentType: String,
+        totalBytes: Long,
+        purpose: String,
+    ): UploadSessionResponseDto =
+        service.createUploadSession(
+            session.asAuthorization(),
+            UploadSessionRequestDto(fileName, contentType, totalBytes, purpose),
+        )
+
+    override suspend fun appendUploadChunk(
+        session: DriverSession,
+        sessionId: String,
+        offset: Long,
+        base64Content: String,
+    ): UploadSessionResponseDto =
+        service.appendUploadChunk(
+            session.asAuthorization(),
+            sessionId,
+            AppendUploadChunkRequestDto(offset, base64Content),
+        )
+
+    override suspend fun completeUploadSession(session: DriverSession, sessionId: String): MediaAssetResponseDto =
+        service.completeUploadSession(session.asAuthorization(), sessionId)
+
+    override suspend fun submitInspection(
+        session: DriverSession,
+        missionId: String,
+        request: SubmitPreDepartureInspectionRequestDto,
+    ) {
+        service.submitInspection(session.asAuthorization(), missionId, request)
+    }
+
+    override suspend fun submitDeliveryProof(
+        session: DriverSession,
+        missionId: String,
+        stopId: String,
+        request: SubmitDeliveryProofRequestDto,
+    ) {
+        service.submitDeliveryProof(session.asAuthorization(), missionId, stopId, request)
+    }
 }
 
 fun buildDriverApiService(): DriverApiService {
@@ -177,7 +332,7 @@ fun buildDriverApiService(): DriverApiService {
 
 private fun DriverSession.asAuthorization(): String = "Bearer $accessToken"
 
-private fun DriverMissionDetailDto.toDomain(
+internal fun DriverMissionDetailDto.toDomain(
     fallbackStopCount: Int,
     syncState: MissionSyncState,
 ): DriverMission =
@@ -185,7 +340,7 @@ private fun DriverMissionDetailDto.toDomain(
         id = id,
         reference = reference,
         title = title,
-        status = enumValueOf(status),
+        status = status.toMissionStatus(),
         scheduledStartUtc = scheduledStartUtc,
         scheduledEndUtc = scheduledEndUtc,
         vehicleRegistrationNumber = vehicleRegistrationNumber,
@@ -205,12 +360,59 @@ private fun DriverMissionDetailDto.toDomain(
         timeline = timeline.map {
             DriverMissionTimelineEvent(
                 id = it.id,
-                eventType = it.eventType,
+                eventType = it.eventType.toTimelineEventLabel(),
                 description = it.description,
                 occurredAtUtc = it.occurredAtUtc,
             )
         },
     )
+
+internal fun JsonElement.toMissionStatus(): DriverMissionStatus {
+    val rawValue = toRawString()
+    val fromName = DriverMissionStatus.values().firstOrNull { it.name.equals(rawValue, ignoreCase = true) }
+    if (fromName != null) {
+        return fromName
+    }
+
+    val ordinal = rawValue.toIntOrNull()
+    if (ordinal != null) {
+        return DriverMissionStatus.values().getOrElse(ordinal) {
+            throw IllegalArgumentException("Unsupported mission status '$rawValue'.")
+        }
+    }
+
+    throw IllegalArgumentException("Unsupported mission status '$rawValue'.")
+}
+
+internal fun JsonElement.toTimelineEventLabel(): String {
+    val rawValue = toRawString()
+    val ordinal = rawValue.toIntOrNull()
+    return when (ordinal) {
+        0 -> "Created"
+        1 -> "Updated"
+        2 -> "Assignment changed"
+        3 -> "Status changed"
+        4 -> "Delay simulated"
+        null -> rawValue
+        else -> "Event $ordinal"
+    }
+}
+
+internal fun JsonElement.toRawString(): String =
+    when {
+        isJsonNull -> stringValueOrEmpty()
+        isJsonPrimitive -> asJsonPrimitive.run {
+            when {
+                isString -> asString
+                isNumber -> asNumber.toInt().toString()
+                isBoolean -> asBoolean.toString()
+                else -> toString()
+            }
+        }
+        else -> toString()
+    }
+
+internal fun JsonElement.stringValueOrEmpty(): String = ""
 
 fun Throwable.toUserMessage(): String =
     when (this) {
