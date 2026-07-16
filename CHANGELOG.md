@@ -13,14 +13,19 @@ Toutes les modifications fonctionnelles significatives sont documentées ici.
 - Vue fleet registry screens for vehicles, drivers, and GPS devices with role-aware controls and CSV import panels.
 - Live tracking with persisted telemetry history, current-position snapshots, duplicate/out-of-order protection, tenant-scoped metrics, and a multi-vehicle simulator.
 - Vue live tracking map with synchronized vehicle list, paged history, SignalR connection status, and operator-facing telemetry UX.
+- Dispatch missions with ordered stops, explicit lifecycle transitions, conflict-aware driver and vehicle assignment, delay simulation, and audited mission timelines.
+- Vue dispatch board for mission planning, assignment, status progression, and mission-to-map navigation.
+- Android driver workflow with secure login, offline mission cache, Room persistence, idempotent command outbox, and background sync.
 
 ### Changed
 
 - Validation locale Sprint 00 réalisée pour Docker, backend .NET, EF Core, Web et simulateur GPS.
 - Migration EF Core initiale ajoutée et appliquée sur SQL Server local.
 - Quality gate durcie avec vérifications Docker, .NET, Web, simulateur et health check API.
-- Branding visible mis à jour vers `Zynro Fleet` et `Zynro Drive` sans renommage technique massif.
+- Visible product branding aligned on `Orkystra FleetOps` and `FleetOps Driver`.
 - Android Sprint 00 rendu reproductible avec wrapper Gradle versionné, JDK/SDK détectés et build `testDebugUnitTest assembleDebug` vert.
 - Tracking APIs and SignalR flow are now authenticated and tenant-scoped.
 - Tracking persistence moved from an in-memory latest-position cache to versioned telemetry ingestion plus current-position snapshots.
 - Public README updated in English with architecture, modules, stack, fleet registry flow, and Mermaid diagrams.
+- README expanded with dispatch architecture, mission flow, and Sprint 04 validation scope.
+- README expanded with Sprint 05 mobile architecture, offline sync flow, and Android stack details.

@@ -39,6 +39,11 @@ public sealed class JwtTokenIssuer(
             new(TenantClaimTypes.OrganizationName, organizationName),
         };
 
+        if (user.DriverId is Guid driverId)
+        {
+            claims.Add(new Claim(TenantClaimTypes.DriverId, driverId.ToString()));
+        }
+
         claims.AddRange(roles.Select(role => new Claim(ClaimTypes.Role, role)));
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_options.SigningKey));

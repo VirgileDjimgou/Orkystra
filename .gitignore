@@ -2,6 +2,8 @@
 .env
 .env.*
 !.env.example
+.envrc
+.direnv/
 secrets/
 private/
 backups/
@@ -12,6 +14,13 @@ backups/
 *.crt
 *.key
 *.pub
+*.secret
+*.secrets
+*.token
+*.tokens
+*.credentials
+*.vault
+*.bak
 
 # .NET
 bin/
@@ -39,6 +48,7 @@ local.properties
 # IDE
 .idea/
 .vscode/
+.vs/
 *.code-workspace
 .vscode/PythonImportHelper-*.json
 .DS_Store
@@ -48,14 +58,30 @@ Thumbs.db
 .runtime/
 tmp/
 temp/
+cache/
+logs/
 *.local.json
 *.local.md
 *.log
 *.err
+*.sqlite
+*.sqlite3
+*.db
+*.db-shm
+*.db-wal
+*.orig
 
 # AI / assistant / prompt tooling
 .agent/
 .codex/
+.aider*
+.cursor/
+.claude/
+.roo/
+.windsurf/
+.continue/
+.llm/
+.kiro/
 .opencode/
 opencode.json
 AGENTS.md
@@ -70,3 +96,8 @@ scripts/agent/
 
 # Infrastructure data
 .infrastructure-data/
+
+# Local attachments and exports
+attachments/
+exports/
+artifacts/

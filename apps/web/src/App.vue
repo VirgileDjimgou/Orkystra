@@ -3,11 +3,14 @@
   <div v-else class="app-shell">
     <aside class="sidebar">
       <div class="brand-block">
-        <div class="brand">Zynro Fleet</div>
+        <div class="brand">Orkystra FleetOps</div>
         <div class="brand-subtitle">{{ session.user?.organizationName }}</div>
       </div>
       <nav class="nav flex-column gap-1">
         <RouterLink class="nav-link" to="/">Overview</RouterLink>
+        <RouterLink class="nav-link" to="/dispatch/missions">
+          Dispatch
+        </RouterLink>
         <RouterLink class="nav-link" to="/map">Fleet map</RouterLink>
         <RouterLink class="nav-link" to="/fleet/vehicles">Vehicles</RouterLink>
         <RouterLink class="nav-link" to="/fleet/drivers">Drivers</RouterLink>

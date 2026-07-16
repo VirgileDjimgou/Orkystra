@@ -1,0 +1,140 @@
+package com.fleetops.driver
+
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+
+enum class DriverMissionStatus {
+    Draft,
+    Planned,
+    Assigned,
+    EnRoute,
+    Arrived,
+    Delayed,
+    Completed,
+    Cancelled,
+}
+
+enum class DriverMissionAction {
+    Start,
+    Arrive,
+    Complete,
+}
+
+enum class MissionSyncState {
+    Synced,
+    Pending,
+    Conflict,
+    Offline,
+}
+
+data class DriverSession(
+    val accessToken: String,
+    val expiresAtUtc: String,
+    val userId: String,
+    val email: String,
+    val fullName: String,
+    val organizationName: String,
+    val driverId: String,
+    val roles: List<String>,
+)
+
+data class DriverMissionStop(
+    val id: String,
+    val sequence: Int,
+    val name: String,
+    val address: String,
+    val plannedArrivalUtc: String,
+)
+
+data class DriverMissionTimelineEvent(
+    val id: String,
+    val eventType: String,
+    val description: String,
+    val occurredAtUtc: String,
+)
+
+data class DriverMission(
+    val id: String,
+    val reference: String,
+    val title: String,
+    val status: DriverMissionStatus,
+    val scheduledStartUtc: String,
+    val scheduledEndUtc: String,
+    val vehicleRegistrationNumber: String?,
+    val stopCount: Int,
+    val simulatedDelayMinutes: Int,
+    val rowVersion: Long,
+    val syncState: MissionSyncState,
+    val stops: List<DriverMissionStop>,
+    val timeline: List<DriverMissionTimelineEvent>,
+) {
+    val destination: String?
+        get() = stops.maxByOrNull { it.sequence }?.name
+}
+
+data class PendingMissionCommand(
+    val commandId: String,
+    val missionId: String,
+    val action: DriverMissionAction,
+    val rowVersion: Long,
+    val occurredAtUtc: String,
+)
+
+data class DriverAppUiState(
+    val session: DriverSession? = null,
+    val missions: List<DriverMission> = emptyList(),
+    val selectedMission: DriverMission? = null,
+    val isBusy: Boolean = false,
+    val errorMessage: String? = null,
+    val infoMessage: String? = null,
+) {
+    val isLoggedIn: Boolean
+        get() = session != null
+}
+
+fun DriverMission.availableActions(): List<DriverMissionAction> =
+    when (status) {
+        DriverMissionStatus.Assigned -> listOf(DriverMissionAction.Start)
+        DriverMissionStatus.EnRoute,
+        DriverMissionStatus.Delayed -> listOf(DriverMissionAction.Arrive)
+        DriverMissionStatus.Arrived -> listOf(DriverMissionAction.Complete)
+        else -> emptyList()
+    }
+
+fun DriverMission.applyLocalAction(action: DriverMissionAction): DriverMission =
+    copy(
+        status = when (action) {
+            DriverMissionAction.Start -> DriverMissionStatus.EnRoute
+            DriverMissionAction.Arrive -> DriverMissionStatus.Arrived
+            DriverMissionAction.Complete -> DriverMissionStatus.Completed
+        },
+        syncState = MissionSyncState.Pending,
+    )
+
+fun DriverMissionStatus.label(): String =
+    when (this) {
+        DriverMissionStatus.Draft -> "Draft"
+        DriverMissionStatus.Planned -> "Planned"
+        DriverMissionStatus.Assigned -> "Assigned"
+        DriverMissionStatus.EnRoute -> "En route"
+        DriverMissionStatus.Arrived -> "Arrived"
+        DriverMissionStatus.Delayed -> "Delayed"
+        DriverMissionStatus.Completed -> "Completed"
+        DriverMissionStatus.Cancelled -> "Cancelled"
+    }
+
+fun MissionSyncState.label(): String =
+    when (this) {
+        MissionSyncState.Synced -> "Synced"
+        MissionSyncState.Pending -> "Pending sync"
+        MissionSyncState.Conflict -> "Needs reload"
+        MissionSyncState.Offline -> "Offline"
+    }
+
+fun String.toFriendlyDateTime(): String =
+    runCatching {
+        DateTimeFormatter.ofPattern("dd MMM HH:mm")
+            .withZone(ZoneId.systemDefault())
+            .format(Instant.parse(this))
+    }.getOrElse { this }

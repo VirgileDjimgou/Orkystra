@@ -2,7 +2,7 @@ using System.Security.Claims;
 
 namespace FleetOps.Api.Security;
 
-public sealed record CurrentTenant(Guid OrganizationId, string OrganizationName, Guid UserId, string Email);
+public sealed record CurrentTenant(Guid OrganizationId, string OrganizationName, Guid UserId, string Email, Guid? DriverId);
 
 public interface ICurrentTenantAccessor
 {
@@ -19,6 +19,7 @@ public sealed class CurrentTenantAccessor : ICurrentTenantAccessor
         var organizationName = principal.FindFirstValue(TenantClaimTypes.OrganizationName);
         var userIdValue = principal.FindFirstValue(ClaimTypes.NameIdentifier);
         var email = principal.FindFirstValue(ClaimTypes.Email);
+        var driverIdValue = principal.FindFirstValue(TenantClaimTypes.DriverId);
 
         if (!Guid.TryParse(organizationIdValue, out var organizationId))
         {
@@ -35,6 +36,10 @@ public sealed class CurrentTenantAccessor : ICurrentTenantAccessor
             throw new InvalidOperationException("Missing identity claims.");
         }
 
-        return new CurrentTenant(organizationId, organizationName, userId, email);
+        Guid? driverId = Guid.TryParse(driverIdValue, out var parsedDriverId)
+            ? parsedDriverId
+            : null;
+
+        return new CurrentTenant(organizationId, organizationName, userId, email, driverId);
     }
 }

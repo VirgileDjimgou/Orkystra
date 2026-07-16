@@ -66,7 +66,7 @@ public static class FleetOpsSeedData
 
             await EnsureUserAsync(userManager, north, "admin@northwind.local", "Northwind Admin", "Admin123!", SystemRoles.Admin);
             await EnsureUserAsync(userManager, north, "operator@northwind.local", "Northwind Operator", "Operator123!", SystemRoles.Operator);
-            await EnsureUserAsync(userManager, north, "driver@northwind.local", "Northwind Driver", "Driver123!", SystemRoles.Driver);
+            await EnsureUserAsync(userManager, north, "driver@northwind.local", "Northwind Driver", "Driver123!", SystemRoles.Driver, northDriver.Id);
             await EnsureUserAsync(userManager, south, "admin@southridge.local", "Southridge Admin", "Admin123!", SystemRoles.Admin);
             await EnsureUserAsync(userManager, south, "operator@southridge.local", "Southridge Operator", "Operator123!", SystemRoles.Operator);
         }
@@ -78,10 +78,24 @@ public static class FleetOpsSeedData
         string email,
         string fullName,
         string password,
-        string role)
+        string role,
+        Guid? driverId = null)
     {
-        if (await userManager.FindByEmailAsync(email) is not null)
+        var existingUser = await userManager.FindByEmailAsync(email);
+        if (existingUser is not null)
         {
+            if (existingUser.OrganizationId != organization.Id
+                || existingUser.FullName != fullName
+                || existingUser.DriverId != driverId
+                || !existingUser.IsActive)
+            {
+                existingUser.OrganizationId = organization.Id;
+                existingUser.FullName = fullName;
+                existingUser.DriverId = driverId;
+                existingUser.IsActive = true;
+                await userManager.UpdateAsync(existingUser);
+            }
+
             return;
         }
 
@@ -91,6 +105,7 @@ public static class FleetOpsSeedData
             Email = email,
             FullName = fullName,
             OrganizationId = organization.Id,
+            DriverId = driverId,
             EmailConfirmed = true,
             IsActive = true,
         };

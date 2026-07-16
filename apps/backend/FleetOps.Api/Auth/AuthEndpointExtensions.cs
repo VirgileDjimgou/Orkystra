@@ -69,6 +69,7 @@ public static class AuthEndpointExtensions
                 user.Email ?? string.Empty,
                 user.FullName,
                 organization.Name,
+                user.DriverId,
                 roles.OrderBy(x => x).ToArray())));
     }
 
@@ -92,6 +93,7 @@ public static class AuthEndpointExtensions
             user.Email ?? tenant.Email,
             user.FullName,
             tenant.OrganizationName,
+            user.DriverId,
             roles.OrderBy(x => x).ToArray()));
     }
 }

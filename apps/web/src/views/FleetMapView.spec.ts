@@ -1,6 +1,7 @@
 import { createPinia, setActivePinia } from "pinia";
 import { mount } from "@vue/test-utils";
 import { nextTick } from "vue";
+import { createRouter, createWebHistory } from "vue-router";
 import FleetMapView from "./FleetMapView.vue";
 import { useSessionStore } from "../features/auth/store";
 
@@ -136,7 +137,18 @@ describe("FleetMapView", () => {
       }),
     );
 
-    const wrapper = mount(FleetMapView);
+    const router = createRouter({
+      history: createWebHistory(),
+      routes: [{ path: "/", component: FleetMapView }],
+    });
+    router.push("/");
+    await router.isReady();
+
+    const wrapper = mount(FleetMapView, {
+      global: {
+        plugins: [router],
+      },
+    });
     await nextTick();
     await new Promise((resolve) => setTimeout(resolve, 0));
     await nextTick();

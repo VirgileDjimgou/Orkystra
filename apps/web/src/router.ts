@@ -3,6 +3,7 @@ import { storeToRefs } from "pinia";
 import { pinia } from "./pinia";
 import { useSessionStore } from "./features/auth/store";
 import DashboardView from "./views/DashboardView.vue";
+import DispatchView from "./views/DispatchView.vue";
 import DevicesView from "./views/DevicesView.vue";
 import DriversView from "./views/DriversView.vue";
 import FleetMapView from "./views/FleetMapView.vue";
@@ -15,6 +16,11 @@ export const router = createRouter({
   routes: [
     { path: "/login", component: LoginView, meta: { guestOnly: true } },
     { path: "/", component: DashboardView, meta: { requiresAuth: true } },
+    {
+      path: "/dispatch/missions",
+      component: DispatchView,
+      meta: { requiresAuth: true },
+    },
     { path: "/map", component: FleetMapView, meta: { requiresAuth: true } },
     {
       path: "/fleet/vehicles",

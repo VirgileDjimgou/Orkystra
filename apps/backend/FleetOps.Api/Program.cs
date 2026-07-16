@@ -3,6 +3,8 @@ using FleetOps.Api;
 using FleetOps.Api.Admin;
 using FleetOps.Api.Auditing;
 using FleetOps.Api.Auth;
+using FleetOps.Api.Dispatch;
+using FleetOps.Api.DriverApp;
 using FleetOps.Api.Fleet;
 using FleetOps.Api.Security;
 using FleetOps.Api.Tracking;
@@ -95,11 +97,13 @@ app.MapUserAdministrationEndpoints();
 app.MapVehicleEndpoints();
 app.MapDriverEndpoints();
 app.MapDeviceEndpoints();
+app.MapDispatchEndpoints();
+app.MapDriverAppEndpoints();
 app.MapTrackingEndpoints();
 
 app.MapGet("/api/system/info", () => Results.Ok(new
 {
-    name = "Zynro Fleet",
+    name = "Orkystra FleetOps",
     status = "tracking-ready",
     utc = DateTimeOffset.UtcNow
 }));

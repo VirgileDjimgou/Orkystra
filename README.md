@@ -1,8 +1,8 @@
 # Orkystra FleetOps
 
-Orkystra FleetOps is a modular fleet operations MVP for small and mid-sized transport businesses. The platform is designed to cover the operational chain from identity and tenant isolation to vehicle tracking, dispatch execution, driver workflows, proof of delivery, alerts, and production readiness.
+Orkystra FleetOps is a modular fleet operations MVP for small and mid-sized transport businesses. The platform is designed to cover the operational chain from identity and tenant isolation to vehicle tracking, dispatch execution, offline-capable driver workflows, proof of delivery, alerts, and production readiness.
 
-The repository currently delivers a solid technical foundation, Sprint 01 identity and multi-tenant access control, Sprint 02 fleet registry capabilities, and Sprint 03 live tracking simulation:
+The repository currently delivers a solid technical foundation, Sprint 01 identity and multi-tenant access control, Sprint 02 fleet registry capabilities, Sprint 03 live tracking simulation, Sprint 04 dispatch mission orchestration, and Sprint 05 Android driver mission execution:
 
 - reproducible local environment;
 - modular ASP.NET Core backend;
@@ -17,6 +17,8 @@ The repository currently delivers a solid technical foundation, Sprint 01 identi
 - paged tracking history and tenant-scoped tracking metrics;
 - SignalR streaming for live fleet positions;
 - deterministic multi-vehicle GPS simulator for demos and validation.
+- dispatch missions with explicit state transitions, assignment checks, audited timelines, and mission-to-map linkage.
+- Android driver login, offline mission cache, Room persistence, idempotent action outbox, and WorkManager-based background sync.
 
 ## Product Goal
 
@@ -41,7 +43,7 @@ FleetOps follows a modular monolith architecture. The goal is to keep deployment
 ```mermaid
 flowchart LR
     Web["Vue Web Console<br/>Admin / Operator"] --> Api["ASP.NET Core API"]
-    Android["Android Driver App"] --> Api
+    Android["Android Driver App<br/>Compose + Room + WorkManager"] --> Api
     Simulator["GPS Simulator"] --> Api
     Api --> SignalR["SignalR Hub"]
     Api --> Db["SQL Server"]
@@ -122,6 +124,19 @@ flowchart TD
   - paged telemetry history for operators;
   - tenant-scoped SignalR push updates and live tracking metrics;
   - deterministic multi-vehicle simulator with replay and reset support.
+- Dispatch and mission execution
+  - tenant-aware `Mission`, `MissionStop`, and `MissionTimelineEvent` entities;
+  - explicit mission state machine from `Draft` to `Completed`;
+  - operator mission planning with ordered stops;
+  - driver and vehicle assignment with overlap conflict detection;
+  - delay simulation and timeline auditing for demos and operations review;
+  - map linkage between a mission and its assigned live vehicle.
+- Driver mobile workflow
+  - secure driver login bound to a server-side `DriverId`;
+  - driver-only mission list and mission detail APIs;
+  - local Room cache for missions, stops, timeline, session, and pending commands;
+  - idempotent mobile outbox commands for `Start`, `Arrive`, and `Complete`;
+  - background sync with WorkManager and conflict/offline states surfaced in the UI.
 
 ## Fleet Registry Flow
 
@@ -177,6 +192,74 @@ sequenceDiagram
 - Out-of-order events are stored in history without replacing the current vehicle position.
 - Operators can inspect current positions, paged history, and tracking metrics inside the same authenticated web console.
 - The development simulator can reset a scenario, stream three vehicles at once, and optionally replay duplicates or older events for validation.
+
+## Dispatch Flow
+
+Sprint 04 connects planning and execution on top of the fleet and tracking baseline.
+
+```mermaid
+sequenceDiagram
+    participant Operator
+    participant Web as "Vue Dispatch Board"
+    participant API as "Dispatch API"
+    participant DB as "SQL/EF Core"
+    participant Map as "Fleet Map"
+
+    Operator->>Web: create draft mission + ordered stops
+    Web->>API: POST /api/v1/dispatch/missions
+    API->>DB: persist mission, stops, timeline
+    Operator->>Web: assign driver and vehicle
+    Web->>API: PUT /assignment
+    API->>API: validate tenant, status, and schedule conflicts
+    API->>DB: persist assignment + timeline event
+    Operator->>Web: change status / simulate delay
+    Web->>API: POST /status or /delay-simulation
+    API->>DB: persist transition + timeline event
+    Web->>Map: open the assigned vehicle on the live map
+```
+
+### Dispatch capabilities
+
+- Missions follow an explicit validated state machine instead of ad-hoc flags.
+- Illegal transitions are rejected server-side.
+- Assignments stay tenant-scoped and reject inactive or cross-tenant resources.
+- Overlapping assignments for the same driver or vehicle are refused.
+- Every assignment, status change, and delay appends to an auditable timeline.
+- Operators can jump from a mission board entry to the live vehicle map context.
+
+## Driver Mobile Flow
+
+Sprint 05 turns the Android driver app into a real offline-first execution client on top of the dispatch model introduced in Sprint 04.
+
+```mermaid
+sequenceDiagram
+    participant Driver
+    participant App as "Android Driver App"
+    participant Room as "Room Cache"
+    participant API as "Driver API"
+    participant Outbox as "Pending Command Queue"
+
+    Driver->>App: sign in
+    App->>API: POST /api/auth/login
+    API-->>App: JWT + tenant + driver binding
+    App->>API: GET /api/v1/driver/missions
+    App->>Room: cache missions, stops, timeline
+    Driver->>App: start / arrive / complete mission
+    App->>Room: apply optimistic local state
+    App->>Outbox: enqueue commandId + rowVersion
+    App->>API: sync queued command when online
+    API-->>App: deduplicated mission state
+    App->>Room: replace cached mission with server truth
+```
+
+### Mobile capabilities
+
+- Drivers only see missions assigned to their authenticated driver profile.
+- Mission data remains available offline after the first successful refresh.
+- Route actions are queued locally and replayed with stable `commandId` values.
+- Duplicate command submissions are ignored server-side without applying the transition twice.
+- Background sync retries automatically when connectivity returns.
+- The mobile UI surfaces `Synced`, `Pending sync`, `Offline`, and `Needs reload` states.
 
 ## Authentication and Tenant Isolation
 
@@ -248,6 +331,7 @@ flowchart LR
 - CSV import panels with success, empty, loading, and error states;
 - role-aware controls that hide server-forbidden create/deactivate actions from non-admin users.
 - a live fleet map synchronized with a vehicle list, paged history, and connection-state feedback.
+- a dispatch board for mission creation, assignment, lifecycle transitions, delay simulation, and timeline review.
 
 ## Technology Stack
 
@@ -281,6 +365,11 @@ flowchart LR
 - `Kotlin`
 - `Jetpack Compose`
 - `Material 3`
+- `Room`
+- `Retrofit`
+- `OkHttp`
+- `WorkManager`
+- `KSP`
 - `Android Gradle Plugin`
 
 ### Tooling and Infrastructure
@@ -384,9 +473,15 @@ Set-Location apps/android-driver
 .\gradlew.bat testDebugUnitTest assembleDebug --stacktrace
 ```
 
+If your API is running on a host other than the Android emulator loopback, set:
+
+```powershell
+$env:FLEETOPS_API_URL="http://10.0.2.2:5080/"
+```
+
 ## Quality Gate
 
-The repository includes a local quality gate that validates the complete Sprint 00/01/02/03 baseline:
+The repository includes a local quality gate that validates the complete Sprint 00/01/02/03/04/05 baseline:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\quality-gate.ps1
@@ -411,9 +506,12 @@ Current local validation includes:
 - backend tests including integration coverage for auth, roles, tokens, and tenant isolation;
 - fleet registry unit and integration tests covering tenant isolation, role permissions, duplicate data, stale updates, CSV idempotency, and assignment invariants;
 - tracking unit and integration tests covering duplicate telemetry, out-of-order handling, paged history, tenant isolation, and multi-vehicle visibility;
+- dispatch domain and integration tests covering mission lifecycle, illegal transitions, tenant-safe assignment, schedule conflicts, and mission-to-map linkage;
+- driver mobile integration tests covering assigned-mission filtering, idempotent command sync, and stale row-version conflicts;
 - web tests, lint, format, and production build;
+- web dispatch board coverage for mission rendering, assignment context, timeline visibility, and map linkage;
 - authenticated tracking endpoints, paged history, metrics, and SignalR hub;
-- EF Core migrations for Sprint 01, Sprint 02, and Sprint 03;
+- EF Core migrations for Sprint 01, Sprint 02, Sprint 03, Sprint 04, and Sprint 05;
 - Android unit tests and debug assembly;
 - full local quality gate.
 
@@ -456,3 +554,5 @@ Admin/Operator and Driver workflows have different interaction models, offline r
 - [sprints/SPRINT-01-IDENTITY-TENANCY.md](./sprints/SPRINT-01-IDENTITY-TENANCY.md)
 - [sprints/SPRINT-02-FLEET-REGISTRY.md](./sprints/SPRINT-02-FLEET-REGISTRY.md)
 - [sprints/SPRINT-03-TRACKING-SIMULATION.md](./sprints/SPRINT-03-TRACKING-SIMULATION.md)
+- [sprints/SPRINT-04-DISPATCH-MISSIONS.md](./sprints/SPRINT-04-DISPATCH-MISSIONS.md)
+- [sprints/SPRINT-05-ANDROID-DRIVER.md](./sprints/SPRINT-05-ANDROID-DRIVER.md)

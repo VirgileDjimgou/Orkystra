@@ -7,6 +7,7 @@ public sealed record AuthenticatedUserResponse(
     string Email,
     string FullName,
     string OrganizationName,
+    Guid? DriverId,
     string[] Roles);
 
 public sealed record LoginResponse(

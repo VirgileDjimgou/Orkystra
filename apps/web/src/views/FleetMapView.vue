@@ -13,6 +13,9 @@
         <span class="badge text-bg-dark">{{
           session.user?.organizationName
         }}</span>
+        <span v-if="missionFocus" class="badge text-bg-light">
+          Mission focus: {{ missionFocus }}
+        </span>
         <span :class="connectionBadgeClass">{{ connectionLabel }}</span>
       </div>
     </section>
@@ -210,6 +213,7 @@ import {
   watch,
 } from "vue";
 import L from "leaflet";
+import { useRoute } from "vue-router";
 import { useSessionStore } from "../features/auth/store";
 import type { TrackingPositionResponse } from "../features/tracking/contracts";
 import { connectTrackingStream } from "../features/tracking/live";
@@ -217,6 +221,7 @@ import { useTrackingStore } from "../features/tracking/store";
 
 const session = useSessionStore();
 const tracking = useTrackingStore();
+const route = useRoute();
 const mapElement = ref<HTMLElement | null>(null);
 const selectedVehicleId = ref<string>("");
 let map: L.Map | undefined;
@@ -266,6 +271,10 @@ const connectionLabel = computed(() => {
     default:
       return "Idle";
   }
+});
+const missionFocus = computed(() => {
+  const missionRef = route?.query?.missionRef;
+  return typeof missionRef === "string" ? missionRef : "";
 });
 const connectionBadgeClass = computed(() => {
   switch (tracking.connectionState) {
@@ -361,6 +370,17 @@ async function refresh() {
   ensureMap();
   syncMarkers();
   fitMapToPositions();
+
+  const requestedVehicleId =
+    typeof route?.query?.vehicleId === "string" ? route.query.vehicleId : "";
+
+  if (
+    requestedVehicleId &&
+    tracking.positions.some((item) => item.vehicleId === requestedVehicleId)
+  ) {
+    await selectVehicle(requestedVehicleId, false);
+    return;
+  }
 
   if (!selectedVehicleId.value && tracking.positions.length > 0) {
     await selectVehicle(tracking.positions[0].vehicleId, false);
