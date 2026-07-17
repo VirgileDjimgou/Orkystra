@@ -58,6 +58,10 @@ public sealed class FleetOpsDbContext(DbContextOptions<FleetOpsDbContext> option
     public DbSet<OnboardingSampleDataSet> OnboardingSampleDataSets => Set<OnboardingSampleDataSet>();
     public DbSet<OnboardingActivationEvent> OnboardingActivationEvents => Set<OnboardingActivationEvent>();
     public DbSet<MaintenanceWorkOrder> MaintenanceWorkOrders => Set<MaintenanceWorkOrder>();
+    public DbSet<MissionTemplate> MissionTemplates => Set<MissionTemplate>();
+    public DbSet<MissionTemplateStop> MissionTemplateStops => Set<MissionTemplateStop>();
+    public DbSet<DispatchImportReceipt> DispatchImportReceipts => Set<DispatchImportReceipt>();
+    public DbSet<DispatchSavedView> DispatchSavedViews => Set<DispatchSavedView>();
     public DbSet<ComplianceDocumentType> ComplianceDocumentTypes => Set<ComplianceDocumentType>();
     public DbSet<CompliancePolicy> CompliancePolicies => Set<CompliancePolicy>();
     public DbSet<ComplianceInspectionCampaign> ComplianceInspectionCampaigns => Set<ComplianceInspectionCampaign>();
@@ -85,6 +89,38 @@ public sealed class FleetOpsDbContext(DbContextOptions<FleetOpsDbContext> option
             entity.HasIndex(x => new { x.OrganizationId, x.Name, x.SubjectType }).IsUnique();
             entity.Property(x => x.Name).HasMaxLength(80);
             entity.Property(x => x.RowVersion).IsConcurrencyToken();
+        });
+
+        builder.Entity<MissionTemplate>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.OrganizationId, x.Name }).IsUnique();
+            entity.Property(x => x.Name).HasMaxLength(100);
+            entity.Property(x => x.Title).HasMaxLength(160);
+            entity.Property(x => x.RowVersion).IsConcurrencyToken();
+            entity.Navigation(x => x.Stops).UsePropertyAccessMode(PropertyAccessMode.Field);
+            entity.HasMany(x => x.Stops).WithOne().HasForeignKey(x => x.TemplateId).OnDelete(DeleteBehavior.Cascade);
+        });
+        builder.Entity<MissionTemplateStop>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.OrganizationId, x.TemplateId, x.Sequence }).IsUnique();
+            entity.Property(x => x.Name).HasMaxLength(160);
+            entity.Property(x => x.Address).HasMaxLength(240);
+        });
+        builder.Entity<DispatchImportReceipt>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.OrganizationId, x.ImportKey }).IsUnique();
+            entity.Property(x => x.ImportKey).HasMaxLength(120);
+            entity.Property(x => x.ImportedAtUtc).HasPrecision(7);
+        });
+        builder.Entity<DispatchSavedView>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.OrganizationId, x.UserId, x.Name }).IsUnique();
+            entity.Property(x => x.Name).HasMaxLength(100);
+            entity.Property(x => x.FilterJson).HasMaxLength(2000);
         });
         builder.Entity<CompliancePolicy>(entity =>
         {

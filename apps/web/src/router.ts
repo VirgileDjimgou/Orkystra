@@ -6,6 +6,7 @@ import DashboardView from "./views/DashboardView.vue";
 import AlertsView from "./views/AlertsView.vue";
 import AdminSecurityView from "./views/AdminSecurityView.vue";
 import DispatchView from "./views/DispatchView.vue";
+import DispatchProductivityView from "./views/DispatchProductivityView.vue";
 import DevicesView from "./views/DevicesView.vue";
 import DriversView from "./views/DriversView.vue";
 import FleetMapView from "./views/FleetMapView.vue";
@@ -87,6 +88,15 @@ export const router = createRouter({
         requiresAuth: true,
         title: "Mission board",
         description: "Plan, assign and follow work from dispatch to proof.",
+      },
+    },
+    {
+      path: "/dispatch/productivity",
+      component: DispatchProductivityView,
+      meta: {
+        requiresAuth: true,
+        title: "Dispatch productivity",
+        description: "Reuse routes and safely import a daily mission plan.",
       },
     },
     {

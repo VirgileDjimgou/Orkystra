@@ -6,6 +6,9 @@ Toutes les modifications fonctionnelles significatives sont documentées ici.
 
 ### Added
 
+- Sprint 19 dispatch productivity: tenant-scoped route templates, draft duplication, replay-safe mission imports with preview and confirmation, a paged day/week planning board, saved views, deterministic resource suggestions, and atomic bulk assignment validation with maintenance, compliance, overlap, concurrency, and audit checks.
+- A web daily-planning workspace for capacity-board refresh, template reuse, and explicit import confirmation.
+
 - Sprint 18 compliance campaigns: tenant-configured document types and assignment policy, optional four-eyes review, replacement history, 30/14/7-day expiry horizons, coverage matrix, audit CSV export, and auditable Admin overrides.
 - Targeted vehicle inspection campaigns with private tenant-scoped state and an Android Room/WorkManager queue that preserves idempotent offline driver submissions.
 

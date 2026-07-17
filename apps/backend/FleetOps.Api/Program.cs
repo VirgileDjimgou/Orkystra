@@ -292,6 +292,7 @@ app.MapDriverEndpoints();
 app.MapDeviceEndpoints();
 app.MapFleetAlertConfigurationEndpoints();
 app.MapDispatchEndpoints();
+app.MapDispatchProductivityEndpoints();
 app.MapDriverAppEndpoints();
 app.MapDriverOperationsEndpoints();
 app.MapOperationsCenterEndpoints();

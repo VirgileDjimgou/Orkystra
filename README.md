@@ -2,6 +2,19 @@
 
 Orkystra FleetOps is a modular fleet operations MVP for small and mid-sized transport businesses. The platform covers the operational chain from identity and tenant isolation to vehicle tracking, dispatch execution, offline-capable driver workflows, proof of delivery, deterministic alerting, exception-driven operator work, maintenance coordination, external integrations, and pilot packaging.
 
+## Dispatch productivity
+
+Operators can prepare a daily or weekly plan from a paged capacity board, save reusable route templates, preview and confirm idempotent imports, and retain an auditable record of every bulk assignment decision. Resource suggestions are deterministic: FleetOps selects the first active, non-conflicting driver and vehicle by name and registration; it does not apply opaque route optimisation.
+
+```mermaid
+flowchart LR
+  T["Route template"] --> D["Draft mission"]
+  I["Import preview"] --> C["Explicit confirmation"]
+  C --> B["Day / week board"]
+  B --> A["Conflict and compliance checks"]
+  A --> M["Audited assignment"]
+```
+
 ## Compliance campaigns
 
 Administrators configure their own document types and blocking policy; FleetOps does not provide legal advice. The compliance workspace presents vehicle and driver coverage, private document evidence, replacement history, review status, expiry horizons, and a CSV audit export. A blocking rule is enforced only when the tenant enables it; an Admin override requires an audit reason. Targeted inspection campaigns are cached in the driver app's Room database and submitted idempotently by WorkManager after connectivity returns.
