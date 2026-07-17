@@ -13,6 +13,7 @@ public static class FleetOpsSeedData
         FleetOpsDbContext dbContext,
         RoleManager<IdentityRole<Guid>> roleManager,
         UserManager<ApplicationUser> userManager,
+        BootstrapOptions bootstrapOptions,
         CancellationToken cancellationToken)
     {
         if (dbContext.Database.IsRelational())
@@ -32,7 +33,12 @@ public static class FleetOpsSeedData
             }
         }
 
-        if (!await dbContext.Organizations.AnyAsync(cancellationToken))
+        if (await dbContext.Organizations.AnyAsync(cancellationToken))
+        {
+            return;
+        }
+
+        if (bootstrapOptions.SeedDemoData)
         {
             var north = new Organization("Northwind Logistics", "northwind");
             var south = new Organization("Southridge Transport", "southridge");
@@ -73,7 +79,28 @@ public static class FleetOpsSeedData
             await EnsureUserAsync(userManager, north, "driver@northwind.local", "Northwind Driver", "Driver123!", SystemRoles.Driver, northDriver.Id);
             await EnsureUserAsync(userManager, south, "admin@southridge.local", "Southridge Admin", "Admin123!", SystemRoles.Admin);
             await EnsureUserAsync(userManager, south, "operator@southridge.local", "Southridge Operator", "Operator123!", SystemRoles.Operator);
+            return;
         }
+
+        if (bootstrapOptions.HasProvisioningValues)
+        {
+            var organization = new Organization(
+                bootstrapOptions.OrganizationName,
+                bootstrapOptions.OrganizationSlug);
+            dbContext.Organizations.Add(organization);
+            await dbContext.SaveChangesAsync(cancellationToken);
+            await EnsureUserAsync(
+                userManager,
+                organization,
+                bootstrapOptions.AdminEmail,
+                "Fleet administrator",
+                bootstrapOptions.AdminPassword,
+                SystemRoles.Admin);
+            return;
+        }
+
+        throw new InvalidOperationException(
+            "FleetOps has no organization. Configure Bootstrap provisioning values or enable Bootstrap:SeedDemoData in Development.");
     }
 
     private static void SeedChecklistTemplates(

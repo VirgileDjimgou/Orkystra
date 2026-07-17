@@ -32,6 +32,8 @@ public sealed class FleetOpsApiFactory : WebApplicationFactory<Program>, IAsyncL
                 ["FLEETOPS_WEB_URL"] = "http://localhost:5173",
                 ["Testing:UseInMemoryDatabase"] = "true",
                 ["Testing:DatabaseName"] = _databaseName,
+                ["Bootstrap:SeedDemoData"] = "true",
+                ["Security:LoginPermitLimit"] = "100",
                 ["Integrations:RetryBaseDelaySeconds"] = "0",
                 ["Integrations:MaxWebhookAttempts"] = "3"
             });
@@ -57,7 +59,12 @@ public sealed class FleetOpsApiFactory : WebApplicationFactory<Program>, IAsyncL
         await dbContext.Database.EnsureDeletedAsync();
         await dbContext.Database.EnsureCreatedAsync();
         metricsStore.ResetAll();
-        await FleetOpsSeedData.EnsureSeededAsync(dbContext, roleManager, userManager, CancellationToken.None);
+        await FleetOpsSeedData.EnsureSeededAsync(
+            dbContext,
+            roleManager,
+            userManager,
+            new BootstrapOptions { SeedDemoData = true },
+            CancellationToken.None);
     }
 
     public new Task DisposeAsync()

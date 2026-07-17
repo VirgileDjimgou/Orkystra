@@ -18,47 +18,98 @@ export const router = createRouter({
   history: createWebHistory(),
   routes: [
     { path: "/login", component: LoginView, meta: { guestOnly: true } },
-    { path: "/", component: DashboardView, meta: { requiresAuth: true } },
+    {
+      path: "/",
+      component: DashboardView,
+      meta: {
+        requiresAuth: true,
+        title: "Operations overview",
+        description: "Priority signals and fleet readiness at a glance.",
+      },
+    },
     {
       path: "/alerts",
       component: AlertsView,
-      meta: { requiresAuth: true },
+      meta: {
+        requiresAuth: true,
+        title: "Alert center",
+        description: "Own, acknowledge and resolve fleet exceptions.",
+      },
     },
     {
       path: "/dispatch/missions",
       component: DispatchView,
-      meta: { requiresAuth: true },
+      meta: {
+        requiresAuth: true,
+        title: "Mission board",
+        description: "Plan, assign and follow work from dispatch to proof.",
+      },
     },
-    { path: "/map", component: FleetMapView, meta: { requiresAuth: true } },
+    {
+      path: "/map",
+      component: FleetMapView,
+      meta: {
+        requiresAuth: true,
+        title: "Live fleet map",
+        description: "Current positions, connection health and recent history.",
+      },
+    },
     {
       path: "/fleet/vehicles",
       component: VehiclesView,
-      meta: { requiresAuth: true },
+      meta: {
+        requiresAuth: true,
+        title: "Vehicles",
+        description: "Manage the active fleet and operational identity.",
+      },
     },
     {
       path: "/fleet/drivers",
       component: DriversView,
-      meta: { requiresAuth: true },
+      meta: {
+        requiresAuth: true,
+        title: "Drivers",
+        description: "Manage driver availability and assignment readiness.",
+      },
     },
     {
       path: "/fleet/devices",
       component: DevicesView,
-      meta: { requiresAuth: true },
+      meta: {
+        requiresAuth: true,
+        title: "Tracking devices",
+        description: "Connect devices and control active vehicle assignments.",
+      },
     },
     {
       path: "/admin/users",
       component: UsersAdminView,
-      meta: { requiresAuth: true, requiresAdmin: true },
+      meta: {
+        requiresAuth: true,
+        requiresAdmin: true,
+        title: "User administration",
+        description: "Provision role-aware access inside this organization.",
+      },
     },
     {
       path: "/admin/security",
       component: AdminSecurityView,
-      meta: { requiresAuth: true, requiresAdmin: true },
+      meta: {
+        requiresAuth: true,
+        requiresAdmin: true,
+        title: "Security & data",
+        description: "Control MFA, retention, export and tenant lifecycle.",
+      },
     },
     {
       path: "/admin/integrations",
       component: IntegrationsAdminView,
-      meta: { requiresAuth: true, requiresAdmin: true },
+      meta: {
+        requiresAuth: true,
+        requiresAdmin: true,
+        title: "Integrations",
+        description: "Manage scoped credentials, webhooks and data exchange.",
+      },
     },
   ],
 });

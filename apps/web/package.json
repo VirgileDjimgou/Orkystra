@@ -10,7 +10,8 @@
     "test:watch": "vitest",
     "lint": "eslint . --max-warnings 0",
     "format:check": "prettier --check .",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "e2e:install": "playwright install chromium"
   },
   "dependencies": {
     "@microsoft/signalr": "^10.0.0",

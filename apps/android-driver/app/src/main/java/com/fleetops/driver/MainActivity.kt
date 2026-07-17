@@ -32,6 +32,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -44,8 +46,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+
+private val DriverColorScheme = lightColorScheme(
+    primary = Color(0xFF0B6B5D),
+    onPrimary = Color.White,
+    primaryContainer = Color(0xFFD7F2E9),
+    onPrimaryContainer = Color(0xFF083D36),
+    secondary = Color(0xFF315E6B),
+    background = Color(0xFFF4F7F8),
+    surface = Color.White,
+    surfaceVariant = Color(0xFFEAF0F2),
+)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -74,11 +88,22 @@ private fun FleetOpsDriverApp(viewModel: DriverAppViewModel) {
         }
     }
 
-    MaterialTheme {
+    MaterialTheme(colorScheme = DriverColorScheme) {
         Scaffold(
+            containerColor = MaterialTheme.colorScheme.background,
             topBar = {
                 TopAppBar(
-                    title = { Text(if (state.isLoggedIn) "FleetOps Driver" else "Driver sign in") },
+                    title = {
+                        Column {
+                            Text(
+                                "ORKYSTRA",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.Bold,
+                            )
+                            Text(if (state.isLoggedIn) "Driver workspace" else "Secure sign in")
+                        }
+                    },
                     actions = {
                         if (state.isLoggedIn) {
                             TextButton(onClick = viewModel::signOut) {
@@ -86,6 +111,7 @@ private fun FleetOpsDriverApp(viewModel: DriverAppViewModel) {
                             }
                         }
                     },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White),
                 )
             },
             snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -122,15 +148,19 @@ private fun LoginScreen(
     onLogin: (String, String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var email by rememberSaveable { mutableStateOf("driver@northwind.local") }
-    var password by rememberSaveable { mutableStateOf("Driver123!") }
+    var email by rememberSaveable {
+        mutableStateOf(if (BuildConfig.DEBUG) "driver@northwind.local" else "")
+    }
+    var password by rememberSaveable {
+        mutableStateOf(if (BuildConfig.DEBUG) "Driver123!" else "")
+    }
 
     Surface(
         modifier = modifier
             .fillMaxSize()
             .background(
                 Brush.verticalGradient(
-                    colors = listOf(Color(0xFFF1F5F9), Color(0xFFDCEAF3)),
+                    colors = listOf(Color(0xFFF4F7F8), Color(0xFFE3F2EE)),
                 ),
             ),
     ) {
@@ -140,7 +170,7 @@ private fun LoginScreen(
                 .padding(24.dp),
             verticalArrangement = Arrangement.Center,
         ) {
-            Text("Offline-first driver cockpit", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+            Text("Your workday, ready offline", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
             Text(
                 "Sign in once, cache your missions on device, and sync route events when connectivity comes back.",
                 style = MaterialTheme.typography.bodyLarge,
@@ -161,6 +191,7 @@ private fun LoginScreen(
                     .fillMaxWidth()
                     .padding(top = 12.dp),
                 enabled = !isBusy,
+                visualTransformation = PasswordVisualTransformation(),
             )
             Button(
                 onClick = { onLogin(email, password) },
@@ -203,10 +234,38 @@ private fun MissionListScreen(
                 fontWeight = FontWeight.Bold,
             )
             Text(
-                text = "Routes stay readable offline and pending actions sync in the background.",
+                text = "Open the next mission, complete each action, and keep working when coverage drops.",
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(top = 4.dp, bottom = 12.dp),
             )
+        }
+
+        item {
+            val pendingCount = state.missions.count { it.syncState != MissionSyncState.Synced }
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = if (pendingCount == 0) Color(0xFFE8F5F0) else Color(0xFFFFF7E0),
+                ),
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 13.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Column {
+                        Text(
+                            if (pendingCount == 0) "Ready for offline work" else "$pendingCount item(s) waiting to sync",
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        Text(
+                            if (pendingCount == 0) "All visible missions are stored on this device." else "FleetOps will retry automatically.",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                    Text(if (pendingCount == 0) "SYNCED" else "PENDING", style = MaterialTheme.typography.labelSmall)
+                }
+            }
         }
 
         if (state.missions.isEmpty()) {
@@ -248,6 +307,12 @@ private fun MissionListScreen(
                     Text(
                         "Starts ${mission.scheduledStartUtc.toFriendlyDateTime()}",
                         style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(top = 10.dp),
+                    )
+                    Text(
+                        "Open mission  →",
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.padding(top = 10.dp),
                     )
                 }
@@ -304,6 +369,26 @@ private fun MissionDetailScreen(
             }
             Text("Vehicle: ${mission.vehicleRegistrationNumber ?: "Unassigned"}", modifier = Modifier.padding(top = 12.dp))
             Text("Window: ${mission.scheduledStartUtc.toFriendlyDateTime()} to ${mission.scheduledEndUtc.toFriendlyDateTime()}")
+        }
+
+        item {
+            val nextAction = mission.availableActions().firstOrNull()
+            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
+                Column(modifier = Modifier.padding(18.dp)) {
+                    Text("Next action", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                    Text(
+                        when (nextAction) {
+                            DriverMissionAction.Start -> "Complete the pre-departure check, then start the mission."
+                            DriverMissionAction.Arrive -> "Confirm arrival when the vehicle reaches the active stop."
+                            DriverMissionAction.Complete -> "Capture the delivery proof, then complete the mission."
+                            null -> "Review the mission record; there is no pending driver action."
+                        },
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                }
+            }
         }
 
         item {
@@ -388,9 +473,9 @@ private fun InspectionPanel(
 ) {
     Card(colors = CardDefaults.cardColors(containerColor = Color(0xFFEFF6FF))) {
         Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text("Sprint 06 demo inspection", style = MaterialTheme.typography.titleMedium)
+            Text("Pre-departure inspection", style = MaterialTheme.typography.titleMedium)
             Text(
-                "Queue a clean or blocking pre-departure inspection locally. Sync uploads the evidence first, then sends the inspection before any mission start command.",
+                "Record vehicle readiness before departure. The result stays queued safely until the network is available.",
                 style = MaterialTheme.typography.bodySmall,
             )
             Button(onClick = onCleanInspection, enabled = !isBusy, modifier = Modifier.fillMaxWidth()) {
@@ -409,15 +494,19 @@ private fun DeliveryProofPanel(
     isBusy: Boolean,
     onSubmitDeliveryProof: (String, String, String) -> Unit,
 ) {
-    var recipientName by rememberSaveable(mission.id) { mutableStateOf("Taylor Receiver") }
-    var signatureName by rememberSaveable(mission.id) { mutableStateOf("Taylor Receiver") }
+    var recipientName by rememberSaveable(mission.id) {
+        mutableStateOf(if (BuildConfig.DEBUG) "Taylor Receiver" else "")
+    }
+    var signatureName by rememberSaveable(mission.id) {
+        mutableStateOf(if (BuildConfig.DEBUG) "Taylor Receiver" else "")
+    }
     val targetStop = mission.stops.maxByOrNull { it.sequence }
 
     Card(colors = CardDefaults.cardColors(containerColor = Color(0xFFECFDF5))) {
         Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("Delivery proof", style = MaterialTheme.typography.titleMedium)
             Text(
-                "Capture a simple offline recipient proof. The demo media upload resumes from the stored offset until the server finalizes the asset.",
+                "Capture recipient details offline. Media uploads resume from the stored offset until the server finalizes the proof.",
                 style = MaterialTheme.typography.bodySmall,
             )
             Text(

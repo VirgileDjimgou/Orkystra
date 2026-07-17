@@ -1,10 +1,10 @@
-$ErrorActionPreference = "Stop"
-
 param(
   [string]$Database = "FleetOps",
   [string]$OutputPath = "",
   [string]$EnvFile = ".env"
 )
+
+$ErrorActionPreference = "Stop"
 
 function Get-DotEnvValue {
   param(

@@ -41,12 +41,16 @@ public static class DependencyInjection
                 options.Password.RequireUppercase = true;
                 options.Password.RequireLowercase = true;
                 options.Password.RequireNonAlphanumeric = false;
+                options.Lockout.AllowedForNewUsers = true;
+                options.Lockout.MaxFailedAccessAttempts = 5;
+                options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
             })
             .AddRoles<IdentityRole<Guid>>()
             .AddEntityFrameworkStores<FleetOpsDbContext>()
             .AddSignInManager()
             .AddDefaultTokenProviders();
         services.Configure<ObjectStorageOptions>(configuration.GetSection(ObjectStorageOptions.SectionName));
+        services.Configure<BootstrapOptions>(configuration.GetSection(BootstrapOptions.SectionName));
         services.Configure<AlertingOptions>(configuration.GetSection(AlertingOptions.SectionName));
         services.Configure<IntegrationOptions>(configuration.GetSection(IntegrationOptions.SectionName));
         services.AddSingleton<IPrivateMediaStorage, FileSystemPrivateMediaStorage>();

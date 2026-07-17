@@ -13,8 +13,11 @@ jobs:
         with:
           dotnet-version: '10.0.x'
       - run: dotnet restore FleetOps.slnx
+      - run: dotnet format FleetOps.slnx --verify-no-changes
       - run: dotnet build FleetOps.slnx --no-restore -c Release
-      - run: dotnet test FleetOps.slnx --no-build -c Release
+      - run: dotnet test FleetOps.slnx --no-build -c Release --filter "Category!=SqlServer"
+      - run: dotnet test tests/backend/FleetOps.UnitTests/FleetOps.UnitTests.csproj --no-build -c Release --filter "Category=SqlServer"
+      - run: dotnet list FleetOps.slnx package --vulnerable --include-transitive
 
   web:
     runs-on: ubuntu-latest
@@ -29,8 +32,21 @@ jobs:
           cache: npm
           cache-dependency-path: apps/web/package-lock.json
       - run: npm ci
+      - run: npm run format:check
+      - run: npm run lint
       - run: npm run test
       - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run e2e
+      - run: npm audit --omit=dev
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-e2e-artifacts
+          path: |
+            apps/web/playwright-report
+            apps/web/test-results
+          if-no-files-found: ignore
 
   android:
     runs-on: ubuntu-latest
@@ -49,4 +65,4 @@ jobs:
       - name: Android build
         run: |
           chmod +x ./gradlew
-          ./gradlew testDebugUnitTest assembleDebug
+          ./gradlew lintDebug testDebugUnitTest assembleDebug assembleDebugAndroidTest

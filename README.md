@@ -1,8 +1,8 @@
 # Orkystra FleetOps
 
-Orkystra FleetOps is a modular fleet operations MVP for small and mid-sized transport businesses. The platform covers the operational chain from identity and tenant isolation to vehicle tracking, dispatch execution, offline-capable driver workflows, proof of delivery, deterministic alerting, maintenance coordination, external integrations, and pilot-grade production readiness.
+Orkystra FleetOps is a modular fleet operations MVP for small and mid-sized transport businesses. The platform covers the operational chain from identity and tenant isolation to vehicle tracking, dispatch execution, offline-capable driver workflows, proof of delivery, deterministic alerting, maintenance coordination, external integrations, and pilot packaging.
 
-The repository currently delivers a complete Sprint 00 through Sprint 09 baseline:
+The repository currently delivers Sprint 00 through Sprint 10, an eleven-sprint functional and stabilization baseline:
 
 - reproducible local environment;
 - modular ASP.NET Core backend;
@@ -24,6 +24,8 @@ The repository currently delivers a complete Sprint 00 through Sprint 09 baselin
 - web alert center for scan triggering, assignment, acknowledgment, compliance setup, and odometer-driven maintenance configuration.
 - scoped API keys for partners and devices, SQL outbox-backed webhooks, sandbox receipts, OpenAPI exposure, and web administration for integrations;
 - administrator MFA with authenticator challenge, tenant export and controlled purge tooling, OpenTelemetry OTLP wiring, JSON logs, readiness checks, pilot container packaging, and SQL backup/restore scripts.
+
+The audit reviewed on Thursday, July 16, 2026 classifies this baseline as a usable MVP, not yet a production-ready product. Sprint 10 delivered fail-fast Production configuration, safe tenant bootstrap, login protection, recovery tooling, and the Web/Android UX foundation. Sprint 11 is now the active engineering sprint: it introduces SQL Server relational proof through Testcontainers, browser E2E coverage for the critical operator workflows, and Android instrumentation build coverage for offline persistence and WorkManager scheduling. The approved roadmap still adds exactly twenty evidence-gated sprints, Sprint 11 through Sprint 30, while keeping the mission–proof–exception core and the modular-monolith architecture. See the audit document, [`ROADMAP.md`](ROADMAP.md), and the active sprint file.
 
 ## Product Goal
 
@@ -589,7 +591,7 @@ The native driver surface keeps missions readable offline, reflects sync state e
 
 ## Demo Accounts
 
-The local seed creates isolated demo organizations and users.
+Development mode can explicitly seed isolated demo organizations and users through `Bootstrap:SeedDemoData=true`. Production rejects this setting, and release clients do not expose these credentials.
 
 | Organization | Role | Email | Password |
 |---|---|---|---|
@@ -687,6 +689,8 @@ $env:FLEETOPS_API_URL="http://10.0.2.2:5080/"
 
 ### 8. Pilot container deployment
 
+Before starting a new Production database, replace every placeholder in `.env`. `JWT_SIGNING_KEY` and `MEDIA_SIGNING_KEY` must be independent random values of at least 32 characters. The bootstrap organization/admin values are used only when the database has no organization; rotate the temporary administrator password immediately and enable MFA.
+
 ```powershell
 docker compose --env-file .env -f docker-compose.yml -f docker-compose.pilot.yml up -d --build
 ```
@@ -719,7 +723,7 @@ Restore a SQL backup:
 
 ## Quality Gate
 
-The repository includes a local quality gate that validates the complete Sprint 00 through Sprint 09 baseline:
+The repository includes a local quality gate that validates the baseline and the active Sprint 11 proof layers:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\quality-gate.ps1
@@ -730,24 +734,26 @@ It covers:
 - Git status visibility;
 - tool restore;
 - Docker Compose validation;
-- backend restore, format, build, and tests;
+- PowerShell recovery-script parsing;
+- backend restore, format, build, fast tests, and Docker-backed SQL tests;
 - GPS simulator dry-run;
-- web install, format, lint, tests, and build;
+- web install, format, lint, unit tests, build, browser provisioning, and Playwright E2E;
 - API health check;
 - API readiness check through the production boot path;
-- Android wrapper and Android build.
+- Android wrapper, lint, unit tests, debug build, and instrumentation APK build;
+- optional connected Android instrumentation when `FLEETOPS_ENABLE_ANDROID_CONNECTED=1` and an emulator or device is available.
 
 ## Validation Summary
 
 Current local validation includes:
 
 - backend build in `Release`;
-- backend tests including integration coverage for auth, roles, tokens, and tenant isolation;
+- backend tests including integration coverage for auth, roles, tokens, tenant isolation, and Sprint 11 SQL Server scenarios wired behind Docker-aware execution;
 - fleet registry unit and integration tests covering tenant isolation, role permissions, duplicate data, stale updates, CSV idempotency, and assignment invariants;
 - tracking unit and integration tests covering duplicate telemetry, out-of-order handling, paged history, tenant isolation, and multi-vehicle visibility;
 - dispatch domain and integration tests covering mission lifecycle, illegal transitions, tenant-safe assignment, schedule conflicts, and mission-to-map linkage;
 - driver mobile integration tests covering assigned-mission filtering, idempotent command sync, stale row-version conflicts, inspection blocking, resumable uploads, and proof visibility;
-- web tests, lint, format, and production build;
+- web tests, lint, format, production build, and four Playwright critical-flow scenarios covering login, dispatch progression, proof consultation, and tenant isolation;
 - web dispatch board coverage for mission rendering, assignment context, timeline visibility, and map linkage;
 - authenticated tracking endpoints, paged history, metrics, and SignalR hub;
 - alerting and maintenance tests covering deduplication, UTC handling, notification failure tolerance, role permissions, tenant isolation, and restart-safe re-scans;
@@ -756,8 +762,10 @@ Current local validation includes:
 - EF Core migrations for Sprint 01, Sprint 02, Sprint 03, Sprint 04, Sprint 05, Sprint 06, Sprint 07, and Sprint 08;
 - OpenTelemetry OTLP wiring and JSON logs for the API and worker runtime;
 - pilot Docker packaging plus SQL backup and restore scripts;
-- Android unit tests and debug assembly;
+- Android unit tests, debug assembly, and instrumentation APK compilation for Room-backed offline persistence and unique WorkManager scheduling tests;
 - full local quality gate.
+
+On Friday, July 17, 2026, the full local quality gate passed, but the workstation still could not start the Docker Desktop Linux engine. The three Docker-backed SQL Server tests are therefore implemented, compiled, and honestly skipped locally. Connected Android instrumentation also remains environment-dependent and is therefore compiled into the gate, while execution stays optional until an emulator or a device is attached.
 
 ## Engineering Notes
 
@@ -775,23 +783,20 @@ Admin/Operator and Driver workflows have different interaction models, offline r
 
 ## Roadmap Snapshot
 
-| Sprint | Focus |
+| Range | Outcome |
 |---|---|
-| 00 | Foundation, CI, local reproducibility |
-| 01 | Identity, organizations, roles, tenant isolation |
-| 02 | Fleet registry, drivers, devices |
-| 03 | Live tracking and simulation |
-| 04 | Dispatch and missions |
-| 05 | Android driver workflow |
-| 06 | Inspections and proof of delivery |
-| 07 | Alerts and maintenance |
-| 08 | Integrations and audit |
-| 09 | Production hardening and pilot |
+| Sprint 00–10 | Functional MVP baseline plus Production truth and UX stabilization |
+| Sprint 11 | Active sprint: SQL Server proof, recovery drill, Playwright critical flows, Android instrumentation baseline |
+| Sprint 12–15 | Security hardening, exception-driven operations, richer driver field workflow, tenant onboarding |
+| Sprint 16–20 | Media lifecycle, maintenance work orders, compliance campaigns, dispatch productivity, measured alpha pilot |
+| Sprint 21–25 | Tracking quality, telematics connectors, recipient status, reporting, integration hub |
+| Sprint 26–30 | Device support, retention and performance, design system, production assurance, commercial beta |
 
 ## Supporting Documentation
 
 - [ROADMAP.md](./ROADMAP.md)
 - [VALIDATION.md](./VALIDATION.md)
+- [docs/04-audit/2026-07-17-COMPLETE-AUDIT.md](./docs/04-audit/2026-07-17-COMPLETE-AUDIT.md)
 - [docs/01-architecture/ARCHITECTURE.md](./docs/01-architecture/ARCHITECTURE.md)
 - [docs/01-architecture/DOMAIN_MODEL.md](./docs/01-architecture/DOMAIN_MODEL.md)
 - [docs/02-engineering/ENGINEERING_STANDARDS.md](./docs/02-engineering/ENGINEERING_STANDARDS.md)
@@ -806,3 +811,5 @@ Admin/Operator and Driver workflows have different interaction models, offline r
 - [sprints/SPRINT-07-ALERTS-MAINTENANCE.md](./sprints/SPRINT-07-ALERTS-MAINTENANCE.md)
 - [sprints/SPRINT-08-INTEGRATIONS-AUDIT.md](./sprints/SPRINT-08-INTEGRATIONS-AUDIT.md)
 - [sprints/SPRINT-09-PRODUCTION-PILOT.md](./sprints/SPRINT-09-PRODUCTION-PILOT.md)
+- [sprints/SPRINT-10-PRODUCTION-TRUTH-UX.md](./sprints/SPRINT-10-PRODUCTION-TRUTH-UX.md)
+- [sprints/SPRINT-11-SQL-E2E-RECOVERY.md](./sprints/SPRINT-11-SQL-E2E-RECOVERY.md)

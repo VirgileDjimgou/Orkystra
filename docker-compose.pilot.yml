@@ -13,8 +13,14 @@ services:
       ASPNETCORE_URLS: http://+:8080
       FLEETOPS_WEB_URL: http://localhost:${FLEETOPS_WEB_PORT:-8081}
       ConnectionStrings__FleetOps: Server=sqlserver,1433;Database=FleetOps;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True
+      Jwt__SigningKey: ${JWT_SIGNING_KEY:-}
       ObjectStorage__RootPath: /var/opt/fleetops/private-media
-      ObjectStorage__MediaSigningKey: ${MEDIA_SIGNING_KEY:-FleetOps_Pilot_Signing_Key_Change_Me_123456789}
+      ObjectStorage__MediaSigningKey: ${MEDIA_SIGNING_KEY:-}
+      Bootstrap__SeedDemoData: "false"
+      Bootstrap__OrganizationName: ${BOOTSTRAP_ORGANIZATION_NAME:-}
+      Bootstrap__OrganizationSlug: ${BOOTSTRAP_ORGANIZATION_SLUG:-}
+      Bootstrap__AdminEmail: ${BOOTSTRAP_ADMIN_EMAIL:-}
+      Bootstrap__AdminPassword: ${BOOTSTRAP_ADMIN_PASSWORD:-}
       Tracking__RetentionDays: ${TRACKING_RETENTION_DAYS:-7}
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
     depends_on:
@@ -37,7 +43,7 @@ services:
       ConnectionStrings__FleetOps: Server=sqlserver,1433;Database=FleetOps;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True
       Alerting__WorkerScanIntervalMinutes: ${ALERT_SCAN_INTERVAL_MINUTES:-15}
       ObjectStorage__RootPath: /var/opt/fleetops/private-media
-      ObjectStorage__MediaSigningKey: ${MEDIA_SIGNING_KEY:-FleetOps_Pilot_Signing_Key_Change_Me_123456789}
+      ObjectStorage__MediaSigningKey: ${MEDIA_SIGNING_KEY:-}
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
     depends_on:
       sqlserver:

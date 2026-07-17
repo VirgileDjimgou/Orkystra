@@ -24,6 +24,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
@@ -32,6 +33,8 @@ using OpenTelemetry.Trace;
 var builder = WebApplication.CreateBuilder(args);
 var webOrigin = builder.Configuration["FLEETOPS_WEB_URL"] ?? "http://localhost:5183";
 var otlpEndpoint = builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"];
+
+ProductionConfigurationValidator.Validate(builder.Configuration, builder.Environment);
 
 builder.Services.AddOpenApi();
 builder.Logging.AddJsonConsole(options =>
@@ -148,6 +151,19 @@ builder.Services.AddAuthorization(options =>
 });
 builder.Services.AddRateLimiter(options =>
 {
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy("auth-login", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = Math.Max(
+                    1,
+                    builder.Configuration.GetValue("Security:LoginPermitLimit", 30)),
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
     options.AddFixedWindowLimiter("integration-admin", limiter =>
     {
         limiter.PermitLimit = 20;
@@ -174,7 +190,13 @@ await using (var scope = app.Services.CreateAsyncScope())
     var dbContext = scope.ServiceProvider.GetRequiredService<FleetOpsDbContext>();
     var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
     var userManager = scope.ServiceProvider.GetRequiredService<UserManager<FleetOps.Infrastructure.Identity.ApplicationUser>>();
-    await FleetOpsSeedData.EnsureSeededAsync(dbContext, roleManager, userManager, CancellationToken.None);
+    var bootstrapOptions = scope.ServiceProvider.GetRequiredService<IOptions<BootstrapOptions>>().Value;
+    await FleetOpsSeedData.EnsureSeededAsync(
+        dbContext,
+        roleManager,
+        userManager,
+        bootstrapOptions,
+        CancellationToken.None);
 }
 
 if (app.Environment.IsDevelopment())

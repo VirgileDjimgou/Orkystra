@@ -15,7 +15,7 @@ public static class AuthEndpointExtensions
     {
         var group = app.MapGroup("/api/auth");
 
-        group.MapPost("/login", LoginAsync);
+        group.MapPost("/login", LoginAsync).RequireRateLimiting("auth-login");
         group.MapGet("/me", GetCurrentUserAsync).RequireAuthorization();
 
         return app;
@@ -24,6 +24,7 @@ public static class AuthEndpointExtensions
     private static async Task<IResult> LoginAsync(
         LoginRequest request,
         UserManager<ApplicationUser> userManager,
+        SignInManager<ApplicationUser> signInManager,
         FleetOpsDbContext dbContext,
         IJwtTokenIssuer tokenIssuer,
         IAuditService auditService,
@@ -42,7 +43,16 @@ public static class AuthEndpointExtensions
             x => x.Email == normalizedEmail,
             cancellationToken);
 
-        if (user is null || !user.IsActive || !await userManager.CheckPasswordAsync(user, request.Password))
+        if (user is null || !user.IsActive)
+        {
+            return Results.Unauthorized();
+        }
+
+        var passwordResult = await signInManager.CheckPasswordSignInAsync(
+            user,
+            request.Password,
+            lockoutOnFailure: true);
+        if (!passwordResult.Succeeded)
         {
             return Results.Unauthorized();
         }

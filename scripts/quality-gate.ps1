@@ -40,11 +40,33 @@ try {
   Invoke-Step "Dotnet Tools" { dotnet tool restore }
   Invoke-Step "Docker Compose Config" { docker compose --env-file .env config --quiet }
   Invoke-Step "Pilot Compose Config" { docker compose --env-file .env -f docker-compose.yml -f docker-compose.pilot.yml config --quiet }
+  Invoke-Step "Recovery Script Parse" {
+    $parseFailures = [System.Collections.Generic.List[string]]::new()
+    foreach ($scriptPath in @("scripts\sql-backup.ps1", "scripts\sql-restore.ps1")) {
+      $tokens = $null
+      $errors = $null
+      [System.Management.Automation.Language.Parser]::ParseFile(
+        (Join-Path $root $scriptPath),
+        [ref]$tokens,
+        [ref]$errors) | Out-Null
+      foreach ($parseError in $errors) {
+        $parseFailures.Add("$scriptPath :: $($parseError.Message)")
+      }
+    }
+    if ($parseFailures.Count -gt 0) {
+      throw ($parseFailures -join [Environment]::NewLine)
+    }
+  }
 
   Invoke-Step "Backend Restore" { dotnet restore FleetOps.slnx }
   Invoke-Step "Backend Format" { dotnet format FleetOps.slnx --verify-no-changes }
   Invoke-Step "Backend Build" { dotnet build FleetOps.slnx --no-restore -c Release }
-  Invoke-Step "Backend Test" { dotnet test FleetOps.slnx --no-build -c Release }
+  Invoke-Step "Backend Test (Fast)" {
+    dotnet test FleetOps.slnx --no-build -c Release --filter "Category!=SqlServer"
+  }
+  Invoke-Step "Backend Test (SqlServer)" {
+    dotnet test tests/backend/FleetOps.UnitTests/FleetOps.UnitTests.csproj --no-build -c Release --filter "Category=SqlServer"
+  }
 
   Invoke-Step "GPS Dry Run" {
     $runtimeDir = Join-Path $root ".runtime"
@@ -91,6 +113,14 @@ try {
     Push-Location apps/web
     try { npm run build } finally { Pop-Location }
   }
+  Invoke-Step "Web E2E Browser" {
+    Push-Location apps/web
+    try { npx playwright install chromium } finally { Pop-Location }
+  }
+  Invoke-Step "Web E2E" {
+    Push-Location apps/web
+    try { npm run e2e } finally { Pop-Location }
+  }
 
   Invoke-Step "API Health Check" {
     $runtimeDir = Join-Path $root ".runtime"
@@ -106,10 +136,12 @@ try {
     $previousUrls = $env:ASPNETCORE_URLS
     $previousUseInMemory = $env:Testing__UseInMemoryDatabase
     $previousDatabaseName = $env:Testing__DatabaseName
+    $previousSeedDemoData = $env:Bootstrap__SeedDemoData
     $env:ASPNETCORE_ENVIRONMENT = "Development"
     $env:ASPNETCORE_URLS = "http://localhost:5080"
     $env:Testing__UseInMemoryDatabase = "true"
     $env:Testing__DatabaseName = "quality-gate-api"
+    $env:Bootstrap__SeedDemoData = "true"
     $process = Start-Process dotnet -ArgumentList @('exec', $apiDll) `
       -WorkingDirectory $root `
       -WindowStyle Hidden `
@@ -152,6 +184,7 @@ try {
       $env:ASPNETCORE_URLS = $previousUrls
       $env:Testing__UseInMemoryDatabase = $previousUseInMemory
       $env:Testing__DatabaseName = $previousDatabaseName
+      $env:Bootstrap__SeedDemoData = $previousSeedDemoData
     }
   }
 
@@ -169,7 +202,17 @@ try {
 
   Invoke-Step "Android Build" {
     Push-Location apps/android-driver
-    try { ./gradlew.bat testDebugUnitTest assembleDebug --stacktrace } finally { Pop-Location }
+    try { ./gradlew.bat lintDebug testDebugUnitTest assembleDebug assembleDebugAndroidTest --stacktrace } finally { Pop-Location }
+  }
+
+  if ($env:FLEETOPS_ENABLE_ANDROID_CONNECTED -eq "1") {
+    Invoke-Step "Android Connected Test" {
+      Push-Location apps/android-driver
+      try { ./gradlew.bat connectedDebugAndroidTest --stacktrace } finally { Pop-Location }
+    }
+  }
+  else {
+    $summary.Add("SKIPPED :: Android Connected Test (set FLEETOPS_ENABLE_ANDROID_CONNECTED=1 with an emulator or device)")
   }
 
   Write-Host "== Summary =="

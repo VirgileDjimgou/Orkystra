@@ -227,7 +227,7 @@ public sealed class DispatchIntegrationTests(FleetOpsApiFactory factory) : IClas
         await dbContext.Database.EnsureDeletedAsync();
         await dbContext.Database.EnsureCreatedAsync();
         metricsStore.ResetAll();
-        await FleetOpsSeedData.EnsureSeededAsync(dbContext, roleManager, userManager, CancellationToken.None);
+        await FleetOpsSeedData.EnsureSeededAsync(dbContext, roleManager, userManager, new BootstrapOptions { SeedDemoData = true }, CancellationToken.None);
     }
 
     private sealed record DriverAssignmentCandidate(Guid Id, string FullName, string LicenseNumber, string? PhoneNumber, bool IsActive, long RowVersion);

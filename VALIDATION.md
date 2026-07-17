@@ -1,17 +1,19 @@
 # Validation Status
 
-Validation replayed locally on `2026-07-16` on Windows.
+Validation replayed locally on `2026-07-17` on Windows.
 
 ## Verified
 
 - `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\quality-gate.ps1`
 - `dotnet build FleetOps.slnx -c Release`
-- `dotnet test FleetOps.slnx -c Release`
+- `dotnet test FleetOps.slnx -c Release --filter "Category!=SqlServer"`
+- `dotnet test tests/backend/FleetOps.UnitTests/FleetOps.UnitTests.csproj -c Release --filter "Category=SqlServer"`
 - `npm ci`
 - `npm run format:check`
 - `npm run lint`
 - `npm run test`
 - `npm run build`
+- `npm run e2e`
 - EF Core migration `Sprint01IdentityAndTenancy`
 - EF Core migration `Sprint02FleetRegistry`
 - EF Core migration `Sprint03TrackingSimulation`
@@ -20,7 +22,7 @@ Validation replayed locally on `2026-07-16` on Windows.
 - EF Core migration `Sprint06InspectionsProofs`
 - EF Core migration `Sprint07AlertsMaintenance`
 - EF Core migration `Sprint08IntegrationsAudit`
-- Android `testDebugUnitTest assembleDebug`
+- Android `lintDebug testDebugUnitTest assembleDebug assembleDebugAndroidTest`
 - authentication login flow and `/api/auth/me`
 - role enforcement for `Admin` versus `Operator`
 - tenant isolation on user administration and tracking endpoints
@@ -50,13 +52,17 @@ Validation replayed locally on `2026-07-16` on Windows.
 - Vue integrations console for credentials, webhooks, contracts, outbox, and CSV exchange
 - administrator MFA enablement, login challenge, tenant lifecycle export, and controlled purge flows
 - pilot compose packaging plus SQL backup and restore scripts
-- Android emulator refresh against the real driver API with screenshot evidence in `docs/assets/screenshots/`
+- Production configuration refusal for known signing keys/demo seed, safe bootstrap options, login rate limiting, and Identity lockout
+- PowerShell recovery-script parsing in the gate, 97 fast backend tests plus 3 Docker-backed SQL tests compiled and skipped locally without the Linux engine
+- 4 Playwright browser E2E scenarios against the real API and web client
+- Android instrumentation APK compilation for Room persistence and WorkManager scheduling tests
 
 ## Remaining limits
 
-- Docker Desktop is unstable on this workstation at the moment, so the quality gate uses the in-memory provider for the isolated API health-check path.
-- The Android application covers inspection/POD demo flows but still does not include native camera capture, biometric signature, or alert workflows.
+- Docker Desktop Linux engine is unavailable on this workstation, so the three Sprint 11 SQL Server tests are skipped locally even though the harness is implemented.
+- No Android emulator or device is currently attached, so `connectedDebugAndroidTest` is not executed locally.
+- The Android application still does not include native camera capture, biometric signature, or alert workflows.
 
 ## Conclusion
 
-Sprint 00 through Sprint 09 are complete locally. The repository now provides a reproducible foundation, a tenant-aware identity and authorization baseline, an operational fleet registry, a live multi-vehicle tracking flow with persisted history and SignalR updates, a dispatch mission board with audited execution states, an Android driver app with offline mission execution, inspections, delivery proof, private media uploads, a deterministic alerting plus light-maintenance control loop, a partner/device integration layer with immutable audit and signed webhooks, plus pilot-grade security, observability, packaging, tenant lifecycle governance, and recovery tooling.
+Sprint 00 through Sprint 10 remain complete locally. Sprint 11 is now in progress and already adds executable proof layers: Docker-aware SQL Server tests, four passing Playwright scenarios, and compiled Android instrumentation coverage. The repository remains honest about what is still environment-blocked on Friday, July 17, 2026: local Docker Linux execution for SQL/recovery and connected Android instrumentation.

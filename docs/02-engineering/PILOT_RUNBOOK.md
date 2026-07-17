@@ -14,10 +14,17 @@ This runbook defines the minimum operating routine for a FleetOps pilot environm
 
 ## Start the pilot stack
 
+1. Copy `.env.example` to `.env`.
+2. Replace `JWT_SIGNING_KEY` and `MEDIA_SIGNING_KEY` with two independent random values of at least 32 characters.
+3. For an empty database, set the bootstrap organization name/slug and temporary administrator credentials. The application refuses to seed demo accounts in Production.
+4. Restrict access to `.env`, start the stack, change the temporary password, and enable MFA.
+
 ```powershell
 Copy-Item .env.example .env
 docker compose --env-file .env -f docker-compose.yml -f docker-compose.pilot.yml up -d --build
 ```
+
+The API fails fast when the Production connection string or signing keys are missing, known development values, or otherwise unsafe.
 
 ## Readiness checks
 

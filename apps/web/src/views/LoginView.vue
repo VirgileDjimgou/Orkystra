@@ -1,12 +1,12 @@
 <template>
-  <div class="auth-page">
+  <div class="auth-page" :class="{ 'auth-page-single': !showDemoAccounts }">
     <section class="auth-panel">
       <div class="auth-copy">
         <span class="eyebrow">Fleet operations control</span>
         <h1>Secure access for every organization.</h1>
         <p>
-          Sign in with a seeded demo account to validate role-based access,
-          tenant isolation, admin MFA, and the production-hardening controls.
+          Sign in to coordinate missions, fleet readiness and operational
+          exceptions for your organization.
         </p>
       </div>
 
@@ -67,7 +67,7 @@
       </form>
     </section>
 
-    <aside class="demo-panel">
+    <aside v-if="showDemoAccounts" class="demo-panel">
       <h2>Demo accounts</h2>
       <div
         v-for="account in demoAccounts"
@@ -96,9 +96,10 @@ import { useSessionStore } from "../features/auth/store";
 
 const router = useRouter();
 const session = useSessionStore();
+const showDemoAccounts = import.meta.env.DEV;
 const form = reactive({
-  email: "admin@northwind.local",
-  password: "Admin123!",
+  email: showDemoAccounts ? "admin@northwind.local" : "",
+  password: showDemoAccounts ? "Admin123!" : "",
   twoFactorCode: "",
 });
 

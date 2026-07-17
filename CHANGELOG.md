@@ -6,6 +6,15 @@ Toutes les modifications fonctionnelles significatives sont documentées ici.
 
 ### Added
 
+- Sprint 11 SQL Server Testcontainers harness with migration, tenant-uniqueness, concurrency, and recovery coverage.
+- Playwright critical-flow suite for sign-in, dispatch progression, proof consultation, and tenant isolation.
+- Android instrumentation tests for Room offline persistence and unique WorkManager scheduling behavior.
+- Complete evidence-based product, architecture, security, QA, UX, and commercial audit.
+- Evidence-gated Sprint 00–30 roadmap preserving the eleven completed sprints and adding exactly twenty dense value sprints for reliability, operations, driver UX, maintenance, compliance, telematics, reporting, support, and commercial validation.
+- Safe first-organization bootstrap options for non-demo environments.
+- Responsive, role-aware Web navigation with contextual page headings, mobile drawer, keyboard focus, and reduced-motion support.
+- Android driver sync summary, next-action guidance, branded Material 3 theme, release-safe credential defaults, protected password rendering, and application icon.
+
 - Architecture initiale, roadmap, sprints et simulateur GPS minimal.
 - Multi-tenant identity baseline with organizations, roles, JWT authentication, audit logs, and seeded demo users.
 - Admin-only user management shell for the Vue application.
@@ -22,6 +31,13 @@ Toutes les modifications fonctionnelles significatives sont documentées ici.
 - Production hardening and pilot readiness with administrator MFA, tenant lifecycle export/purge, OTLP observability, readiness checks, pilot Docker packaging, and SQL backup/restore scripts.
 
 ### Changed
+
+- Sprint 11 is now the active sprint in the agent state, handoff, validation, and roadmap governance files.
+- Local and CI quality gates now distinguish fast backend checks, Docker-backed SQL tests, Playwright browser E2E, and Android instrumentation APK compilation.
+- Production now rejects known or missing JWT/media signing keys, local connection defaults, and demo-data seeding.
+- Login now uses per-address rate limiting and ASP.NET Identity lockout tracking.
+- SQL backup/restore PowerShell scripts parse correctly and the quality gate validates them.
+- CI and the local gate now include stricter format, lint, dependency, recovery-script, and Android lint checks.
 
 - Validation locale Sprint 00 réalisée pour Docker, backend .NET, EF Core, Web et simulateur GPS.
 - Migration EF Core initiale ajoutée et appliquée sur SQL Server local.
