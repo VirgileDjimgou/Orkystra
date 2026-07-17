@@ -15,7 +15,7 @@ This runbook defines the minimum operating routine for a FleetOps pilot environm
 ## Start the pilot stack
 
 1. Copy `.env.example` to `.env`.
-2. Replace `JWT_SIGNING_KEY` and `MEDIA_SIGNING_KEY` with two independent random values of at least 32 characters.
+2. Replace `JWT_SIGNING_KEY`, `MEDIA_SIGNING_KEY`, MinIO credentials, and `MINIO_KMS_SECRET_KEY` with independent random values.
 3. For an empty database, set the bootstrap organization name/slug and temporary administrator credentials. The application refuses to seed demo accounts in Production.
 4. Restrict access to `.env`, start the stack, change the temporary password, and enable MFA.
 
@@ -25,6 +25,18 @@ docker compose --env-file .env -f docker-compose.yml -f docker-compose.pilot.yml
 ```
 
 The API fails fast when the Production connection string or signing keys are missing, known development values, or otherwise unsafe.
+
+## Private media migration and rollback
+
+Production uses the private `fleetops-private-media` S3 bucket. The bucket initializer keeps anonymous access disabled, and object writes request server-side encryption. Before switching an environment with existing filesystem media, keep the legacy volume mounted and run:
+
+```powershell
+docker compose --env-file .env -f docker-compose.yml -f docker-compose.pilot.yml run --rm worker --migrate-media
+```
+
+The JSON report records migrated, already migrated, and failed assets. Re-run the command until `errors` is zero, then exercise an authenticated proof download. Source files remain untouched for rollback. Restore `ObjectStorage__Provider=FileSystem` only while SQL metadata still references the legacy keys; after migration, rollback requires restoring the matching pre-migration SQL backup and filesystem volume together.
+
+The worker revokes and deletes retained media only after its configured retention date. It also removes expired temporary, quarantined, and unpublished objects. Tenant export includes media checksums, retention dates, and revocation state; SQL backup and restore therefore recover the authoritative media manifest, while the object volume requires its own infrastructure backup policy.
 
 ## Readiness checks
 

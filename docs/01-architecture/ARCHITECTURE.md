@@ -21,7 +21,11 @@ GPS Simulator/Devices ──┘          │             │
 
 ## Modules
 
-Identity, Organizations, Fleet, Tracking, Dispatch, Inspections, Documents, Alerts, Integrations et Audit.
+Identity, Organizations, Fleet, Tracking, Dispatch, Inspections, Media, Documents, Alerts, Integrations et Audit.
+
+## Médias privés
+
+L’API publie les preuves uniquement après reprise complète, contrôle de contenu et checksum SHA-256. En Production, l’adaptateur S3 compatible MinIO écrit dans un bucket privé avec des clés opaques préfixées par tenant et demande le chiffrement côté serveur. SQL conserve le manifeste autoritatif (tenant, checksum, rétention et révocation), tandis que le Worker applique la suppression différée et nettoie les objets abandonnés. Les capacités de lecture sont courtes, liées au tenant authentifié et restent révocables côté serveur.
 
 ## Simplicité volontaire
 

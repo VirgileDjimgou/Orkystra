@@ -14,6 +14,11 @@ services:
       FLEETOPS_WEB_URL: http://localhost:${FLEETOPS_WEB_PORT:-8081}
       ConnectionStrings__FleetOps: Server=sqlserver,1433;Database=FleetOps;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True
       Jwt__SigningKey: ${JWT_SIGNING_KEY:-}
+      ObjectStorage__Provider: S3
+      ObjectStorage__ServiceUrl: http://minio:9000
+      ObjectStorage__BucketName: fleetops-private-media
+      ObjectStorage__AccessKey: ${MINIO_ACCESS_KEY}
+      ObjectStorage__SecretKey: ${MINIO_SECRET_KEY}
       ObjectStorage__RootPath: /var/opt/fleetops/private-media
       ObjectStorage__MediaSigningKey: ${MEDIA_SIGNING_KEY:-}
       Bootstrap__SeedDemoData: "false"
@@ -27,7 +32,9 @@ services:
       sqlserver:
         condition: service_healthy
       minio:
-        condition: service_started
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
       mosquitto:
         condition: service_started
     ports:
@@ -42,6 +49,11 @@ services:
     environment:
       ConnectionStrings__FleetOps: Server=sqlserver,1433;Database=FleetOps;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True
       Alerting__WorkerScanIntervalMinutes: ${ALERT_SCAN_INTERVAL_MINUTES:-15}
+      ObjectStorage__Provider: S3
+      ObjectStorage__ServiceUrl: http://minio:9000
+      ObjectStorage__BucketName: fleetops-private-media
+      ObjectStorage__AccessKey: ${MINIO_ACCESS_KEY}
+      ObjectStorage__SecretKey: ${MINIO_SECRET_KEY}
       ObjectStorage__RootPath: /var/opt/fleetops/private-media
       ObjectStorage__MediaSigningKey: ${MEDIA_SIGNING_KEY:-}
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
@@ -50,6 +62,8 @@ services:
         condition: service_healthy
       api:
         condition: service_started
+      minio-init:
+        condition: service_completed_successfully
     volumes:
       - private-media:/var/opt/fleetops/private-media
 

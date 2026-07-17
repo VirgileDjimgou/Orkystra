@@ -2,7 +2,7 @@
 
 Orkystra FleetOps is a modular fleet operations MVP for small and mid-sized transport businesses. The platform covers the operational chain from identity and tenant isolation to vehicle tracking, dispatch execution, offline-capable driver workflows, proof of delivery, deterministic alerting, exception-driven operator work, maintenance coordination, external integrations, and pilot packaging.
 
-The repository currently delivers Sprint 00 through Sprint 15, giving the product a sixteen-sprint functional, recovery, end-to-end validation, session-security, operator-productivity, field-execution, and tenant-activation baseline:
+The repository currently delivers Sprint 00 through Sprint 16, giving the product a seventeen-sprint functional, recovery, end-to-end validation, security, field-execution, tenant-activation, and private-media-resilience baseline:
 
 - reproducible local environment;
 - modular ASP.NET Core backend;
@@ -28,11 +28,12 @@ The repository currently delivers Sprint 00 through Sprint 15, giving the produc
 - protected Web sessions using HttpOnly/SameSite cookies and CSRF tokens held only in memory, with server-side rotation and revocation;
 - Android Keystore-backed credential encryption with a non-destructive Room 2-to-3 migration that removes the access token column;
 - configurable media size, type, signature, and malware-test scanning with pre-publication quarantine.
+- production S3-compatible private media storage, tenant-bound short-lived read capabilities, checksum verification, and retention cleanup.
 - CameraX delivery and inspection capture with a permission-free system photo-picker fallback, controlled JPEG compression, and handwritten signature capture.
 - a durable mobile proof queue that preserves image bytes, upload offsets, and immutable command identifiers across app process restarts.
 - administrator-guided tenant activation with resumable CSV preview and confirmation, role-aware invitations, one-use Android pairing codes, removable sample data, readiness checks, privacy-minimal diagnostics, and activation metrics.
 
-The audit reviewed on Thursday, July 16, 2026 classifies this baseline as a usable MVP, not yet a production-ready product. Sprint 10 delivered fail-fast Production configuration, safe tenant bootstrap, login protection, recovery tooling, and the Web/Android UX foundation. Sprint 11 proved SQL Server migrations, relational constraints, optimistic concurrency, backup/restore checksum preservation, critical browser workflows, and Android offline instrumentation. Sprint 12 hardened sessions, authorization, sensitive uploads, and client credential storage before pilot data is admitted. Sprints 13 and 14 made exception handling and driver field execution operational; Sprint 15 now provides a guided path from an empty tenant to first mission value. The approved roadmap contains twenty evidence-gated delivery sprints, Sprint 11 through Sprint 30, while keeping the mission–proof–exception core and modular-monolith architecture.
+The audit reviewed on Thursday, July 16, 2026 classifies this baseline as a usable MVP, not yet a production-ready product. Sprint 10 delivered fail-fast Production configuration, safe tenant bootstrap, login protection, recovery tooling, and the Web/Android UX foundation. Sprint 11 proved SQL Server migrations, relational constraints, optimistic concurrency, backup/restore checksum preservation, critical browser workflows, and Android offline instrumentation. Sprint 12 hardened sessions, authorization, sensitive uploads, and client credential storage before pilot data is admitted. Sprints 13 and 14 made exception handling and driver field execution operational; Sprint 15 provides a guided path from an empty tenant to first mission value, and Sprint 16 makes field evidence private, object-backed, checksum-verified, migratable, and retention-aware. The approved roadmap contains twenty evidence-gated delivery sprints, Sprint 11 through Sprint 30, while keeping the mission–proof–exception core and modular-monolith architecture.
 
 ## Product Goal
 
@@ -64,7 +65,7 @@ flowchart LR
     Api --> ObjectStore["Object Storage"]
     Api --> Mqtt["MQTT (device edge only)"]
     Worker["Background Worker"] --> Db
-    Worker --> Api
+    Worker --> ObjectStore
     Api --> OTel["OpenTelemetry / OTLP"]
     Worker --> OTel
 ```
@@ -629,10 +630,11 @@ flowchart LR
 
 ### Storage and Media
 
-- `Private filesystem-backed object storage abstraction`
-- `Signed download URLs`
-- `Chunked resumable upload sessions`
+- `S3-compatible private object storage in Production; filesystem adapter for development and rollback`
+- `Tenant-bound, authenticated download capabilities with a maximum 15-minute lifetime`
+- `Idempotent resumable upload sessions with SHA-256 verification and atomic publication`
 - `Magic-byte content validation, configurable malware-signature scanning, and quarantine`
+- `Worker-backed retention, deferred deletion, and cleanup of abandoned temporary, quarantine, and publication objects`
 
 ### Tooling and Infrastructure
 
@@ -801,10 +803,16 @@ $env:FLEETOPS_API_URL="http://10.0.2.2:5080/"
 
 ### 8. Pilot container deployment
 
-Before starting a new Production database, replace every placeholder in `.env`. `JWT_SIGNING_KEY` and `MEDIA_SIGNING_KEY` must be independent random values of at least 32 characters. The bootstrap organization/admin values are used only when the database has no organization; rotate the temporary administrator password immediately and enable MFA.
+Before starting a new Production database, replace every placeholder in `.env`. `JWT_SIGNING_KEY` and `MEDIA_SIGNING_KEY` must be independent random values of at least 32 characters; MinIO credentials and `MINIO_KMS_SECRET_KEY` must also be independently generated. The bootstrap organization/admin values are used only when the database has no organization; rotate the temporary administrator password immediately and enable MFA.
 
 ```powershell
 docker compose --env-file .env -f docker-compose.yml -f docker-compose.pilot.yml up -d --build
+```
+
+Existing filesystem media must be copied and checksum-verified before the API switches its reads to S3. The command is replayable and never deletes the filesystem source:
+
+```powershell
+docker compose --env-file .env -f docker-compose.yml -f docker-compose.pilot.yml run --rm worker --migrate-media
 ```
 
 Pilot defaults:

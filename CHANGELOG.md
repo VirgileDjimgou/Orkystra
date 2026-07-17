@@ -6,6 +6,9 @@ Toutes les modifications fonctionnelles significatives sont documentées ici.
 
 ### Added
 
+- Sprint 16 S3-compatible private media storage with bucket-scoped credentials, server-side encryption requests, opaque tenant keys, durable SHA-256 manifests, and Production fail-fast configuration.
+- Tenant-authorized short-lived media capabilities, audited logical revocation, deferred retention deletion, quarantine and abandoned-object cleanup, tenant export metadata, and SQL recovery coverage.
+- Replayable filesystem-to-object migration through the Worker with per-asset JSON reporting, checksum verification, idempotent retries, and source-preserving rollback.
 - Sprint 15 guided tenant activation with resumable CSV preview/confirmation, line-level validation, idempotent imports, role invitations linked to driver profiles, short-lived one-use Android pairing, removable sample data, readiness diagnostics, and privacy-minimal activation metrics.
 - Tenant-scoped onboarding persistence and EF Core migrations for import sessions, invitation and pairing concurrency, activation events, and exact sample-data cleanup.
 - Web and Playwright coverage for empty-tenant activation through first completed mission value, plus Android pairing entry and connected-device validation.

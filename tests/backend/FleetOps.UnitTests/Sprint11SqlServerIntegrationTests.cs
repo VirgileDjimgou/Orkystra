@@ -6,6 +6,7 @@ using FleetOps.Api.Dispatch;
 using FleetOps.Core.Modules.Dispatch;
 using FleetOps.Core.Modules.Fleet;
 using FleetOps.Core.Modules.Integrations;
+using FleetOps.Core.Modules.Operations;
 using FleetOps.Infrastructure.Identity;
 using FleetOps.Infrastructure.Persistence;
 using FleetOps.UnitTests.Infrastructure;
@@ -114,6 +115,7 @@ public sealed class Sprint11SqlServerIntegrationTests(FleetOpsSqlServerApiFactor
         Assert.Equal(before.OutboxCount, after.OutboxCount);
         Assert.Equal(before.VehicleCount, after.VehicleCount);
         Assert.Equal(before.TimelineCount, after.TimelineCount);
+        Assert.Equal(before.MediaCount, after.MediaCount);
     }
 
     private async Task SeedRecoveryScenarioAsync()
@@ -148,6 +150,15 @@ public sealed class Sprint11SqlServerIntegrationTests(FleetOpsSqlServerApiFactor
             assigned.Id.ToString(),
             $$"""{"reference":"{{assigned.Reference}}","status":"{{assigned.Status}}"}""",
             DateTimeOffset.UtcNow));
+
+        dbContext.MediaAssets.Add(new MediaAsset(
+            organization.Id,
+            $"tenants/{organization.Id:N}/media/{Guid.NewGuid():N}",
+            "recovery-proof.jpg",
+            "image/jpeg",
+            1024,
+            new string('a', 64),
+            DateTimeOffset.UtcNow.AddDays(365)));
 
         await dbContext.SaveChangesAsync();
     }
@@ -200,6 +211,9 @@ public sealed class Sprint11SqlServerIntegrationTests(FleetOpsSqlServerApiFactor
         var timelines = await ReadValuesAsync(
             connectionString,
             "SELECT Description FROM MissionTimelineEvents ORDER BY OccurredAtUtc, Description;");
+        var media = await ReadValuesAsync(
+            connectionString,
+            "SELECT StorageKey + ':' + ChecksumSha256 + ':' + CONVERT(nvarchar(33), RetainUntilUtc, 127) + ':' + CAST(IsReadRevoked AS nvarchar(1)) FROM MediaAssets ORDER BY StorageKey;");
 
         var payload = string.Join(
             "|",
@@ -209,6 +223,7 @@ public sealed class Sprint11SqlServerIntegrationTests(FleetOpsSqlServerApiFactor
                 string.Join(",", vehicles),
                 string.Join(",", outbox),
                 string.Join(",", timelines),
+                string.Join(",", media),
             ]);
 
         return new BusinessSnapshot(
@@ -217,7 +232,8 @@ public sealed class Sprint11SqlServerIntegrationTests(FleetOpsSqlServerApiFactor
             missions.Count,
             vehicles.Count,
             outbox.Count,
-            timelines.Count);
+            timelines.Count,
+            media.Count);
     }
 
     private static async Task<MissionDetailResponse> ProgressMissionToAssignedAsync(HttpClient client, MissionDetailResponse mission)
@@ -299,5 +315,6 @@ public sealed class Sprint11SqlServerIntegrationTests(FleetOpsSqlServerApiFactor
         int MissionCount,
         int VehicleCount,
         int OutboxCount,
-        int TimelineCount);
+        int TimelineCount,
+        int MediaCount);
 }

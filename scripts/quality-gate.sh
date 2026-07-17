@@ -28,10 +28,17 @@ run_step "Git Status" git status --short --branch
 run_step "Dotnet Tools" dotnet tool restore
 run_step "Docker Compose Config" docker compose --env-file .env config --quiet
 run_step "Pilot Compose Config" docker compose --env-file .env -f docker-compose.yml -f docker-compose.pilot.yml config --quiet
+run_step "Private Object Storage" docker compose --env-file .env up -d --wait minio
+run_step "Private Object Storage Bucket" docker compose --env-file .env run --rm --no-deps minio-init
+MINIO_PORT_VALUE="$(sed -n 's/^MINIO_PORT=//p' .env | tail -1)"
+export FLEETOPS_TEST_MINIO_ENDPOINT="http://localhost:${MINIO_PORT_VALUE:-9000}"
+export FLEETOPS_TEST_MINIO_ACCESS_KEY="$(sed -n 's/^MINIO_ACCESS_KEY=//p' .env | tail -1)"
+export FLEETOPS_TEST_MINIO_SECRET_KEY="$(sed -n 's/^MINIO_SECRET_KEY=//p' .env | tail -1)"
 run_step "Backend Restore" dotnet restore FleetOps.slnx
 run_step "Backend Format" dotnet format FleetOps.slnx --verify-no-changes
 run_step "Backend Build" dotnet build FleetOps.slnx --no-restore -c Release
-run_step "Backend Test (Fast)" dotnet test FleetOps.slnx --no-build -c Release --filter "Category!=SqlServer"
+run_step "Backend Test (Fast)" dotnet test FleetOps.slnx --no-build -c Release --filter "Category!=SqlServer&Category!=Minio"
+run_step "Backend Test (MinIO)" dotnet test tests/backend/FleetOps.UnitTests/FleetOps.UnitTests.csproj --no-build -c Release --filter "Category=Minio"
 run_step "Backend Test (SqlServer)" dotnet test tests/backend/FleetOps.UnitTests/FleetOps.UnitTests.csproj --no-build -c Release --filter "Category=SqlServer"
 run_step "GPS Dry Run" bash -lc 'mkdir -p .runtime; gps_dll="simulators/GpsSimulator/bin/Release/net10.0/GpsSimulator.dll"; [[ -f "$gps_dll" ]]; tmp_log=".runtime/quality-gps.log"; rm -f "$tmp_log" ".runtime/quality-gps.err"; timeout 5s dotnet exec "$gps_dll" --dry-run >"$tmp_log" 2>".runtime/quality-gps.err" || true; grep -q "\"VehicleId\"" "$tmp_log"'
 run_step "Web Install" bash -lc 'cd apps/web && npm ci'

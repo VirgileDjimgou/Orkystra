@@ -4,6 +4,7 @@ using FleetOps.Api.Security;
 using FleetOps.Api.Tracking;
 using FleetOps.Core.Modules.Identity;
 using FleetOps.Core.Modules.Integrations;
+using FleetOps.Core.Modules.Operations;
 using FleetOps.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
@@ -343,7 +344,11 @@ public static class DataLifecycleEndpointExtensions
                         x.FileName,
                         x.ContentType,
                         x.SizeBytes,
-                        x.StorageKey
+                        x.StorageKey,
+                        x.ChecksumSha256,
+                        x.RetainUntilUtc,
+                        x.IsReadRevoked,
+                        x.ReadRevokedAtUtc
                     })
                     .ToListAsync(cancellationToken),
                 uploadSessions = await dbContext.MediaUploadSessions.AsNoTracking()
@@ -358,6 +363,7 @@ public static class DataLifecycleEndpointExtensions
                         x.ContentType,
                         x.TotalBytes,
                         x.UploadedBytes,
+                        x.ContentChecksumSha256,
                         x.ExpiresAtUtc,
                         x.IsCompleted,
                         x.MediaAssetId
@@ -509,6 +515,7 @@ public static class DataLifecycleEndpointExtensions
         FleetOpsDbContext dbContext,
         ICurrentTenantAccessor currentTenantAccessor,
         IAuditService auditService,
+        IPrivateMediaStorage mediaStorage,
         CancellationToken cancellationToken)
     {
         var tenant = currentTenantAccessor.GetRequiredTenant(httpContext.User);
@@ -564,7 +571,7 @@ public static class DataLifecycleEndpointExtensions
             {
                 "tracking-history" => await PurgeTrackingHistoryAsync(dbContext, tenant.OrganizationId, request.CutoffUtc, cancellationToken),
                 "integration-history" => await PurgeIntegrationHistoryAsync(dbContext, tenant.OrganizationId, request.CutoffUtc, cancellationToken),
-                "upload-sessions" => await PurgeUploadSessionsAsync(dbContext, tenant.OrganizationId, request.CutoffUtc, cancellationToken),
+                "upload-sessions" => await PurgeUploadSessionsAsync(dbContext, mediaStorage, tenant.OrganizationId, request.CutoffUtc, cancellationToken),
                 _ => 0
             };
 
@@ -636,6 +643,7 @@ public static class DataLifecycleEndpointExtensions
 
     private static async Task<int> PurgeUploadSessionsAsync(
         FleetOpsDbContext dbContext,
+        IPrivateMediaStorage mediaStorage,
         Guid organizationId,
         DateTimeOffset cutoffUtc,
         CancellationToken cancellationToken)
@@ -643,6 +651,15 @@ public static class DataLifecycleEndpointExtensions
         var sessions = await dbContext.MediaUploadSessions
             .Where(x => x.OrganizationId == organizationId && x.ExpiresAtUtc < cutoffUtc)
             .ToListAsync(cancellationToken);
+
+        foreach (var session in sessions)
+        {
+            await mediaStorage.DeleteAsync(session.TempStorageKey, cancellationToken);
+            if (!session.IsCompleted)
+                await mediaStorage.DeleteAsync($"tenants/{organizationId:N}/media/{session.Id:N}", cancellationToken);
+            if (session.ScanDisposition == UploadedContentDisposition.Quarantine)
+                await mediaStorage.DeleteAsync($"tenants/{organizationId:N}/quarantine/{session.Id:N}", cancellationToken);
+        }
 
         dbContext.MediaUploadSessions.RemoveRange(sessions);
         return sessions.Count;

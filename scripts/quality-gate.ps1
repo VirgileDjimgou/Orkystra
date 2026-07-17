@@ -40,6 +40,18 @@ try {
   Invoke-Step "Dotnet Tools" { dotnet tool restore }
   Invoke-Step "Docker Compose Config" { docker compose --env-file .env config --quiet }
   Invoke-Step "Pilot Compose Config" { docker compose --env-file .env -f docker-compose.yml -f docker-compose.pilot.yml config --quiet }
+  Invoke-Step "Private Object Storage" {
+    docker compose --env-file .env up -d --wait minio
+    docker compose --env-file .env run --rm --no-deps minio-init
+    $localEnvironment = @{}
+    foreach ($line in Get-Content .env) {
+      if ($line -match '^([^#=]+)=(.*)$') { $localEnvironment[$matches[1]] = $matches[2] }
+    }
+    $minioPort = if ($localEnvironment['MINIO_PORT']) { $localEnvironment['MINIO_PORT'] } else { '9000' }
+    $env:FLEETOPS_TEST_MINIO_ENDPOINT = "http://localhost:$minioPort"
+    $env:FLEETOPS_TEST_MINIO_ACCESS_KEY = $localEnvironment['MINIO_ACCESS_KEY']
+    $env:FLEETOPS_TEST_MINIO_SECRET_KEY = $localEnvironment['MINIO_SECRET_KEY']
+  }
   Invoke-Step "Recovery Script Parse" {
     $parseFailures = [System.Collections.Generic.List[string]]::new()
     foreach ($scriptPath in @("scripts\sql-backup.ps1", "scripts\sql-restore.ps1")) {
@@ -62,7 +74,10 @@ try {
   Invoke-Step "Backend Format" { dotnet format FleetOps.slnx --verify-no-changes }
   Invoke-Step "Backend Build" { dotnet build FleetOps.slnx --no-restore -c Release }
   Invoke-Step "Backend Test (Fast)" {
-    dotnet test FleetOps.slnx --no-build -c Release --filter "Category!=SqlServer"
+    dotnet test FleetOps.slnx --no-build -c Release --filter "Category!=SqlServer&Category!=Minio"
+  }
+  Invoke-Step "Backend Test (MinIO)" {
+    dotnet test tests/backend/FleetOps.UnitTests/FleetOps.UnitTests.csproj --no-build -c Release --filter "Category=Minio"
   }
   Invoke-Step "Backend Test (SqlServer)" {
     dotnet test tests/backend/FleetOps.UnitTests/FleetOps.UnitTests.csproj --no-build -c Release --filter "Category=SqlServer"

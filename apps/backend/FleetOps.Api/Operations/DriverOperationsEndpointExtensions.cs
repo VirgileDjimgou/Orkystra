@@ -6,6 +6,7 @@ using FleetOps.Core.Modules.Dispatch;
 using FleetOps.Core.Modules.Identity;
 using FleetOps.Core.Modules.Operations;
 using FleetOps.Infrastructure.Persistence;
+using FleetOps.Infrastructure.Storage;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -401,7 +402,7 @@ public static class DriverOperationsEndpointExtensions
                 request.ContentType,
                 request.TotalBytes,
                 DateTimeOffset.UtcNow.AddHours(1),
-                $"{tenant.OrganizationId:D}/temp/{Guid.NewGuid():D}.bin");
+                $"tenants/{tenant.OrganizationId:N}/temp/{Guid.NewGuid():N}");
         }
         catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or ArgumentOutOfRangeException)
         {
@@ -462,6 +463,17 @@ public static class DriverOperationsEndpointExtensions
         }
         try
         {
+            if (request.Offset < session.UploadedBytes)
+            {
+                await storage.AppendAsync(session.TempStorageKey, request.Offset, bytes, cancellationToken);
+                return Results.Ok(ToUploadSessionResponse(session));
+            }
+
+            if (request.Offset != session.UploadedBytes)
+            {
+                throw new InvalidOperationException($"Upload offset mismatch. Expected {session.UploadedBytes} bytes, received {request.Offset}.");
+            }
+
             await storage.AppendAsync(session.TempStorageKey, request.Offset, bytes, cancellationToken);
             session.Advance(bytes.LongLength);
             await dbContext.SaveChangesAsync(cancellationToken);
@@ -491,6 +503,7 @@ public static class DriverOperationsEndpointExtensions
         ICurrentTenantAccessor currentTenantAccessor,
         IPrivateMediaStorage storage,
         IUploadedContentScanner contentScanner,
+        IOptions<ObjectStorageOptions> objectStorageOptions,
         IMediaUrlSigner signer,
         IAuditService auditService,
         CancellationToken cancellationToken)
@@ -518,11 +531,16 @@ public static class DriverOperationsEndpointExtensions
                 existingAsset.FileName,
                 existingAsset.ContentType,
                 existingAsset.SizeBytes,
-                signer.CreateReadUrl(existingAsset.Id, TimeSpan.FromMinutes(30))));
+                signer.CreateReadUrl(existingAsset.Id, existingAsset.OrganizationId, TimeSpan.FromMinutes(10))));
         }
 
         if (session.ScanDisposition == UploadedContentDisposition.Quarantine)
         {
+            var quarantineKey = $"tenants/{tenant.OrganizationId:N}/quarantine/{session.Id:N}";
+            if (await storage.GetLengthAsync(session.TempStorageKey, cancellationToken) > 0)
+            {
+                await storage.MoveAsync(session.TempStorageKey, quarantineKey, cancellationToken);
+            }
             return Results.Problem(
                 title: "Upload quarantined",
                 detail: "This upload failed content validation and cannot be published.",
@@ -531,44 +549,62 @@ public static class DriverOperationsEndpointExtensions
 
         try
         {
-            var (content, _, _) = await storage.OpenReadAsync(
-                session.TempStorageKey,
-                session.ContentType,
-                session.FileName,
-                cancellationToken);
-            UploadedContentScanResult scanResult;
-            await using (content)
+            if (session.ScanDisposition != UploadedContentDisposition.Clean || session.ContentChecksumSha256 is null)
             {
-                scanResult = await contentScanner.ScanAsync(content, session.ContentType, cancellationToken);
-                session.RecordScan(scanResult);
-            }
-
-            if (scanResult.Disposition == UploadedContentDisposition.Quarantine)
-            {
-                var quarantineKey = $"{tenant.OrganizationId:D}/quarantine/{session.Id:D}.bin";
-                await storage.MoveAsync(session.TempStorageKey, quarantineKey, cancellationToken);
-                await dbContext.SaveChangesAsync(cancellationToken);
-                await auditService.WriteAsync(
-                    tenant.OrganizationId,
-                    tenant.UserId,
-                    "media.upload_quarantined",
-                    "upload_session",
-                    session.Id.ToString(),
-                    new { session.Purpose, session.ContentType, session.TotalBytes, scanResult.Reason },
+                var (content, _, _) = await storage.OpenReadAsync(
+                    session.TempStorageKey,
+                    session.ContentType,
+                    session.FileName,
                     cancellationToken);
-                return Results.Problem(
-                    title: "Upload quarantined",
-                    detail: "The upload did not pass content validation and was isolated before publication.",
-                    statusCode: StatusCodes.Status422UnprocessableEntity);
+                UploadedContentScanResult scanResult;
+                await using (content)
+                {
+                    scanResult = await contentScanner.ScanAsync(content, session.ContentType, cancellationToken);
+                    session.RecordScan(scanResult);
+                }
+
+                if (scanResult.Disposition == UploadedContentDisposition.Quarantine)
+                {
+                    var quarantineKey = $"tenants/{tenant.OrganizationId:N}/quarantine/{session.Id:N}";
+                    await dbContext.SaveChangesAsync(cancellationToken);
+                    await storage.MoveAsync(session.TempStorageKey, quarantineKey, cancellationToken);
+                    await auditService.WriteAsync(
+                        tenant.OrganizationId,
+                        tenant.UserId,
+                        "media.upload_quarantined",
+                        "upload_session",
+                        session.Id.ToString(),
+                        new { session.Purpose, session.ContentType, session.TotalBytes, scanResult.Reason },
+                        cancellationToken);
+                    return Results.Problem(
+                        title: "Upload quarantined",
+                        detail: "The upload did not pass content validation and was isolated before publication.",
+                        statusCode: StatusCodes.Status422UnprocessableEntity);
+                }
+
+                session.RecordChecksum(await storage.GetSha256Async(session.TempStorageKey, cancellationToken));
+                await dbContext.SaveChangesAsync(cancellationToken);
             }
 
+            var destinationKey = $"tenants/{tenant.OrganizationId:N}/media/{session.Id:N}";
+            var sourceLength = await storage.GetLengthAsync(session.TempStorageKey, cancellationToken);
+            var destinationChecksum = await storage.GetSha256Async(
+                sourceLength > 0 ? session.TempStorageKey : destinationKey,
+                cancellationToken);
+            if (!string.Equals(session.ContentChecksumSha256, destinationChecksum, StringComparison.Ordinal))
+                throw new InvalidDataException("Published media checksum does not match the validated upload.");
             var asset = new MediaAsset(
                 tenant.OrganizationId,
-                $"{tenant.OrganizationId:D}/media/{Guid.NewGuid():D}-{session.FileName}",
+                destinationKey,
                 session.FileName,
                 session.ContentType,
-                session.TotalBytes);
-            await storage.MoveAsync(session.TempStorageKey, asset.StorageKey, cancellationToken);
+                session.TotalBytes,
+                destinationChecksum,
+                DateTimeOffset.UtcNow.AddDays(Math.Max(1, objectStorageOptions.Value.RetentionDays)));
+            if (sourceLength > 0)
+            {
+                await storage.MoveAsync(session.TempStorageKey, asset.StorageKey, cancellationToken);
+            }
             session.Complete(asset.Id);
             dbContext.MediaAssets.Add(asset);
             await dbContext.SaveChangesAsync(cancellationToken);
@@ -578,9 +614,9 @@ public static class DriverOperationsEndpointExtensions
                 asset.FileName,
                 asset.ContentType,
                 asset.SizeBytes,
-                signer.CreateReadUrl(asset.Id, TimeSpan.FromMinutes(30))));
+                signer.CreateReadUrl(asset.Id, asset.OrganizationId, TimeSpan.FromMinutes(10))));
         }
-        catch (Exception ex) when (ex is InvalidOperationException or IOException)
+        catch (Exception ex) when (ex is InvalidOperationException or IOException or HttpRequestException)
         {
             return Results.ValidationProblem(new Dictionary<string, string[]>
             {
@@ -631,7 +667,7 @@ public static class DriverOperationsEndpointExtensions
                     x.DefectSeverity,
                     x.Notes,
                     x.PhotoAssetId is Guid photoAssetId && assets.TryGetValue(photoAssetId, out var asset)
-                        ? new MediaAssetResponse(asset.Id, asset.FileName, asset.ContentType, asset.SizeBytes, signer.CreateReadUrl(asset.Id, TimeSpan.FromMinutes(30)))
+                        ? new MediaAssetResponse(asset.Id, asset.FileName, asset.ContentType, asset.SizeBytes, signer.CreateReadUrl(asset.Id, asset.OrganizationId, TimeSpan.FromMinutes(10)))
                         : null))
                 .ToList());
     }
@@ -675,7 +711,7 @@ public static class DriverOperationsEndpointExtensions
                         assets[x.MediaAssetId].FileName,
                         assets[x.MediaAssetId].ContentType,
                         assets[x.MediaAssetId].SizeBytes,
-                        signer.CreateReadUrl(assets[x.MediaAssetId].Id, TimeSpan.FromMinutes(30)))))
+                        signer.CreateReadUrl(assets[x.MediaAssetId].Id, assets[x.MediaAssetId].OrganizationId, TimeSpan.FromMinutes(10)))))
                 .ToList());
     }
 

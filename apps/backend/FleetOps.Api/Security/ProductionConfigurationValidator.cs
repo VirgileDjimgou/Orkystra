@@ -31,6 +31,18 @@ public static class ProductionConfigurationValidator
             "ObjectStorage:MediaSigningKey",
             failures,
             PilotMediaKey);
+        if (!string.Equals(storage.Provider, "S3", StringComparison.OrdinalIgnoreCase)
+            || string.IsNullOrWhiteSpace(storage.ServiceUrl)
+            || string.IsNullOrWhiteSpace(storage.BucketName)
+            || string.IsNullOrWhiteSpace(storage.AccessKey)
+            || storage.SecretKey.Length < 16
+            || !Uri.TryCreate(storage.ServiceUrl, UriKind.Absolute, out var serviceUri)
+            || (serviceUri.Scheme != Uri.UriSchemeHttp && serviceUri.Scheme != Uri.UriSchemeHttps))
+        {
+            failures.Add("ObjectStorage must use configured S3-compatible private storage in Production.");
+        }
+        if (storage.RetentionDays is < 1 or > 3650)
+            failures.Add("ObjectStorage:RetentionDays must be between 1 and 3650 days.");
 
         if (string.IsNullOrWhiteSpace(connectionString)
             || connectionString.Contains("ChangeThis_LocalOnly", StringComparison.OrdinalIgnoreCase))

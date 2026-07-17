@@ -1,4 +1,6 @@
+using System.Text.Json;
 using FleetOps.Infrastructure;
+using FleetOps.Infrastructure.Storage;
 using FleetOps.Worker;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
@@ -38,4 +40,13 @@ builder.Services.AddOpenTelemetry()
         }
     });
 builder.Services.AddHostedService<Worker>();
-await builder.Build().RunAsync();
+using var host = builder.Build();
+if (args.Contains("--migrate-media", StringComparer.Ordinal))
+{
+    await using var scope = host.Services.CreateAsyncScope();
+    var report = await scope.ServiceProvider.GetRequiredService<MediaMigrationService>().MigrateAsync(CancellationToken.None);
+    Console.WriteLine(JsonSerializer.Serialize(report, new JsonSerializerOptions(JsonSerializerDefaults.Web) { WriteIndented = true }));
+    Environment.ExitCode = report.Errors == 0 ? 0 : 2;
+    return;
+}
+await host.RunAsync();

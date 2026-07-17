@@ -294,6 +294,9 @@ public sealed class FleetOpsDbContext(DbContextOptions<FleetOpsDbContext> option
             entity.Property(x => x.StorageKey).HasMaxLength(240);
             entity.Property(x => x.FileName).HasMaxLength(120);
             entity.Property(x => x.ContentType).HasMaxLength(120);
+            entity.Property(x => x.ChecksumSha256).HasMaxLength(64);
+            entity.Property(x => x.RetainUntilUtc).HasPrecision(7);
+            entity.Property(x => x.ReadRevokedAtUtc).HasPrecision(7);
         });
 
         builder.Entity<MediaUploadSession>(entity =>
@@ -305,6 +308,7 @@ public sealed class FleetOpsDbContext(DbContextOptions<FleetOpsDbContext> option
             entity.Property(x => x.TempStorageKey).HasMaxLength(240);
             entity.Property(x => x.ExpiresAtUtc).HasPrecision(7);
             entity.Property(x => x.ScanReason).HasMaxLength(240);
+            entity.Property(x => x.ContentChecksumSha256).HasMaxLength(64);
         });
 
         builder.Entity<DriverWorkflowCommandReceipt>(entity =>

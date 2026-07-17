@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using FleetOps.Core.Modules.Operations;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
@@ -17,6 +18,22 @@ public sealed class FileSystemPrivateMediaStorage(
         return Task.FromResult(File.Exists(path) ? new FileInfo(path).Length : 0L);
     }
 
+    public async Task<string> GetSha256Async(string storageKey, CancellationToken cancellationToken)
+    {
+        var path = ResolvePath(storageKey);
+        await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, useAsync: true);
+        var hash = await SHA256.HashDataAsync(stream, cancellationToken);
+        return Convert.ToHexString(hash).ToLowerInvariant();
+    }
+
+    public Task DeleteAsync(string storageKey, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var path = ResolvePath(storageKey);
+        if (File.Exists(path)) File.Delete(path);
+        return Task.CompletedTask;
+    }
+
     public async Task AppendAsync(
         string storageKey,
         long expectedOffset,
@@ -31,6 +48,15 @@ public sealed class FileSystemPrivateMediaStorage(
         var path = ResolvePath(storageKey);
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         var actualLength = File.Exists(path) ? new FileInfo(path).Length : 0L;
+        if (actualLength == expectedOffset + content.Length)
+        {
+            await using var existing = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, useAsync: true);
+            existing.Position = expectedOffset;
+            var persisted = new byte[content.Length];
+            await existing.ReadExactlyAsync(persisted, cancellationToken);
+            if (persisted.AsSpan().SequenceEqual(content.Span)) return;
+        }
+
         if (actualLength != expectedOffset)
         {
             throw new InvalidOperationException($"Upload offset mismatch. Expected {expectedOffset} bytes, found {actualLength}.");
@@ -76,7 +102,10 @@ public sealed class FileSystemPrivateMediaStorage(
     {
         var normalized = storageKey.Replace('/', Path.DirectorySeparatorChar);
         var path = Path.GetFullPath(Path.Combine(_rootPath, normalized));
-        if (!path.StartsWith(_rootPath, StringComparison.OrdinalIgnoreCase))
+        var rootPrefix = _rootPath.EndsWith(Path.DirectorySeparatorChar)
+            ? _rootPath
+            : _rootPath + Path.DirectorySeparatorChar;
+        if (!path.StartsWith(rootPrefix, StringComparison.OrdinalIgnoreCase))
         {
             throw new InvalidOperationException("Resolved storage path escapes the configured storage root.");
         }

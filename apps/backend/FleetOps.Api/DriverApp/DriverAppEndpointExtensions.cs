@@ -260,9 +260,9 @@ public static class DriverAppEndpointExtensions
 
     private sealed class NoOpMediaUrlSigner : IMediaUrlSigner
     {
-        public string CreateReadUrl(Guid assetId, TimeSpan lifetime) => string.Empty;
+        public string CreateReadUrl(Guid assetId, Guid organizationId, TimeSpan lifetime) => string.Empty;
 
-        public bool IsValid(Guid assetId, long expiresUnixSeconds, string signature) => false;
+        public bool IsValid(Guid assetId, Guid organizationId, long expiresUnixSeconds, string signature) => false;
     }
 
     private static MissionStatus ToMissionStatus(DriverMissionCommandAction action) =>

@@ -1,5 +1,6 @@
 using FleetOps.Infrastructure.Alerts;
 using FleetOps.Infrastructure.Integrations;
+using FleetOps.Infrastructure.Storage;
 using Microsoft.Extensions.Options;
 
 namespace FleetOps.Worker;
@@ -9,7 +10,8 @@ public sealed partial class Worker(
     IAlertScanningService alertScanningService,
     IWebhookDispatchService webhookDispatchService,
     TimeProvider timeProvider,
-    IOptions<AlertingOptions> alertingOptions) : BackgroundService
+    IOptions<AlertingOptions> alertingOptions,
+    IServiceScopeFactory scopeFactory) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -43,6 +45,11 @@ public sealed partial class Worker(
                         dispatch.Retried,
                         dispatch.DeadLettered);
                 }
+
+                await using var scope = scopeFactory.CreateAsyncScope();
+                var lifecycle = scope.ServiceProvider.GetRequiredService<MediaLifecycleService>();
+                var lifecycleResult = await lifecycle.PurgeExpiredAsync(timeProvider.GetUtcNow(), stoppingToken);
+                Log.MediaLifecycleCompleted(logger, lifecycleResult.DeletedAssets, lifecycleResult.DeletedUploadSessions);
             }
             catch (Exception ex)
             {
@@ -87,5 +94,8 @@ public sealed partial class Worker(
             int delivered,
             int retried,
             int deadLettered);
+
+        [LoggerMessage(EventId = 5, Level = LogLevel.Information, Message = "Media lifecycle completed. DeletedAssets={DeletedAssets}, DeletedUploadSessions={DeletedUploadSessions}")]
+        public static partial void MediaLifecycleCompleted(ILogger logger, int deletedAssets, int deletedUploadSessions);
     }
 }

@@ -85,7 +85,7 @@ public sealed class OperationsIntegrationTests(FleetOpsApiFactory factory) : ICl
     }
 
     [Fact]
-    public async Task UploadSessionResumesAndMediaRequiresSignedUrl()
+    public async Task UploadSessionResumesAndMediaRequiresTenantAuthorizedSignedUrl()
     {
         await ResetDatabaseAsync();
 
@@ -104,6 +104,9 @@ public sealed class OperationsIntegrationTests(FleetOpsApiFactory factory) : ICl
         var appendOne = await driverClient.PostAsJsonAsync(
             $"/api/v1/driver/uploads/sessions/{session!.UploadSessionId}/chunks",
             new AppendUploadChunkRequest(0, chunkOne));
+        var appendOneRetry = await driverClient.PostAsJsonAsync(
+            $"/api/v1/driver/uploads/sessions/{session.UploadSessionId}/chunks",
+            new AppendUploadChunkRequest(0, chunkOne));
         var appendTwo = await driverClient.PostAsJsonAsync(
             $"/api/v1/driver/uploads/sessions/{session.UploadSessionId}/chunks",
             new AppendUploadChunkRequest(5, chunkTwo));
@@ -113,16 +116,39 @@ public sealed class OperationsIntegrationTests(FleetOpsApiFactory factory) : ICl
         var asset = await completeResponse.Content.ReadFromJsonAsync<MediaAssetResponse>();
 
         Assert.Equal(HttpStatusCode.OK, appendOne.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, appendOneRetry.StatusCode);
         Assert.Equal(HttpStatusCode.OK, appendTwo.StatusCode);
         Assert.Equal(HttpStatusCode.OK, completeResponse.StatusCode);
         Assert.NotNull(asset);
 
         using var anonymousClient = factory.CreateClient();
         var unsignedResponse = await anonymousClient.GetAsync($"/api/v1/media/{asset!.AssetId}");
-        var signedResponse = await anonymousClient.GetAsync(asset.ReadUrl);
+        var signedAnonymousResponse = await anonymousClient.GetAsync(asset.ReadUrl);
+        var signedDriverResponse = await driverClient.GetAsync(asset.ReadUrl);
 
-        Assert.Equal(HttpStatusCode.BadRequest, unsignedResponse.StatusCode);
-        Assert.Equal(HttpStatusCode.OK, signedResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, unsignedResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, signedAnonymousResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, signedDriverResponse.StatusCode);
+
+        await using (var verificationScope = factory.Services.CreateAsyncScope())
+        {
+            var verificationDb = verificationScope.ServiceProvider.GetRequiredService<FleetOpsDbContext>();
+            var persistedSession = await verificationDb.MediaUploadSessions.SingleAsync(x => x.Id == session.UploadSessionId);
+            var persistedAsset = await verificationDb.MediaAssets.SingleAsync(x => x.Id == asset.AssetId);
+            Assert.Equal(persistedSession.ContentChecksumSha256, persistedAsset.ChecksumSha256);
+            Assert.Equal(64, persistedAsset.ChecksumSha256.Length);
+        }
+
+        using var southClient = factory.CreateClient();
+        var southLogin = await southClient.LoginAsync("admin@southridge.local", "Admin123!");
+        southClient.SetBearer(southLogin.AccessToken);
+        Assert.Equal(HttpStatusCode.NotFound, (await southClient.DeleteAsync($"/api/v1/media/{asset.AssetId}")).StatusCode);
+
+        using var adminClient = factory.CreateClient();
+        var adminLogin = await adminClient.LoginAsync("admin@northwind.local", "Admin123!");
+        adminClient.SetBearer(adminLogin.AccessToken);
+        Assert.Equal(HttpStatusCode.NoContent, (await adminClient.DeleteAsync($"/api/v1/media/{asset.AssetId}")).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await driverClient.GetAsync(asset.ReadUrl)).StatusCode);
     }
 
     [Fact]

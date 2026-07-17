@@ -33,6 +33,7 @@ public sealed class ProductionSecurityTests(FleetOpsApiFactory factory) : IClass
 
         Assert.Contains("Jwt:SigningKey", exception.Message, StringComparison.Ordinal);
         Assert.Contains("ObjectStorage:MediaSigningKey", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("S3-compatible private storage", exception.Message, StringComparison.Ordinal);
         Assert.Contains("SeedDemoData", exception.Message, StringComparison.Ordinal);
     }
 
@@ -45,6 +46,11 @@ public sealed class ProductionSecurityTests(FleetOpsApiFactory factory) : IClass
                 ["ConnectionStrings:FleetOps"] = "Server=sql;Database=FleetOps;User Id=fleetops;Password=Independent-Database-Password;Encrypt=True",
                 ["Jwt:SigningKey"] = "production-jwt-key-with-independent-random-material-2026",
                 ["ObjectStorage:MediaSigningKey"] = "production-media-key-with-independent-random-material-2026",
+                ["ObjectStorage:Provider"] = "S3",
+                ["ObjectStorage:ServiceUrl"] = "https://objects.example.invalid",
+                ["ObjectStorage:BucketName"] = "fleetops-private-media",
+                ["ObjectStorage:AccessKey"] = "production-access-key",
+                ["ObjectStorage:SecretKey"] = "production-secret-key",
                 ["Bootstrap:SeedDemoData"] = "false"
             })
             .Build();

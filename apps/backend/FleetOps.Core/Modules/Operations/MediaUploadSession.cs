@@ -54,6 +54,7 @@ public sealed class MediaUploadSession : TenantEntity
     public Guid? MediaAssetId { get; private set; }
     public UploadedContentDisposition? ScanDisposition { get; private set; }
     public string? ScanReason { get; private set; }
+    public string? ContentChecksumSha256 { get; private set; }
 
     public void RecordScan(UploadedContentScanResult result)
     {
@@ -64,6 +65,16 @@ public sealed class MediaUploadSession : TenantEntity
 
         ScanDisposition = result.Disposition;
         ScanReason = result.Reason.Length <= 240 ? result.Reason : result.Reason[..240];
+    }
+
+    public void RecordChecksum(string checksumSha256)
+    {
+        if (IsCompleted) throw new InvalidOperationException("Completed uploads cannot change checksum.");
+        if (ScanDisposition != UploadedContentDisposition.Clean)
+            throw new InvalidOperationException("Only clean uploads can record a checksum.");
+        if (checksumSha256.Length != 64 || !checksumSha256.All(Uri.IsHexDigit))
+            throw new ArgumentException("Checksum must be a SHA-256 hexadecimal value.", nameof(checksumSha256));
+        ContentChecksumSha256 = checksumSha256.ToLowerInvariant();
     }
 
     public void Advance(long bytesUploaded)
@@ -101,6 +112,9 @@ public sealed class MediaUploadSession : TenantEntity
         {
             throw new InvalidOperationException("Upload content must pass security scanning before completion.");
         }
+
+        if (ContentChecksumSha256 is null)
+            throw new InvalidOperationException("Upload checksum must be persisted before completion.");
 
         IsCompleted = true;
         MediaAssetId = mediaAssetId;
