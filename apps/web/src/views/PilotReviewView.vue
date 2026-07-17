@@ -14,6 +14,13 @@
       <button class="btn btn-outline-secondary" type="button" @click="load">
         Refresh
       </button>
+      <button
+        class="btn btn-outline-secondary"
+        type="button"
+        @click="exportEvidence"
+      >
+        Export evidence
+      </button>
     </section>
     <div v-if="error" class="alert alert-danger" role="alert">{{ error }}</div>
     <div v-if="message" class="alert alert-success" role="status">
@@ -36,6 +43,19 @@
           measurement.</label
         >
       </div>
+      <button
+        class="btn btn-outline-primary mb-3"
+        type="button"
+        :disabled="!consent"
+        @click="collectMetrics"
+      >
+        Record daily aggregate
+      </button>
+      <p v-if="metrics.latestDailyMetric" class="text-secondary small">
+        Last aggregate refreshed {{ metrics.latestDailyMetric.refreshedAtUtc }}.
+        Activity counters cover the current UTC day; mission and proof counters
+        are current totals.
+      </p>
       <div class="summary-grid">
         <article
           v-for="item in metricItems"
@@ -52,10 +72,14 @@
         <div class="surface-panel">
           <h2>Support incident</h2>
           <form class="stack-form" @submit.prevent="recordIncident">
-            <select v-model="incident.severity" class="form-select">
-              <option>P0</option>
-              <option>P1</option>
-              <option>P2</option></select
+            <select
+              v-model="incident.severity"
+              aria-label="Incident severity"
+              class="form-select"
+            >
+              <option :value="0">P0</option>
+              <option :value="1">P1</option>
+              <option :value="2">P2</option></select
             ><input
               v-model="incident.category"
               class="form-control"
@@ -81,10 +105,12 @@
               :key="item.id"
               class="list-group-item"
             >
-              <strong>{{ item.severity }} · {{ item.category }}</strong
+              <strong
+                >{{ severityLabel(item.severity) }} ·
+                {{ item.category }}</strong
               ><br />{{ item.summary
               }}<button
-                v-if="item.status === 'Open'"
+                v-if="item.status === 0"
                 class="btn btn-sm btn-outline-secondary mt-2"
                 type="button"
                 @click="resolve(item.id)"
@@ -128,28 +154,39 @@
 import { computed, onMounted, reactive, ref } from "vue";
 import { useSessionStore } from "../features/auth/store";
 import { apiRequest } from "../services/api";
-type Metrics = {
-  analyticsConsent: boolean;
+type DailyMetric = {
+  capturedOnUtc: string;
+  activationEvents: number;
   activeDrivers: number;
+  returningDrivers: number;
+  processedSyncCommands: number;
   completedMissions: number;
   completeProofs: number;
   openExceptions: number;
+  refreshedAtUtc: string;
+};
+type Metrics = {
+  analyticsConsent: boolean;
+  latestDailyMetric: DailyMetric | null;
   openIncidents: number;
+};
+type PilotEvidence = {
+  analyticsConsent: boolean;
+  dailyMetrics: DailyMetric[];
+  incidents: Incident[];
+  decisions: unknown[];
 };
 type Incident = {
   id: string;
-  severity: string;
-  status: string;
+  severity: number;
+  status: number;
   category: string;
   summary: string;
 };
 const session = useSessionStore();
 const metrics = ref<Metrics>({
   analyticsConsent: false,
-  activeDrivers: 0,
-  completedMissions: 0,
-  completeProofs: 0,
-  openExceptions: 0,
+  latestDailyMetric: null,
   openIncidents: 0,
 });
 const incidents = ref<Incident[]>([]);
@@ -157,7 +194,7 @@ const consent = ref(false);
 const error = ref("");
 const message = ref("");
 const incident = reactive({
-  severity: "P1",
+  severity: 1,
   category: "",
   summary: "",
   workaround: "",
@@ -165,11 +202,38 @@ const incident = reactive({
 const decision = reactive({ outcome: "GO", segment: "", rationale: "" });
 const token = () => session.accessToken;
 const metricItems = computed(() => [
-  { label: "Active drivers", value: metrics.value.activeDrivers },
-  { label: "Completed missions", value: metrics.value.completedMissions },
-  { label: "Complete proofs", value: metrics.value.completeProofs },
-  { label: "Open exceptions", value: metrics.value.openExceptions },
+  {
+    label: "Activation events",
+    value: metrics.value.latestDailyMetric?.activationEvents ?? 0,
+  },
+  {
+    label: "Active drivers",
+    value: metrics.value.latestDailyMetric?.activeDrivers ?? 0,
+  },
+  {
+    label: "Returning drivers",
+    value: metrics.value.latestDailyMetric?.returningDrivers ?? 0,
+  },
+  {
+    label: "Sync commands",
+    value: metrics.value.latestDailyMetric?.processedSyncCommands ?? 0,
+  },
+  {
+    label: "Completed missions",
+    value: metrics.value.latestDailyMetric?.completedMissions ?? 0,
+  },
+  {
+    label: "Complete proofs",
+    value: metrics.value.latestDailyMetric?.completeProofs ?? 0,
+  },
+  {
+    label: "Open exceptions",
+    value: metrics.value.latestDailyMetric?.openExceptions ?? 0,
+  },
+  { label: "Open support incidents", value: metrics.value.openIncidents },
 ]);
+const severityLabel = (severity: number) =>
+  ["P0", "P1", "P2"][severity] ?? "Unknown";
 async function load() {
   try {
     [metrics.value, incidents.value] = await Promise.all([
@@ -182,13 +246,30 @@ async function load() {
   }
 }
 async function saveConsent() {
-  await apiRequest("/api/v1/pilot/consent", {
-    method: "PUT",
-    token: token(),
-    body: { analyticsConsent: consent.value },
-  });
-  await load();
-  message.value = "Pilot measurement preference saved.";
+  try {
+    await apiRequest("/api/v1/pilot/consent", {
+      method: "PUT",
+      token: token(),
+      body: { analyticsConsent: consent.value },
+    });
+    if (consent.value) await collectMetrics();
+    await load();
+    message.value = "Pilot measurement preference saved.";
+  } catch {
+    error.value = "Unable to save the pilot measurement preference.";
+  }
+}
+async function collectMetrics() {
+  try {
+    await apiRequest<DailyMetric>("/api/v1/pilot/metrics/collect", {
+      method: "POST",
+      token: token(),
+    });
+    await load();
+    message.value = "Daily aggregate recorded.";
+  } catch {
+    error.value = "Unable to record the daily aggregate.";
+  }
 }
 async function recordIncident() {
   await apiRequest("/api/v1/pilot/incidents", {
@@ -197,7 +278,7 @@ async function recordIncident() {
     body: incident,
   });
   Object.assign(incident, {
-    severity: "P1",
+    severity: 1,
     category: "",
     summary: "",
     workaround: "",
@@ -223,6 +304,26 @@ async function recordDecision() {
     },
   });
   message.value = "Pilot decision recorded.";
+}
+async function exportEvidence() {
+  try {
+    const evidence = await apiRequest<PilotEvidence>("/api/v1/pilot/export", {
+      token: token(),
+    });
+    const objectUrl = URL.createObjectURL(
+      new Blob([JSON.stringify(evidence, null, 2)], {
+        type: "application/json",
+      }),
+    );
+    const anchor = document.createElement("a");
+    anchor.href = objectUrl;
+    anchor.download = "fleetops-pilot-evidence.json";
+    anchor.click();
+    URL.revokeObjectURL(objectUrl);
+    message.value = "Pilot evidence export generated.";
+  } catch {
+    error.value = "Unable to export pilot evidence.";
+  }
 }
 onMounted(load);
 </script>

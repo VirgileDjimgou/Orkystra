@@ -47,3 +47,9 @@ If setup stalls, export the privacy-minimal diagnostics from Guided setup. The p
 - one completed mission with inspection and delivery proof;
 - one alert scan and one webhook delivery trace.
 - one activation-metrics snapshot showing start, abandonment, import errors, and first-value time without personal data.
+
+## Alpha evidence and decision review
+
+After the first operating day, the administrator opens **Administration > Pilot review**, informs the organization about aggregate measurement, and opts in before any pilot aggregate is recorded. The daily snapshot contains only operational counters: activation events, active/returning drivers, processed sync commands, completed missions, complete proofs, and open exceptions. It does not expose individual driver activity, locations, evidence payloads, or raw command data.
+
+At the weekly review, record relevant P0/P1/P2 support incidents and tested workarounds, export the tenant evidence package, and capture a `GO`, `SIMPLIFY`, `PIVOT`, or `STOP` decision with the primary segment and rationale. This records the review process; it does not claim that adoption, commercial intent, or a two-week outcome has been verified.

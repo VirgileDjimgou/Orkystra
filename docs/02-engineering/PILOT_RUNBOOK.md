@@ -57,6 +57,16 @@ The worker revokes and deletes retained media only after its configured retentio
 - API and worker logs are emitted as JSON for ingestion by the collector or host log pipeline.
 - Exclude `/health` probes from high-signal tracing dashboards.
 
+## Alpha measurement routine
+
+1. Before collecting pilot evidence, the tenant administrator opens **Administration > Pilot review**, informs the organization, and explicitly opts in to aggregate measurement.
+2. Record one daily aggregate after the operating day. The snapshot is idempotent per tenant and UTC day: a repeated collection refreshes that day rather than creating another record.
+3. Record P0/P1/P2 support incidents with a technical category, concise non-personal summary, and any validated workaround. Resolve the incident once the workaround is confirmed.
+4. Before the weekly review, export the tenant’s pilot evidence package. It contains consent state, aggregate snapshots, incidents, and decisions; it does not include driver names, emails, raw locations, command payloads, or media.
+5. Record only an evidence-supported `GO`, `SIMPLIFY`, `PIVOT`, or `STOP` decision. The application does not treat this entry as proof that a pilot has met commercial acceptance criteria.
+
+Disable consent to stop new aggregate collection. Existing operational workflows continue independently; existing evidence remains subject to the tenant’s retention and data-lifecycle process.
+
 ## Backup and restore
 
 Create a backup:

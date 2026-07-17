@@ -64,6 +64,7 @@ public sealed class FleetOpsDbContext(DbContextOptions<FleetOpsDbContext> option
     public DbSet<DispatchImportReceipt> DispatchImportReceipts => Set<DispatchImportReceipt>();
     public DbSet<DispatchSavedView> DispatchSavedViews => Set<DispatchSavedView>();
     public DbSet<PilotEnrollment> PilotEnrollments => Set<PilotEnrollment>();
+    public DbSet<PilotDailyMetric> PilotDailyMetrics => Set<PilotDailyMetric>();
     public DbSet<PilotSupportIncident> PilotSupportIncidents => Set<PilotSupportIncident>();
     public DbSet<PilotDecision> PilotDecisions => Set<PilotDecision>();
     public DbSet<ComplianceDocumentType> ComplianceDocumentTypes => Set<ComplianceDocumentType>();
@@ -258,6 +259,14 @@ public sealed class FleetOpsDbContext(DbContextOptions<FleetOpsDbContext> option
             entity.HasKey(x => x.Id);
             entity.HasIndex(x => x.OrganizationId).IsUnique();
             entity.Property(x => x.RecordedAtUtc).HasPrecision(7);
+        });
+
+        builder.Entity<PilotDailyMetric>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.OrganizationId, x.CapturedOnUtc }).IsUnique();
+            entity.Property(x => x.CapturedOnUtc).HasColumnType("date");
+            entity.Property(x => x.RefreshedAtUtc).HasPrecision(7);
         });
 
         builder.Entity<PilotSupportIncident>(entity =>

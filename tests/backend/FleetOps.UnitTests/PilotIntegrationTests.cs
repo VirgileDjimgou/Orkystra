@@ -1,8 +1,13 @@
 using System.Net;
 using System.Net.Http.Json;
 using FleetOps.Api.Pilot;
+using FleetOps.Core.Modules.Identity;
 using FleetOps.Core.Modules.Pilot;
+using FleetOps.Infrastructure.Identity;
+using FleetOps.Infrastructure.Persistence;
 using FleetOps.UnitTests.Infrastructure;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace FleetOps.UnitTests;
@@ -10,22 +15,104 @@ namespace FleetOps.UnitTests;
 public sealed class PilotIntegrationTests(FleetOpsApiFactory factory) : IClassFixture<FleetOpsApiFactory>
 {
     [Fact]
-    public async Task ConsentMetricsAndIncidentsStayInsideAuthenticatedTenant()
+    public async Task ConsentMetricsIncidentsAndExportsStayInsideAuthenticatedTenants()
     {
+        await CreateThirdPilotAdministratorAsync();
+
         using var north = factory.CreateClient();
         north.SetBearer((await north.LoginAsync("admin@northwind.local", "Admin123!")).AccessToken);
-        Assert.Equal(HttpStatusCode.NoContent, (await north.PutAsJsonAsync("/api/v1/pilot/consent", new UpdatePilotConsentRequest(true))).StatusCode);
-        var incident = await north.PostAsJsonAsync("/api/v1/pilot/incidents", new CreatePilotIncidentRequest(PilotIncidentSeverity.P1, "sync", "A pilot sync was delayed.", "Retry from the driver app."));
+        Assert.Equal(
+            HttpStatusCode.Conflict,
+            (await north.PostAsync("/api/v1/pilot/metrics/collect", null)).StatusCode);
+        Assert.Equal(
+            HttpStatusCode.NoContent,
+            (await north.PutAsJsonAsync("/api/v1/pilot/consent", new UpdatePilotConsentRequest(true))).StatusCode);
+
+        var firstDailyMetric = await north.PostAsync("/api/v1/pilot/metrics/collect", null);
+        Assert.Equal(HttpStatusCode.OK, firstDailyMetric.StatusCode);
+        var secondDailyMetric = await north.PostAsync("/api/v1/pilot/metrics/collect", null);
+        Assert.Equal(HttpStatusCode.OK, secondDailyMetric.StatusCode);
+        Assert.Equal(
+            (await firstDailyMetric.Content.ReadFromJsonAsync<PilotDailyMetricResponse>())!.CapturedOnUtc,
+            (await secondDailyMetric.Content.ReadFromJsonAsync<PilotDailyMetricResponse>())!.CapturedOnUtc);
+
+        var incident = await north.PostAsJsonAsync(
+            "/api/v1/pilot/incidents",
+            new CreatePilotIncidentRequest(
+                PilotIncidentSeverity.P1,
+                "sync",
+                "A pilot sync was delayed.",
+                "Retry from the driver app."));
         Assert.Equal(HttpStatusCode.Created, incident.StatusCode);
-        var northMetrics = await north.GetFromJsonAsync<PilotMetricsResponse>("/api/v1/pilot/metrics");
-        Assert.True(northMetrics!.AnalyticsConsent);
-        Assert.Equal(1, northMetrics.OpenIncidents);
+        var incidentResponse = (await incident.Content.ReadFromJsonAsync<PilotIncidentResponse>())!;
+
+        var decision = await north.PostAsJsonAsync(
+            "/api/v1/pilot/decisions",
+            new RecordPilotDecisionRequest("go", "Local delivery", "Pilot evidence supports the segment."));
+        Assert.Equal(HttpStatusCode.Created, decision.StatusCode);
+
+        var northExport = await north.GetFromJsonAsync<PilotEvidenceExportResponse>("/api/v1/pilot/export");
+        Assert.True(northExport!.AnalyticsConsent);
+        Assert.Single(northExport.DailyMetrics);
+        Assert.Single(northExport.Incidents);
+        Assert.Single(northExport.Decisions);
 
         using var south = factory.CreateClient();
         south.SetBearer((await south.LoginAsync("admin@southridge.local", "Admin123!")).AccessToken);
-        var southIncidents = await south.GetFromJsonAsync<List<PilotIncidentResponse>>("/api/v1/pilot/incidents");
-        Assert.Empty(southIncidents!);
-        var foreign = await south.PostAsJsonAsync($"/api/v1/pilot/incidents/{(await incident.Content.ReadFromJsonAsync<PilotIncidentResponse>())!.Id}/resolve", new ResolvePilotIncidentRequest("No access."));
-        Assert.Equal(HttpStatusCode.NotFound, foreign.StatusCode);
+        Assert.Empty((await south.GetFromJsonAsync<List<PilotIncidentResponse>>("/api/v1/pilot/incidents"))!);
+        Assert.Equal(
+            HttpStatusCode.NotFound,
+            (await south.PostAsJsonAsync(
+                $"/api/v1/pilot/incidents/{incidentResponse.Id}/resolve",
+                new ResolvePilotIncidentRequest("No access."))).StatusCode);
+        var southExport = await south.GetFromJsonAsync<PilotEvidenceExportResponse>("/api/v1/pilot/export");
+        Assert.False(southExport!.AnalyticsConsent);
+        Assert.Empty(southExport.DailyMetrics);
+        Assert.Empty(southExport.Incidents);
+        Assert.Empty(southExport.Decisions);
+
+        using var west = factory.CreateClient();
+        west.SetBearer((await west.LoginAsync("admin@westland.local", "Admin123!")).AccessToken);
+        Assert.Equal(
+            HttpStatusCode.NotFound,
+            (await west.PostAsJsonAsync(
+                $"/api/v1/pilot/incidents/{incidentResponse.Id}/resolve",
+                new ResolvePilotIncidentRequest("No access."))).StatusCode);
+        var westExport = await west.GetFromJsonAsync<PilotEvidenceExportResponse>("/api/v1/pilot/export");
+        Assert.False(westExport!.AnalyticsConsent);
+        Assert.Empty(westExport.DailyMetrics);
+        Assert.Empty(westExport.Incidents);
+        Assert.Empty(westExport.Decisions);
+    }
+
+    [Fact]
+    public async Task PilotEvidenceRoutesRequireAnAdministrator()
+    {
+        using var operatorClient = factory.CreateClient();
+        operatorClient.SetBearer((await operatorClient.LoginAsync("operator@northwind.local", "Operator123!")).AccessToken);
+
+        Assert.Equal(HttpStatusCode.Forbidden, (await operatorClient.GetAsync("/api/v1/pilot/metrics")).StatusCode);
+    }
+
+    private async Task CreateThirdPilotAdministratorAsync()
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<FleetOpsDbContext>();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var organization = new Organization("Westland Field Services", "westland");
+        db.Organizations.Add(organization);
+        await db.SaveChangesAsync();
+
+        var user = new ApplicationUser
+        {
+            UserName = "admin@westland.local",
+            Email = "admin@westland.local",
+            FullName = "Westland Admin",
+            OrganizationId = organization.Id,
+            EmailConfirmed = true,
+            IsActive = true,
+        };
+        Assert.True((await users.CreateAsync(user, "Admin123!")).Succeeded);
+        Assert.True((await users.AddToRoleAsync(user, SystemRoles.Admin)).Succeeded);
     }
 }

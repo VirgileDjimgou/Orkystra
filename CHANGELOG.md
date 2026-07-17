@@ -6,6 +6,8 @@ Toutes les modifications fonctionnelles significatives sont documentées ici.
 
 ### Added
 
+- Sprint 20 measured alpha pilot controls: explicit tenant administrator consent, privacy-minimal and idempotent daily operational aggregates, support-incident tracking, evidence export, and auditable `GO`/`SIMPLIFY`/`PIVOT`/`STOP` niche decisions.
+- Administrator Pilot review workspace with aggregate-only evidence, consent-aware collection, support workaround tracking, and downloadable tenant-scoped evidence packages.
 - Sprint 19 dispatch productivity: tenant-scoped route templates, draft duplication, replay-safe mission imports with preview and confirmation, a paged day/week planning board, saved views, deterministic resource suggestions, and atomic bulk assignment validation with maintenance, compliance, overlap, concurrency, and audit checks.
 - A web daily-planning workspace for capacity-board refresh, template reuse, and explicit import confirmation.
 

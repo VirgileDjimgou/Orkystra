@@ -923,6 +923,7 @@ Current local validation includes:
 - integration tests covering OpenAPI exposure, API key scope isolation, forged webhook rejection, retry/dead-letter handling, and CSV exports;
 - integration tests covering administrator MFA enablement and login challenge plus tenant-scoped lifecycle export and controlled purge;
 - onboarding integration tests covering invalid and bulk imports, confirmation replay, invitation expiry, driver linkage, one-use pairing, tenant isolation, removable sample data, and PII-free diagnostics;
+- alpha-pilot integration tests covering explicit consent, idempotent daily aggregates, three-tenant evidence isolation, administrator-only access, incident lifecycle, and decision/evidence export;
 - EF Core migrations for identity, fleet, dispatch, operations, security, and tenant onboarding data;
 - OpenTelemetry OTLP wiring and JSON logs for the API and worker runtime;
 - pilot Docker packaging plus SQL backup and restore scripts;
@@ -932,6 +933,10 @@ Current local validation includes:
 On Friday, July 17, 2026, the full Sprint 15 quality gate passed without skips: 115 fast backend tests, three SQL Server/Testcontainers proofs, 19 Web unit tests, five Playwright critical flows, and five connected Android instrumentation tests on a physical Samsung SM-G975F running Android 12.
 
 ## Engineering Notes
+
+### How does measured alpha evidence work?
+
+Administrators use **Pilot review** to opt in to privacy-minimal measurement, record one aggregate snapshot per UTC day, track support incidents, and export an organization-scoped evidence package for weekly review. Collection is disabled until explicit consent and never exports raw driver activity, locations, proof media, or command payloads. Re-recording a day refreshes its aggregate rather than duplicating it; a recorded niche decision is a review artifact, not a claim that commercial acceptance criteria have been achieved.
 
 ### Why a modular monolith?
 
