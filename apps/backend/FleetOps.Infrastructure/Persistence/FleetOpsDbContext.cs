@@ -7,6 +7,7 @@ using FleetOps.Core.Modules.Integrations;
 using FleetOps.Core.Modules.Maintenance;
 using FleetOps.Core.Modules.Onboarding;
 using FleetOps.Core.Modules.Operations;
+using FleetOps.Core.Modules.Pilot;
 using FleetOps.Core.Modules.Tracking;
 using FleetOps.Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity;
@@ -62,6 +63,9 @@ public sealed class FleetOpsDbContext(DbContextOptions<FleetOpsDbContext> option
     public DbSet<MissionTemplateStop> MissionTemplateStops => Set<MissionTemplateStop>();
     public DbSet<DispatchImportReceipt> DispatchImportReceipts => Set<DispatchImportReceipt>();
     public DbSet<DispatchSavedView> DispatchSavedViews => Set<DispatchSavedView>();
+    public DbSet<PilotEnrollment> PilotEnrollments => Set<PilotEnrollment>();
+    public DbSet<PilotSupportIncident> PilotSupportIncidents => Set<PilotSupportIncident>();
+    public DbSet<PilotDecision> PilotDecisions => Set<PilotDecision>();
     public DbSet<ComplianceDocumentType> ComplianceDocumentTypes => Set<ComplianceDocumentType>();
     public DbSet<CompliancePolicy> CompliancePolicies => Set<CompliancePolicy>();
     public DbSet<ComplianceInspectionCampaign> ComplianceInspectionCampaigns => Set<ComplianceInspectionCampaign>();
@@ -247,6 +251,34 @@ public sealed class FleetOpsDbContext(DbContextOptions<FleetOpsDbContext> option
             entity.Property(x => x.EventName).HasMaxLength(48);
             entity.Property(x => x.Step).HasMaxLength(48);
             entity.Property(x => x.OccurredAtUtc).HasPrecision(7);
+        });
+
+        builder.Entity<PilotEnrollment>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.OrganizationId).IsUnique();
+            entity.Property(x => x.RecordedAtUtc).HasPrecision(7);
+        });
+
+        builder.Entity<PilotSupportIncident>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.OrganizationId, x.Status, x.OccurredAtUtc });
+            entity.Property(x => x.Category).HasMaxLength(48);
+            entity.Property(x => x.Summary).HasMaxLength(500);
+            entity.Property(x => x.Workaround).HasMaxLength(500);
+            entity.Property(x => x.OccurredAtUtc).HasPrecision(7);
+            entity.Property(x => x.ResolvedAtUtc).HasPrecision(7);
+        });
+
+        builder.Entity<PilotDecision>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.OrganizationId, x.DecidedAtUtc });
+            entity.Property(x => x.Outcome).HasMaxLength(12);
+            entity.Property(x => x.PrimarySegment).HasMaxLength(80);
+            entity.Property(x => x.Rationale).HasMaxLength(1000);
+            entity.Property(x => x.DecidedAtUtc).HasPrecision(7);
         });
 
         builder.Entity<Mission>(entity =>

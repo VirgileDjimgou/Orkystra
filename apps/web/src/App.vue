@@ -164,6 +164,7 @@ const navigation: Array<{ label: string; items: NavigationItem[] }> = [
         icon: "✓",
         adminOnly: true,
       },
+      { label: "Pilot review", to: "/admin/pilot", icon: "α", adminOnly: true },
       { label: "Users", to: "/admin/users", icon: "U", adminOnly: true },
       {
         label: "Security & data",

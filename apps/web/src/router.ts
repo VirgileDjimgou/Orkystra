@@ -7,6 +7,7 @@ import AlertsView from "./views/AlertsView.vue";
 import AdminSecurityView from "./views/AdminSecurityView.vue";
 import DispatchView from "./views/DispatchView.vue";
 import DispatchProductivityView from "./views/DispatchProductivityView.vue";
+import PilotReviewView from "./views/PilotReviewView.vue";
 import DevicesView from "./views/DevicesView.vue";
 import DriversView from "./views/DriversView.vue";
 import FleetMapView from "./views/FleetMapView.vue";
@@ -31,6 +32,17 @@ export const router = createRouter({
         requiresAdmin: true,
         title: "Guided setup",
         description: "Reach a first test mission without database access.",
+      },
+    },
+    {
+      path: "/admin/pilot",
+      component: PilotReviewView,
+      meta: {
+        requiresAuth: true,
+        requiresAdmin: true,
+        title: "Pilot review",
+        description:
+          "Aggregate alpha evidence, support incidents, and niche decisions.",
       },
     },
     {
