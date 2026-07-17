@@ -4,6 +4,7 @@ using FleetOps.Api.Security;
 using FleetOps.Core.Modules.Alerts;
 using FleetOps.Core.Modules.Dispatch;
 using FleetOps.Core.Modules.Identity;
+using FleetOps.Core.Modules.Maintenance;
 using FleetOps.Core.Modules.Operations;
 using FleetOps.Infrastructure.Identity;
 using FleetOps.Infrastructure.Persistence;
@@ -508,6 +509,13 @@ public static class OperationsCenterEndpointExtensions
             .AsNoTracking()
             .Where(x => x.OrganizationId == organizationId && x.ResolvedAtUtc == null)
             .ToListAsync(cancellationToken);
+        var overdueWorkOrders = await dbContext.MaintenanceWorkOrders
+            .AsNoTracking()
+            .Where(x => x.OrganizationId == organizationId
+                && x.DueAtUtc < DateTimeOffset.UtcNow
+                && x.Status != MaintenanceWorkOrderStatus.Completed
+                && x.Status != MaintenanceWorkOrderStatus.Cancelled)
+            .ToListAsync(cancellationToken);
 
         var items = new List<OperationsExceptionListItemResponse>();
 
@@ -603,6 +611,32 @@ public static class OperationsCenterEndpointExtensions
                 $"{mission.Reference} critical defect {string.Join(' ', defectLabels)}"));
         }
 
+        foreach (var workOrder in overdueWorkOrders)
+        {
+            var key = $"maintenance-overdue:{workOrder.Id:D}";
+            states.TryGetValue(key, out var state);
+            items.Add(BuildItem(
+                key,
+                "MaintenanceOverdue",
+                workOrder.Priority >= 3 ? "Critical" : "Warning",
+                state,
+                workOrder.DueAtUtc,
+                workOrder.RowVersion,
+                $"Overdue maintenance: {workOrder.Title}",
+                $"Work order is overdue since {workOrder.DueAtUtc:yyyy-MM-dd}. Vehicle availability: {(workOrder.IsVehicleUnavailable ? "blocked" : "not blocked")}.",
+                new OperationsExceptionLinkResponse(
+                    null,
+                    null,
+                    workOrder.VehicleId,
+                    vehicles.TryGetValue(workOrder.VehicleId, out var vehicle) ? vehicle.RegistrationNumber : null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null),
+                $"maintenance overdue {workOrder.Title}"));
+        }
+
         foreach (var incident in syncIncidents)
         {
             var mission = missions.FirstOrDefault(x => x.Id == incident.MissionId);
@@ -654,6 +688,7 @@ public static class OperationsCenterEndpointExtensions
         {
             "CriticalDefect" => 40,
             "DriverSync" => 30,
+            "MaintenanceOverdue" => 35,
             "MissionDelay" => 20,
             _ => 10,
         };
@@ -708,12 +743,20 @@ public static class OperationsCenterEndpointExtensions
             links);
     }
 
-    private static Guid ResolveSourceEntityId(OperationsExceptionListItemResponse item) =>
-        item.Links.AlertId
-        ?? item.Links.InspectionId
-        ?? item.Links.SyncIncidentId
-        ?? item.Links.MissionId
-        ?? throw new InvalidOperationException("Operations exception item does not expose a source entity.");
+    private static Guid ResolveSourceEntityId(OperationsExceptionListItemResponse item)
+    {
+        if (item.SourceType == "MaintenanceOverdue"
+            && Guid.TryParse(item.Id.Replace("maintenance-overdue:", string.Empty, StringComparison.Ordinal), out var workOrderId))
+        {
+            return workOrderId;
+        }
+
+        return item.Links.AlertId
+            ?? item.Links.InspectionId
+            ?? item.Links.SyncIncidentId
+            ?? item.Links.MissionId
+            ?? throw new InvalidOperationException("Operations exception item does not expose a source entity.");
+    }
 
     private static OperationsExceptionSourceType ParseSourceType(string sourceType) =>
         sourceType switch
@@ -722,6 +765,7 @@ public static class OperationsCenterEndpointExtensions
             "MissionDelay" => OperationsExceptionSourceType.MissionDelay,
             "CriticalDefect" => OperationsExceptionSourceType.CriticalDefect,
             "DriverSync" => OperationsExceptionSourceType.DriverSync,
+            "MaintenanceOverdue" => OperationsExceptionSourceType.MaintenanceOverdue,
             _ => throw new InvalidOperationException($"Unknown operations exception source type '{sourceType}'."),
         };
 

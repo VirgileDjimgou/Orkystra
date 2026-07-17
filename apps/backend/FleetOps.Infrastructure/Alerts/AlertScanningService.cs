@@ -1,6 +1,7 @@
 using System.Globalization;
 using FleetOps.Core.Modules.Alerts;
 using FleetOps.Core.Modules.Integrations;
+using FleetOps.Core.Modules.Maintenance;
 using FleetOps.Infrastructure.Identity;
 using FleetOps.Infrastructure.Integrations;
 using FleetOps.Infrastructure.Persistence;
@@ -82,6 +83,19 @@ public sealed partial class AlertScanningService(
                     nowUtc);
                 dbContext.OperationalAlerts.Add(created);
                 existingAlerts.Add(created);
+
+                if (finding.RuleType is AlertRuleType.VehicleMaintenanceByDate or AlertRuleType.VehicleMaintenanceByMileage)
+                {
+                    var sourceKey = $"alert:{created.Id:D}";
+                    dbContext.MaintenanceWorkOrders.Add(new MaintenanceWorkOrder(
+                        organizationId,
+                        finding.TargetEntityId,
+                        finding.Title,
+                        sourceKey,
+                        finding.Severity == AlertSeverity.Critical ? 3 : 2,
+                        nowUtc,
+                        finding.Severity == AlertSeverity.Critical));
+                }
 
                 dbContext.AlertNotifications.Add(new AlertNotification(
                     organizationId,

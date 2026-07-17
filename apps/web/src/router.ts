@@ -15,6 +15,7 @@ import OperationsCenterView from "./views/OperationsCenterView.vue";
 import OnboardingView from "./views/OnboardingView.vue";
 import UsersAdminView from "./views/UsersAdminView.vue";
 import VehiclesView from "./views/VehiclesView.vue";
+import MaintenanceView from "./views/MaintenanceView.vue";
 
 export const router = createRouter({
   history: createWebHistory(),
@@ -56,6 +57,16 @@ export const router = createRouter({
         requiresAuth: true,
         title: "Alert center",
         description: "Own, acknowledge and resolve fleet exceptions.",
+      },
+    },
+    {
+      path: "/maintenance",
+      component: MaintenanceView,
+      meta: {
+        requiresAuth: true,
+        title: "Maintenance work orders",
+        description:
+          "Keep vehicles available with scheduled, costed maintenance.",
       },
     },
     {

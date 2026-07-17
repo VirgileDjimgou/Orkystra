@@ -140,6 +140,7 @@ const navigation: Array<{ label: string; items: NavigationItem[] }> = [
       { label: "Operations center", to: "/", icon: "01" },
       { label: "Overview", to: "/overview", icon: "02" },
       { label: "Alert center", to: "/alerts", icon: "03" },
+      { label: "Maintenance", to: "/maintenance", icon: "M" },
       { label: "Dispatch", to: "/dispatch/missions", icon: "04" },
       { label: "Live map", to: "/map", icon: "05" },
     ],

@@ -3,6 +3,7 @@ using FleetOps.Core.Modules.Dispatch;
 using FleetOps.Core.Modules.Fleet;
 using FleetOps.Core.Modules.Identity;
 using FleetOps.Core.Modules.Integrations;
+using FleetOps.Core.Modules.Maintenance;
 using FleetOps.Core.Modules.Onboarding;
 using FleetOps.Core.Modules.Operations;
 using FleetOps.Core.Modules.Tracking;
@@ -55,6 +56,7 @@ public sealed class FleetOpsDbContext(DbContextOptions<FleetOpsDbContext> option
     public DbSet<OnboardingImportSession> OnboardingImportSessions => Set<OnboardingImportSession>();
     public DbSet<OnboardingSampleDataSet> OnboardingSampleDataSets => Set<OnboardingSampleDataSet>();
     public DbSet<OnboardingActivationEvent> OnboardingActivationEvents => Set<OnboardingActivationEvent>();
+    public DbSet<MaintenanceWorkOrder> MaintenanceWorkOrders => Set<MaintenanceWorkOrder>();
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
@@ -374,6 +376,27 @@ public sealed class FleetOpsDbContext(DbContextOptions<FleetOpsDbContext> option
             entity.Property(x => x.RegistrationNumber).HasMaxLength(32);
             entity.Property(x => x.DisplayName).HasMaxLength(128);
             entity.Property(x => x.CurrentOdometerKm);
+            entity.Property(x => x.RowVersion).IsConcurrencyToken();
+        });
+
+        builder.Entity<MaintenanceWorkOrder>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.OrganizationId, x.SourceKey }).IsUnique();
+            entity.HasIndex(x => new { x.OrganizationId, x.VehicleId, x.Status });
+            entity.HasIndex(x => new { x.OrganizationId, x.DueAtUtc });
+            entity.Property(x => x.Title).HasMaxLength(160);
+            entity.Property(x => x.SourceKey).HasMaxLength(160);
+            entity.Property(x => x.CurrencyCode).HasMaxLength(3);
+            entity.Property(x => x.SupplierName).HasMaxLength(160);
+            entity.Property(x => x.PartsDescription).HasMaxLength(500);
+            entity.Property(x => x.TransitionReason).HasMaxLength(500);
+            entity.Property(x => x.DueAtUtc).HasPrecision(7);
+            entity.Property(x => x.ScheduledStartUtc).HasPrecision(7);
+            entity.Property(x => x.ScheduledEndUtc).HasPrecision(7);
+            entity.Property(x => x.CompletedAtUtc).HasPrecision(7);
+            entity.Property(x => x.LaborCost).HasPrecision(18, 2);
+            entity.Property(x => x.PartsCost).HasPrecision(18, 2);
             entity.Property(x => x.RowVersion).IsConcurrencyToken();
         });
 

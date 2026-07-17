@@ -2,6 +2,20 @@
 
 Orkystra FleetOps is a modular fleet operations MVP for small and mid-sized transport businesses. The platform covers the operational chain from identity and tenant isolation to vehicle tracking, dispatch execution, offline-capable driver workflows, proof of delivery, deterministic alerting, exception-driven operator work, maintenance coordination, external integrations, and pilot packaging.
 
+## Maintenance work orders
+
+The maintenance backlog lets authorized operators schedule lightweight corrective work from a stable source key, record labour and parts costs in a three-letter currency, attach a private media asset, and complete the order with a required reason. An active immobilising work order prevents dispatch from assigning its vehicle; completion restores availability without deleting the audit trail.
+
+```mermaid
+flowchart LR
+  S[Defect or alert source] --> W[Maintenance work order]
+  W --> I[Vehicle immobilised]
+  I -->|assignment rejected| D[Dispatch]
+  W --> C[Cost and private evidence]
+  W --> R[Completion with reason]
+  R --> A[Vehicle available]
+```
+
 The repository currently delivers Sprint 00 through Sprint 16, giving the product a seventeen-sprint functional, recovery, end-to-end validation, security, field-execution, tenant-activation, and private-media-resilience baseline:
 
 - reproducible local environment;

@@ -6,4 +6,5 @@ public enum OperationsExceptionSourceType
     MissionDelay = 1,
     CriticalDefect = 2,
     DriverSync = 3,
+    MaintenanceOverdue = 4,
 }

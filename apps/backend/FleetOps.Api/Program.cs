@@ -10,6 +10,7 @@ using FleetOps.Api.Dispatch;
 using FleetOps.Api.DriverApp;
 using FleetOps.Api.Fleet;
 using FleetOps.Api.Integrations;
+using FleetOps.Api.Maintenance;
 using FleetOps.Api.Media;
 using FleetOps.Api.Observability;
 using FleetOps.Api.Onboarding;
@@ -294,6 +295,7 @@ app.MapDriverAppEndpoints();
 app.MapDriverOperationsEndpoints();
 app.MapOperationsCenterEndpoints();
 app.MapMediaEndpoints();
+app.MapMaintenanceEndpoints();
 app.MapTrackingEndpoints();
 app.MapAlertEndpoints();
 

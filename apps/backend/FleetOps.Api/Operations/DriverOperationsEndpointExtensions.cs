@@ -4,6 +4,7 @@ using FleetOps.Api.Operations;
 using FleetOps.Api.Security;
 using FleetOps.Core.Modules.Dispatch;
 using FleetOps.Core.Modules.Identity;
+using FleetOps.Core.Modules.Maintenance;
 using FleetOps.Core.Modules.Operations;
 using FleetOps.Infrastructure.Persistence;
 using FleetOps.Infrastructure.Storage;
@@ -191,6 +192,38 @@ public static class DriverOperationsEndpointExtensions
             mission.Id.ToString(),
             request.CompletedAtUtc));
         await dbContext.SaveChangesAsync(cancellationToken);
+
+        if (inspection.HasBlockingCriticalDefect && mission.VehicleId is Guid vehicleId)
+        {
+            var sourceKey = $"inspection:{inspection.Id:D}";
+            var exists = await dbContext.MaintenanceWorkOrders.AnyAsync(
+                x => x.OrganizationId == tenant.OrganizationId && x.SourceKey == sourceKey,
+                cancellationToken);
+            if (!exists)
+            {
+                var labels = inspection.Items
+                    .Where(x => !x.IsPass && x.DefectSeverity == DefectSeverity.Critical)
+                    .Select(x => x.Label)
+                    .ToList();
+                dbContext.MaintenanceWorkOrders.Add(new MaintenanceWorkOrder(
+                    tenant.OrganizationId,
+                    vehicleId,
+                    $"Critical inspection defect: {string.Join(", ", labels)}",
+                    sourceKey,
+                    priority: 3,
+                    inspection.CompletedAtUtc,
+                    immobilizesVehicle: true));
+                await dbContext.SaveChangesAsync(cancellationToken);
+                await auditService.WriteAsync(
+                    tenant.OrganizationId,
+                    tenant.UserId,
+                    "maintenance.work_order_created_from_inspection",
+                    "maintenance_work_order",
+                    sourceKey,
+                    new { inspection.Id, vehicleId },
+                    cancellationToken);
+            }
+        }
 
         await auditService.WriteAsync(
             tenant.OrganizationId,

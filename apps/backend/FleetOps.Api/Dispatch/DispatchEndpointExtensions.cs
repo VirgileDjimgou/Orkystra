@@ -6,6 +6,7 @@ using FleetOps.Api.Security;
 using FleetOps.Core.Modules.Dispatch;
 using FleetOps.Core.Modules.Identity;
 using FleetOps.Core.Modules.Integrations;
+using FleetOps.Core.Modules.Maintenance;
 using FleetOps.Infrastructure.Integrations;
 using FleetOps.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authorization;
@@ -323,6 +324,18 @@ public static class DispatchEndpointExtensions
             {
                 ["vehicleId"] = ["Vehicle does not exist or is inactive in this organization."]
             });
+        }
+
+        var unavailable = await dbContext.MaintenanceWorkOrders.AnyAsync(
+            x => x.OrganizationId == tenant.OrganizationId && x.VehicleId == request.VehicleId && x.ImmobilizesVehicle
+                && x.Status != MaintenanceWorkOrderStatus.Completed && x.Status != MaintenanceWorkOrderStatus.Cancelled,
+            cancellationToken);
+        if (unavailable)
+        {
+            return Results.ValidationProblem(new Dictionary<string, string[]>
+            {
+                ["vehicleId"] = ["Vehicle is immobilized by an active maintenance work order and cannot be assigned."]
+            }, statusCode: StatusCodes.Status409Conflict);
         }
 
         var conflict = await FindConflictAsync(mission, request.DriverId, request.VehicleId, dbContext, cancellationToken);

@@ -6,6 +6,10 @@ Toutes les modifications fonctionnelles significatives sont documentées ici.
 
 ### Added
 
+- Sprint 17 tenant-scoped maintenance work orders with source-key deduplication, optimistic concurrency, scheduled repair windows, stable decimal labour/parts costs, private media evidence, and auditable completion reasons.
+- Automatic work-order creation for critical inspection defects and maintenance alerts, dispatch protection for immobilised vehicles, and overdue maintenance items in the operations exception queue.
+- Maintenance backlog navigation for Admin and Operator users, plus an additive EF Core migration for work-order persistence.
+
 - Sprint 16 S3-compatible private media storage with bucket-scoped credentials, server-side encryption requests, opaque tenant keys, durable SHA-256 manifests, and Production fail-fast configuration.
 - Tenant-authorized short-lived media capabilities, audited logical revocation, deferred retention deletion, quarantine and abandoned-object cleanup, tenant export metadata, and SQL recovery coverage.
 - Replayable filesystem-to-object migration through the Worker with per-asset JSON reporting, checksum verification, idempotent retries, and source-preserving rollback.
