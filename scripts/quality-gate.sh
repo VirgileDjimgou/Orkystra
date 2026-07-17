@@ -55,7 +55,42 @@ fi
 run_step "Android Build" bash -lc 'cd apps/android-driver && ./gradlew lintDebug testDebugUnitTest assembleDebug assembleDebugAndroidTest --stacktrace'
 
 if [[ "${FLEETOPS_ENABLE_ANDROID_CONNECTED:-0}" == "1" ]]; then
-  run_step "Android Connected Test" bash -lc 'cd apps/android-driver && ./gradlew connectedDebugAndroidTest --stacktrace'
+  run_step "Android Connected Test" bash -lc '
+    cd apps/android-driver
+    adb="$ANDROID_HOME/platform-tools/adb"
+    verifier_original=""
+    restore_verifier() {
+      if [[ "${FLEETOPS_MANAGE_ANDROID_ADB_VERIFIER:-0}" == "1" && -n "$verifier_original" ]]; then
+        if [[ "$verifier_original" == "null" ]]; then
+          "$adb" shell settings delete global verifier_verify_adb_installs >/dev/null
+        else
+          "$adb" shell settings put global verifier_verify_adb_installs "$verifier_original"
+        fi
+      fi
+    }
+    trap restore_verifier EXIT
+
+    if [[ "${FLEETOPS_MANAGE_ANDROID_ADB_VERIFIER:-0}" == "1" ]]; then
+      verifier_original="$("$adb" shell settings get global verifier_verify_adb_installs | tr -d "\r")"
+      "$adb" shell settings put global verifier_verify_adb_installs 0
+      [[ "$("$adb" shell settings get global verifier_verify_adb_installs | tr -d "\r")" == "0" ]]
+    fi
+
+    if ./gradlew connectedDebugAndroidTest --stacktrace; then
+      exit 0
+    fi
+
+    result_root="app/build/outputs/androidTest-results/connected/debug"
+    if grep -Rqs "Failed to install split APK(s)" "$result_root" && grep -Rqs "ShellCommandUnresponsiveException" "$result_root"; then
+      echo "Android package installation timed out; retrying once after an ADB/package-manager readiness check." >&2
+      "$ANDROID_HOME/platform-tools/adb" wait-for-device
+      "$ANDROID_HOME/platform-tools/adb" shell pm path android >/dev/null
+      sleep 5
+      ./gradlew connectedDebugAndroidTest --stacktrace
+    else
+      exit 1
+    fi
+  '
 else
   SUMMARY+=("SKIPPED :: Android Connected Test (set FLEETOPS_ENABLE_ANDROID_CONNECTED=1 with an emulator or device)")
 fi

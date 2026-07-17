@@ -2,7 +2,7 @@
 
 ## Principe
 
-L’état réel du dépôt compte onze sprints terminés, `SPRINT-00` à `SPRINT-10`. La trajectoire approuvée ajoute exactement vingt sprints denses, `SPRINT-11` à `SPRINT-30`, pour transformer le MVP audité à 66/100 en produit de flotte exploitable, mesurable et commercialisable.
+L’état réel du dépôt compte douze sprints terminés, `SPRINT-00` à `SPRINT-11`. La trajectoire approuvée ajoute exactement vingt sprints denses, `SPRINT-11` à `SPRINT-30`, pour transformer le MVP audité à 66/100 en produit de flotte exploitable, mesurable et commercialisable.
 
 L’extension reste centrée sur le noyau **mission → conducteur offline → inspection/preuve → exception → action opérateur**. Elle consolide ensuite maintenance, conformité, télématique ouverte, communication destinataire, reporting et exploitation SaaS. Chaque sprint laisse le système exécutable et possède un résultat démontrable, des métriques, des tests, une vérification sécurité/tenant et un rollback.
 
@@ -23,7 +23,7 @@ Les sprints futurs sont une séquence de décisions, pas une promesse de tout co
 | 08 | API, webhooks, import/export et audit | Ouverture | Terminé | XL |
 | 09 | Packaging, observabilité, MFA et pilote de démonstration | Baseline pilote | Terminé | XL |
 | 10 | Configuration Production sûre et socle UX Web/Android | Réduction du risque critique | Terminé | L |
-| 11 | SQL Server, migrations, recovery et parcours E2E prouvés | Confiance dans les données | Planifié | XL |
+| 11 | SQL Server, migrations, recovery et parcours E2E prouvés | Confiance dans les données | Terminé | XL |
 | 12 | Sessions, autorisations et données sensibles durcies | Sécurité exploitable | Planifié | XL |
 | 13 | Centre d’opérations piloté par exception | Productivité opérateur | Planifié | XL |
 | 14 | Parcours conducteur terrain avec photo réelle | Adoption et preuve terrain | Planifié | XL |

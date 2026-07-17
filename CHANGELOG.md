@@ -33,9 +33,12 @@ Toutes les modifications fonctionnelles significatives sont documentées ici.
 
 ### Changed
 
+- Connected Android quality-gate execution now distinguishes test failures from transient UTP package-install stalls and can temporarily manage ADB-only verification with automatic restoration on physical devices.
+- Sprint 11 is closed after restoring the local Docker Desktop Linux engine and executing all three SQL Server/Testcontainers proofs without skips.
+- The SQL integration factory now explicitly replaces the captured EF Core registration with the dynamic Testcontainers connection string.
 - Sprint 11 browser proof now explicitly verifies that a second tenant cannot discover or mutate a Northwind mission through the dispatch API or UI.
 - Sprint 11 validation now includes successful `connectedDebugAndroidTest` execution on a connected physical Android device.
-- Sprint 11 is now the active sprint in the agent state, handoff, validation, and roadmap governance files.
+- Sprint 11 governance was activated and is now closed after every mandatory proof passed.
 - Local and CI quality gates now distinguish fast backend checks, Docker-backed SQL tests, Playwright browser E2E, and Android instrumentation APK compilation.
 - Production now rejects known or missing JWT/media signing keys, local connection defaults, and demo-data seeding.
 - Login now uses per-address rate limiting and ASP.NET Identity lockout tracking.

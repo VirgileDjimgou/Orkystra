@@ -25,7 +25,7 @@ The repository currently delivers Sprint 00 through Sprint 10, an eleven-sprint 
 - scoped API keys for partners and devices, SQL outbox-backed webhooks, sandbox receipts, OpenAPI exposure, and web administration for integrations;
 - administrator MFA with authenticator challenge, tenant export and controlled purge tooling, OpenTelemetry OTLP wiring, JSON logs, readiness checks, pilot container packaging, and SQL backup/restore scripts.
 
-The audit reviewed on Thursday, July 16, 2026 classifies this baseline as a usable MVP, not yet a production-ready product. Sprint 10 delivered fail-fast Production configuration, safe tenant bootstrap, login protection, recovery tooling, and the Web/Android UX foundation. Sprint 11 is now the active engineering sprint: it introduces SQL Server relational proof through Testcontainers, browser E2E coverage for the critical operator workflows, and Android instrumentation build coverage for offline persistence and WorkManager scheduling. The approved roadmap still adds exactly twenty evidence-gated sprints, Sprint 11 through Sprint 30, while keeping the mission–proof–exception core and the modular-monolith architecture. See the audit document, [`ROADMAP.md`](ROADMAP.md), and the active sprint file.
+The audit reviewed on Thursday, July 16, 2026 classifies this baseline as a usable MVP, not yet a production-ready product. Sprint 10 delivered fail-fast Production configuration, safe tenant bootstrap, login protection, recovery tooling, and the Web/Android UX foundation. Sprint 11 is now complete: SQL Server migrations, relational constraints, optimistic concurrency, backup/restore checksum preservation, critical browser workflows, and Android offline instrumentation have all been executed locally. The approved roadmap still contains exactly twenty evidence-gated sprints, Sprint 11 through Sprint 30, while keeping the mission–proof–exception core and the modular-monolith architecture. See the audit document, [`ROADMAP.md`](ROADMAP.md), and the current sprint file.
 
 ## Product Goal
 
@@ -723,7 +723,7 @@ Restore a SQL backup:
 
 ## Quality Gate
 
-The repository includes a local quality gate that validates the baseline and the active Sprint 11 proof layers:
+The repository includes a local quality gate that validates the baseline and the completed Sprint 11 proof layers:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\quality-gate.ps1
@@ -741,7 +741,7 @@ It covers:
 - API health check;
 - API readiness check through the production boot path;
 - Android wrapper, lint, unit tests, debug build, and instrumentation APK build;
-- optional connected Android instrumentation when `FLEETOPS_ENABLE_ANDROID_CONNECTED=1` and an emulator or device is available.
+- optional connected Android instrumentation when `FLEETOPS_ENABLE_ANDROID_CONNECTED=1` and an emulator or device is available. On physical devices where OEM or Play Protect verification stalls ADB package installation, `FLEETOPS_MANAGE_ANDROID_ADB_VERIFIER=1` temporarily disables only ADB-install verification for the test step and always restores the original device setting.
 
 ## Validation Summary
 
@@ -765,7 +765,7 @@ Current local validation includes:
 - Android unit tests, debug assembly, instrumentation APK compilation, and connected instrumentation execution on a physical Android device for Room-backed offline persistence and unique WorkManager scheduling tests;
 - full local quality gate.
 
-On Friday, July 17, 2026, the full local quality gate passed, but the workstation still could not start the Docker Desktop Linux engine. The three Docker-backed SQL Server tests are therefore implemented, compiled, and honestly skipped locally. On the same date, `connectedDebugAndroidTest` was executed successfully on a connected physical Android device, removing the previous Android execution uncertainty from Sprint 11.
+On Friday, July 17, 2026, the local Docker Desktop Linux engine was restored without deleting images, volumes, or application data. The full quality gate then passed without skips: 97 fast backend tests, three SQL Server/Testcontainers proofs, 15 Web unit tests, four Playwright critical flows, and three connected Android instrumentation tests on a physical device.
 
 ## Engineering Notes
 
@@ -786,7 +786,7 @@ Admin/Operator and Driver workflows have different interaction models, offline r
 | Range | Outcome |
 |---|---|
 | Sprint 00–10 | Functional MVP baseline plus Production truth and UX stabilization |
-| Sprint 11 | Active sprint: SQL Server proof, recovery drill, Playwright critical flows, Android instrumentation baseline |
+| Sprint 11 | Completed SQL Server proof, recovery drill, Playwright critical flows, and Android instrumentation baseline |
 | Sprint 12–15 | Security hardening, exception-driven operations, richer driver field workflow, tenant onboarding |
 | Sprint 16–20 | Media lifecycle, maintenance work orders, compliance campaigns, dispatch productivity, measured alpha pilot |
 | Sprint 21–25 | Tracking quality, telematics connectors, recipient status, reporting, integration hub |

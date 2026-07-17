@@ -208,7 +208,54 @@ try {
   if ($env:FLEETOPS_ENABLE_ANDROID_CONNECTED -eq "1") {
     Invoke-Step "Android Connected Test" {
       Push-Location apps/android-driver
-      try { ./gradlew.bat connectedDebugAndroidTest --stacktrace } finally { Pop-Location }
+      $adb = Join-Path $env:ANDROID_HOME "platform-tools\adb.exe"
+      $verifierOriginal = $null
+      $manageAdbVerifier = $env:FLEETOPS_MANAGE_ANDROID_ADB_VERIFIER -eq "1"
+      $testExitCode = 1
+      try {
+        if ($manageAdbVerifier) {
+          $verifierOriginal = (& $adb shell settings get global verifier_verify_adb_installs).Trim()
+          & $adb shell settings put global verifier_verify_adb_installs 0
+          $verifierApplied = (& $adb shell settings get global verifier_verify_adb_installs).Trim()
+          if ($verifierApplied -ne "0") {
+            throw "Unable to temporarily disable ADB-only package verification on the connected Android device."
+          }
+        }
+
+        ./gradlew.bat connectedDebugAndroidTest --stacktrace
+        $testExitCode = $LASTEXITCODE
+        if ($testExitCode -ne 0) {
+          $resultRoot = "app\build\outputs\androidTest-results\connected\debug"
+          $resultText = Get-ChildItem -Path $resultRoot -Recurse -Filter "*.xml" -ErrorAction SilentlyContinue |
+            Get-Content -Raw
+          $installTimeout = $resultText -match "Failed to install split APK\(s\)" -and
+            $resultText -match "ShellCommandUnresponsiveException"
+
+          if ($installTimeout) {
+            Write-Warning "Android package installation timed out on the connected device; retrying once after an ADB/package-manager readiness check."
+            & $adb wait-for-device
+            & $adb shell pm path android | Out-Null
+            Start-Sleep -Seconds 5
+            ./gradlew.bat connectedDebugAndroidTest --stacktrace
+            $testExitCode = $LASTEXITCODE
+          }
+        }
+      }
+      finally {
+        if ($manageAdbVerifier -and $null -ne $verifierOriginal) {
+          if ($verifierOriginal -eq "null" -or [string]::IsNullOrWhiteSpace($verifierOriginal)) {
+            & $adb shell settings delete global verifier_verify_adb_installs | Out-Null
+          }
+          else {
+            & $adb shell settings put global verifier_verify_adb_installs $verifierOriginal
+          }
+        }
+        Pop-Location
+      }
+
+      if ($testExitCode -ne 0) {
+        throw "Connected Android instrumentation failed with exit code $testExitCode."
+      }
     }
   }
   else {

@@ -53,16 +53,16 @@ Validation replayed locally on `2026-07-17` on Windows.
 - administrator MFA enablement, login challenge, tenant lifecycle export, and controlled purge flows
 - pilot compose packaging plus SQL backup and restore scripts
 - Production configuration refusal for known signing keys/demo seed, safe bootstrap options, login rate limiting, and Identity lockout
-- PowerShell recovery-script parsing in the gate, 97 fast backend tests plus 3 Docker-backed SQL tests compiled and skipped locally without the Linux engine
+- PowerShell recovery-script parsing in the gate, 97 fast backend tests plus 3 Docker-backed SQL tests executed successfully without skips
 - 4 Playwright browser E2E scenarios against the real API and web client, including cross-tenant discovery and mutation refusal
 - Android instrumentation APK compilation for Room persistence and WorkManager scheduling tests
 - Android `connectedDebugAndroidTest` executed on a connected physical Android device with 3 tests passed
 
 ## Remaining limits
 
-- Docker Desktop Linux engine is unavailable on this workstation, so the three Sprint 11 SQL Server tests are skipped locally even though the harness is implemented.
-- The Android application still does not include native camera capture, biometric signature, or alert workflows.
+- The Android application still does not include native camera capture, biometric signature, or alert workflows; those capabilities remain assigned to later approved sprints.
+- Protected Web and Android session storage remains assigned to Sprint 12.
 
 ## Conclusion
 
-Sprint 00 through Sprint 10 remain complete locally. Sprint 11 is now in progress and already adds executable proof layers: Docker-aware SQL Server tests, four passing Playwright scenarios, compiled Android instrumentation coverage, and connected Android instrumentation executed successfully on a physical device. The repository remains honest about what is still environment-blocked on Friday, July 17, 2026: local Docker Linux execution for SQL/recovery.
+Sprint 00 through Sprint 11 are complete locally. Sprint 11 proves migrations from an empty SQL Server database, tenant uniqueness and optimistic concurrency, backup/restore checksum preservation, four critical Playwright flows, and three connected Android instrumentation tests on a physical device. The full quality gate passed without skips on Friday, July 17, 2026.

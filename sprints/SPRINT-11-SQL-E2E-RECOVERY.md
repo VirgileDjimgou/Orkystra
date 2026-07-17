@@ -33,15 +33,17 @@ Tests relationnels et de migrations, restauration avec comparaison de comptes/ha
 Preuves obtenues au vendredi 17 juillet 2026 :
 - les quatre scénarios Playwright critiques passent localement ;
 - `connectedDebugAndroidTest` passe sur téléphone Android réel ;
-- les preuves SQL relationnelles et recovery restent implémentées mais non rejouées localement faute de moteur Docker Linux.
+- Docker Desktop Linux a été restauré sans perte de données après redémarrage ciblé du frontend, du backend et de la distribution WSL `docker-desktop` ;
+- la factory SQL remplace explicitement l'enregistrement `FleetOpsDbContext` par l'endpoint dynamique Testcontainers ;
+- les trois preuves SQL relationnelles et recovery passent localement sans skip.
 
 ## Critères d’acceptation
 
-- [ ] le schéma d’essai est créé exclusivement par migrations depuis une base vide ;
-- [ ] les contraintes SQL et la concurrence optimiste sont exercées ;
+- [x] le schéma d’essai est créé exclusivement par migrations depuis une base vide ;
+- [x] les contraintes SQL et la concurrence optimiste sont exercées ;
 - [x] login, création/affectation de mission et consultation d’une preuve passent en E2E ;
 - [x] un tenant ne peut ni découvrir ni modifier les données d’un autre en E2E ;
-- [ ] une sauvegarde est restaurée dans une base neuve avec checksum métier identique ;
+- [x] une sauvegarde est restaurée dans une base neuve avec checksum métier identique ;
 - [x] les gates rapides et lourdes publient des diagnostics exploitables.
 
 ## Livrable démontrable

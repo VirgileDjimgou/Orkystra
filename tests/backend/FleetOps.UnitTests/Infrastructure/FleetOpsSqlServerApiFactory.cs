@@ -8,8 +8,11 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Testcontainers.MsSql;
 using Xunit;
 
@@ -68,6 +71,13 @@ public sealed class FleetOpsSqlServerApiFactory : WebApplicationFactory<Program>
                 ["Integrations:RetryBaseDelaySeconds"] = "0",
                 ["Integrations:MaxWebhookAttempts"] = "3"
             });
+        });
+
+        builder.ConfigureServices(services =>
+        {
+            services.RemoveAll<DbContextOptions<FleetOpsDbContext>>();
+            services.RemoveAll<IDbContextOptionsConfiguration<FleetOpsDbContext>>();
+            services.AddDbContext<FleetOpsDbContext>(options => options.UseSqlServer(ConnectionString));
         });
     }
 
