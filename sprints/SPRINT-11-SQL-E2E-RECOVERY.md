@@ -30,14 +30,19 @@ Sprint 10 terminé ; moteur Docker Linux stable pour la preuve SQL et émulateur
 
 Tests relationnels et de migrations, restauration avec comparaison de comptes/hachages, Playwright multi-rôle, instrumentation offline, redémarrage worker/outbox et vérification d’absence de fuite inter-tenant.
 
+Preuves obtenues au vendredi 17 juillet 2026 :
+- les quatre scénarios Playwright critiques passent localement ;
+- `connectedDebugAndroidTest` passe sur téléphone Android réel ;
+- les preuves SQL relationnelles et recovery restent implémentées mais non rejouées localement faute de moteur Docker Linux.
+
 ## Critères d’acceptation
 
 - [ ] le schéma d’essai est créé exclusivement par migrations depuis une base vide ;
 - [ ] les contraintes SQL et la concurrence optimiste sont exercées ;
-- [ ] login, création/affectation de mission et consultation d’une preuve passent en E2E ;
-- [ ] un tenant ne peut ni découvrir ni modifier les données d’un autre en E2E ;
+- [x] login, création/affectation de mission et consultation d’une preuve passent en E2E ;
+- [x] un tenant ne peut ni découvrir ni modifier les données d’un autre en E2E ;
 - [ ] une sauvegarde est restaurée dans une base neuve avec checksum métier identique ;
-- [ ] les gates rapides et lourdes publient des diagnostics exploitables.
+- [x] les gates rapides et lourdes publient des diagnostics exploitables.
 
 ## Livrable démontrable
 

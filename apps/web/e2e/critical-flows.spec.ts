@@ -5,6 +5,7 @@ const apiBaseUrl =
   process.env.PLAYWRIGHT_API_BASE_URL ?? "http://127.0.0.1:5080";
 const samplePngBase64 =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9pN96ZQAAAAASUVORK5CYII=";
+let missionScheduleSequence = 0;
 
 test("operator can sign in and reach the tenant-aware overview", async ({
   page,
@@ -100,12 +101,17 @@ test("operator can review a delivery proof prepared by the driver workflow", asy
   await expect(page.getByRole("link", { name: "Demo capture" })).toBeVisible();
 });
 
-test("a second tenant cannot discover a Northwind mission in the dispatch board", async ({
+test("a second tenant cannot discover or mutate a Northwind mission", async ({
   page,
   request,
 }) => {
   const reference = `NW-ISO-${Date.now()}`;
-  await createAssignedMission(request, reference);
+  const mission = await createAssignedMission(request, reference);
+  const southridgeAdminToken = await loginViaApi(
+    request,
+    "admin@southridge.local",
+    "Admin123!",
+  );
 
   await loginViaUi(page, "admin@southridge.local", "Admin123!");
   await page.goto("/dispatch/missions");
@@ -114,6 +120,18 @@ test("a second tenant cannot discover a Northwind mission in the dispatch board"
     "Southridge Transport",
   );
   await expect(page.getByText(reference)).toHaveCount(0);
+
+  const unauthorizedMutation = await request.post(
+    `${apiBaseUrl}/api/v1/dispatch/missions/${mission.id}/status`,
+    {
+      headers: { Authorization: `Bearer ${southridgeAdminToken}` },
+      data: {
+        targetStatus: 6,
+        rowVersion: mission.rowVersion,
+      },
+    },
+  );
+  expect(unauthorizedMutation.status()).toBe(404);
 });
 
 async function loginViaUi(page: Page, email: string, password: string) {
@@ -199,10 +217,7 @@ async function createAssignedMission(
     "Operator123!",
   );
 
-  const digits = Number(reference.replace(/\D/g, "").slice(-6)) || 0;
-  const offsetHours = 12 + (digits % 120);
-  const start = new Date(Date.now() + offsetHours * 60 * 60 * 1000);
-  const end = new Date(start.getTime() + 2 * 60 * 60 * 1000);
+  const schedule = createUniqueSchedule(reference);
   const missionResponse = await request.post(
     `${apiBaseUrl}/api/v1/dispatch/missions`,
     {
@@ -210,24 +225,20 @@ async function createAssignedMission(
       data: {
         reference,
         title: "Sprint 11 browser proof",
-        scheduledStartUtc: start.toISOString(),
-        scheduledEndUtc: end.toISOString(),
+        scheduledStartUtc: schedule.start.toISOString(),
+        scheduledEndUtc: schedule.end.toISOString(),
         stops: [
           {
             sequence: 1,
             name: "Depot",
             address: "1 Dispatch Way",
-            plannedArrivalUtc: new Date(
-              start.getTime() + 30 * 60 * 1000,
-            ).toISOString(),
+            plannedArrivalUtc: schedule.firstStop.toISOString(),
           },
           {
             sequence: 2,
             name: "Customer",
             address: "22 Fleet Street",
-            plannedArrivalUtc: new Date(
-              start.getTime() + 90 * 60 * 1000,
-            ).toISOString(),
+            plannedArrivalUtc: schedule.secondStop.toISOString(),
           },
         ],
       },
@@ -313,20 +324,28 @@ async function loginViaApi(
 }
 
 function buildFutureSchedule(reference: string) {
+  const schedule = createUniqueSchedule(reference);
+
+  return {
+    scheduledStartUtcLocal: toLocalDateTimeInputValue(schedule.start),
+    scheduledEndUtcLocal: toLocalDateTimeInputValue(schedule.end),
+    firstStopUtcLocal: toLocalDateTimeInputValue(schedule.firstStop),
+    secondStopUtcLocal: toLocalDateTimeInputValue(schedule.secondStop),
+  };
+}
+
+function createUniqueSchedule(reference: string) {
+  missionScheduleSequence += 1;
   const digits = Number(reference.replace(/\D/g, "").slice(-6)) || 0;
-  const offsetHours = 12 + (digits % 120);
+  const offsetHours = 12 + missionScheduleSequence * 3 + (digits % 2);
   const start = new Date(Date.now() + offsetHours * 60 * 60 * 1000);
   const end = new Date(start.getTime() + 2 * 60 * 60 * 1000);
 
   return {
-    scheduledStartUtcLocal: toLocalDateTimeInputValue(start),
-    scheduledEndUtcLocal: toLocalDateTimeInputValue(end),
-    firstStopUtcLocal: toLocalDateTimeInputValue(
-      new Date(start.getTime() + 30 * 60 * 1000),
-    ),
-    secondStopUtcLocal: toLocalDateTimeInputValue(
-      new Date(start.getTime() + 90 * 60 * 1000),
-    ),
+    start,
+    end,
+    firstStop: new Date(start.getTime() + 30 * 60 * 1000),
+    secondStop: new Date(start.getTime() + 90 * 60 * 1000),
   };
 }
 

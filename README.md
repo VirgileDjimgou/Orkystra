@@ -753,7 +753,7 @@ Current local validation includes:
 - tracking unit and integration tests covering duplicate telemetry, out-of-order handling, paged history, tenant isolation, and multi-vehicle visibility;
 - dispatch domain and integration tests covering mission lifecycle, illegal transitions, tenant-safe assignment, schedule conflicts, and mission-to-map linkage;
 - driver mobile integration tests covering assigned-mission filtering, idempotent command sync, stale row-version conflicts, inspection blocking, resumable uploads, and proof visibility;
-- web tests, lint, format, production build, and four Playwright critical-flow scenarios covering login, dispatch progression, proof consultation, and tenant isolation;
+- web tests, lint, format, production build, and four Playwright critical-flow scenarios covering login, dispatch progression, proof consultation, and tenant isolation with explicit cross-tenant mutation refusal;
 - web dispatch board coverage for mission rendering, assignment context, timeline visibility, and map linkage;
 - authenticated tracking endpoints, paged history, metrics, and SignalR hub;
 - alerting and maintenance tests covering deduplication, UTC handling, notification failure tolerance, role permissions, tenant isolation, and restart-safe re-scans;
@@ -762,10 +762,10 @@ Current local validation includes:
 - EF Core migrations for Sprint 01, Sprint 02, Sprint 03, Sprint 04, Sprint 05, Sprint 06, Sprint 07, and Sprint 08;
 - OpenTelemetry OTLP wiring and JSON logs for the API and worker runtime;
 - pilot Docker packaging plus SQL backup and restore scripts;
-- Android unit tests, debug assembly, and instrumentation APK compilation for Room-backed offline persistence and unique WorkManager scheduling tests;
+- Android unit tests, debug assembly, instrumentation APK compilation, and connected instrumentation execution on a physical Android device for Room-backed offline persistence and unique WorkManager scheduling tests;
 - full local quality gate.
 
-On Friday, July 17, 2026, the full local quality gate passed, but the workstation still could not start the Docker Desktop Linux engine. The three Docker-backed SQL Server tests are therefore implemented, compiled, and honestly skipped locally. Connected Android instrumentation also remains environment-dependent and is therefore compiled into the gate, while execution stays optional until an emulator or a device is attached.
+On Friday, July 17, 2026, the full local quality gate passed, but the workstation still could not start the Docker Desktop Linux engine. The three Docker-backed SQL Server tests are therefore implemented, compiled, and honestly skipped locally. On the same date, `connectedDebugAndroidTest` was executed successfully on a connected physical Android device, removing the previous Android execution uncertainty from Sprint 11.
 
 ## Engineering Notes
 

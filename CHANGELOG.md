@@ -6,6 +6,7 @@ Toutes les modifications fonctionnelles significatives sont documentées ici.
 
 ### Added
 
+- AndroidX instrumentation runner dependency for connected Sprint 11 Android test execution on real devices.
 - Sprint 11 SQL Server Testcontainers harness with migration, tenant-uniqueness, concurrency, and recovery coverage.
 - Playwright critical-flow suite for sign-in, dispatch progression, proof consultation, and tenant isolation.
 - Android instrumentation tests for Room offline persistence and unique WorkManager scheduling behavior.
@@ -32,6 +33,8 @@ Toutes les modifications fonctionnelles significatives sont documentées ici.
 
 ### Changed
 
+- Sprint 11 browser proof now explicitly verifies that a second tenant cannot discover or mutate a Northwind mission through the dispatch API or UI.
+- Sprint 11 validation now includes successful `connectedDebugAndroidTest` execution on a connected physical Android device.
 - Sprint 11 is now the active sprint in the agent state, handoff, validation, and roadmap governance files.
 - Local and CI quality gates now distinguish fast backend checks, Docker-backed SQL tests, Playwright browser E2E, and Android instrumentation APK compilation.
 - Production now rejects known or missing JWT/media signing keys, local connection defaults, and demo-data seeding.

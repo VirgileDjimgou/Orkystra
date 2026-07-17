@@ -54,15 +54,15 @@ Validation replayed locally on `2026-07-17` on Windows.
 - pilot compose packaging plus SQL backup and restore scripts
 - Production configuration refusal for known signing keys/demo seed, safe bootstrap options, login rate limiting, and Identity lockout
 - PowerShell recovery-script parsing in the gate, 97 fast backend tests plus 3 Docker-backed SQL tests compiled and skipped locally without the Linux engine
-- 4 Playwright browser E2E scenarios against the real API and web client
+- 4 Playwright browser E2E scenarios against the real API and web client, including cross-tenant discovery and mutation refusal
 - Android instrumentation APK compilation for Room persistence and WorkManager scheduling tests
+- Android `connectedDebugAndroidTest` executed on a connected physical Android device with 3 tests passed
 
 ## Remaining limits
 
 - Docker Desktop Linux engine is unavailable on this workstation, so the three Sprint 11 SQL Server tests are skipped locally even though the harness is implemented.
-- No Android emulator or device is currently attached, so `connectedDebugAndroidTest` is not executed locally.
 - The Android application still does not include native camera capture, biometric signature, or alert workflows.
 
 ## Conclusion
 
-Sprint 00 through Sprint 10 remain complete locally. Sprint 11 is now in progress and already adds executable proof layers: Docker-aware SQL Server tests, four passing Playwright scenarios, and compiled Android instrumentation coverage. The repository remains honest about what is still environment-blocked on Friday, July 17, 2026: local Docker Linux execution for SQL/recovery and connected Android instrumentation.
+Sprint 00 through Sprint 10 remain complete locally. Sprint 11 is now in progress and already adds executable proof layers: Docker-aware SQL Server tests, four passing Playwright scenarios, compiled Android instrumentation coverage, and connected Android instrumentation executed successfully on a physical device. The repository remains honest about what is still environment-blocked on Friday, July 17, 2026: local Docker Linux execution for SQL/recovery.
