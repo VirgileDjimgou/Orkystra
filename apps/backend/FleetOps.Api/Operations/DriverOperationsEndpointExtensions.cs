@@ -1,5 +1,6 @@
 using FleetOps.Api.Auditing;
 using FleetOps.Api.Media;
+using FleetOps.Api.Operations;
 using FleetOps.Api.Security;
 using FleetOps.Core.Modules.Dispatch;
 using FleetOps.Core.Modules.Identity;
@@ -13,6 +14,8 @@ namespace FleetOps.Api.Operations;
 
 public static class DriverOperationsEndpointExtensions
 {
+    private const string DeliveryPhotoCaption = "Delivery photo";
+    private const string RecipientSignatureCaption = "Recipient signature";
     private const string InspectionScope = "inspection";
     private const string DeliveryProofScope = "delivery-proof";
 
@@ -82,6 +85,7 @@ public static class DriverOperationsEndpointExtensions
         ICurrentTenantAccessor currentTenantAccessor,
         IAuditService auditService,
         IMediaUrlSigner signer,
+        IOperationsRealtimeNotifier notifier,
         CancellationToken cancellationToken)
     {
         var tenant = currentTenantAccessor.GetRequiredTenant(httpContext.User);
@@ -195,6 +199,7 @@ public static class DriverOperationsEndpointExtensions
             inspection.Id.ToString(),
             new { mission.Reference, inspection.Outcome, inspection.HasBlockingCriticalDefect },
             cancellationToken);
+        await notifier.NotifyQueueChangedAsync(tenant.OrganizationId, "driver.inspection_submitted", cancellationToken);
 
         var response = await LoadLatestInspectionAsync(missionId, tenant.OrganizationId, dbContext, signer, cancellationToken);
         return Results.Ok(response);
@@ -236,6 +241,7 @@ public static class DriverOperationsEndpointExtensions
         ICurrentTenantAccessor currentTenantAccessor,
         IAuditService auditService,
         IMediaUrlSigner signer,
+        IOperationsRealtimeNotifier notifier,
         CancellationToken cancellationToken)
     {
         var tenant = currentTenantAccessor.GetRequiredTenant(httpContext.User);
@@ -266,6 +272,15 @@ public static class DriverOperationsEndpointExtensions
             return Results.NotFound();
         }
 
+        if (!request.Photos.Any(x => string.Equals(x.Caption, DeliveryPhotoCaption, StringComparison.Ordinal))
+            || !request.Photos.Any(x => string.Equals(x.Caption, RecipientSignatureCaption, StringComparison.Ordinal)))
+        {
+            return Results.ValidationProblem(new Dictionary<string, string[]>
+            {
+                ["photos"] = ["A delivery photo and a handwritten recipient signature are required."]
+            });
+        }
+
         var validationProblem = await ValidateMediaAssetsAsync(
             tenant.OrganizationId,
             request.Photos.Select(x => (Guid?)x.MediaAssetId),
@@ -292,6 +307,12 @@ public static class DriverOperationsEndpointExtensions
         DeliveryProof proof;
         try
         {
+            var proofId = Guid.NewGuid();
+            var proofPhotos = request.Photos.Select(x => new DeliveryProofPhoto(
+                tenant.OrganizationId,
+                proofId,
+                x.MediaAssetId,
+                x.Caption)).ToList();
             proof = new DeliveryProof(
                 tenant.OrganizationId,
                 mission.Id,
@@ -301,12 +322,8 @@ public static class DriverOperationsEndpointExtensions
                 request.SignatureName,
                 request.DeliveredAtUtc,
                 request.Notes,
-                request.Photos.Select(x => new DeliveryProofPhoto(
-                    tenant.OrganizationId,
-                    Guid.NewGuid(),
-                    x.MediaAssetId,
-                    x.Caption))
-                    .ToList());
+                proofPhotos,
+                proofId);
         }
         catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or ArgumentOutOfRangeException)
         {
@@ -315,22 +332,6 @@ public static class DriverOperationsEndpointExtensions
                 ["proof"] = [ex.Message]
             });
         }
-
-        var proofPhotos = request.Photos.Select(x => new DeliveryProofPhoto(
-            tenant.OrganizationId,
-            proof.Id,
-            x.MediaAssetId,
-            x.Caption)).ToList();
-        proof = new DeliveryProof(
-            tenant.OrganizationId,
-            mission.Id,
-            stop.Id,
-            driverId,
-            request.RecipientName,
-            request.SignatureName,
-            request.DeliveredAtUtc,
-            request.Notes,
-            proofPhotos);
 
         dbContext.DeliveryProofs.Add(proof);
         dbContext.DeliveryProofPhotos.AddRange(proof.Photos);
@@ -351,6 +352,7 @@ public static class DriverOperationsEndpointExtensions
             proof.Id.ToString(),
             new { mission.Reference, stop.Name, request.RecipientName },
             cancellationToken);
+        await notifier.NotifyQueueChangedAsync(tenant.OrganizationId, "driver.delivery_proof_submitted", cancellationToken);
 
         var response = await LoadDeliveryProofAsync(missionId, stopId, tenant.OrganizationId, dbContext, signer, cancellationToken);
         return Results.Ok(response);

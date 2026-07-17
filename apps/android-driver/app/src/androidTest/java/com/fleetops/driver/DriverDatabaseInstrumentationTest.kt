@@ -23,6 +23,7 @@ class DriverDatabaseInstrumentationTest {
     @Before
     fun setUp() {
         context = ApplicationProvider.getApplicationContext()
+        context.deleteDatabase("fleetops-driver-instrumentation")
         credentialStore = InMemoryDriverCredentialStore()
         database = buildDatabase("fleetops-driver-instrumentation")
         store = RoomDriverLocalStore(database, credentialStore)
@@ -31,6 +32,7 @@ class DriverDatabaseInstrumentationTest {
     @After
     fun tearDown() {
         database.close()
+        context.deleteDatabase("fleetops-driver-instrumentation")
     }
 
     @Test
@@ -111,6 +113,45 @@ class DriverDatabaseInstrumentationTest {
         assertEquals(1, pending.size)
         assertEquals("workflow-1", pending.single().commandId)
         assertEquals("2026-07-16T09:05:00Z", pending.single().createdAtUtc)
+    }
+
+    @Test
+    fun capturedEvidenceAndUploadProgressSurviveDatabaseReopen() = runBlocking {
+        val operation = PendingWorkflowOperation(
+            commandId = "workflow-resume-1",
+            missionId = "mission-1",
+            operationType = DriverWorkflowOperationType.DeliveryProof,
+            payloadJson = """{"recipientName":"Taylor Receiver"}""",
+            photos = listOf(
+                PendingPhotoUpload(
+                    localId = "proof-1",
+                    fileName = "delivery.jpg",
+                    contentType = "image/jpeg",
+                    base64Content = SAMPLE_PNG_BASE64,
+                    caption = DELIVERY_PHOTO_CAPTION,
+                    uploadSessionId = "session-1",
+                    uploadedBytes = 24,
+                ),
+                PendingPhotoUpload(
+                    localId = "signature-1",
+                    fileName = "signature.png",
+                    contentType = "image/png",
+                    base64Content = SAMPLE_PNG_BASE64,
+                    caption = SIGNATURE_CAPTION,
+                ),
+            ),
+            createdAtUtc = "2026-07-17T09:00:00Z",
+        )
+        store.enqueueWorkflowOperation(operation)
+
+        database.close()
+        database = buildDatabase("fleetops-driver-instrumentation")
+        store = RoomDriverLocalStore(database, credentialStore)
+
+        val recovered = store.pendingWorkflowOperations().single()
+        assertEquals("session-1", recovered.photos.first().uploadSessionId)
+        assertEquals(24, recovered.photos.first().uploadedBytes)
+        assertEquals(SIGNATURE_CAPTION, recovered.photos[1].caption)
     }
 
     private fun buildDatabase(name: String): DriverDatabase =

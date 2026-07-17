@@ -2,7 +2,7 @@
 
 ## Principe
 
-L’état réel du dépôt compte treize sprints terminés, `SPRINT-00` à `SPRINT-12`. La trajectoire approuvée ajoute exactement vingt sprints denses, `SPRINT-11` à `SPRINT-30`, pour transformer le MVP audité à 66/100 en produit de flotte exploitable, mesurable et commercialisable.
+L’état réel du dépôt compte seize sprints terminés, `SPRINT-00` à `SPRINT-15`. La trajectoire approuvée ajoute exactement vingt sprints denses, `SPRINT-11` à `SPRINT-30`, pour transformer le MVP audité à 66/100 en produit de flotte exploitable, mesurable et commercialisable.
 
 L’extension reste centrée sur le noyau **mission → conducteur offline → inspection/preuve → exception → action opérateur**. Elle consolide ensuite maintenance, conformité, télématique ouverte, communication destinataire, reporting et exploitation SaaS. Chaque sprint laisse le système exécutable et possède un résultat démontrable, des métriques, des tests, une vérification sécurité/tenant et un rollback.
 
@@ -25,10 +25,10 @@ Les sprints futurs sont une séquence de décisions, pas une promesse de tout co
 | 10 | Configuration Production sûre et socle UX Web/Android | Réduction du risque critique | Terminé | L |
 | 11 | SQL Server, migrations, recovery et parcours E2E prouvés | Confiance dans les données | Terminé | XL |
 | 12 | Sessions, autorisations et données sensibles durcies | Sécurité exploitable | Terminé | XL |
-| 13 | Centre d’opérations piloté par exception | Productivité opérateur | En cours | XL |
-| 14 | Parcours conducteur terrain avec photo réelle | Adoption et preuve terrain | Planifié | XL |
-| 15 | Onboarding tenant, import et activation guidés | Temps de mise en service | Planifié | L |
-| 16 | Stockage objet, médias sûrs et cycle de vie | Résilience des preuves | Planifié | L |
+| 13 | Centre d’opérations piloté par exception | Productivité opérateur | Terminé | XL |
+| 14 | Parcours conducteur terrain avec photo réelle | Adoption et preuve terrain | Terminé | XL |
+| 15 | Onboarding tenant, import et activation guidés | Temps de mise en service | Terminé | L |
+| 16 | Stockage objet, médias sûrs et cycle de vie | Résilience des preuves | En cours | L |
 | 17 | Ordres de maintenance, immobilisation et coûts | Disponibilité véhicule | Planifié | XL |
 | 18 | Conformité documentaire et campagnes d’inspection | Réduction du risque réglementaire | Planifié | L |
 | 19 | Dispatch productif, modèles et actions en masse | Capacité opérationnelle | Planifié | XL |

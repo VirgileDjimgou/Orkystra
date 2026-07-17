@@ -7,18 +7,55 @@ const samplePngBase64 =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9pN96ZQAAAAASUVORK5CYII=";
 let missionScheduleSequence = 0;
 
-test("operator can sign in and reach the tenant-aware overview", async ({
+test("operator can sign in and reach the tenant-aware operations center", async ({
   page,
 }) => {
   await loginViaUi(page, "operator@northwind.local", "Operator123!");
 
   await expect(
-    page.getByRole("heading", { name: "Operations overview" }),
+    page.getByRole("heading", { name: "Operations center" }),
   ).toBeVisible();
   await expect(page.locator(".brand-subtitle")).toHaveText(
     "Northwind Logistics",
   );
-  await expect(page.getByRole("link", { name: "Mission board" })).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Operations center" }),
+  ).toHaveAttribute("aria-current", "page");
+  await expect(page.getByRole("link", { name: "Overview" })).toBeVisible();
+});
+
+test("administrator can run guided activation through first mission value", async ({
+  page,
+  request,
+}) => {
+  await loginViaUi(page, "admin@northwind.local", "Admin123!");
+  await page.goto("/admin/onboarding");
+  await expect(
+    page.getByRole("heading", { name: "Reach your first test mission" }),
+  ).toBeVisible();
+
+  const registration = `ONB-E2E-${Date.now()}`;
+  await page
+    .getByLabel("CSV content")
+    .fill(
+      `registrationNumber,displayName\n${registration},Guided activation van`,
+    );
+  await page.getByRole("button", { name: "Preview import" }).click();
+  await expect(
+    page.getByText("Preview is valid and ready for confirmation."),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Confirm validated import" }).click();
+  await expect(page.getByText(/Import confirmed: 1 created/)).toBeVisible();
+
+  await page.getByLabel("Activated driver account").selectOption({ index: 1 });
+  await page.getByRole("button", { name: "Create pairing code" }).click();
+  await expect(page.locator(".secret-banner code")).toHaveText(/^\d{6}$/);
+
+  await completeMissionForFirstValue(request, `NW-ACT-${Date.now()}`);
+  await page.getByRole("button", { name: "Refresh" }).click();
+  await expect(
+    page.locator(".summary-card").filter({ hasText: "First value" }),
+  ).toContainText("Ready");
 });
 
 test("operator can create, assign, and progress a mission in the dispatch board", async ({
@@ -98,7 +135,12 @@ test("operator can review a delivery proof prepared by the driver workflow", asy
       .first(),
   ).toBeVisible();
   await expect(page.getByText("Signed by Taylor Receiver")).toBeVisible();
-  await expect(page.getByRole("link", { name: "Demo capture" })).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Delivery photo" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Recipient signature" }),
+  ).toBeVisible();
 });
 
 test("a second tenant cannot discover or mutate a Northwind mission", async ({
@@ -198,13 +240,86 @@ async function createMissionWithProof(
         signatureName: "Taylor Receiver",
         deliveredAtUtc: new Date().toISOString(),
         notes: "Delivered during Sprint 11 proof flow.",
-        photos: [{ mediaAssetId: asset.assetId, caption: "Demo capture" }],
+        photos: [
+          { mediaAssetId: asset.assetId, caption: "Delivery photo" },
+          { mediaAssetId: asset.assetId, caption: "Recipient signature" },
+        ],
       },
     },
   );
   expect(proofResponse.ok()).toBeTruthy();
 
   return mission;
+}
+
+async function completeMissionForFirstValue(
+  request: APIRequestContext,
+  reference: string,
+) {
+  const mission = await createMissionWithProof(request, reference);
+  const driverToken = await loginViaApi(
+    request,
+    "driver@northwind.local",
+    "Driver123!",
+  );
+  const authorization = { Authorization: `Bearer ${driverToken}` };
+  const inspection = await request.post(
+    `${apiBaseUrl}/api/v1/driver/missions/${mission.id}/inspection`,
+    {
+      headers: authorization,
+      data: {
+        commandId: `inspection-${reference}`,
+        completedAtUtc: new Date().toISOString(),
+        notes: "Vehicle ready for activation mission.",
+        items: [
+          {
+            sequence: 1,
+            code: "brakes",
+            label: "Brakes and steering",
+            isPass: true,
+            defectSeverity: 0,
+          },
+          {
+            sequence: 2,
+            code: "lights",
+            label: "Lights and signals",
+            isPass: true,
+            defectSeverity: 0,
+          },
+          {
+            sequence: 3,
+            code: "cargo-secured",
+            label: "Cargo and doors secured",
+            isPass: true,
+            defectSeverity: 0,
+          },
+        ],
+      },
+    },
+  );
+  expect(inspection.ok()).toBeTruthy();
+
+  let rowVersion = mission.rowVersion as number;
+  for (const [action, label] of [
+    [1, "start"],
+    [2, "arrive"],
+    [3, "complete"],
+  ] as const) {
+    const response = await request.post(
+      `${apiBaseUrl}/api/v1/driver/missions/${mission.id}/commands`,
+      {
+        headers: authorization,
+        data: {
+          commandId: `${label}-${reference}`,
+          action,
+          rowVersion,
+          occurredAtUtc: new Date().toISOString(),
+        },
+      },
+    );
+    expect(response.ok()).toBeTruthy();
+    rowVersion = (await response.json()).mission.rowVersion;
+  }
 }
 
 async function createAssignedMission(
@@ -337,7 +452,7 @@ function buildFutureSchedule(reference: string) {
 function createUniqueSchedule(reference: string) {
   missionScheduleSequence += 1;
   const digits = Number(reference.replace(/\D/g, "").slice(-6)) || 0;
-  const offsetHours = 12 + missionScheduleSequence * 3 + (digits % 2);
+  const offsetHours = 24 + missionScheduleSequence * 3 + (digits % 8_760);
   const start = new Date(Date.now() + offsetHours * 60 * 60 * 1000);
   const end = new Date(start.getTime() + 2 * 60 * 60 * 1000);
 

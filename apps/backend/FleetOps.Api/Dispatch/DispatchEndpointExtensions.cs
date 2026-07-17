@@ -148,6 +148,7 @@ public static class DispatchEndpointExtensions
         ICurrentTenantAccessor currentTenantAccessor,
         IAuditService auditService,
         IIntegrationOutboxService integrationOutboxService,
+        IOperationsRealtimeNotifier notifier,
         CancellationToken cancellationToken)
     {
         var tenant = currentTenantAccessor.GetRequiredTenant(httpContext.User);
@@ -201,6 +202,7 @@ public static class DispatchEndpointExtensions
             mission.Id.ToString(),
             new { mission.Reference, mission.Status },
             cancellationToken);
+        await notifier.NotifyQueueChangedAsync(tenant.OrganizationId, "dispatch.mission_created", cancellationToken);
 
         return Results.Created(
             $"/api/v1/dispatch/missions/{mission.Id}",
@@ -215,6 +217,7 @@ public static class DispatchEndpointExtensions
         IMediaUrlSigner signer,
         ICurrentTenantAccessor currentTenantAccessor,
         IAuditService auditService,
+        IOperationsRealtimeNotifier notifier,
         CancellationToken cancellationToken)
     {
         var tenant = currentTenantAccessor.GetRequiredTenant(httpContext.User);
@@ -268,6 +271,7 @@ public static class DispatchEndpointExtensions
             mission.Id.ToString(),
             new { mission.Title, mission.RowVersion },
             cancellationToken);
+        await notifier.NotifyQueueChangedAsync(tenant.OrganizationId, "dispatch.mission_updated", cancellationToken);
 
         return Results.Ok(await LoadMissionAggregateAsync(mission.Id, tenant.OrganizationId, dbContext, signer, cancellationToken));
     }
@@ -280,6 +284,7 @@ public static class DispatchEndpointExtensions
         IMediaUrlSigner signer,
         ICurrentTenantAccessor currentTenantAccessor,
         IAuditService auditService,
+        IOperationsRealtimeNotifier notifier,
         CancellationToken cancellationToken)
     {
         var tenant = currentTenantAccessor.GetRequiredTenant(httpContext.User);
@@ -359,6 +364,7 @@ public static class DispatchEndpointExtensions
             mission.Id.ToString(),
             new { mission.DriverId, mission.VehicleId },
             cancellationToken);
+        await notifier.NotifyQueueChangedAsync(tenant.OrganizationId, "dispatch.mission_assignment_changed", cancellationToken);
 
         return Results.Ok(await LoadMissionAggregateAsync(mission.Id, tenant.OrganizationId, dbContext, signer, cancellationToken));
     }
@@ -372,6 +378,7 @@ public static class DispatchEndpointExtensions
         ICurrentTenantAccessor currentTenantAccessor,
         IAuditService auditService,
         IIntegrationOutboxService integrationOutboxService,
+        IOperationsRealtimeNotifier notifier,
         CancellationToken cancellationToken)
     {
         var tenant = currentTenantAccessor.GetRequiredTenant(httpContext.User);
@@ -430,6 +437,7 @@ public static class DispatchEndpointExtensions
                 mission.VehicleId
             },
             cancellationToken);
+        await notifier.NotifyQueueChangedAsync(tenant.OrganizationId, "dispatch.mission_status_changed", cancellationToken);
 
         return Results.Ok(await LoadMissionAggregateAsync(mission.Id, tenant.OrganizationId, dbContext, signer, cancellationToken));
     }
@@ -442,6 +450,7 @@ public static class DispatchEndpointExtensions
         IMediaUrlSigner signer,
         ICurrentTenantAccessor currentTenantAccessor,
         IAuditService auditService,
+        IOperationsRealtimeNotifier notifier,
         CancellationToken cancellationToken)
     {
         var tenant = currentTenantAccessor.GetRequiredTenant(httpContext.User);
@@ -491,6 +500,7 @@ public static class DispatchEndpointExtensions
             mission.Id.ToString(),
             new { mission.SimulatedDelayMinutes, mission.Status },
             cancellationToken);
+        await notifier.NotifyQueueChangedAsync(tenant.OrganizationId, "dispatch.mission_delay_simulated", cancellationToken);
 
         return Results.Ok(await LoadMissionAggregateAsync(mission.Id, tenant.OrganizationId, dbContext, signer, cancellationToken));
     }

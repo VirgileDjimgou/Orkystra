@@ -4,8 +4,10 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertThrows
 import org.junit.Test
 import java.io.IOException
 import java.util.Base64
@@ -78,7 +80,7 @@ class OfflineFirstDriverRepositoryTest {
             syncScheduler = FakeDriverSyncScheduler(),
         )
 
-        repository.queueDeliveryProof("mission-1", "stop-2", "Taylor Receiver", "Taylor Receiver")
+        repository.queueDeliveryProof("mission-1", "stop-2", "Taylor Receiver", "Taylor Receiver", proofEvidence())
 
         assertEquals(1, localStore.workflowOperations.size)
         assertEquals(0, remote.completedUploadCount)
@@ -86,10 +88,29 @@ class OfflineFirstDriverRepositoryTest {
         repository.flushPendingCommands()
 
         assertTrue(localStore.workflowOperations.isEmpty())
-        assertEquals(1, remote.completedUploadCount)
+        assertEquals(2, remote.completedUploadCount)
         assertTrue(remote.events.contains("proof:mission-1:stop-2"))
     }
+
+    @Test
+    fun deliveryProofRejectsMissingSignatureBeforeItEntersTheOfflineQueue() = runTest {
+        val localStore = FakeDriverLocalStore().apply {
+            session.value = fakeSession()
+            missions.value = listOf(fakeMission(status = DriverMissionStatus.Arrived))
+        }
+        val repository = OfflineFirstDriverRepository(localStore, FakeDriverRemoteDataSource(), FakeDriverSyncScheduler())
+
+        assertThrows(IllegalArgumentException::class.java) {
+            runBlocking { repository.queueDeliveryProof("mission-1", "stop-2", "Taylor", "Taylor", listOf(proofEvidence().first())) }
+        }
+        assertTrue(localStore.workflowOperations.isEmpty())
+    }
 }
+
+private fun proofEvidence(): List<CapturedEvidence> = listOf(
+    CapturedEvidence("proof.jpg", "image/jpeg", SAMPLE_PNG_BASE64, DELIVERY_PHOTO_CAPTION),
+    CapturedEvidence("signature.png", "image/png", SAMPLE_PNG_BASE64, SIGNATURE_CAPTION),
+)
 
 private class FakeDriverSyncScheduler : DriverSyncScheduler {
     override fun ensureScheduled() {}
@@ -185,6 +206,8 @@ private class FakeDriverRemoteDataSource(
     private val totalDemoBytes = Base64.getDecoder().decode(SAMPLE_PNG_BASE64).size.toLong()
 
     override suspend fun login(email: String, password: String): DriverSession = fakeSession()
+
+    override suspend fun pair(code: String): DriverSession = fakeSession()
 
     override suspend fun listMissionDetails(session: DriverSession): List<DriverMission> = listOf(fakeMission())
 

@@ -17,6 +17,8 @@ data class LoginRequestDto(
     val password: String,
 )
 
+data class ConsumePairingCodeRequestDto(val code: String)
+
 data class AuthenticatedUserDto(
     val userId: String,
     val email: String,
@@ -150,6 +152,9 @@ interface DriverApiService {
     @POST("/api/v1/auth/login")
     suspend fun login(@Body request: LoginRequestDto): LoginResponseDto
 
+    @POST("/api/v1/onboarding/driver-pairing/consume")
+    suspend fun consumePairingCode(@Body request: ConsumePairingCodeRequestDto): LoginResponseDto
+
     @GET("/api/v1/driver/missions")
     suspend fun listMissions(@Header("Authorization") authorization: String): List<DriverMissionSummaryDto>
 
@@ -203,6 +208,7 @@ interface DriverApiService {
 
 interface DriverRemoteDataSource {
     suspend fun login(email: String, password: String): DriverSession
+    suspend fun pair(code: String): DriverSession
     suspend fun listMissionDetails(session: DriverSession): List<DriverMission>
     suspend fun syncMissionCommand(session: DriverSession, command: PendingMissionCommand): DriverMission
     suspend fun createUploadSession(
@@ -227,7 +233,12 @@ class RetrofitDriverRemoteDataSource(
     private val service: DriverApiService,
 ) : DriverRemoteDataSource {
     override suspend fun login(email: String, password: String): DriverSession {
-        val response = service.login(LoginRequestDto(email.trim(), password))
+        return toSession(service.login(LoginRequestDto(email.trim(), password)))
+    }
+
+    override suspend fun pair(code: String): DriverSession = toSession(service.consumePairingCode(ConsumePairingCodeRequestDto(code.trim())))
+
+    private fun toSession(response: LoginResponseDto): DriverSession {
         val driverId = response.user.driverId
             ?: throw IllegalStateException("This account is not linked to a driver profile.")
 

@@ -32,12 +32,12 @@ Priorisation déterministe, déduplication, filtres tenant, concurrence d’assi
 
 ## Critères d’acceptation
 
-- [ ] aucun doublon par canal n’apparaît dans le résumé d’un événement ;
-- [ ] une exception critique est assignée et résolue en trois actions principales maximum ;
-- [ ] recherche, filtres et vues enregistrées respectent tenant et rôles ;
-- [ ] deux opérateurs ne peuvent pas écraser silencieusement leurs actions ;
-- [ ] le centre reste utilisable au clavier et sur tablette ;
-- [ ] chaque résolution laisse une timeline et une raison auditées.
+- [x] aucun doublon par canal n’apparaît dans le résumé d’un événement ;
+- [x] une exception critique est assignée et résolue en trois actions principales maximum ;
+- [x] recherche, filtres et vues enregistrées respectent tenant et rôles ;
+- [x] deux opérateurs ne peuvent pas écraser silencieusement leurs actions ;
+- [x] le centre reste utilisable au clavier et sur tablette ;
+- [x] chaque résolution laisse une timeline et une raison auditées.
 
 ## Livrable démontrable
 
@@ -50,3 +50,7 @@ Mesurer temps de prise en charge, temps de résolution, âge du backlog et taux 
 ## Estimation
 
 XL.
+
+## Statut
+
+`DONE` — clôturé le vendredi 17 juillet 2026 après quality gate verte.

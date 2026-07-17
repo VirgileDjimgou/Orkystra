@@ -1,8 +1,8 @@
 # Orkystra FleetOps
 
-Orkystra FleetOps is a modular fleet operations MVP for small and mid-sized transport businesses. The platform covers the operational chain from identity and tenant isolation to vehicle tracking, dispatch execution, offline-capable driver workflows, proof of delivery, deterministic alerting, maintenance coordination, external integrations, and pilot packaging.
+Orkystra FleetOps is a modular fleet operations MVP for small and mid-sized transport businesses. The platform covers the operational chain from identity and tenant isolation to vehicle tracking, dispatch execution, offline-capable driver workflows, proof of delivery, deterministic alerting, exception-driven operator work, maintenance coordination, external integrations, and pilot packaging.
 
-The repository currently delivers Sprint 00 through Sprint 12, a thirteen-sprint functional, recovery, end-to-end validation, and session-security baseline. Sprint 13 is selected as the next active sprint but has not been implemented in this checkpoint:
+The repository currently delivers Sprint 00 through Sprint 15, giving the product a sixteen-sprint functional, recovery, end-to-end validation, session-security, operator-productivity, field-execution, and tenant-activation baseline:
 
 - reproducible local environment;
 - modular ASP.NET Core backend;
@@ -22,13 +22,17 @@ The repository currently delivers Sprint 00 through Sprint 12, a thirteen-sprint
 - pre-departure inspections, critical defect blocking, private media uploads with resumable sessions, and operator-visible delivery proof.
 - deterministic alert scans for compliance, maintenance, and inactive vehicles with worker-backed retries.
 - web alert center for scan triggering, assignment, acknowledgment, compliance setup, and odometer-driven maintenance configuration.
+- actionable operations center workflows that unify alerts, mission delays, critical inspection defects, and blocked driver synchronizations into one queue with saved views, deterministic prioritization, concurrency-safe triage, and realtime refresh.
 - scoped API keys for partners and devices, SQL outbox-backed webhooks, sandbox receipts, OpenAPI exposure, and web administration for integrations;
 - administrator MFA with authenticator challenge, tenant export and controlled purge tooling, OpenTelemetry OTLP wiring, JSON logs, readiness checks, pilot container packaging, and SQL backup/restore scripts.
 - protected Web sessions using HttpOnly/SameSite cookies and CSRF tokens held only in memory, with server-side rotation and revocation;
 - Android Keystore-backed credential encryption with a non-destructive Room 2-to-3 migration that removes the access token column;
 - configurable media size, type, signature, and malware-test scanning with pre-publication quarantine.
+- CameraX delivery and inspection capture with a permission-free system photo-picker fallback, controlled JPEG compression, and handwritten signature capture.
+- a durable mobile proof queue that preserves image bytes, upload offsets, and immutable command identifiers across app process restarts.
+- administrator-guided tenant activation with resumable CSV preview and confirmation, role-aware invitations, one-use Android pairing codes, removable sample data, readiness checks, privacy-minimal diagnostics, and activation metrics.
 
-The audit reviewed on Thursday, July 16, 2026 classifies this baseline as a usable MVP, not yet a production-ready product. Sprint 10 delivered fail-fast Production configuration, safe tenant bootstrap, login protection, recovery tooling, and the Web/Android UX foundation. Sprint 11 is complete: SQL Server migrations, relational constraints, optimistic concurrency, backup/restore checksum preservation, critical browser workflows, and Android offline instrumentation have all been executed locally. Sprint 12 now hardens sessions, authorization, sensitive uploads, and client credential storage before pilot data is admitted. The approved roadmap contains twenty evidence-gated delivery sprints, Sprint 11 through Sprint 30, while keeping the mission–proof–exception core and modular-monolith architecture.
+The audit reviewed on Thursday, July 16, 2026 classifies this baseline as a usable MVP, not yet a production-ready product. Sprint 10 delivered fail-fast Production configuration, safe tenant bootstrap, login protection, recovery tooling, and the Web/Android UX foundation. Sprint 11 proved SQL Server migrations, relational constraints, optimistic concurrency, backup/restore checksum preservation, critical browser workflows, and Android offline instrumentation. Sprint 12 hardened sessions, authorization, sensitive uploads, and client credential storage before pilot data is admitted. Sprints 13 and 14 made exception handling and driver field execution operational; Sprint 15 now provides a guided path from an empty tenant to first mission value. The approved roadmap contains twenty evidence-gated delivery sprints, Sprint 11 through Sprint 30, while keeping the mission–proof–exception core and modular-monolith architecture.
 
 ## Product Goal
 
@@ -154,6 +158,8 @@ flowchart TD
   - pre-departure inspections with pass/fail outcomes and defect severity;
   - delivery proof records linked to mission stops;
   - resumable media upload sessions and signed private media access;
+  - CameraX capture with progressive camera permission, system photo-picker fallback, bounded compression, and a handwritten recipient signature image;
+  - Room-backed evidence payloads and acknowledged upload offsets that survive process restart before private-media publication;
   - operator mission detail enriched with inspection and POD evidence.
 - Alerting and light maintenance
   - tenant-scoped compliance documents for vehicles and drivers;
@@ -182,6 +188,64 @@ flowchart TD
   - named authorization policies expose a central role-to-operation matrix for sensitive server operations;
   - driver media is published only after size, declared type, magic-byte signature, and configurable malware-signature checks pass;
   - quarantined uploads are isolated, unavailable through signed media URLs, and recorded in the immutable audit trail.
+- Operations center and exception handling
+  - a unified exception queue aggregates alerts, delayed missions, critical inspection defects, and blocked driver synchronization incidents;
+  - deterministic prioritization, search, composable filters, and saved views support morning triage and repeatable operating routines;
+  - assignment, acknowledgment, snooze, resolve, and bulk actions are concurrency-checked to prevent silent overwrite between operators;
+  - mission-linked triage actions append audited timeline events and retain operator rationale;
+  - SignalR pushes only meaningful queue changes and the Web reconciles cleanly after reconnect.
+
+## Operations Center Flow
+
+Sprint 13 replaces the passive default landing page with an exception-first operations workspace.
+
+```mermaid
+sequenceDiagram
+    participant Driver as "Driver App"
+    participant API as "FleetOps API"
+    participant DB as "SQL Server"
+    participant Hub as "Operations Hub"
+    participant Web as "Vue Operations Center"
+
+    Driver->>API: sync command / inspection / proof
+    API->>DB: persist missions, alerts, inspections, incidents, audit
+    API->>API: derive queue items and concurrency tokens
+    API-->>Hub: publish operations queue change
+    Web->>API: GET /api/v1/operations/exceptions
+    API->>DB: join alerts, delays, defects, blocked syncs, saved views
+    API-->>Web: return one actionable queue
+    Web->>API: assign / acknowledge / snooze / resolve / bulk action
+    API->>DB: persist exception state + audit + mission timeline
+    API-->>Hub: notify queue refresh
+```
+
+### Operations center capabilities
+
+- Operators land on the operations center immediately after sign-in.
+- One queue exposes severity, age, owner, workflow status, next action, and linked mission or vehicle context.
+- Search, filters, and saved views remain tenant-safe and role-aware.
+- Exception actions are optimized for three-step triage on critical cases.
+- Realtime notifications keep the queue current without turning every screen into a live stream.
+
+## Tenant Activation Flow
+
+Sprint 15 gives administrators a resumable setup workspace while keeping every sensitive write tenant-scoped and server-authorized.
+
+```mermaid
+flowchart LR
+    Admin["Tenant Admin"] --> Setup["Guided Setup"]
+    Setup --> Preview["CSV Template and Preview"]
+    Preview --> Confirm["Validated Confirmation"]
+    Confirm --> Invite["Operator and Driver Invitations"]
+    Invite --> Pair["One-use Android Pairing"]
+    Pair --> Mission["Inspection, Proof, Completed Mission"]
+    Mission --> Metrics["Activation and First-value Metrics"]
+    Claims["Authenticated Organization Claim"] --> Setup
+    Claims --> Confirm
+    Claims --> Invite
+```
+
+The API stores import previews separately from fleet records, so invalid files never write partial fleet data. Confirmations are idempotent and concurrency-checked. Invitation tokens and pairing codes are stored as hashes, expire, and can be consumed only once. Optional sample records retain exact identifiers for deterministic removal before real operations begin.
 
 ## Fleet Registry Flow
 
@@ -612,6 +676,27 @@ Southridge starts with its own clean tenant workspace, proving that dashboard da
 
 The native driver surface keeps missions readable offline, reflects sync state explicitly, and exposes the same route context used by dispatch and proof-of-delivery workflows.
 
+### Field evidence flow
+
+Sprint 14 makes the driver home action-oriented while retaining the offline-first contract. Camera access is requested only after the driver selects it; if it is refused or unavailable, Android's photo picker remains usable. Both the delivery photo and the signature are compressed, persisted locally, uploaded through the existing resumable private-media session, and submitted with the same immutable proof command ID.
+
+```mermaid
+sequenceDiagram
+    participant Driver
+    participant App as "Android Driver App"
+    participant Room as "Room Outbox"
+    participant API as "Driver API"
+    participant Media as "Private Media Storage"
+
+    Driver->>App: capture photo and handwritten signature
+    App->>Room: persist evidence + command ID before network work
+    App->>API: resume media chunks from acknowledged offset
+    API->>Media: validate and store private assets
+    App->>API: submit proof with photo + signature asset IDs
+    API-->>App: idempotent proof response
+    App->>Room: remove completed operation
+```
+
 ![Android driver mission list](docs/assets/screenshots/android-driver-missions.png)
 
 ![Android driver mission detail](docs/assets/screenshots/android-driver-mission-detail.png)
@@ -750,7 +835,7 @@ Restore a SQL backup:
 
 ## Quality Gate
 
-The repository includes a local quality gate that validates the Sprint 11 proof layers and the active Sprint 12 security changes:
+The repository includes a local quality gate that validates recovery, backend, Web, browser, API health, Android, and connected-device proof layers:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\quality-gate.ps1
@@ -780,19 +865,20 @@ Current local validation includes:
 - tracking unit and integration tests covering duplicate telemetry, out-of-order handling, paged history, tenant isolation, and multi-vehicle visibility;
 - dispatch domain and integration tests covering mission lifecycle, illegal transitions, tenant-safe assignment, schedule conflicts, and mission-to-map linkage;
 - driver mobile integration tests covering assigned-mission filtering, idempotent command sync, stale row-version conflicts, inspection blocking, resumable uploads, and proof visibility;
-- web tests, lint, format, production build, and four Playwright critical-flow scenarios covering login, dispatch progression, proof consultation, and tenant isolation with explicit cross-tenant mutation refusal;
+- web tests, lint, format, production build, and five Playwright critical-flow scenarios covering login, guided activation, dispatch progression, proof consultation, and tenant isolation with explicit cross-tenant mutation refusal;
 - web dispatch board coverage for mission rendering, assignment context, timeline visibility, and map linkage;
 - authenticated tracking endpoints, paged history, metrics, and SignalR hub;
 - alerting and maintenance tests covering deduplication, UTC handling, notification failure tolerance, role permissions, tenant isolation, and restart-safe re-scans;
 - integration tests covering OpenAPI exposure, API key scope isolation, forged webhook rejection, retry/dead-letter handling, and CSV exports;
 - integration tests covering administrator MFA enablement and login challenge plus tenant-scoped lifecycle export and controlled purge;
-- EF Core migrations for Sprint 01, Sprint 02, Sprint 03, Sprint 04, Sprint 05, Sprint 06, Sprint 07, and Sprint 08;
+- onboarding integration tests covering invalid and bulk imports, confirmation replay, invitation expiry, driver linkage, one-use pairing, tenant isolation, removable sample data, and PII-free diagnostics;
+- EF Core migrations for identity, fleet, dispatch, operations, security, and tenant onboarding data;
 - OpenTelemetry OTLP wiring and JSON logs for the API and worker runtime;
 - pilot Docker packaging plus SQL backup and restore scripts;
 - Android unit tests, debug assembly, instrumentation APK compilation, and connected instrumentation execution on a physical Android device for Room-backed offline persistence, Keystore-separated session credentials, and unique WorkManager scheduling tests;
 - full local quality gate.
 
-On Friday, July 17, 2026, the local Docker Desktop Linux engine was restored without deleting images, volumes, or application data. After Sprint 12, the full quality gate passed without skips: 104 fast backend tests, three SQL Server/Testcontainers proofs, 16 Web unit tests, four Playwright critical flows, and four connected Android instrumentation tests on a physical Samsung SM-G975F running Android 12.
+On Friday, July 17, 2026, the full Sprint 15 quality gate passed without skips: 115 fast backend tests, three SQL Server/Testcontainers proofs, 19 Web unit tests, five Playwright critical flows, and five connected Android instrumentation tests on a physical Samsung SM-G975F running Android 12.
 
 ## Engineering Notes
 

@@ -66,6 +66,11 @@ class DriverAppViewModel(
         infoMessage.value = "Driver session ready for offline work."
     }
 
+    fun pair(code: String) = runTask {
+        repository.pair(code)
+        infoMessage.value = "Device paired and ready for offline work."
+    }
+
     fun refresh() = runTask {
         repository.refresh()
         infoMessage.value = "Missions refreshed."
@@ -85,9 +90,9 @@ class DriverAppViewModel(
         infoMessage.value = "${action.name} queued for sync."
     }
 
-    fun submitInspection(hasCriticalDefect: Boolean) = runTask {
+    fun submitInspection(hasCriticalDefect: Boolean, evidence: List<CapturedEvidence> = emptyList()) = runTask {
         val missionId = selectedMissionId.value ?: return@runTask
-        repository.queueInspection(missionId, hasCriticalDefect)
+        repository.queueInspection(missionId, hasCriticalDefect, evidence)
         infoMessage.value =
             if (hasCriticalDefect) {
                 "Inspection queued with a critical defect."
@@ -96,9 +101,9 @@ class DriverAppViewModel(
             }
     }
 
-    fun submitDeliveryProof(stopId: String, recipientName: String, signatureName: String) = runTask {
+    fun submitDeliveryProof(stopId: String, recipientName: String, signatureName: String, evidence: List<CapturedEvidence>) = runTask {
         val missionId = selectedMissionId.value ?: return@runTask
-        repository.queueDeliveryProof(missionId, stopId, recipientName, signatureName)
+        repository.queueDeliveryProof(missionId, stopId, recipientName, signatureName, evidence)
         infoMessage.value = "Delivery proof queued for sync."
     }
 
@@ -111,6 +116,10 @@ class DriverAppViewModel(
     fun dismissMessages() {
         errorMessage.value = null
         infoMessage.value = null
+    }
+
+    fun reportCaptureError(message: String) {
+        errorMessage.value = message
     }
 
     private fun runTask(action: suspend () -> Unit) {

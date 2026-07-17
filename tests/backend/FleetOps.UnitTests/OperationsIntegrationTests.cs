@@ -169,7 +169,10 @@ public sealed class OperationsIntegrationTests(FleetOpsApiFactory factory) : ICl
                 "Taylor Receiver",
                 DateTimeOffset.UtcNow,
                 "Left at reception",
-                [new DeliveryProofPhotoRequest(asset.AssetId, "Doorstep")]));
+                [
+                    new DeliveryProofPhotoRequest(asset.AssetId, "Delivery photo"),
+                    new DeliveryProofPhotoRequest(asset.AssetId, "Recipient signature")
+                ]));
         Assert.Equal(HttpStatusCode.OK, proofResponse.StatusCode);
 
         using var operatorClient = factory.CreateClient();

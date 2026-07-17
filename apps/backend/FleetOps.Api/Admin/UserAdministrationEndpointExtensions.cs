@@ -55,7 +55,8 @@ public static class UserAdministrationEndpointExtensions
                 user.Email ?? string.Empty,
                 user.FullName,
                 roles.FirstOrDefault() ?? string.Empty,
-                user.IsActive));
+                user.IsActive,
+                user.DriverId));
         }
 
         return Results.Ok(response);
@@ -123,6 +124,7 @@ public static class UserAdministrationEndpointExtensions
             user.Email ?? string.Empty,
             user.FullName,
             request.Role,
-            user.IsActive));
+            user.IsActive,
+            user.DriverId));
     }
 }

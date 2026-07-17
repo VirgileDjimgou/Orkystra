@@ -6,6 +6,18 @@ Toutes les modifications fonctionnelles significatives sont documentées ici.
 
 ### Added
 
+- Sprint 15 guided tenant activation with resumable CSV preview/confirmation, line-level validation, idempotent imports, role invitations linked to driver profiles, short-lived one-use Android pairing, removable sample data, readiness diagnostics, and privacy-minimal activation metrics.
+- Tenant-scoped onboarding persistence and EF Core migrations for import sessions, invitation and pairing concurrency, activation events, and exact sample-data cleanup.
+- Web and Playwright coverage for empty-tenant activation through first completed mission value, plus Android pairing entry and connected-device validation.
+- Sprint 14 field workflow with an action-focused driver home, route progress, explicit sync state, external navigation links, CameraX evidence capture, system photo-picker fallback, controlled image compression, and handwritten recipient signatures.
+- Durable delivery-proof evidence records that retain private media payloads and acknowledged chunk offsets across Room database reopen/process restart, with server-side enforcement that delivery photo and signature evidence are both present.
+- Connected-device instrumentation coverage for workflow recovery and isolated Room test storage.
+- Sprint 13 operations center with a unified exception queue across alerts, mission delays, critical inspection defects, and blocked driver synchronization incidents.
+- Saved personal/team operations views, deterministic exception prioritization, tenant-safe search and filters, and bulk triage actions.
+- SignalR-backed operations queue refresh, operator assignment/acknowledgment/snooze/resolve flows, and audited mission timeline write-back for exception resolution.
+- Backend contracts, persistence entities, and migration support for operator exception state and blocked driver sync incidents.
+- Backend integration coverage for operations queue tenant safety, saved views, bulk actions, and concurrency checks.
+- Web operations center view with focus panel, live connection state, triage controls, and route-first landing experience after sign-in.
 - Sprint 12 server-side sessions with tenant/user binding, immediate revocation checks, rotation, current/global logout, session listing, and administrator revocation.
 - HttpOnly/SameSite Web authentication with in-memory CSRF proof, legacy localStorage JWT removal, cookie-backed SignalR, and expired-session recovery events.
 - Android Keystore AES-GCM credential storage plus non-destructive Room migrations that remove the plaintext access-token column.
@@ -39,6 +51,11 @@ Toutes les modifications fonctionnelles significatives sont documentées ici.
 
 ### Changed
 
+- Sprint 15 is closed with a `GO` gate after 115 fast backend tests, 3 SQL Server/Testcontainers proofs, 19 Web tests, 5 Playwright flows, and 5 connected Android tests on a Samsung SM-G975F.
+- Sprint 14 is closed after Android unit tests, five connected Android instrumentation tests on a Samsung SM-G975F, backend proof authorization tests, and the full repository quality gate.
+- Sprint 13 is closed after a green quality gate with 107 fast backend tests, 3 SQL Server/Testcontainers tests, 17 Web tests, 4 Playwright flows, API health/readiness validation, GPS dry run, and Android build validation.
+- The default authenticated Web landing page now routes operators to the operations center, while the previous dashboard remains available under `/overview`.
+- Playwright critical flows now assert the Sprint 13 operations-center landing behavior instead of the historical overview page.
 - Sprint 12 is closed after a no-skip quality gate with 104 fast backend tests, 3 SQL Server/Testcontainers tests, 16 Web tests, 4 Playwright flows, and 4 connected Android tests on a physical device.
 - Playwright network traces are disabled because they can retain HttpOnly `Set-Cookie` credentials; screenshots and videos remain failure-only diagnostic artifacts.
 - Web administration calls now use the supported versioned Admin APIs, while Android login now uses `/api/v1/auth/login`.

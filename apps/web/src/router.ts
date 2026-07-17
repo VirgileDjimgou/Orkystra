@@ -11,6 +11,8 @@ import DriversView from "./views/DriversView.vue";
 import FleetMapView from "./views/FleetMapView.vue";
 import IntegrationsAdminView from "./views/IntegrationsAdminView.vue";
 import LoginView from "./views/LoginView.vue";
+import OperationsCenterView from "./views/OperationsCenterView.vue";
+import OnboardingView from "./views/OnboardingView.vue";
 import UsersAdminView from "./views/UsersAdminView.vue";
 import VehiclesView from "./views/VehiclesView.vue";
 
@@ -19,7 +21,27 @@ export const router = createRouter({
   routes: [
     { path: "/login", component: LoginView, meta: { guestOnly: true } },
     {
+      path: "/admin/onboarding",
+      component: OnboardingView,
+      meta: {
+        requiresAuth: true,
+        requiresAdmin: true,
+        title: "Guided setup",
+        description: "Reach a first test mission without database access.",
+      },
+    },
+    {
       path: "/",
+      component: OperationsCenterView,
+      meta: {
+        requiresAuth: true,
+        title: "Operations center",
+        description:
+          "One actionable queue for fleet exceptions and rapid triage.",
+      },
+    },
+    {
+      path: "/overview",
       component: DashboardView,
       meta: {
         requiresAuth: true,

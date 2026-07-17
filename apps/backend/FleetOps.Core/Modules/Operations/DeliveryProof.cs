@@ -17,7 +17,8 @@ public sealed class DeliveryProof : TenantEntity
         string signatureName,
         DateTimeOffset deliveredAtUtc,
         string? notes,
-        IEnumerable<DeliveryProofPhoto> photos)
+        IEnumerable<DeliveryProofPhoto> photos,
+        Guid? id = null)
     {
         if (organizationId == Guid.Empty)
         {
@@ -40,6 +41,7 @@ public sealed class DeliveryProof : TenantEntity
         }
 
         OrganizationId = organizationId;
+        Id = id ?? Id;
         MissionId = missionId;
         MissionStopId = missionStopId;
         DriverId = driverId;

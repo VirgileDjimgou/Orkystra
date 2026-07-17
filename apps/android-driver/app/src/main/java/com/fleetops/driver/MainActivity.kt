@@ -1,10 +1,13 @@
 package com.fleetops.driver
 
 import android.os.Bundle
+import android.content.Intent
+import android.net.Uri
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -19,6 +22,7 @@ import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -34,15 +38,18 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.lightColorScheme
+import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -59,6 +66,14 @@ private val DriverColorScheme = lightColorScheme(
     background = Color(0xFFF4F7F8),
     surface = Color.White,
     surfaceVariant = Color(0xFFEAF0F2),
+)
+
+private val DriverDarkColorScheme = darkColorScheme(
+    primary = Color(0xFF8CE0C7),
+    onPrimary = Color(0xFF00382F),
+    primaryContainer = Color(0xFF075144),
+    onPrimaryContainer = Color(0xFFD7F2E9),
+    secondary = Color(0xFFB4D7E1),
 )
 
 class MainActivity : ComponentActivity() {
@@ -88,7 +103,7 @@ private fun FleetOpsDriverApp(viewModel: DriverAppViewModel) {
         }
     }
 
-    MaterialTheme(colorScheme = DriverColorScheme) {
+    MaterialTheme(colorScheme = if (isSystemInDarkTheme()) DriverDarkColorScheme else DriverColorScheme) {
         Scaffold(
             containerColor = MaterialTheme.colorScheme.background,
             topBar = {
@@ -120,6 +135,7 @@ private fun FleetOpsDriverApp(viewModel: DriverAppViewModel) {
                 !state.isLoggedIn -> LoginScreen(
                     isBusy = state.isBusy,
                     onLogin = viewModel::login,
+                    onPair = viewModel::pair,
                     modifier = Modifier.padding(padding),
                 )
                 state.selectedMission == null -> MissionListScreen(
@@ -135,6 +151,7 @@ private fun FleetOpsDriverApp(viewModel: DriverAppViewModel) {
                     onAction = viewModel::executeAction,
                     onSubmitInspection = viewModel::submitInspection,
                     onSubmitDeliveryProof = viewModel::submitDeliveryProof,
+                    onCaptureError = viewModel::reportCaptureError,
                     modifier = Modifier.padding(padding),
                 )
             }
@@ -146,6 +163,7 @@ private fun FleetOpsDriverApp(viewModel: DriverAppViewModel) {
 private fun LoginScreen(
     isBusy: Boolean,
     onLogin: (String, String) -> Unit,
+    onPair: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var email by rememberSaveable {
@@ -154,6 +172,7 @@ private fun LoginScreen(
     var password by rememberSaveable {
         mutableStateOf(if (BuildConfig.DEBUG) "Driver123!" else "")
     }
+    var pairingCode by rememberSaveable { mutableStateOf("") }
 
     Surface(
         modifier = modifier
@@ -205,6 +224,10 @@ private fun LoginScreen(
                 }
                 Text("Sign in")
             }
+            HorizontalDivider(modifier = Modifier.padding(vertical = 20.dp))
+            Text("New device? Enter the six-digit code from your administrator.", style = MaterialTheme.typography.bodyMedium)
+            OutlinedTextField(value = pairingCode, onValueChange = { pairingCode = it.filter(Char::isDigit).take(6) }, label = { Text("Pairing code") }, modifier = Modifier.fillMaxWidth().padding(top = 12.dp), enabled = !isBusy)
+            OutlinedButton(onClick = { onPair(pairingCode) }, enabled = !isBusy && pairingCode.length == 6, modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) { Text("Pair this device") }
         }
     }
 }
@@ -216,6 +239,7 @@ private fun MissionListScreen(
     onMissionClick: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val nextMission = state.missions.firstOrNull { it.availableActions().isNotEmpty() }
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
@@ -238,6 +262,22 @@ private fun MissionListScreen(
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(top = 4.dp, bottom = 12.dp),
             )
+        }
+
+        if (nextMission != null) {
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth().clickable { onMissionClick(nextMission.id) },
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                ) {
+                    Column(modifier = Modifier.padding(18.dp)) {
+                        Text("NEXT STEP", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                        Text(nextMission.nextActionLabel(), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 4.dp))
+                        Text("${nextMission.reference} · ${nextMission.destination ?: "Route stop"}", modifier = Modifier.padding(top = 6.dp))
+                        Text("Route progress: ${nextMission.routeProgressLabel()} · ${nextMission.syncState.label()}", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp))
+                    }
+                }
+            }
         }
 
         item {
@@ -339,10 +379,12 @@ private fun MissionDetailScreen(
     isBusy: Boolean,
     onBack: () -> Unit,
     onAction: (DriverMissionAction) -> Unit,
-    onSubmitInspection: (Boolean) -> Unit,
-    onSubmitDeliveryProof: (String, String, String) -> Unit,
+    onSubmitInspection: (Boolean, List<CapturedEvidence>) -> Unit,
+    onSubmitDeliveryProof: (String, String, String, List<CapturedEvidence>) -> Unit,
+    onCaptureError: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val context = LocalContext.current
     if (mission == null) {
         Surface(modifier = modifier.fillMaxSize()) { }
         return
@@ -399,6 +441,11 @@ private fun MissionDetailScreen(
                         Text("${stop.sequence}. ${stop.name}", modifier = Modifier.padding(top = if (index == 0) 12.dp else 10.dp))
                         Text(stop.address, style = MaterialTheme.typography.bodySmall)
                         Text(stop.plannedArrivalUtc.toFriendlyDateTime(), style = MaterialTheme.typography.bodySmall, color = Color(0xFF64748B))
+                        TextButton(onClick = {
+                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("geo:0,0?q=${Uri.encode(stop.address)}")))
+                        }) {
+                            Text("Open navigation")
+                        }
                         if (index < mission.stops.lastIndex) {
                             HorizontalDivider(modifier = Modifier.padding(top = 10.dp))
                         }
@@ -450,8 +497,9 @@ private fun MissionDetailScreen(
         item {
             InspectionPanel(
                 isBusy = isBusy,
-                onCleanInspection = { onSubmitInspection(false) },
-                onCriticalInspection = { onSubmitInspection(true) },
+                onCleanInspection = { evidence -> onSubmitInspection(false, evidence) },
+                onCriticalInspection = { evidence -> onSubmitInspection(true, evidence) },
+                onCaptureError = onCaptureError,
             )
         }
 
@@ -460,6 +508,7 @@ private fun MissionDetailScreen(
                 mission = mission,
                 isBusy = isBusy,
                 onSubmitDeliveryProof = onSubmitDeliveryProof,
+                onCaptureError = onCaptureError,
             )
         }
     }
@@ -468,9 +517,12 @@ private fun MissionDetailScreen(
 @Composable
 private fun InspectionPanel(
     isBusy: Boolean,
-    onCleanInspection: () -> Unit,
-    onCriticalInspection: () -> Unit,
+    onCleanInspection: (List<CapturedEvidence>) -> Unit,
+    onCriticalInspection: (List<CapturedEvidence>) -> Unit,
+    onCaptureError: (String) -> Unit,
 ) {
+    var showEvidenceChooser by remember { mutableStateOf(false) }
+    val evidence = remember { mutableStateListOf<CapturedEvidence>() }
     Card(colors = CardDefaults.cardColors(containerColor = Color(0xFFEFF6FF))) {
         Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("Pre-departure inspection", style = MaterialTheme.typography.titleMedium)
@@ -478,21 +530,33 @@ private fun InspectionPanel(
                 "Record vehicle readiness before departure. The result stays queued safely until the network is available.",
                 style = MaterialTheme.typography.bodySmall,
             )
-            Button(onClick = onCleanInspection, enabled = !isBusy, modifier = Modifier.fillMaxWidth()) {
+            OutlinedButton(onClick = { showEvidenceChooser = true }, enabled = !isBusy, modifier = Modifier.fillMaxWidth()) {
+                Text(if (evidence.isEmpty()) "Add inspection photo (optional)" else "Inspection photo ready")
+            }
+            Button(onClick = { onCleanInspection(evidence.toList()) }, enabled = !isBusy, modifier = Modifier.fillMaxWidth()) {
                 Text("Queue ready-to-drive inspection")
             }
-            OutlinedButton(onClick = onCriticalInspection, enabled = !isBusy, modifier = Modifier.fillMaxWidth()) {
+            OutlinedButton(onClick = { onCriticalInspection(evidence.toList()) }, enabled = !isBusy, modifier = Modifier.fillMaxWidth()) {
                 Text("Queue blocking defect")
             }
         }
     }
+    EvidenceSourceChooser(
+        visible = showEvidenceChooser,
+        title = "Inspection photo",
+        caption = "Inspection evidence",
+        onDismiss = { showEvidenceChooser = false },
+        onCaptured = { capture -> evidence.clear(); evidence += capture; showEvidenceChooser = false },
+        onError = onCaptureError,
+    )
 }
 
 @Composable
 private fun DeliveryProofPanel(
     mission: DriverMission,
     isBusy: Boolean,
-    onSubmitDeliveryProof: (String, String, String) -> Unit,
+    onSubmitDeliveryProof: (String, String, String, List<CapturedEvidence>) -> Unit,
+    onCaptureError: (String) -> Unit,
 ) {
     var recipientName by rememberSaveable(mission.id) {
         mutableStateOf(if (BuildConfig.DEBUG) "Taylor Receiver" else "")
@@ -501,6 +565,10 @@ private fun DeliveryProofPanel(
         mutableStateOf(if (BuildConfig.DEBUG) "Taylor Receiver" else "")
     }
     val targetStop = mission.stops.maxByOrNull { it.sequence }
+    val evidence = remember(mission.id) { mutableStateListOf<CapturedEvidence>() }
+    var showPhotoChooser by rememberSaveable(mission.id) { mutableStateOf(false) }
+    var showSignatureCapture by rememberSaveable(mission.id) { mutableStateOf(false) }
+    var recipientConsented by rememberSaveable(mission.id) { mutableStateOf(false) }
 
     Card(colors = CardDefaults.cardColors(containerColor = Color(0xFFECFDF5))) {
         Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -521,6 +589,16 @@ private fun DeliveryProofPanel(
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !isBusy && targetStop != null,
             )
+            OutlinedButton(onClick = { showPhotoChooser = true }, enabled = !isBusy && targetStop != null, modifier = Modifier.fillMaxWidth()) {
+                Text(if (evidence.any { it.caption == DELIVERY_PHOTO_CAPTION }) "Delivery photo ready" else "Capture delivery photo")
+            }
+            OutlinedButton(onClick = { showSignatureCapture = true }, enabled = !isBusy && targetStop != null, modifier = Modifier.fillMaxWidth()) {
+                Text(if (evidence.any { it.caption == SIGNATURE_CAPTION }) "Signature ready" else "Capture handwritten signature")
+            }
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                Checkbox(checked = recipientConsented, onCheckedChange = { recipientConsented = it }, enabled = !isBusy && targetStop != null)
+                Text("Recipient consents to capture and store this delivery proof.", style = MaterialTheme.typography.bodySmall)
+            }
             OutlinedTextField(
                 value = signatureName,
                 onValueChange = { signatureName = it },
@@ -531,9 +609,9 @@ private fun DeliveryProofPanel(
             Button(
                 onClick = {
                     val stopId = targetStop?.id ?: return@Button
-                    onSubmitDeliveryProof(stopId, recipientName, signatureName)
+                    onSubmitDeliveryProof(stopId, recipientName, signatureName, evidence.toList())
                 },
-                enabled = !isBusy && targetStop != null && recipientName.isNotBlank() && signatureName.isNotBlank(),
+                enabled = !isBusy && targetStop != null && recipientName.isNotBlank() && signatureName.isNotBlank() && recipientConsented && evidence.any { it.caption == DELIVERY_PHOTO_CAPTION } && evidence.any { it.caption == SIGNATURE_CAPTION },
                 modifier = Modifier
                     .fillMaxWidth()
                     .navigationBarsPadding(),
@@ -542,6 +620,20 @@ private fun DeliveryProofPanel(
             }
         }
     }
+    EvidenceSourceChooser(
+        visible = showPhotoChooser,
+        title = "Delivery photo",
+        caption = DELIVERY_PHOTO_CAPTION,
+        onDismiss = { showPhotoChooser = false },
+        onCaptured = { capture -> evidence.removeAll { it.caption == DELIVERY_PHOTO_CAPTION }; evidence += capture; showPhotoChooser = false },
+        onError = onCaptureError,
+    )
+    SignatureCaptureDialog(
+        visible = showSignatureCapture,
+        onDismiss = { showSignatureCapture = false },
+        onCaptured = { capture -> evidence.removeAll { it.caption == SIGNATURE_CAPTION }; evidence += capture },
+        onError = onCaptureError,
+    )
 }
 
 @Composable

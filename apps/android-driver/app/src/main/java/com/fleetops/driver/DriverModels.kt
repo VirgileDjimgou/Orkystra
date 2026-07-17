@@ -98,9 +98,17 @@ data class PendingPhotoUpload(
     val fileName: String,
     val contentType: String,
     val base64Content: String,
+    val caption: String? = null,
     val uploadSessionId: String? = null,
     val uploadedBytes: Long = 0,
     val remoteAssetId: String? = null,
+)
+
+data class CapturedEvidence(
+    val fileName: String,
+    val contentType: String,
+    val base64Content: String,
+    val caption: String,
 )
 
 data class PendingInspectionOperation(
@@ -186,6 +194,23 @@ fun MissionSyncState.label(): String =
         MissionSyncState.Pending -> "Pending sync"
         MissionSyncState.Conflict -> "Needs reload"
         MissionSyncState.Offline -> "Offline"
+    }
+
+fun DriverMission.nextActionLabel(): String =
+    when (availableActions().firstOrNull()) {
+        DriverMissionAction.Start -> "Complete inspection, then start"
+        DriverMissionAction.Arrive -> "Confirm arrival at the active stop"
+        DriverMissionAction.Complete -> "Capture delivery proof"
+        null -> "No driver action is waiting"
+    }
+
+fun DriverMission.routeProgressLabel(): String =
+    when (status) {
+        DriverMissionStatus.Assigned -> "0 of 3 steps"
+        DriverMissionStatus.EnRoute, DriverMissionStatus.Delayed -> "1 of 3 steps"
+        DriverMissionStatus.Arrived -> "2 of 3 steps"
+        DriverMissionStatus.Completed -> "3 of 3 steps"
+        else -> "Route not started"
     }
 
 fun String.toFriendlyDateTime(): String =

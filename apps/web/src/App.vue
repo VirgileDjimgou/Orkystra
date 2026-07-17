@@ -137,10 +137,11 @@ const navigation: Array<{ label: string; items: NavigationItem[] }> = [
   {
     label: "Operate",
     items: [
-      { label: "Overview", to: "/", icon: "01" },
-      { label: "Alert center", to: "/alerts", icon: "02" },
-      { label: "Dispatch", to: "/dispatch/missions", icon: "03" },
-      { label: "Live map", to: "/map", icon: "04" },
+      { label: "Operations center", to: "/", icon: "01" },
+      { label: "Overview", to: "/overview", icon: "02" },
+      { label: "Alert center", to: "/alerts", icon: "03" },
+      { label: "Dispatch", to: "/dispatch/missions", icon: "04" },
+      { label: "Live map", to: "/map", icon: "05" },
     ],
   },
   {
@@ -154,6 +155,12 @@ const navigation: Array<{ label: string; items: NavigationItem[] }> = [
   {
     label: "Administration",
     items: [
+      {
+        label: "Guided setup",
+        to: "/admin/onboarding",
+        icon: "✓",
+        adminOnly: true,
+      },
       { label: "Users", to: "/admin/users", icon: "U", adminOnly: true },
       {
         label: "Security & data",

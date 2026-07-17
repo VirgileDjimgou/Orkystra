@@ -103,6 +103,8 @@ public static class DriverAppEndpointExtensions
         FleetOpsDbContext dbContext,
         ICurrentTenantAccessor currentTenantAccessor,
         IAuditService auditService,
+        IDriverSyncIncidentService driverSyncIncidentService,
+        IOperationsRealtimeNotifier notifier,
         CancellationToken cancellationToken)
     {
         var tenant = currentTenantAccessor.GetRequiredTenant(httpContext.User);
@@ -146,6 +148,16 @@ public static class DriverAppEndpointExtensions
 
         if (mission.RowVersion != request.RowVersion)
         {
+            await driverSyncIncidentService.RecordAsync(
+                tenant.OrganizationId,
+                mission.Id,
+                driverId,
+                "mission-command",
+                "stale-row-version",
+                "Warning",
+                "The driver app tried to sync a stale mission version.",
+                request.CommandId,
+                cancellationToken);
             return Results.ValidationProblem(new Dictionary<string, string[]>
             {
                 ["rowVersion"] = ["Mission was modified by another request. Reload and retry sync."]
@@ -164,6 +176,16 @@ public static class DriverAppEndpointExtensions
                     cancellationToken);
                 if (latestInspection is null)
                 {
+                    await driverSyncIncidentService.RecordAsync(
+                        tenant.OrganizationId,
+                        mission.Id,
+                        driverId,
+                        "mission-command",
+                        "inspection-missing",
+                        "Warning",
+                        "Mission start was blocked because no pre-departure inspection was available.",
+                        request.CommandId,
+                        cancellationToken);
                     return Results.ValidationProblem(new Dictionary<string, string[]>
                     {
                         ["inspection"] = ["A pre-departure inspection must be completed before mission start."]
@@ -172,6 +194,16 @@ public static class DriverAppEndpointExtensions
 
                 if (latestInspection.HasBlockingCriticalDefect)
                 {
+                    await driverSyncIncidentService.RecordAsync(
+                        tenant.OrganizationId,
+                        mission.Id,
+                        driverId,
+                        "mission-command",
+                        "critical-defect-block",
+                        "Critical",
+                        "Mission start was blocked by a critical inspection defect.",
+                        request.CommandId,
+                        cancellationToken);
                     return Results.ValidationProblem(new Dictionary<string, string[]>
                     {
                         ["inspection"] = ["Mission start is blocked by a critical inspection defect."]
@@ -220,6 +252,7 @@ public static class DriverAppEndpointExtensions
             mission.Id.ToString(),
             new { request.Action, request.CommandId, mission.Status },
             cancellationToken);
+        await notifier.NotifyQueueChangedAsync(tenant.OrganizationId, "driver.mission_command_synced", cancellationToken);
 
         var updatedMission = await LoadAssignedMissionAsync(id, tenant.OrganizationId, driverId, dbContext, cancellationToken);
         return Results.Ok(new SyncMissionCommandResponse(updatedMission!, WasDuplicate: false));

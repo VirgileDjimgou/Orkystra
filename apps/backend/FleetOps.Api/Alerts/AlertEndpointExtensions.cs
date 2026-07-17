@@ -1,4 +1,5 @@
 using FleetOps.Api.Auditing;
+using FleetOps.Api.Operations;
 using FleetOps.Api.Security;
 using FleetOps.Core.Modules.Alerts;
 using FleetOps.Core.Modules.Identity;
@@ -139,6 +140,7 @@ public static class AlertEndpointExtensions
         IAlertScanningService alertScanningService,
         ICurrentTenantAccessor currentTenantAccessor,
         IAuditService auditService,
+        IOperationsRealtimeNotifier notifier,
         CancellationToken cancellationToken)
     {
         var tenant = currentTenantAccessor.GetRequiredTenant(httpContext.User);
@@ -158,6 +160,7 @@ public static class AlertEndpointExtensions
                 result.EmailFailures
             },
             cancellationToken);
+        await notifier.NotifyQueueChangedAsync(tenant.OrganizationId, "alerts.scan_requested", cancellationToken);
 
         return Results.Ok(new ScanAlertsResponse(
             result.CreatedAlerts,
@@ -176,6 +179,7 @@ public static class AlertEndpointExtensions
         UserManager<ApplicationUser> userManager,
         ICurrentTenantAccessor currentTenantAccessor,
         IAuditService auditService,
+        IOperationsRealtimeNotifier notifier,
         TimeProvider timeProvider,
         CancellationToken cancellationToken)
     {
@@ -238,6 +242,7 @@ public static class AlertEndpointExtensions
             alert.Id.ToString(),
             new { assignee.Id, assignee.FullName },
             cancellationToken);
+        await notifier.NotifyQueueChangedAsync(tenant.OrganizationId, "alerts.assigned", cancellationToken);
 
         var response = await BuildAlertItemAsync(dbContext, alert, cancellationToken);
         return Results.Ok(response);
@@ -251,6 +256,7 @@ public static class AlertEndpointExtensions
         UserManager<ApplicationUser> userManager,
         ICurrentTenantAccessor currentTenantAccessor,
         IAuditService auditService,
+        IOperationsRealtimeNotifier notifier,
         TimeProvider timeProvider,
         CancellationToken cancellationToken)
     {
@@ -295,6 +301,7 @@ public static class AlertEndpointExtensions
             alert.Id.ToString(),
             null,
             cancellationToken);
+        await notifier.NotifyQueueChangedAsync(tenant.OrganizationId, "alerts.acknowledged", cancellationToken);
 
         var response = await BuildAlertItemAsync(dbContext, alert, cancellationToken);
         return Results.Ok(response);

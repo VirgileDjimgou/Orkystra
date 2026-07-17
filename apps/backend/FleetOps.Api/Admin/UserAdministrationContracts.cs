@@ -5,7 +5,8 @@ public sealed record UserSummaryResponse(
     string Email,
     string FullName,
     string Role,
-    bool IsActive);
+    bool IsActive,
+    Guid? DriverId);
 
 public sealed record CreateUserRequest(
     string Email,

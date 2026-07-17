@@ -22,10 +22,11 @@ interface DriverRepository {
     fun observeMissions(): Flow<List<DriverMission>>
     fun observeMission(missionId: String): Flow<DriverMission?>
     suspend fun login(email: String, password: String)
+    suspend fun pair(code: String)
     suspend fun refresh()
     suspend fun queueMissionAction(missionId: String, action: DriverMissionAction)
-    suspend fun queueInspection(missionId: String, hasCriticalDefect: Boolean)
-    suspend fun queueDeliveryProof(missionId: String, stopId: String, recipientName: String, signatureName: String)
+    suspend fun queueInspection(missionId: String, hasCriticalDefect: Boolean, evidence: List<CapturedEvidence> = emptyList())
+    suspend fun queueDeliveryProof(missionId: String, stopId: String, recipientName: String, signatureName: String, evidence: List<CapturedEvidence>)
     suspend fun flushPendingCommands()
     suspend fun signOut()
 }
@@ -73,6 +74,15 @@ class OfflineFirstDriverRepository(
 
     override suspend fun login(email: String, password: String) {
         val session = remoteDataSource.login(email, password)
+        startSession(session)
+    }
+
+    override suspend fun pair(code: String) {
+        val session = remoteDataSource.pair(code)
+        startSession(session)
+    }
+
+    private suspend fun startSession(session: DriverSession) {
         localStore.saveSession(session)
         syncScheduler.ensureScheduled()
         refresh()
@@ -116,7 +126,8 @@ class OfflineFirstDriverRepository(
         }
     }
 
-    override suspend fun queueInspection(missionId: String, hasCriticalDefect: Boolean) {
+    override suspend fun queueInspection(missionId: String, hasCriticalDefect: Boolean, evidence: List<CapturedEvidence>) {
+        val photos = evidence.mapIndexed { index, capture -> capture.toPendingPhoto("inspection-$index") }
         val operation = PendingWorkflowOperation(
             commandId = UUID.randomUUID().toString(),
             missionId = missionId,
@@ -126,13 +137,13 @@ class OfflineFirstDriverRepository(
                     notes = if (hasCriticalDefect) "Critical brake defect detected." else "Vehicle ready for departure.",
                     completedAtUtc = Instant.now().toString(),
                     items = listOf(
-                        PendingInspectionItem(1, "brakes", "Brakes and steering", !hasCriticalDefect, if (hasCriticalDefect) DriverDefectSeverity.Critical else DriverDefectSeverity.None, if (hasCriticalDefect) "Brake pedal unstable." else null, "photo-1"),
+                        PendingInspectionItem(1, "brakes", "Brakes and steering", !hasCriticalDefect, if (hasCriticalDefect) DriverDefectSeverity.Critical else DriverDefectSeverity.None, if (hasCriticalDefect) "Brake pedal unstable." else null, photos.firstOrNull()?.localId),
                         PendingInspectionItem(2, "lights", "Lights and signals", true, DriverDefectSeverity.None, null, null),
                         PendingInspectionItem(3, "cargo-secured", "Cargo and doors secured", true, DriverDefectSeverity.None, null, null),
                     ),
                 ),
             ),
-            photos = listOf(samplePendingPhoto("photo-1", "inspection-demo.jpg")),
+            photos = photos,
             createdAtUtc = Instant.now().toString(),
         )
         localStore.enqueueWorkflowOperation(operation)
@@ -144,7 +155,10 @@ class OfflineFirstDriverRepository(
         }
     }
 
-    override suspend fun queueDeliveryProof(missionId: String, stopId: String, recipientName: String, signatureName: String) {
+    override suspend fun queueDeliveryProof(missionId: String, stopId: String, recipientName: String, signatureName: String, evidence: List<CapturedEvidence>) {
+        require(evidence.any { it.caption == SIGNATURE_CAPTION }) { "A handwritten signature is required." }
+        require(evidence.any { it.caption == DELIVERY_PHOTO_CAPTION }) { "A delivery photo is required." }
+        val photos = evidence.mapIndexed { index, capture -> capture.toPendingPhoto("proof-$index") }
         val operation = PendingWorkflowOperation(
             commandId = UUID.randomUUID().toString(),
             missionId = missionId,
@@ -156,10 +170,10 @@ class OfflineFirstDriverRepository(
                     deliveredAtUtc = Instant.now().toString(),
                     notes = "Delivered on site.",
                     stopId = stopId,
-                    photoLocalIds = listOf("photo-1"),
+                    photoLocalIds = photos.map { it.localId },
                 ),
             ),
-            photos = listOf(samplePendingPhoto("photo-1", "proof-demo.jpg")),
+            photos = photos,
             createdAtUtc = Instant.now().toString(),
         )
         localStore.enqueueWorkflowOperation(operation)
@@ -219,7 +233,7 @@ class OfflineFirstDriverRepository(
                                     notes = payload.notes,
                                     photos = payload.photoLocalIds.mapNotNull { localId ->
                                         processed.photos.firstOrNull { it.localId == localId }?.remoteAssetId?.let { remoteAssetId ->
-                                            DeliveryProofPhotoRequestDto(remoteAssetId, "Demo capture")
+                                            DeliveryProofPhotoRequestDto(remoteAssetId, processed.photos.firstOrNull { it.localId == localId }?.caption)
                                         }
                                     },
                                 ),
@@ -339,13 +353,11 @@ class OfflineFirstDriverRepository(
     }
 }
 
-private fun samplePendingPhoto(localId: String, fileName: String): PendingPhotoUpload =
-    PendingPhotoUpload(
-        localId = localId,
-        fileName = fileName,
-        contentType = "image/png",
-        base64Content = SAMPLE_PNG_BASE64,
-    )
+private fun CapturedEvidence.toPendingPhoto(localId: String): PendingPhotoUpload =
+    PendingPhotoUpload(localId, fileName, contentType, base64Content, caption)
+
+const val DELIVERY_PHOTO_CAPTION = "Delivery photo"
+const val SIGNATURE_CAPTION = "Recipient signature"
 
 class DriverSyncWorker(
     appContext: Context,

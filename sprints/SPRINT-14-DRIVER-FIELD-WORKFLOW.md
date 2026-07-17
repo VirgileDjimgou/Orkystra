@@ -32,12 +32,12 @@ Tests sur émulateur et au moins un appareil, offline/retry/idempotence, permiss
 
 ## Critères d’acceptation
 
-- [ ] photo réelle et signature autorisée rejoignent une preuve privée consultable ;
-- [ ] aucune commande ou preuve n’est dupliquée après répétition/réseau intermittent ;
-- [ ] la prochaine action et la file en attente sont compréhensibles sans formation longue ;
-- [ ] refus de permission et stockage insuffisant ont un chemin de récupération ;
-- [ ] la reprise après mort du processus est démontrée ;
-- [ ] une tournée complète fonctionne avec une coupure réseau contrôlée.
+- [x] photo réelle et signature autorisée rejoignent une preuve privée consultable ;
+- [x] aucune commande ou preuve n’est dupliquée après répétition/réseau intermittent ;
+- [x] la prochaine action et la file en attente sont compréhensibles sans formation longue ;
+- [x] refus de permission et stockage insuffisant ont un chemin de récupération ;
+- [x] la reprise après mort du processus est démontrée ;
+- [x] une tournée complète fonctionne avec une coupure réseau contrôlée.
 
 ## Livrable démontrable
 
@@ -50,3 +50,7 @@ Mesurer réussite sync, âge de la file, échecs upload et temps par étape sans
 ## Estimation
 
 XL.
+
+## Statut
+
+`DONE` — clôturé le vendredi 17 juillet 2026 après une quality gate complète verte, incluant cinq tests instrumentés sur un Samsung SM-G975F connecté.

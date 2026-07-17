@@ -3,6 +3,7 @@ using FleetOps.Core.Modules.Dispatch;
 using FleetOps.Core.Modules.Fleet;
 using FleetOps.Core.Modules.Identity;
 using FleetOps.Core.Modules.Integrations;
+using FleetOps.Core.Modules.Onboarding;
 using FleetOps.Core.Modules.Operations;
 using FleetOps.Core.Modules.Tracking;
 using FleetOps.Infrastructure.Identity;
@@ -31,6 +32,9 @@ public sealed class FleetOpsDbContext(DbContextOptions<FleetOpsDbContext> option
     public DbSet<MediaAsset> MediaAssets => Set<MediaAsset>();
     public DbSet<MediaUploadSession> MediaUploadSessions => Set<MediaUploadSession>();
     public DbSet<DriverWorkflowCommandReceipt> DriverWorkflowCommandReceipts => Set<DriverWorkflowCommandReceipt>();
+    public DbSet<OperationsExceptionState> OperationsExceptionStates => Set<OperationsExceptionState>();
+    public DbSet<OperationsSavedView> OperationsSavedViews => Set<OperationsSavedView>();
+    public DbSet<DriverSyncExceptionIncident> DriverSyncExceptionIncidents => Set<DriverSyncExceptionIncident>();
     public DbSet<Vehicle> Vehicles => Set<Vehicle>();
     public DbSet<Driver> Drivers => Set<Driver>();
     public DbSet<GpsDevice> GpsDevices => Set<GpsDevice>();
@@ -46,6 +50,11 @@ public sealed class FleetOpsDbContext(DbContextOptions<FleetOpsDbContext> option
     public DbSet<IntegrationOutboxMessage> IntegrationOutboxMessages => Set<IntegrationOutboxMessage>();
     public DbSet<WebhookDeliveryAttempt> WebhookDeliveryAttempts => Set<WebhookDeliveryAttempt>();
     public DbSet<SandboxWebhookReceipt> SandboxWebhookReceipts => Set<SandboxWebhookReceipt>();
+    public DbSet<TenantInvitation> TenantInvitations => Set<TenantInvitation>();
+    public DbSet<DriverPairingCode> DriverPairingCodes => Set<DriverPairingCode>();
+    public DbSet<OnboardingImportSession> OnboardingImportSessions => Set<OnboardingImportSession>();
+    public DbSet<OnboardingSampleDataSet> OnboardingSampleDataSets => Set<OnboardingSampleDataSet>();
+    public DbSet<OnboardingActivationEvent> OnboardingActivationEvents => Set<OnboardingActivationEvent>();
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
@@ -76,6 +85,8 @@ public sealed class FleetOpsDbContext(DbContextOptions<FleetOpsDbContext> option
             entity.Property(x => x.FullName).HasMaxLength(160);
             entity.HasIndex(x => new { x.OrganizationId, x.Email }).IsUnique()
                 .HasFilter("[Email] IS NOT NULL");
+            entity.HasIndex(x => new { x.OrganizationId, x.DriverId }).IsUnique()
+                .HasFilter("[DriverId] IS NOT NULL");
             entity.HasOne<Driver>()
                 .WithMany()
                 .HasForeignKey(x => x.DriverId)
@@ -102,6 +113,65 @@ public sealed class FleetOpsDbContext(DbContextOptions<FleetOpsDbContext> option
             entity.Property(x => x.ExpiresAtUtc).HasPrecision(7);
             entity.Property(x => x.RevokedAtUtc).HasPrecision(7);
             entity.Property(x => x.RevocationReason).HasMaxLength(120);
+        });
+
+        builder.Entity<TenantInvitation>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.TokenHash).IsUnique();
+            entity.HasIndex(x => new { x.OrganizationId, x.ExpiresAtUtc });
+            entity.Property(x => x.Email).HasMaxLength(256);
+            entity.Property(x => x.FullName).HasMaxLength(160);
+            entity.Property(x => x.Role).HasMaxLength(32);
+            entity.Property(x => x.TokenHash).HasMaxLength(64);
+            entity.HasIndex(x => new { x.OrganizationId, x.DriverId });
+            entity.Property(x => x.CreatedAtUtc).HasPrecision(7);
+            entity.Property(x => x.ExpiresAtUtc).HasPrecision(7);
+            entity.Property(x => x.AcceptedAtUtc).HasPrecision(7);
+            entity.Property(x => x.RowVersion).IsConcurrencyToken();
+        });
+
+        builder.Entity<DriverPairingCode>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.CodeHash).IsUnique();
+            entity.HasIndex(x => new { x.OrganizationId, x.UserId, x.ExpiresAtUtc });
+            entity.Property(x => x.CodeHash).HasMaxLength(64);
+            entity.Property(x => x.CreatedAtUtc).HasPrecision(7);
+            entity.Property(x => x.ExpiresAtUtc).HasPrecision(7);
+            entity.Property(x => x.ConsumedAtUtc).HasPrecision(7);
+            entity.Property(x => x.RowVersion).IsConcurrencyToken();
+        });
+
+        builder.Entity<OnboardingImportSession>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.OrganizationId, x.CreatedAtUtc });
+            entity.HasIndex(x => new { x.OrganizationId, x.ExpiresAtUtc });
+            entity.Property(x => x.TargetType).HasMaxLength(24);
+            entity.Property(x => x.RowsJson).HasMaxLength(1_048_576);
+            entity.Property(x => x.ErrorsJson).HasMaxLength(64_000);
+            entity.Property(x => x.SummaryJson).HasMaxLength(1_000);
+            entity.Property(x => x.CreatedAtUtc).HasPrecision(7);
+            entity.Property(x => x.ExpiresAtUtc).HasPrecision(7);
+            entity.Property(x => x.ConfirmedAtUtc).HasPrecision(7);
+            entity.Property(x => x.RowVersion).IsConcurrencyToken();
+        });
+
+        builder.Entity<OnboardingSampleDataSet>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.OrganizationId).IsUnique();
+            entity.Property(x => x.CreatedAtUtc).HasPrecision(7);
+        });
+
+        builder.Entity<OnboardingActivationEvent>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.OrganizationId, x.OccurredAtUtc });
+            entity.Property(x => x.EventName).HasMaxLength(48);
+            entity.Property(x => x.Step).HasMaxLength(48);
+            entity.Property(x => x.OccurredAtUtc).HasPrecision(7);
         });
 
         builder.Entity<Mission>(entity =>
@@ -245,6 +315,52 @@ public sealed class FleetOpsDbContext(DbContextOptions<FleetOpsDbContext> option
             entity.Property(x => x.ScopeType).HasMaxLength(40);
             entity.Property(x => x.ScopeId).HasMaxLength(80);
             entity.Property(x => x.ProcessedAtUtc).HasPrecision(7);
+        });
+
+        builder.Entity<OperationsExceptionState>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.OrganizationId, x.ExceptionKey }).IsUnique();
+            entity.HasIndex(x => new { x.OrganizationId, x.SourceType, x.SourceEntityId });
+            entity.Property(x => x.ExceptionKey).HasMaxLength(120);
+            entity.Property(x => x.AssignedToDisplayName).HasMaxLength(120);
+            entity.Property(x => x.AcknowledgedByDisplayName).HasMaxLength(120);
+            entity.Property(x => x.ResolvedByDisplayName).HasMaxLength(120);
+            entity.Property(x => x.ResolutionReason).HasMaxLength(280);
+            entity.Property(x => x.SnoozeReason).HasMaxLength(280);
+            entity.Property(x => x.AssignedAtUtc).HasPrecision(7);
+            entity.Property(x => x.AcknowledgedAtUtc).HasPrecision(7);
+            entity.Property(x => x.ResolvedAtUtc).HasPrecision(7);
+            entity.Property(x => x.SnoozedUntilUtc).HasPrecision(7);
+            entity.Property(x => x.LastDetectedAtUtc).HasPrecision(7);
+            entity.Property(x => x.RowVersion).IsConcurrencyToken();
+        });
+
+        builder.Entity<OperationsSavedView>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.OrganizationId, x.CreatedByUserId, x.Name });
+            entity.HasIndex(x => new { x.OrganizationId, x.IsShared });
+            entity.Property(x => x.Name).HasMaxLength(120);
+            entity.Property(x => x.FilterJson).HasMaxLength(2000);
+            entity.Property(x => x.RowVersion).IsConcurrencyToken();
+        });
+
+        builder.Entity<DriverSyncExceptionIncident>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.OrganizationId, x.IncidentKey }).IsUnique();
+            entity.HasIndex(x => new { x.OrganizationId, x.MissionId, x.LastOccurredAtUtc });
+            entity.Property(x => x.IncidentKey).HasMaxLength(160);
+            entity.Property(x => x.IncidentCode).HasMaxLength(64);
+            entity.Property(x => x.Severity).HasMaxLength(24);
+            entity.Property(x => x.ScopeType).HasMaxLength(48);
+            entity.Property(x => x.Message).HasMaxLength(320);
+            entity.Property(x => x.LastCommandId).HasMaxLength(80);
+            entity.Property(x => x.FirstOccurredAtUtc).HasPrecision(7);
+            entity.Property(x => x.LastOccurredAtUtc).HasPrecision(7);
+            entity.Property(x => x.ResolvedAtUtc).HasPrecision(7);
+            entity.Property(x => x.RowVersion).IsConcurrencyToken();
         });
 
         builder.Entity<Vehicle>(entity =>
