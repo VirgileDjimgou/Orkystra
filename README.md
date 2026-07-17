@@ -2,6 +2,21 @@
 
 Orkystra FleetOps is a modular fleet operations MVP for small and mid-sized transport businesses. The platform covers the operational chain from identity and tenant isolation to vehicle tracking, dispatch execution, offline-capable driver workflows, proof of delivery, deterministic alerting, exception-driven operator work, maintenance coordination, external integrations, and pilot packaging.
 
+## Compliance campaigns
+
+Administrators configure their own document types and blocking policy; FleetOps does not provide legal advice. The compliance workspace presents vehicle and driver coverage, private document evidence, replacement history, review status, expiry horizons, and a CSV audit export. A blocking rule is enforced only when the tenant enables it; an Admin override requires an audit reason. Targeted inspection campaigns are cached in the driver app's Room database and submitted idempotently by WorkManager after connectivity returns.
+
+```mermaid
+flowchart LR
+  Admin["Tenant Admin"] --> Policy["Document types and policy"]
+  Policy --> Matrix["Coverage matrix and expiry risks"]
+  Policy --> Dispatch["Assignment block or audited override"]
+  Admin --> Campaign["Targeted inspection campaign"]
+  Campaign --> Driver["Driver app: Room + WorkManager"]
+  Driver --> Evidence["Idempotent campaign submission"]
+  Evidence --> Matrix
+```
+
 ## Maintenance work orders
 
 The maintenance backlog lets authorized operators schedule lightweight corrective work from a stable source key, record labour and parts costs in a three-letter currency, attach a private media asset, and complete the order with a required reason. An active immobilising work order prevents dispatch from assigning its vehicle; completion restores availability without deleting the audit trail.
@@ -33,6 +48,7 @@ The repository currently delivers Sprint 00 through Sprint 16, giving the produc
 - deterministic multi-vehicle GPS simulator for demos and validation.
 - dispatch missions with explicit state transitions, assignment checks, audited timelines, and mission-to-map linkage.
 - Android driver login, offline mission cache, Room persistence, idempotent action outbox, and WorkManager-based background sync.
+- compliance campaigns with tenant-controlled document types, four-eyes review, replacement history, 30/14/7-day expiry horizons, coverage matrix, audit export, assignment policy, and Android offline campaign submission.
 - pre-departure inspections, critical defect blocking, private media uploads with resumable sessions, and operator-visible delivery proof.
 - deterministic alert scans for compliance, maintenance, and inactive vehicles with worker-backed retries.
 - web alert center for scan triggering, assignment, acknowledgment, compliance setup, and odometer-driven maintenance configuration.

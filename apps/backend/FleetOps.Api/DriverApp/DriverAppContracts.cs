@@ -1,3 +1,4 @@
+using FleetOps.Core.Modules.Compliance;
 using FleetOps.Core.Modules.Dispatch;
 
 namespace FleetOps.Api.DriverApp;
@@ -49,3 +50,6 @@ public sealed record SyncMissionCommandRequest(
 public sealed record SyncMissionCommandResponse(
     DriverMissionDetailResponse Mission,
     bool WasDuplicate);
+
+public sealed record DriverComplianceCampaignTaskResponse(Guid Id, Guid VehicleId, string VehicleRegistration, string CampaignName, string TemplateCode, DateTimeOffset OpensAtUtc, DateTimeOffset ClosesAtUtc, InspectionCampaignTaskStatus Status);
+public sealed record SubmitDriverComplianceCampaignTaskRequest(string CommandId, DateTimeOffset SubmittedAtUtc, string? Notes);

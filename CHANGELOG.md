@@ -6,6 +6,9 @@ Toutes les modifications fonctionnelles significatives sont documentées ici.
 
 ### Added
 
+- Sprint 18 compliance campaigns: tenant-configured document types and assignment policy, optional four-eyes review, replacement history, 30/14/7-day expiry horizons, coverage matrix, audit CSV export, and auditable Admin overrides.
+- Targeted vehicle inspection campaigns with private tenant-scoped state and an Android Room/WorkManager queue that preserves idempotent offline driver submissions.
+
 - Sprint 17 tenant-scoped maintenance work orders with source-key deduplication, optimistic concurrency, scheduled repair windows, stable decimal labour/parts costs, private media evidence, and auditable completion reasons.
 - Automatic work-order creation for critical inspection defects and maintenance alerts, dispatch protection for immobilised vehicles, and overdue maintenance items in the operations exception queue.
 - Maintenance backlog navigation for Admin and Operator users, plus an additive EF Core migration for work-order persistence.

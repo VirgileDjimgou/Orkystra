@@ -188,7 +188,7 @@ public sealed partial class AlertScanningService(
             join driver in dbContext.Drivers.AsNoTracking()
                 on document.TargetEntityId equals driver.Id into driverJoin
             from driver in driverJoin.DefaultIfEmpty()
-            where document.OrganizationId == organizationId
+            where document.OrganizationId == organizationId && document.ReplacedByDocumentId == null
             select new
             {
                 Document = document,
@@ -210,7 +210,14 @@ public sealed partial class AlertScanningService(
             var subjectName = item.Document.TargetType == ComplianceDocumentTargetType.Vehicle
                 ? item.VehicleRegistration ?? "Unknown vehicle"
                 : item.DriverName ?? "Unknown driver";
-            var titlePrefix = expired ? "Expired" : "Expiring soon";
+            var horizonDays = expired
+                ? 0
+                : item.Document.ExpiresAtUtc <= now.AddDays(7)
+                    ? 7
+                    : item.Document.ExpiresAtUtc <= now.AddDays(14)
+                        ? 14
+                        : 30;
+            var titlePrefix = expired ? "Expired" : $"Expiring within {horizonDays} days";
             var severity = expired ? AlertSeverity.Critical : AlertSeverity.Warning;
             var ruleType = item.Document.TargetType == ComplianceDocumentTargetType.Vehicle
                 ? AlertRuleType.VehicleDocumentExpiry
@@ -220,7 +227,7 @@ public sealed partial class AlertScanningService(
                 RuleType: ruleType,
                 Severity: severity,
                 Title: $"{titlePrefix} {item.Document.DocumentType}",
-                Message: $"{subjectName} document {item.Document.DocumentType} expires on {item.Document.ExpiresAtUtc:yyyy-MM-dd}.",
+                Message: $"{subjectName} document {item.Document.DocumentType} expires on {item.Document.ExpiresAtUtc:yyyy-MM-dd} ({(expired ? "expired" : $"{horizonDays}-day horizon")}).",
                 TargetType: item.Document.TargetType == ComplianceDocumentTargetType.Vehicle ? "vehicle" : "driver",
                 TargetEntityId: item.Document.TargetEntityId));
         }

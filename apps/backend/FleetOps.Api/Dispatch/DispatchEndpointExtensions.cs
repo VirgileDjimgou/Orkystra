@@ -3,6 +3,8 @@ using FleetOps.Api.Integrations;
 using FleetOps.Api.Media;
 using FleetOps.Api.Operations;
 using FleetOps.Api.Security;
+using FleetOps.Core.Modules.Alerts;
+using FleetOps.Core.Modules.Compliance;
 using FleetOps.Core.Modules.Dispatch;
 using FleetOps.Core.Modules.Identity;
 using FleetOps.Core.Modules.Integrations;
@@ -338,6 +340,40 @@ public static class DispatchEndpointExtensions
             }, statusCode: StatusCodes.Status409Conflict);
         }
 
+        var compliancePolicy = await dbContext.CompliancePolicies
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.OrganizationId == tenant.OrganizationId, cancellationToken);
+        if (compliancePolicy?.BlocksAssignments == true)
+        {
+            var now = DateTimeOffset.UtcNow;
+            var blockingTypes = await dbContext.ComplianceDocumentTypes
+                .AsNoTracking()
+                .Where(x => x.OrganizationId == tenant.OrganizationId && x.IsActive && x.IsBlocking)
+                .ToListAsync(cancellationToken);
+            var blocked = blockingTypes.Any(type => !dbContext.ComplianceDocuments.Any(document =>
+                document.OrganizationId == tenant.OrganizationId
+                && document.TargetEntityId == (type.SubjectType == ComplianceSubjectType.Vehicle ? request.VehicleId : request.DriverId)
+                && (document.ComplianceDocumentTypeId == type.Id || document.DocumentType == type.Name)
+                && document.ReplacedByDocumentId == null
+                && document.ReviewStatus == ComplianceReviewStatus.Approved
+                && document.ExpiresAtUtc > now));
+            if (blocked && string.IsNullOrWhiteSpace(request.ComplianceOverrideReason))
+            {
+                return Results.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    ["compliance"] = ["Assignment is blocked by this organization's compliance policy. An administrator may provide an audited override reason."]
+                }, statusCode: StatusCodes.Status409Conflict);
+            }
+            if (blocked && !httpContext.User.IsInRole(SystemRoles.Admin))
+            {
+                return Results.Forbid();
+            }
+            if (blocked && request.ComplianceOverrideReason!.Trim().Length > 280)
+            {
+                return Results.ValidationProblem(new Dictionary<string, string[]> { ["complianceOverrideReason"] = ["Override reason must not exceed 280 characters."] });
+            }
+        }
+
         var conflict = await FindConflictAsync(mission, request.DriverId, request.VehicleId, dbContext, cancellationToken);
         if (conflict is not null)
         {
@@ -375,7 +411,7 @@ public static class DispatchEndpointExtensions
             "dispatch.mission_assignment_changed",
             "mission",
             mission.Id.ToString(),
-            new { mission.DriverId, mission.VehicleId },
+            new { mission.DriverId, mission.VehicleId, request.ComplianceOverrideReason },
             cancellationToken);
         await notifier.NotifyQueueChangedAsync(tenant.OrganizationId, "dispatch.mission_assignment_changed", cancellationToken);
 

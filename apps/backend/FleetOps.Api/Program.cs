@@ -6,6 +6,7 @@ using FleetOps.Api.Admin;
 using FleetOps.Api.Alerts;
 using FleetOps.Api.Auditing;
 using FleetOps.Api.Auth;
+using FleetOps.Api.Compliance;
 using FleetOps.Api.Dispatch;
 using FleetOps.Api.DriverApp;
 using FleetOps.Api.Fleet;
@@ -296,6 +297,7 @@ app.MapDriverOperationsEndpoints();
 app.MapOperationsCenterEndpoints();
 app.MapMediaEndpoints();
 app.MapMaintenanceEndpoints();
+app.MapComplianceEndpoints();
 app.MapTrackingEndpoints();
 app.MapAlertEndpoints();
 

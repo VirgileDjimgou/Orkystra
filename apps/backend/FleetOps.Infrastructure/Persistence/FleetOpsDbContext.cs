@@ -1,4 +1,5 @@
 using FleetOps.Core.Modules.Alerts;
+using FleetOps.Core.Modules.Compliance;
 using FleetOps.Core.Modules.Dispatch;
 using FleetOps.Core.Modules.Fleet;
 using FleetOps.Core.Modules.Identity;
@@ -57,6 +58,10 @@ public sealed class FleetOpsDbContext(DbContextOptions<FleetOpsDbContext> option
     public DbSet<OnboardingSampleDataSet> OnboardingSampleDataSets => Set<OnboardingSampleDataSet>();
     public DbSet<OnboardingActivationEvent> OnboardingActivationEvents => Set<OnboardingActivationEvent>();
     public DbSet<MaintenanceWorkOrder> MaintenanceWorkOrders => Set<MaintenanceWorkOrder>();
+    public DbSet<ComplianceDocumentType> ComplianceDocumentTypes => Set<ComplianceDocumentType>();
+    public DbSet<CompliancePolicy> CompliancePolicies => Set<CompliancePolicy>();
+    public DbSet<ComplianceInspectionCampaign> ComplianceInspectionCampaigns => Set<ComplianceInspectionCampaign>();
+    public DbSet<ComplianceInspectionCampaignTask> ComplianceInspectionCampaignTasks => Set<ComplianceInspectionCampaignTask>();
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
@@ -73,6 +78,38 @@ public sealed class FleetOpsDbContext(DbContextOptions<FleetOpsDbContext> option
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+
+        builder.Entity<ComplianceDocumentType>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.OrganizationId, x.Name, x.SubjectType }).IsUnique();
+            entity.Property(x => x.Name).HasMaxLength(80);
+            entity.Property(x => x.RowVersion).IsConcurrencyToken();
+        });
+        builder.Entity<CompliancePolicy>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.OrganizationId).IsUnique();
+            entity.Property(x => x.RowVersion).IsConcurrencyToken();
+        });
+        builder.Entity<ComplianceInspectionCampaign>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.OrganizationId, x.Status });
+            entity.Property(x => x.Name).HasMaxLength(120);
+            entity.Property(x => x.RowVersion).IsConcurrencyToken();
+            entity.Navigation(x => x.Tasks).UsePropertyAccessMode(PropertyAccessMode.Field);
+        });
+        builder.Entity<ComplianceInspectionCampaignTask>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.OrganizationId, x.CampaignId, x.VehicleId }).IsUnique();
+            entity.HasIndex(x => new { x.OrganizationId, x.DriverId, x.Status });
+            entity.Property(x => x.TemplateCode).HasMaxLength(64);
+            entity.Property(x => x.Notes).HasMaxLength(500);
+            entity.Property(x => x.SubmissionCommandId).HasMaxLength(120);
+            entity.HasOne<ComplianceInspectionCampaign>().WithMany(x => x.Tasks).HasForeignKey(x => x.CampaignId).OnDelete(DeleteBehavior.Cascade);
+        });
 
         builder.Entity<Organization>(entity =>
         {
@@ -455,12 +492,13 @@ public sealed class FleetOpsDbContext(DbContextOptions<FleetOpsDbContext> option
         builder.Entity<ComplianceDocument>(entity =>
         {
             entity.HasKey(x => x.Id);
-            entity.HasIndex(x => new { x.OrganizationId, x.TargetType, x.TargetEntityId, x.DocumentType }).IsUnique();
+            entity.HasIndex(x => new { x.OrganizationId, x.TargetType, x.TargetEntityId, x.DocumentType, x.ReplacedByDocumentId }).IsUnique();
             entity.HasIndex(x => new { x.OrganizationId, x.ExpiresAtUtc });
             entity.Property(x => x.DocumentType).HasMaxLength(64);
             entity.Property(x => x.DocumentNumber).HasMaxLength(64);
             entity.Property(x => x.ExpiresAtUtc).HasPrecision(7);
             entity.Property(x => x.Notes).HasMaxLength(280);
+            entity.Property(x => x.ReviewStatus).HasConversion<string>().HasMaxLength(16);
             entity.Property(x => x.RowVersion).IsConcurrencyToken();
         });
 

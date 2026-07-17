@@ -16,6 +16,7 @@ import OnboardingView from "./views/OnboardingView.vue";
 import UsersAdminView from "./views/UsersAdminView.vue";
 import VehiclesView from "./views/VehiclesView.vue";
 import MaintenanceView from "./views/MaintenanceView.vue";
+import ComplianceView from "./views/ComplianceView.vue";
 
 export const router = createRouter({
   history: createWebHistory(),
@@ -67,6 +68,16 @@ export const router = createRouter({
         title: "Maintenance work orders",
         description:
           "Keep vehicles available with scheduled, costed maintenance.",
+      },
+    },
+    {
+      path: "/compliance",
+      component: ComplianceView,
+      meta: {
+        requiresAuth: true,
+        title: "Compliance workspace",
+        description:
+          "Customer-configured document coverage and inspection campaigns.",
       },
     },
     {

@@ -98,6 +98,27 @@ public sealed class AlertScanningServiceTests
     }
 
     [Fact]
+    public async Task ScanOrganizationAsyncUsesOneDeduplicatedFourteenDayHorizon()
+    {
+        await using var dbContext = CreateDbContext();
+        var organization = new Organization("Northwind Logistics", "northwind");
+        var vehicle = new Vehicle(organization.Id, "NW-114", "Horizon van");
+        dbContext.Organizations.Add(organization);
+        dbContext.Vehicles.Add(vehicle);
+        dbContext.CurrentVehiclePositions.Add(CreateCurrentPosition(organization.Id, vehicle.Id));
+        dbContext.ComplianceDocuments.Add(new ComplianceDocument(organization.Id, ComplianceDocumentTargetType.Vehicle, vehicle.Id, "Insurance", "POL-114", new DateTimeOffset(2026, 7, 29, 8, 0, 0, TimeSpan.Zero)));
+        await dbContext.SaveChangesAsync();
+
+        var service = new AlertScanningService(dbContext, new StaticTimeProvider(new DateTimeOffset(2026, 7, 16, 8, 0, 0, TimeSpan.Zero)), Options.Create(new AlertingOptions { DocumentDueSoonDays = 30 }), new FakeIntegrationOutboxService(), new FakeDevAlertNotifier(), NullLogger<AlertScanningService>.Instance);
+        await service.ScanOrganizationAsync(organization.Id, CancellationToken.None);
+        await service.ScanOrganizationAsync(organization.Id, CancellationToken.None);
+
+        var alert = await dbContext.OperationalAlerts.SingleAsync(x => x.RuleType == AlertRuleType.VehicleDocumentExpiry);
+        Assert.Contains("14 days", alert.Title);
+        Assert.Single(dbContext.OperationalAlerts.Where(x => x.RuleType == AlertRuleType.VehicleDocumentExpiry));
+    }
+
+    [Fact]
     public async Task ScanOrganizationAsyncContinuesWhenDevEmailFails()
     {
         await using var dbContext = CreateDbContext();

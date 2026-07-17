@@ -142,6 +142,7 @@ private fun FleetOpsDriverApp(viewModel: DriverAppViewModel) {
                     state = state,
                     onRefresh = viewModel::refresh,
                     onMissionClick = viewModel::openMission,
+                    onSubmitCampaignTask = viewModel::submitComplianceCampaignTask,
                     modifier = Modifier.padding(padding),
                 )
                 else -> MissionDetailScreen(
@@ -237,6 +238,7 @@ private fun MissionListScreen(
     state: DriverAppUiState,
     onRefresh: () -> Unit,
     onMissionClick: (String) -> Unit,
+    onSubmitCampaignTask: (String, String?) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val nextMission = state.missions.firstOrNull { it.availableActions().isNotEmpty() }
@@ -262,6 +264,20 @@ private fun MissionListScreen(
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(top = 4.dp, bottom = 12.dp),
             )
+        }
+
+        if (state.complianceCampaignTasks.isNotEmpty()) {
+            item {
+                Card(colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFBEB))) {
+                    Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Inspection campaign", style = MaterialTheme.typography.titleMedium)
+                        Text("These assigned checks remain on this device and sync when coverage returns.", style = MaterialTheme.typography.bodySmall)
+                        state.complianceCampaignTasks.forEach { task ->
+                            CampaignTaskCard(task, state.isBusy, onSubmitCampaignTask)
+                        }
+                    }
+                }
+            }
         }
 
         if (nextMission != null) {
@@ -369,6 +385,25 @@ private fun MissionListScreen(
             ) {
                 Text(if (state.isBusy) "Refreshing..." else "Refresh from server")
             }
+        }
+    }
+}
+
+@Composable
+private fun CampaignTaskCard(
+    task: DriverComplianceCampaignTask,
+    isBusy: Boolean,
+    onSubmit: (String, String?) -> Unit,
+) {
+    var notes by rememberSaveable(task.id) { mutableStateOf("") }
+    Text("${task.campaignName} · ${task.vehicleRegistration}", fontWeight = FontWeight.SemiBold)
+    Text("Template: ${task.templateCode} · closes ${task.closesAtUtc.toFriendlyDateTime()}", style = MaterialTheme.typography.bodySmall)
+    if (task.status.equals("Submitted", ignoreCase = true)) {
+        Text("Submitted", color = Color(0xFF166534), style = MaterialTheme.typography.labelLarge)
+    } else {
+        OutlinedTextField(value = notes, onValueChange = { notes = it }, label = { Text("Inspection notes (optional)") }, modifier = Modifier.fillMaxWidth(), enabled = !isBusy && task.pendingCommandId == null)
+        Button(onClick = { onSubmit(task.id, notes) }, enabled = !isBusy && task.pendingCommandId == null, modifier = Modifier.fillMaxWidth()) {
+            Text(if (task.pendingCommandId == null) "Queue inspection completion" else "Queued for sync")
         }
     }
 }

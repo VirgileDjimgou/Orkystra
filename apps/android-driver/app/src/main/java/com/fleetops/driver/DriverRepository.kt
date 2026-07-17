@@ -21,12 +21,14 @@ interface DriverRepository {
     fun observeSession(): Flow<DriverSession?>
     fun observeMissions(): Flow<List<DriverMission>>
     fun observeMission(missionId: String): Flow<DriverMission?>
+    fun observeComplianceCampaignTasks(): Flow<List<DriverComplianceCampaignTask>>
     suspend fun login(email: String, password: String)
     suspend fun pair(code: String)
     suspend fun refresh()
     suspend fun queueMissionAction(missionId: String, action: DriverMissionAction)
     suspend fun queueInspection(missionId: String, hasCriticalDefect: Boolean, evidence: List<CapturedEvidence> = emptyList())
     suspend fun queueDeliveryProof(missionId: String, stopId: String, recipientName: String, signatureName: String, evidence: List<CapturedEvidence>)
+    suspend fun queueComplianceCampaignTask(taskId: String, notes: String?)
     suspend fun flushPendingCommands()
     suspend fun signOut()
 }
@@ -72,6 +74,9 @@ class OfflineFirstDriverRepository(
 
     override fun observeMission(missionId: String): Flow<DriverMission?> = localStore.observeMission(missionId)
 
+    override fun observeComplianceCampaignTasks(): Flow<List<DriverComplianceCampaignTask>> =
+        localStore.observeComplianceCampaignTasks()
+
     override suspend fun login(email: String, password: String) {
         val session = remoteDataSource.login(email, password)
         startSession(session)
@@ -92,6 +97,7 @@ class OfflineFirstDriverRepository(
         val session = requireSession()
         try {
             localStore.replaceMissions(remoteDataSource.listMissionDetails(session))
+            localStore.replaceComplianceCampaignTasks(remoteDataSource.listComplianceCampaignTasks(session))
         } catch (_: IOException) {
             localStore.listMissions().forEach { localStore.updateMissionSyncState(it.id, MissionSyncState.Offline) }
             return
@@ -185,8 +191,29 @@ class OfflineFirstDriverRepository(
         }
     }
 
+    override suspend fun queueComplianceCampaignTask(taskId: String, notes: String?) {
+        require(notes.isNullOrBlank() || notes.trim().length <= 500) { "Campaign notes must not exceed 500 characters." }
+        localStore.queueComplianceCampaignTask(taskId, UUID.randomUUID().toString(), Instant.now().toString(), notes?.trim()?.takeIf { it.isNotEmpty() })
+        try {
+            flushPendingCommands()
+        } catch (_: IOException) {
+            // The task and idempotency key are durable in Room; WorkManager will retry it.
+        }
+    }
+
     override suspend fun flushPendingCommands() {
         val session = requireSession()
+        for (task in localStore.pendingComplianceCampaignTasks()) {
+            try {
+                remoteDataSource.submitComplianceCampaignTask(session, task)
+                localStore.markComplianceCampaignTaskSubmitted(task.id)
+            } catch (exception: HttpException) {
+                if (exception.code() == 401) localStore.clearSession()
+                throw exception
+            } catch (exception: IOException) {
+                throw exception
+            }
+        }
         val workflowOperations = localStore.pendingWorkflowOperations()
         for (operation in workflowOperations) {
             try {

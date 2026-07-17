@@ -32,12 +32,12 @@ Dates/fuseaux, déduplication, validation/override, tenant/rôles, campagne offl
 
 ## Critères d’acceptation
 
-- [ ] échéances produisent une seule exception au bon horizon ;
-- [ ] document remplacé conserve historique sans rester actif ;
-- [ ] campagne atteint les conducteurs offline et remonte son statut ;
-- [ ] règle bloquante et override sont configurables et audités ;
-- [ ] administrateur voit couverture et risques sans parcourir chaque fiche ;
-- [ ] interface indique clairement que la configuration relève du client.
+- [x] échéances produisent une seule exception au bon horizon ;
+- [x] document remplacé conserve historique sans rester actif ;
+- [x] campagne atteint les conducteurs offline et remonte son statut ;
+- [x] règle bloquante et override sont configurables et audités ;
+- [x] administrateur voit couverture et risques sans parcourir chaque fiche ;
+- [x] interface indique clairement que la configuration relève du client.
 
 ## Livrable démontrable
 

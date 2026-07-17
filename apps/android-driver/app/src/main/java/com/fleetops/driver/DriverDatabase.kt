@@ -84,6 +84,21 @@ data class PendingWorkflowOperationEntity(
     val createdAtUtc: String,
 )
 
+@Entity(tableName = "driver_compliance_campaign_tasks")
+data class DriverComplianceCampaignTaskEntity(
+    @PrimaryKey val id: String,
+    val vehicleId: String,
+    val vehicleRegistration: String,
+    val campaignName: String,
+    val templateCode: String,
+    val opensAtUtc: String,
+    val closesAtUtc: String,
+    val status: String,
+    val submittedAtUtc: String?,
+    val pendingCommandId: String?,
+    val pendingNotes: String?,
+)
+
 data class DriverMissionAggregate(
     @Embedded val mission: DriverMissionEntity,
     @Relation(parentColumn = "id", entityColumn = "missionId")
@@ -186,6 +201,30 @@ interface PendingWorkflowOperationDao {
     suspend fun clear()
 }
 
+@Dao
+interface DriverComplianceCampaignTaskDao {
+    @Query("SELECT * FROM driver_compliance_campaign_tasks ORDER BY closesAtUtc")
+    fun observe(): Flow<List<DriverComplianceCampaignTaskEntity>>
+
+    @Query("SELECT * FROM driver_compliance_campaign_tasks ORDER BY closesAtUtc")
+    suspend fun list(): List<DriverComplianceCampaignTaskEntity>
+
+    @Query("SELECT * FROM driver_compliance_campaign_tasks WHERE pendingCommandId IS NOT NULL ORDER BY submittedAtUtc")
+    suspend fun listPending(): List<DriverComplianceCampaignTaskEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertAll(tasks: List<DriverComplianceCampaignTaskEntity>)
+
+    @Query("UPDATE driver_compliance_campaign_tasks SET status = :status, submittedAtUtc = :submittedAtUtc, pendingCommandId = :commandId, pendingNotes = :notes WHERE id = :taskId")
+    suspend fun markPending(taskId: String, status: String, submittedAtUtc: String, commandId: String, notes: String?)
+
+    @Query("UPDATE driver_compliance_campaign_tasks SET status = 'Submitted', pendingCommandId = NULL, pendingNotes = NULL WHERE id = :taskId")
+    suspend fun markSubmitted(taskId: String)
+
+    @Query("DELETE FROM driver_compliance_campaign_tasks")
+    suspend fun clear()
+}
+
 @Database(
     entities = [
         DriverSessionEntity::class,
@@ -194,8 +233,9 @@ interface PendingWorkflowOperationDao {
         DriverMissionTimelineEventEntity::class,
         PendingMissionCommandEntity::class,
         PendingWorkflowOperationEntity::class,
+        DriverComplianceCampaignTaskEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = false,
 )
 abstract class DriverDatabase : RoomDatabase() {
@@ -203,6 +243,7 @@ abstract class DriverDatabase : RoomDatabase() {
     abstract fun missionDao(): DriverMissionDao
     abstract fun outboxDao(): PendingMissionCommandDao
     abstract fun workflowOutboxDao(): PendingWorkflowOperationDao
+    abstract fun complianceCampaignTaskDao(): DriverComplianceCampaignTaskDao
 
     companion object {
         fun build(
@@ -210,7 +251,7 @@ abstract class DriverDatabase : RoomDatabase() {
             credentialStore: DriverCredentialStore = AndroidKeystoreDriverCredentialStore(context),
         ): DriverDatabase =
             Room.databaseBuilder(context, DriverDatabase::class.java, "fleetops-driver.db")
-                .addMigrations(migrationFrom1To2(), migrationFrom2To3(credentialStore))
+                .addMigrations(migrationFrom1To2(), migrationFrom2To3(credentialStore), migrationFrom3To4())
                 .build()
 
         internal fun migrationFrom1To2(): Migration =
@@ -266,6 +307,29 @@ abstract class DriverDatabase : RoomDatabase() {
                     db.execSQL("ALTER TABLE driver_session_v3 RENAME TO driver_session")
                 }
             }
+
+        internal fun migrationFrom3To4(): Migration =
+            object : Migration(3, 4) {
+                override fun migrate(db: SupportSQLiteDatabase) {
+                    db.execSQL(
+                        """
+                        CREATE TABLE IF NOT EXISTS driver_compliance_campaign_tasks (
+                            id TEXT NOT NULL PRIMARY KEY,
+                            vehicleId TEXT NOT NULL,
+                            vehicleRegistration TEXT NOT NULL,
+                            campaignName TEXT NOT NULL,
+                            templateCode TEXT NOT NULL,
+                            opensAtUtc TEXT NOT NULL,
+                            closesAtUtc TEXT NOT NULL,
+                            status TEXT NOT NULL,
+                            submittedAtUtc TEXT,
+                            pendingCommandId TEXT,
+                            pendingNotes TEXT
+                        )
+                        """.trimIndent(),
+                    )
+                }
+            }
     }
 }
 
@@ -288,6 +352,11 @@ interface DriverLocalStore {
     suspend fun pendingWorkflowOperations(): List<PendingWorkflowOperation>
     suspend fun saveWorkflowOperation(operation: PendingWorkflowOperation)
     suspend fun removeWorkflowOperation(commandId: String)
+    fun observeComplianceCampaignTasks(): Flow<List<DriverComplianceCampaignTask>> = throw UnsupportedOperationException()
+    suspend fun replaceComplianceCampaignTasks(tasks: List<DriverComplianceCampaignTask>) = Unit
+    suspend fun pendingComplianceCampaignTasks(): List<DriverComplianceCampaignTask> = emptyList()
+    suspend fun queueComplianceCampaignTask(taskId: String, commandId: String, submittedAtUtc: String, notes: String?) = Unit
+    suspend fun markComplianceCampaignTaskSubmitted(taskId: String) = Unit
     suspend fun clearAll()
 }
 
@@ -299,6 +368,7 @@ class RoomDriverLocalStore(
     private val missionDao = database.missionDao()
     private val outboxDao = database.outboxDao()
     private val workflowOutboxDao = database.workflowOutboxDao()
+    private val complianceCampaignTaskDao = database.complianceCampaignTaskDao()
 
     override fun observeSession(): Flow<DriverSession?> =
         sessionDao.observe().map { entity ->
@@ -400,10 +470,29 @@ class RoomDriverLocalStore(
         workflowOutboxDao.delete(commandId)
     }
 
+    override fun observeComplianceCampaignTasks(): Flow<List<DriverComplianceCampaignTask>> =
+        complianceCampaignTaskDao.observe().map { tasks -> tasks.map { it.toDomain() } }
+
+    override suspend fun replaceComplianceCampaignTasks(tasks: List<DriverComplianceCampaignTask>) {
+        complianceCampaignTaskDao.upsertAll(tasks.map { it.toEntity() })
+    }
+
+    override suspend fun pendingComplianceCampaignTasks(): List<DriverComplianceCampaignTask> =
+        complianceCampaignTaskDao.listPending().map { it.toDomain() }
+
+    override suspend fun queueComplianceCampaignTask(taskId: String, commandId: String, submittedAtUtc: String, notes: String?) {
+        complianceCampaignTaskDao.markPending(taskId, "Pending", submittedAtUtc, commandId, notes)
+    }
+
+    override suspend fun markComplianceCampaignTaskSubmitted(taskId: String) {
+        complianceCampaignTaskDao.markSubmitted(taskId)
+    }
+
     override suspend fun clearAll() {
         database.withTransaction {
             outboxDao.clear()
             workflowOutboxDao.clear()
+            complianceCampaignTaskDao.clear()
             missionDao.clearTimeline()
             missionDao.clearStops()
             missionDao.clearMissions()
@@ -541,6 +630,12 @@ private fun PendingWorkflowOperationEntity.toDomain(): PendingWorkflowOperation 
         photos = driverJson.decodePendingPhotos(photosJson),
         createdAtUtc = createdAtUtc,
     )
+
+private fun DriverComplianceCampaignTaskEntity.toDomain(): DriverComplianceCampaignTask =
+    DriverComplianceCampaignTask(id, vehicleId, vehicleRegistration, campaignName, templateCode, opensAtUtc, closesAtUtc, status, submittedAtUtc, pendingCommandId, pendingNotes)
+
+private fun DriverComplianceCampaignTask.toEntity(): DriverComplianceCampaignTaskEntity =
+    DriverComplianceCampaignTaskEntity(id, vehicleId, vehicleRegistration, campaignName, templateCode, opensAtUtc, closesAtUtc, status, submittedAtUtc, pendingCommandId, pendingNotes)
 
 private fun String.toMissionSyncState(): MissionSyncState =
     runCatching { enumValueOf<MissionSyncState>(this) }.getOrElse { MissionSyncState.Synced }

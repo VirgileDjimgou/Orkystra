@@ -148,6 +148,23 @@ data class SubmitDeliveryProofRequestDto(
     val photos: List<DeliveryProofPhotoRequestDto>,
 )
 
+data class DriverComplianceCampaignTaskDto(
+    val id: String,
+    val vehicleId: String,
+    val vehicleRegistration: String,
+    val campaignName: String,
+    val templateCode: String,
+    val opensAtUtc: String,
+    val closesAtUtc: String,
+    val status: JsonElement,
+)
+
+data class SubmitDriverComplianceCampaignTaskRequestDto(
+    val commandId: String,
+    val submittedAtUtc: String,
+    val notes: String?,
+)
+
 interface DriverApiService {
     @POST("/api/v1/auth/login")
     suspend fun login(@Body request: LoginRequestDto): LoginResponseDto
@@ -204,6 +221,16 @@ interface DriverApiService {
         @Path("stopId") stopId: String,
         @Body request: SubmitDeliveryProofRequestDto,
     )
+
+    @GET("/api/v1/driver/compliance-campaign-tasks")
+    suspend fun listComplianceCampaignTasks(@Header("Authorization") authorization: String): List<DriverComplianceCampaignTaskDto>
+
+    @POST("/api/v1/driver/compliance-campaign-tasks/{taskId}/submit")
+    suspend fun submitComplianceCampaignTask(
+        @Header("Authorization") authorization: String,
+        @Path("taskId") taskId: String,
+        @Body request: SubmitDriverComplianceCampaignTaskRequestDto,
+    )
 }
 
 interface DriverRemoteDataSource {
@@ -227,6 +254,8 @@ interface DriverRemoteDataSource {
     suspend fun completeUploadSession(session: DriverSession, sessionId: String): MediaAssetResponseDto
     suspend fun submitInspection(session: DriverSession, missionId: String, request: SubmitPreDepartureInspectionRequestDto)
     suspend fun submitDeliveryProof(session: DriverSession, missionId: String, stopId: String, request: SubmitDeliveryProofRequestDto)
+    suspend fun listComplianceCampaignTasks(session: DriverSession): List<DriverComplianceCampaignTask> = emptyList()
+    suspend fun submitComplianceCampaignTask(session: DriverSession, task: DriverComplianceCampaignTask) = Unit
 }
 
 class RetrofitDriverRemoteDataSource(
@@ -324,6 +353,32 @@ class RetrofitDriverRemoteDataSource(
         request: SubmitDeliveryProofRequestDto,
     ) {
         service.submitDeliveryProof(session.asAuthorization(), missionId, stopId, request)
+    }
+
+    override suspend fun listComplianceCampaignTasks(session: DriverSession): List<DriverComplianceCampaignTask> =
+        service.listComplianceCampaignTasks(session.asAuthorization()).map {
+            DriverComplianceCampaignTask(
+                id = it.id,
+                vehicleId = it.vehicleId,
+                vehicleRegistration = it.vehicleRegistration,
+                campaignName = it.campaignName,
+                templateCode = it.templateCode,
+                opensAtUtc = it.opensAtUtc,
+                closesAtUtc = it.closesAtUtc,
+                status = it.status.toRawString(),
+            )
+        }
+
+    override suspend fun submitComplianceCampaignTask(session: DriverSession, task: DriverComplianceCampaignTask) {
+        service.submitComplianceCampaignTask(
+            session.asAuthorization(),
+            task.id,
+            SubmitDriverComplianceCampaignTaskRequestDto(
+                commandId = requireNotNull(task.pendingCommandId),
+                submittedAtUtc = requireNotNull(task.submittedAtUtc),
+                notes = task.pendingNotes,
+            ),
+        )
     }
 }
 

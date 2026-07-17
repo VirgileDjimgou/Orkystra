@@ -29,9 +29,9 @@ Les sprints futurs sont une séquence de décisions, pas une promesse de tout co
 | 14 | Parcours conducteur terrain avec photo réelle | Adoption et preuve terrain | Terminé | XL |
 | 15 | Onboarding tenant, import et activation guidés | Temps de mise en service | Terminé | L |
 | 16 | Stockage objet, médias sûrs et cycle de vie | Résilience des preuves | Terminé | L |
-| 17 | Ordres de maintenance, immobilisation et coûts | Disponibilité véhicule | En cours | XL |
-| 18 | Conformité documentaire et campagnes d’inspection | Réduction du risque réglementaire | Planifié | L |
-| 19 | Dispatch productif, modèles et actions en masse | Capacité opérationnelle | Planifié | XL |
+| 17 | Ordres de maintenance, immobilisation et coûts | Disponibilité véhicule | Terminé | XL |
+| 18 | Conformité documentaire et campagnes d’inspection | Réduction du risque réglementaire | Terminé | L |
+| 19 | Dispatch productif, modèles et actions en masse | Capacité opérationnelle | En cours | XL |
 | 20 | Pilote alpha mesuré et décision de niche | Validation de la valeur | Planifié | L |
 | 21 | Qualité du tracking, trajets et zones métier | Confiance télématique | Planifié | XL |
 | 22 | Cadre de connecteurs et premier fournisseur télématique | Écosystème matériel ouvert | Planifié | XL |

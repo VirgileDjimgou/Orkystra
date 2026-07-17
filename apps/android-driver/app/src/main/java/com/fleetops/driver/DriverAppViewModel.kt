@@ -34,8 +34,9 @@ class DriverAppViewModel(
         repository.observeSession(),
         repository.observeMissions(),
         selectedMissionFlow,
-    ) { session, missions, selectedMission ->
-        DriverSnapshot(session, missions, selectedMission)
+        repository.observeComplianceCampaignTasks(),
+    ) { session, missions, selectedMission, complianceCampaignTasks ->
+        DriverSnapshot(session, missions, selectedMission, complianceCampaignTasks)
     }
 
     private val signalFlow = combine(
@@ -51,6 +52,7 @@ class DriverAppViewModel(
             session = snapshot.session,
             missions = snapshot.missions,
             selectedMission = snapshot.selectedMission,
+            complianceCampaignTasks = snapshot.complianceCampaignTasks,
             isBusy = signals.isBusy,
             errorMessage = signals.errorMessage,
             infoMessage = signals.infoMessage,
@@ -107,6 +109,11 @@ class DriverAppViewModel(
         infoMessage.value = "Delivery proof queued for sync."
     }
 
+    fun submitComplianceCampaignTask(taskId: String, notes: String?) = runTask {
+        repository.queueComplianceCampaignTask(taskId, notes)
+        infoMessage.value = "Campaign inspection queued for sync."
+    }
+
     fun signOut() = runTask {
         repository.signOut()
         selectedMissionId.value = null
@@ -141,6 +148,7 @@ private data class DriverSnapshot(
     val session: DriverSession?,
     val missions: List<DriverMission>,
     val selectedMission: DriverMission?,
+    val complianceCampaignTasks: List<DriverComplianceCampaignTask>,
 )
 
 private data class DriverSignals(

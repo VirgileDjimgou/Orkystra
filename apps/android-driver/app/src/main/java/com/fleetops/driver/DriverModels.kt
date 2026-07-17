@@ -81,6 +81,20 @@ data class PendingMissionCommand(
     val occurredAtUtc: String,
 )
 
+data class DriverComplianceCampaignTask(
+    val id: String,
+    val vehicleId: String,
+    val vehicleRegistration: String,
+    val campaignName: String,
+    val templateCode: String,
+    val opensAtUtc: String,
+    val closesAtUtc: String,
+    val status: String,
+    val submittedAtUtc: String? = null,
+    val pendingCommandId: String? = null,
+    val pendingNotes: String? = null,
+)
+
 enum class DriverWorkflowOperationType {
     Inspection,
     DeliveryProof,
@@ -149,6 +163,7 @@ data class DriverAppUiState(
     val session: DriverSession? = null,
     val missions: List<DriverMission> = emptyList(),
     val selectedMission: DriverMission? = null,
+    val complianceCampaignTasks: List<DriverComplianceCampaignTask> = emptyList(),
     val isBusy: Boolean = false,
     val errorMessage: String? = null,
     val infoMessage: String? = null,

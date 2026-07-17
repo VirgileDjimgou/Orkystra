@@ -2,6 +2,7 @@ using FleetOps.Api.Auditing;
 using FleetOps.Api.Media;
 using FleetOps.Api.Operations;
 using FleetOps.Api.Security;
+using FleetOps.Core.Modules.Compliance;
 using FleetOps.Core.Modules.Dispatch;
 using FleetOps.Core.Modules.Identity;
 using FleetOps.Core.Modules.Operations;
@@ -21,8 +22,33 @@ public static class DriverAppEndpointExtensions
         group.MapGet("/missions", ListAssignedMissionsAsync);
         group.MapGet("/missions/{id:guid}", GetAssignedMissionAsync);
         group.MapPost("/missions/{id:guid}/commands", SyncMissionCommandAsync);
+        group.MapGet("/compliance-campaign-tasks", ListComplianceCampaignTasksAsync);
+        group.MapPost("/compliance-campaign-tasks/{id:guid}/submit", SubmitComplianceCampaignTaskAsync);
 
         return app;
+    }
+
+    private static async Task<IResult> ListComplianceCampaignTasksAsync(HttpContext httpContext, FleetOpsDbContext dbContext, ICurrentTenantAccessor currentTenantAccessor, CancellationToken cancellationToken)
+    {
+        var tenant = currentTenantAccessor.GetRequiredTenant(httpContext.User); if (tenant.DriverId is not Guid driverId) return Results.Forbid();
+        var now = DateTimeOffset.UtcNow;
+        var tasks = await (from task in dbContext.ComplianceInspectionCampaignTasks
+                           join campaign in dbContext.ComplianceInspectionCampaigns on task.CampaignId equals campaign.Id
+                           join vehicle in dbContext.Vehicles on task.VehicleId equals vehicle.Id
+                           where task.OrganizationId == tenant.OrganizationId && task.DriverId == driverId && campaign.Status == InspectionCampaignStatus.Active && campaign.ClosesAtUtc >= now
+                           orderby campaign.ClosesAtUtc
+                           select new DriverComplianceCampaignTaskResponse(task.Id, task.VehicleId, vehicle.RegistrationNumber, campaign.Name, task.TemplateCode, campaign.OpensAtUtc, campaign.ClosesAtUtc, task.Status)).ToListAsync(cancellationToken);
+        return Results.Ok(tasks);
+    }
+
+    private static async Task<IResult> SubmitComplianceCampaignTaskAsync(Guid id, SubmitDriverComplianceCampaignTaskRequest request, HttpContext httpContext, FleetOpsDbContext dbContext, ICurrentTenantAccessor currentTenantAccessor, IAuditService auditService, CancellationToken cancellationToken)
+    {
+        var tenant = currentTenantAccessor.GetRequiredTenant(httpContext.User); if (tenant.DriverId is not Guid driverId) return Results.Forbid();
+        if (string.IsNullOrWhiteSpace(request.CommandId) || request.CommandId.Trim().Length > 120) return Results.ValidationProblem(new Dictionary<string, string[]> { ["commandId"] = ["A command identifier of up to 120 characters is required."] });
+        var task = await dbContext.ComplianceInspectionCampaignTasks.FirstOrDefaultAsync(x => x.OrganizationId == tenant.OrganizationId && x.Id == id && x.DriverId == driverId, cancellationToken); if (task is null) return Results.NotFound();
+        var campaign = await dbContext.ComplianceInspectionCampaigns.FirstOrDefaultAsync(x => x.OrganizationId == tenant.OrganizationId && x.Id == task.CampaignId && x.Status == InspectionCampaignStatus.Active, cancellationToken); if (campaign is null || campaign.ClosesAtUtc < DateTimeOffset.UtcNow) return Results.ValidationProblem(new Dictionary<string, string[]> { ["campaign"] = ["Campaign is not active."] }, statusCode: StatusCodes.Status409Conflict);
+        var duplicate = await dbContext.ComplianceInspectionCampaignTasks.AnyAsync(x => x.OrganizationId == tenant.OrganizationId && x.SubmissionCommandId == request.CommandId.Trim(), cancellationToken); if (!duplicate) { task.Submit(request.CommandId, request.SubmittedAtUtc, request.Notes); await dbContext.SaveChangesAsync(cancellationToken); await auditService.WriteAsync(tenant.OrganizationId, tenant.UserId, "driver.compliance_campaign_submitted", "compliance-campaign-task", task.Id.ToString(), new { task.CampaignId, task.VehicleId, request.CommandId }, cancellationToken); }
+        return Results.Ok(new { task.Id, task.Status, WasDuplicate = duplicate });
     }
 
     private static async Task<IResult> ListAssignedMissionsAsync(

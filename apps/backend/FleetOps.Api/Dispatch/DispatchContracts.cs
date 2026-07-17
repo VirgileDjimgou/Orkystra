@@ -26,7 +26,8 @@ public sealed record UpdateMissionRequest(
 public sealed record SetMissionAssignmentRequest(
     Guid DriverId,
     Guid VehicleId,
-    long RowVersion);
+    long RowVersion,
+    string? ComplianceOverrideReason = null);
 
 public sealed record TransitionMissionStatusRequest(
     MissionStatus TargetStatus,

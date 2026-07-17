@@ -105,6 +105,24 @@ class OfflineFirstDriverRepositoryTest {
         }
         assertTrue(localStore.workflowOperations.isEmpty())
     }
+
+    @Test
+    fun campaignTaskStaysQueuedOfflineAndUsesTheSameIdempotencyKeyOnRetry() = runTest {
+        val localStore = FakeDriverLocalStore().apply { session.value = fakeSession() }
+        val remote = FakeDriverRemoteDataSource(throwOfflineOnCampaign = true)
+        val repository = OfflineFirstDriverRepository(localStore, remote, FakeDriverSyncScheduler())
+        repository.refresh()
+
+        repository.queueComplianceCampaignTask("campaign-task-1", "Brake wear found")
+        val queued = localStore.campaignTasks.value.single()
+        assertEquals("Pending", queued.status)
+        assertTrue(!queued.pendingCommandId.isNullOrBlank())
+
+        remote.throwOfflineOnCampaign = false
+        repository.flushPendingCommands()
+        assertEquals("Submitted", localStore.campaignTasks.value.single().status)
+        assertEquals(1, remote.campaignSubmissionCommandIds.distinct().size)
+    }
 }
 
 private fun proofEvidence(): List<CapturedEvidence> = listOf(
@@ -122,6 +140,7 @@ private class FakeDriverLocalStore : DriverLocalStore {
     val missions = MutableStateFlow<List<DriverMission>>(emptyList())
     val pending = mutableListOf<PendingMissionCommand>()
     val workflowOperations = mutableListOf<PendingWorkflowOperation>()
+    val campaignTasks = MutableStateFlow<List<DriverComplianceCampaignTask>>(emptyList())
 
     override fun observeSession(): Flow<DriverSession?> = session
 
@@ -189,21 +208,32 @@ private class FakeDriverLocalStore : DriverLocalStore {
         workflowOperations.removeAll { it.commandId == commandId }
     }
 
+    override fun observeComplianceCampaignTasks(): Flow<List<DriverComplianceCampaignTask>> = campaignTasks
+    override suspend fun replaceComplianceCampaignTasks(tasks: List<DriverComplianceCampaignTask>) { campaignTasks.value = tasks }
+    override suspend fun pendingComplianceCampaignTasks(): List<DriverComplianceCampaignTask> = campaignTasks.value.filter { it.pendingCommandId != null }
+    override suspend fun queueComplianceCampaignTask(taskId: String, commandId: String, submittedAtUtc: String, notes: String?) {
+        campaignTasks.value = campaignTasks.value.map { if (it.id == taskId) it.copy(status = "Pending", submittedAtUtc = submittedAtUtc, pendingCommandId = commandId, pendingNotes = notes) else it }
+    }
+    override suspend fun markComplianceCampaignTaskSubmitted(taskId: String) { campaignTasks.value = campaignTasks.value.map { if (it.id == taskId) it.copy(status = "Submitted", pendingCommandId = null, pendingNotes = null) else it } }
+
     override suspend fun clearAll() {
         session.value = null
         missions.value = emptyList()
         pending.clear()
         workflowOperations.clear()
+        campaignTasks.value = emptyList()
     }
 }
 
 private class FakeDriverRemoteDataSource(
     private val throwOfflineOnSync: Boolean = false,
+    var throwOfflineOnCampaign: Boolean = false,
 ) : DriverRemoteDataSource {
     val events = mutableListOf<String>()
     var completedUploadCount = 0
     private val uploadProgress = mutableMapOf<String, Long>()
     private val totalDemoBytes = Base64.getDecoder().decode(SAMPLE_PNG_BASE64).size.toLong()
+    val campaignSubmissionCommandIds = mutableListOf<String>()
 
     override suspend fun login(email: String, password: String): DriverSession = fakeSession()
 
@@ -289,6 +319,15 @@ private class FakeDriverRemoteDataSource(
         request: SubmitDeliveryProofRequestDto,
     ) {
         events += "proof:$missionId:$stopId"
+    }
+
+    override suspend fun listComplianceCampaignTasks(session: DriverSession): List<DriverComplianceCampaignTask> = listOf(
+        DriverComplianceCampaignTask("campaign-task-1", "vehicle-1", "NW-100", "Pre-season", "pre-season", "2026-07-16T08:00:00Z", "2026-07-20T08:00:00Z", "Pending"),
+    )
+
+    override suspend fun submitComplianceCampaignTask(session: DriverSession, task: DriverComplianceCampaignTask) {
+        if (throwOfflineOnCampaign) throw IOException("offline")
+        campaignSubmissionCommandIds += requireNotNull(task.pendingCommandId)
     }
 }
 
