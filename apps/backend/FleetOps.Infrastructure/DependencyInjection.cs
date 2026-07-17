@@ -50,10 +50,12 @@ public static class DependencyInjection
             .AddSignInManager()
             .AddDefaultTokenProviders();
         services.Configure<ObjectStorageOptions>(configuration.GetSection(ObjectStorageOptions.SectionName));
+        services.Configure<MediaUploadSecurityOptions>(configuration.GetSection(MediaUploadSecurityOptions.SectionName));
         services.Configure<BootstrapOptions>(configuration.GetSection(BootstrapOptions.SectionName));
         services.Configure<AlertingOptions>(configuration.GetSection(AlertingOptions.SectionName));
         services.Configure<IntegrationOptions>(configuration.GetSection(IntegrationOptions.SectionName));
         services.AddSingleton<IPrivateMediaStorage, FileSystemPrivateMediaStorage>();
+        services.AddSingleton<IUploadedContentScanner, UploadedContentScanner>();
         services.AddScoped<IAlertScanningService, AlertScanningService>();
         services.AddSingleton<IDevAlertNotifier, LoggingDevAlertNotifier>();
         services.AddScoped<IApiKeyCredentialService, ApiKeyCredentialService>();

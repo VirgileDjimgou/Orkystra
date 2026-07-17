@@ -3,6 +3,7 @@ using FleetOps.Api.Auditing;
 using FleetOps.Api.Security;
 using FleetOps.Core.Modules.Identity;
 using FleetOps.Infrastructure.Identity;
+using FleetOps.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -15,15 +16,67 @@ public static class SecurityAdministrationEndpointExtensions
 
     public static IEndpointRouteBuilder MapSecurityAdministrationEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/admin/security")
-            .RequireAuthorization(new AuthorizeAttribute { Roles = SystemRoles.Admin });
+        MapSecurityGroup(app.MapGroup("/api/v1/admin/security"));
+        var legacy = app.MapGroup("/api/admin/security")
+            .AddEndpointFilter(async (context, next) =>
+            {
+                context.HttpContext.Response.Headers.Append("Deprecation", "true");
+                context.HttpContext.Response.Headers.Append("Link", "</api/v1/admin/security>; rel=successor-version");
+                return await next(context);
+            });
+        MapSecurityGroup(legacy);
+
+        return app;
+    }
+
+    private static void MapSecurityGroup(RouteGroupBuilder group)
+    {
+        group
+            .RequireAuthorization(AuthorizationPolicies.AdminOnly);
 
         group.MapGet("/mfa", GetMfaStatusAsync);
         group.MapPost("/mfa/setup", CreateMfaSetupAsync);
         group.MapPost("/mfa/verify", VerifyMfaSetupAsync);
         group.MapPost("/mfa/disable", DisableMfaAsync);
+        group.MapPost("/users/{userId:guid}/sessions/revoke", RevokeUserSessionsAsync);
+    }
 
-        return app;
+    private static async Task<IResult> RevokeUserSessionsAsync(
+        Guid userId,
+        HttpContext httpContext,
+        FleetOpsDbContext dbContext,
+        ICurrentTenantAccessor currentTenantAccessor,
+        IAuditService auditService,
+        CancellationToken cancellationToken)
+    {
+        var tenant = currentTenantAccessor.GetRequiredTenant(httpContext.User);
+        var targetExists = await dbContext.Users.AnyAsync(
+            x => x.Id == userId && x.OrganizationId == tenant.OrganizationId,
+            cancellationToken);
+        if (!targetExists)
+        {
+            return Results.NotFound();
+        }
+
+        var sessions = await dbContext.UserSessions
+            .Where(x => x.OrganizationId == tenant.OrganizationId && x.UserId == userId && x.RevokedAtUtc == null)
+            .ToListAsync(cancellationToken);
+        var now = DateTimeOffset.UtcNow;
+        foreach (var session in sessions)
+        {
+            session.Revoke(tenant.UserId, "administrator_revocation", now);
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        await auditService.WriteAsync(
+            tenant.OrganizationId,
+            tenant.UserId,
+            "admin.security.sessions_revoked",
+            "user",
+            userId.ToString(),
+            new { revokedSessionCount = sessions.Count },
+            cancellationToken);
+        return Results.Ok(new { RevokedSessionCount = sessions.Count, EffectiveAtUtc = now });
     }
 
     private static async Task<IResult> GetMfaStatusAsync(

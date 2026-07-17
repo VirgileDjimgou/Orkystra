@@ -9,12 +9,18 @@ export type AuthenticatedUser = {
 };
 
 export type LoginResponse = {
-  accessToken: string;
+  /** Legacy test-fixture field; the protected Web login never returns a credential. */
+  accessToken?: string;
   expiresAtUtc: string;
   user: AuthenticatedUser;
+  csrfToken?: string;
   requiresTwoFactor?: boolean;
   twoFactorProvider?: string | null;
   challengeMessage?: string | null;
+};
+
+export type CsrfTokenResponse = {
+  csrfToken: string;
 };
 
 export type LoginRequest = {

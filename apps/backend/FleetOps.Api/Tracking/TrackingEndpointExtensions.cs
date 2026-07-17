@@ -26,10 +26,21 @@ public static class TrackingEndpointExtensions
 
         // Compatibility aliases kept for earlier sprint demos.
         app.MapGet("/api/tracking/latest", GetLegacyLatestAsync)
+            .AddEndpointFilter(AddDeprecationHeadersAsync)
             .RequireAuthorization(new AuthorizeAttribute { Roles = ReaderRoles });
-        app.MapPost("/api/simulation/telemetry", IngestLegacySimulationAsync);
+        app.MapPost("/api/simulation/telemetry", IngestLegacySimulationAsync)
+            .AddEndpointFilter(AddDeprecationHeadersAsync);
 
         return app;
+    }
+
+    private static async ValueTask<object?> AddDeprecationHeadersAsync(
+        EndpointFilterInvocationContext context,
+        EndpointFilterDelegate next)
+    {
+        context.HttpContext.Response.Headers.Append("Deprecation", "true");
+        context.HttpContext.Response.Headers.Append("Link", "</api/v1/tracking>; rel=successor-version");
+        return await next(context);
     }
 
     private static async Task<IResult> ListPositionsAsync(

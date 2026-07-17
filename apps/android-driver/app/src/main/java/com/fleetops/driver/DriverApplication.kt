@@ -9,10 +9,11 @@ class DriverApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        val database = DriverDatabase.build(this)
+        val credentialStore = AndroidKeystoreDriverCredentialStore(this)
+        val database = DriverDatabase.build(this, credentialStore)
         container = DriverAppContainer(
             repository = OfflineFirstDriverRepository(
-                localStore = RoomDriverLocalStore(database),
+                localStore = RoomDriverLocalStore(database, credentialStore),
                 remoteDataSource = RetrofitDriverRemoteDataSource(buildDriverApiService()),
                 syncScheduler = WorkManagerDriverSyncScheduler(WorkManager.getInstance(this)),
             ),

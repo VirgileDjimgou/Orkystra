@@ -4,6 +4,7 @@ using FleetOps.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace FleetOps.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(FleetOpsDbContext))]
-    partial class FleetOpsDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260717021037_Sprint12SessionSecurity")]
+    partial class Sprint12SessionSecurity
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1291,13 +1294,6 @@ namespace FleetOps.Infrastructure.Persistence.Migrations
 
                     b.Property<int>("Purpose")
                         .HasColumnType("int");
-
-                    b.Property<int?>("ScanDisposition")
-                        .HasColumnType("int");
-
-                    b.Property<string>("ScanReason")
-                        .HasMaxLength(240)
-                        .HasColumnType("nvarchar(240)");
 
                     b.Property<string>("TempStorageKey")
                         .IsRequired()

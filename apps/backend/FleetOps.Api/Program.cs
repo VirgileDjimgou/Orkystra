@@ -1,3 +1,4 @@
+using System.IdentityModel.Tokens.Jwt;
 using System.Text;
 using System.Threading.RateLimiting;
 using FleetOps.Api;
@@ -24,6 +25,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using OpenTelemetry.Metrics;
@@ -120,8 +122,45 @@ builder.Services.AddAuthentication(options =>
                 {
                     context.Token = accessToken;
                 }
+                else if (string.IsNullOrEmpty(context.Token)
+                    && context.Request.Cookies.TryGetValue(WebSessionSecurity.AuthenticationCookie, out var cookieToken))
+                {
+                    context.Token = cookieToken;
+                }
 
                 return Task.CompletedTask;
+            },
+            OnTokenValidated = async context =>
+            {
+                var sessionClaim = context.Principal?.FindFirst(JwtRegisteredClaimNames.Sid)?.Value;
+                if (!Guid.TryParse(sessionClaim, out var sessionId))
+                {
+                    context.Fail("The token is not associated with a server-side session.");
+                    return;
+                }
+
+                var userClaim = context.Principal?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                var organizationClaim = context.Principal?.FindFirst(TenantClaimTypes.OrganizationId)?.Value;
+                if (!Guid.TryParse(userClaim, out var userId)
+                    || !Guid.TryParse(organizationClaim, out var organizationId))
+                {
+                    context.Fail("The token does not contain a valid tenant identity.");
+                    return;
+                }
+
+                var dbContext = context.HttpContext.RequestServices.GetRequiredService<FleetOpsDbContext>();
+                var now = DateTimeOffset.UtcNow;
+                var isActive = await dbContext.UserSessions.AnyAsync(
+                    x => x.Id == sessionId
+                        && x.UserId == userId
+                        && x.OrganizationId == organizationId
+                        && x.RevokedAtUtc == null
+                        && x.ExpiresAtUtc > now,
+                    context.HttpContext.RequestAborted);
+                if (!isActive)
+                {
+                    context.Fail("The session has expired or has been revoked.");
+                }
             }
         };
     })
@@ -130,6 +169,11 @@ builder.Services.AddAuthentication(options =>
         _ => { });
 builder.Services.AddAuthorization(options =>
 {
+    foreach (var (policyName, roles) in AuthorizationPolicies.RoleMatrix)
+    {
+        options.AddPolicy(policyName, policy => policy.RequireRole(roles));
+    }
+
     options.AddPolicy("partner-fleet-read", policy =>
     {
         policy.AuthenticationSchemes.Add(ApiKeyAuthenticationHandler.SchemeName);
@@ -210,7 +254,17 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseCors();
+app.Use(async (context, next) =>
+{
+    context.Response.Headers.Append("Content-Security-Policy", "default-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'");
+    context.Response.Headers.Append("X-Content-Type-Options", "nosniff");
+    context.Response.Headers.Append("Referrer-Policy", "no-referrer");
+    context.Response.Headers.Append("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+    context.Response.Headers.Append("X-Frame-Options", "DENY");
+    await next();
+});
 app.UseAuthentication();
+app.UseMiddleware<CsrfProtectionMiddleware>();
 app.UseAuthorization();
 app.UseRateLimiter();
 app.MapHealthChecks("/health");

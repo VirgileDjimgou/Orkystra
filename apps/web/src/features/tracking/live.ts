@@ -5,16 +5,14 @@ export type TrackingConnectionState =
   "idle" | "connecting" | "live" | "reconnecting" | "offline";
 
 export async function connectTrackingStream(
-  token: string,
+  _transportMarker: string,
   onPosition: (position: TrackingPositionResponse) => void,
   onStateChange: (state: TrackingConnectionState) => void,
 ): Promise<signalR.HubConnection> {
   onStateChange("connecting");
 
   const connection = new signalR.HubConnectionBuilder()
-    .withUrl("/hubs/tracking", {
-      accessTokenFactory: () => token,
-    })
+    .withUrl("/hubs/tracking", { withCredentials: true })
     .withAutomaticReconnect()
     .build();
 

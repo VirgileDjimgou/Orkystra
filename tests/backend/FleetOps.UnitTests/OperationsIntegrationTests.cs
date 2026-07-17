@@ -97,8 +97,9 @@ public sealed class OperationsIntegrationTests(FleetOpsApiFactory factory) : ICl
         Assert.Equal(HttpStatusCode.OK, createResponse.StatusCode);
         Assert.NotNull(session);
 
-        var chunkOne = Convert.ToBase64String("hello".Select(x => (byte)x).ToArray());
-        var chunkTwo = Convert.ToBase64String("world".Select(x => (byte)x).ToArray());
+        var image = DemoJpegBytes();
+        var chunkOne = Convert.ToBase64String(image[..5]);
+        var chunkTwo = Convert.ToBase64String(image[5..]);
 
         var appendOne = await driverClient.PostAsJsonAsync(
             $"/api/v1/driver/uploads/sessions/{session!.UploadSessionId}/chunks",
@@ -122,6 +123,33 @@ public sealed class OperationsIntegrationTests(FleetOpsApiFactory factory) : ICl
 
         Assert.Equal(HttpStatusCode.BadRequest, unsignedResponse.StatusCode);
         Assert.Equal(HttpStatusCode.OK, signedResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task MalformedUploadIsQuarantinedBeforeItCanBecomeMedia()
+    {
+        await ResetDatabaseAsync();
+        using var driverClient = await CreateDriverClientAsync();
+        var suspicious = "not-an-image"u8.ToArray();
+        var createResponse = await driverClient.PostAsJsonAsync(
+            "/api/v1/driver/uploads/sessions",
+            new UploadSessionRequest("proof.jpg", "image/jpeg", suspicious.Length, MediaUploadPurpose.DeliveryProofPhoto));
+        var session = await createResponse.Content.ReadFromJsonAsync<UploadSessionResponse>();
+
+        await driverClient.PostAsJsonAsync(
+            $"/api/v1/driver/uploads/sessions/{session!.UploadSessionId}/chunks",
+            new AppendUploadChunkRequest(0, Convert.ToBase64String(suspicious)));
+        var completeResponse = await driverClient.PostAsync(
+            $"/api/v1/driver/uploads/sessions/{session.UploadSessionId}/complete",
+            null);
+
+        Assert.True(
+            completeResponse.StatusCode == HttpStatusCode.UnprocessableEntity,
+            $"Expected quarantine response, received {(int)completeResponse.StatusCode}: {await completeResponse.Content.ReadAsStringAsync()}");
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<FleetOpsDbContext>();
+        Assert.DoesNotContain(dbContext.MediaAssets, x => x.FileName == "proof.jpg");
+        Assert.Contains(dbContext.AuditLogs, x => x.ActionType == "media.upload_quarantined");
     }
 
     [Fact]
@@ -177,12 +205,13 @@ public sealed class OperationsIntegrationTests(FleetOpsApiFactory factory) : ICl
         var session = await createResponse.Content.ReadFromJsonAsync<UploadSessionResponse>();
         Assert.NotNull(session);
 
+        var image = DemoJpegBytes();
         await driverClient.PostAsJsonAsync(
             $"/api/v1/driver/uploads/sessions/{session!.UploadSessionId}/chunks",
-            new AppendUploadChunkRequest(0, Convert.ToBase64String("hello".Select(x => (byte)x).ToArray())));
+            new AppendUploadChunkRequest(0, Convert.ToBase64String(image[..5])));
         await driverClient.PostAsJsonAsync(
             $"/api/v1/driver/uploads/sessions/{session.UploadSessionId}/chunks",
-            new AppendUploadChunkRequest(5, Convert.ToBase64String("world".Select(x => (byte)x).ToArray())));
+            new AppendUploadChunkRequest(5, Convert.ToBase64String(image[5..])));
         var completeResponse = await driverClient.PostAsync(
             $"/api/v1/driver/uploads/sessions/{session.UploadSessionId}/complete",
             null);
@@ -190,6 +219,8 @@ public sealed class OperationsIntegrationTests(FleetOpsApiFactory factory) : ICl
         Assert.NotNull(asset);
         return asset!;
     }
+
+    private static byte[] DemoJpegBytes() => [0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46];
 
     private async Task<MissionDetailResponse> CreateAssignedMissionAsync()
     {

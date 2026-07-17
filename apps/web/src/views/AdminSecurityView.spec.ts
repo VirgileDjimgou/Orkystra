@@ -34,7 +34,7 @@ describe("AdminSecurityView", () => {
       "fetch",
       vi.fn(async (input: string | URL) => {
         const url = String(input);
-        if (url.endsWith("/api/admin/security/mfa")) {
+        if (url.endsWith("/api/v1/admin/security/mfa")) {
           return new Response(
             JSON.stringify({
               isEnabled: false,
@@ -43,7 +43,7 @@ describe("AdminSecurityView", () => {
             }),
           );
         }
-        if (url.endsWith("/api/admin/data-lifecycle/summary")) {
+        if (url.endsWith("/api/v1/admin/data-lifecycle/summary")) {
           return new Response(
             JSON.stringify({
               generatedAtUtc: "2026-07-16T12:00:00Z",
@@ -118,7 +118,7 @@ describe("AdminSecurityView", () => {
       "fetch",
       vi.fn(async (input: string | URL, init?: RequestInit) => {
         const url = String(input);
-        if (url.endsWith("/api/admin/security/mfa")) {
+        if (url.endsWith("/api/v1/admin/security/mfa")) {
           return new Response(
             JSON.stringify({
               isEnabled: false,
@@ -127,7 +127,7 @@ describe("AdminSecurityView", () => {
             }),
           );
         }
-        if (url.endsWith("/api/admin/data-lifecycle/summary")) {
+        if (url.endsWith("/api/v1/admin/data-lifecycle/summary")) {
           return new Response(
             JSON.stringify({
               generatedAtUtc: "2026-07-16T12:00:00Z",
@@ -147,7 +147,7 @@ describe("AdminSecurityView", () => {
           );
         }
         if (
-          url.endsWith("/api/admin/security/mfa/setup") &&
+          url.endsWith("/api/v1/admin/security/mfa/setup") &&
           init?.method === "POST"
         ) {
           return new Response(
@@ -161,7 +161,7 @@ describe("AdminSecurityView", () => {
           );
         }
         if (
-          url.endsWith("/api/admin/security/mfa/verify") &&
+          url.endsWith("/api/v1/admin/security/mfa/verify") &&
           init?.method === "POST"
         ) {
           return new Response(
@@ -171,7 +171,7 @@ describe("AdminSecurityView", () => {
             }),
           );
         }
-        if (url.endsWith("/api/admin/data-lifecycle/export")) {
+        if (url.endsWith("/api/v1/admin/data-lifecycle/export")) {
           return new Response('{"schemaVersion":"pilot-1"}');
         }
 

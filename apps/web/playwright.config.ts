@@ -12,7 +12,8 @@ export default defineConfig({
   reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : "list",
   use: {
     baseURL: webBaseUrl,
-    trace: "retain-on-failure",
+    // Network traces can retain HttpOnly Set-Cookie values. Keep pilot artifacts credential-free.
+    trace: "off",
     screenshot: "only-on-failure",
     video: "retain-on-failure",
   },

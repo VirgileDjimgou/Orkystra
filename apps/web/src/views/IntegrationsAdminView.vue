@@ -697,7 +697,7 @@ async function loadCredentials() {
   isLoadingCredentials.value = apiKeys.value.length === 0;
   try {
     apiKeys.value = await apiRequest<ApiClientCredential[]>(
-      "/api/admin/integrations/api-keys",
+      "/api/v1/admin/integrations/api-keys",
       { token },
     );
   } catch {
@@ -716,7 +716,7 @@ async function createCredential() {
   createdSecret.value = "";
   try {
     const created = await apiRequest<CreatedApiClientCredential>(
-      "/api/admin/integrations/api-keys",
+      "/api/v1/admin/integrations/api-keys",
       {
         method: "POST",
         token,
@@ -744,7 +744,7 @@ async function revokeCredential(credentialId: string) {
   credentialMessage.success = "";
   try {
     await apiRequest<ApiClientCredential>(
-      `/api/admin/integrations/api-keys/${credentialId}/revoke`,
+      `/api/v1/admin/integrations/api-keys/${credentialId}/revoke`,
       {
         method: "POST",
         token,
@@ -766,7 +766,7 @@ async function loadWebhooks() {
   isLoadingWebhooks.value = webhooks.value.length === 0;
   try {
     webhooks.value = await apiRequest<WebhookEndpoint[]>(
-      "/api/admin/integrations/webhooks",
+      "/api/v1/admin/integrations/webhooks",
       { token },
     );
   } catch {
@@ -784,7 +784,7 @@ async function createWebhook() {
   webhookMessage.success = "";
   try {
     const created = await apiRequest<WebhookEndpoint>(
-      "/api/admin/integrations/webhooks",
+      "/api/v1/admin/integrations/webhooks",
       {
         method: "POST",
         token,
@@ -817,7 +817,7 @@ async function disableWebhook(webhookId: string) {
   webhookMessage.success = "";
   try {
     await apiRequest<WebhookEndpoint>(
-      `/api/admin/integrations/webhooks/${webhookId}/disable`,
+      `/api/v1/admin/integrations/webhooks/${webhookId}/disable`,
       {
         method: "POST",
         token,
@@ -838,7 +838,7 @@ async function loadContracts() {
   isLoadingContracts.value = true;
   try {
     contracts.value = await apiRequest<IntegrationContract[]>(
-      "/api/admin/integrations/contracts",
+      "/api/v1/admin/integrations/contracts",
       { token },
     );
     if (!availableEventTypes.value.includes(webhookForm.eventType)) {
@@ -858,7 +858,7 @@ async function loadOutbox() {
   isLoadingOutbox.value = true;
   try {
     outbox.value = await apiRequest<IntegrationOutboxMessage[]>(
-      "/api/admin/integrations/outbox",
+      "/api/v1/admin/integrations/outbox",
       { token },
     );
   } catch {

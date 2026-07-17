@@ -36,14 +36,27 @@ public static class DataLifecycleEndpointExtensions
 
     public static IEndpointRouteBuilder MapDataLifecycleAdministrationEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/admin/data-lifecycle")
-            .RequireAuthorization(new AuthorizeAttribute { Roles = SystemRoles.Admin });
+        MapGroup(app.MapGroup("/api/v1/admin/data-lifecycle"));
+        var legacy = app.MapGroup("/api/admin/data-lifecycle")
+            .AddEndpointFilter(async (context, next) =>
+            {
+                context.HttpContext.Response.Headers.Append("Deprecation", "true");
+                context.HttpContext.Response.Headers.Append("Link", "</api/v1/admin/data-lifecycle>; rel=successor-version");
+                return await next(context);
+            });
+        MapGroup(legacy);
+
+        return app;
+    }
+
+    private static void MapGroup(RouteGroupBuilder group)
+    {
+        group.RequireAuthorization(AuthorizationPolicies.AdminOnly);
 
         group.MapGet("/summary", GetSummaryAsync);
         group.MapGet("/export", ExportTenantSnapshotAsync);
         group.MapPost("/purge", PurgeAsync);
 
-        return app;
     }
 
     private static async Task<IResult> GetSummaryAsync(

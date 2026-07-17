@@ -6,6 +6,12 @@ Toutes les modifications fonctionnelles significatives sont documentées ici.
 
 ### Added
 
+- Sprint 12 server-side sessions with tenant/user binding, immediate revocation checks, rotation, current/global logout, session listing, and administrator revocation.
+- HttpOnly/SameSite Web authentication with in-memory CSRF proof, legacy localStorage JWT removal, cookie-backed SignalR, and expired-session recovery events.
+- Android Keystore AES-GCM credential storage plus non-destructive Room migrations that remove the plaintext access-token column.
+- Versioned `/api/v1/auth` and `/api/v1/admin` contracts, explicit deprecation headers on historical aliases, and a centralized role-to-operation policy matrix.
+- Configurable driver-media limits, JPEG/PNG magic-byte validation, malware-test signature scanning, pre-publication quarantine, and sensitive-operation audit records.
+- API CSP, anti-framing, MIME-sniffing, referrer, and permissions security headers.
 - AndroidX instrumentation runner dependency for connected Sprint 11 Android test execution on real devices.
 - Sprint 11 SQL Server Testcontainers harness with migration, tenant-uniqueness, concurrency, and recovery coverage.
 - Playwright critical-flow suite for sign-in, dispatch progression, proof consultation, and tenant isolation.
@@ -33,6 +39,9 @@ Toutes les modifications fonctionnelles significatives sont documentées ici.
 
 ### Changed
 
+- Sprint 12 is closed after a no-skip quality gate with 104 fast backend tests, 3 SQL Server/Testcontainers tests, 16 Web tests, 4 Playwright flows, and 4 connected Android tests on a physical device.
+- Playwright network traces are disabled because they can retain HttpOnly `Set-Cookie` credentials; screenshots and videos remain failure-only diagnostic artifacts.
+- Web administration calls now use the supported versioned Admin APIs, while Android login now uses `/api/v1/auth/login`.
 - Connected Android quality-gate execution now distinguishes test failures from transient UTP package-install stalls and can temporarily manage ADB-only verification with automatic restoration on physical devices.
 - Sprint 11 is closed after restoring the local Docker Desktop Linux engine and executing all three SQL Server/Testcontainers proofs without skips.
 - The SQL integration factory now explicitly replaces the captured EF Core registration with the dynamic Testcontainers connection string.

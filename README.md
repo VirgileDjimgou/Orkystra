@@ -2,7 +2,7 @@
 
 Orkystra FleetOps is a modular fleet operations MVP for small and mid-sized transport businesses. The platform covers the operational chain from identity and tenant isolation to vehicle tracking, dispatch execution, offline-capable driver workflows, proof of delivery, deterministic alerting, maintenance coordination, external integrations, and pilot packaging.
 
-The repository currently delivers Sprint 00 through Sprint 10, an eleven-sprint functional and stabilization baseline:
+The repository currently delivers Sprint 00 through Sprint 12, a thirteen-sprint functional, recovery, end-to-end validation, and session-security baseline. Sprint 13 is selected as the next active sprint but has not been implemented in this checkpoint:
 
 - reproducible local environment;
 - modular ASP.NET Core backend;
@@ -24,8 +24,11 @@ The repository currently delivers Sprint 00 through Sprint 10, an eleven-sprint 
 - web alert center for scan triggering, assignment, acknowledgment, compliance setup, and odometer-driven maintenance configuration.
 - scoped API keys for partners and devices, SQL outbox-backed webhooks, sandbox receipts, OpenAPI exposure, and web administration for integrations;
 - administrator MFA with authenticator challenge, tenant export and controlled purge tooling, OpenTelemetry OTLP wiring, JSON logs, readiness checks, pilot container packaging, and SQL backup/restore scripts.
+- protected Web sessions using HttpOnly/SameSite cookies and CSRF tokens held only in memory, with server-side rotation and revocation;
+- Android Keystore-backed credential encryption with a non-destructive Room 2-to-3 migration that removes the access token column;
+- configurable media size, type, signature, and malware-test scanning with pre-publication quarantine.
 
-The audit reviewed on Thursday, July 16, 2026 classifies this baseline as a usable MVP, not yet a production-ready product. Sprint 10 delivered fail-fast Production configuration, safe tenant bootstrap, login protection, recovery tooling, and the Web/Android UX foundation. Sprint 11 is now complete: SQL Server migrations, relational constraints, optimistic concurrency, backup/restore checksum preservation, critical browser workflows, and Android offline instrumentation have all been executed locally. The approved roadmap still contains exactly twenty evidence-gated sprints, Sprint 11 through Sprint 30, while keeping the mission–proof–exception core and the modular-monolith architecture. See the audit document, [`ROADMAP.md`](ROADMAP.md), and the current sprint file.
+The audit reviewed on Thursday, July 16, 2026 classifies this baseline as a usable MVP, not yet a production-ready product. Sprint 10 delivered fail-fast Production configuration, safe tenant bootstrap, login protection, recovery tooling, and the Web/Android UX foundation. Sprint 11 is complete: SQL Server migrations, relational constraints, optimistic concurrency, backup/restore checksum preservation, critical browser workflows, and Android offline instrumentation have all been executed locally. Sprint 12 now hardens sessions, authorization, sensitive uploads, and client credential storage before pilot data is admitted. The approved roadmap contains twenty evidence-gated delivery sprints, Sprint 11 through Sprint 30, while keeping the mission–proof–exception core and modular-monolith architecture.
 
 ## Product Goal
 
@@ -172,6 +175,13 @@ flowchart TD
   - `/health` and `/health/ready` endpoints for runtime supervision;
   - container images for API, worker, and web console with reverse-proxy web routing;
   - SQL backup and restore scripts aligned with the pilot compose stack.
+- Session and sensitive-data security
+  - revocable `UserSession` records bind every JWT to an organization, user, client type, and expiry;
+  - the Web receives its JWT only in an HttpOnly, SameSite cookie and supplies a double-submit CSRF proof for state-changing requests;
+  - Android keeps the bearer credential in AES-GCM ciphertext protected by Android Keystore, never in Room;
+  - named authorization policies expose a central role-to-operation matrix for sensitive server operations;
+  - driver media is published only after size, declared type, magic-byte signature, and configurable malware-signature checks pass;
+  - quarantined uploads are isolated, unavailable through signed media URLs, and recorded in the immutable audit trail.
 
 ## Fleet Registry Flow
 
@@ -422,26 +432,32 @@ flowchart LR
 - pilot deployments can run from Docker images using `docker-compose.pilot.yml`;
 - SQL backup and restore scripts support recovery drills before onboarding pilot users.
 
-## Authentication and Tenant Isolation
+## Protected Sessions, Authorization, and Tenant Isolation
 
-Sprint 01 introduces a real authentication and authorization baseline.
+Sprint 01 introduced claim-based tenant resolution. Sprint 12 preserves that contract while replacing browser-readable credentials with a protected session boundary and adding immediate server-side revocation.
 
 ```mermaid
 sequenceDiagram
     participant User
-    participant Web
+    participant Client as "Web or Android"
     participant API
-    participant DB
+    participant SessionDB as "SQL UserSessions"
+    participant TenantDB as "Tenant Data"
 
-    User->>Web: submit email + password
-    Web->>API: POST /api/auth/login
-    API->>DB: validate user, organization, roles
-    API->>DB: write audit log
-    API-->>Web: JWT with role + organization claims
-    Web->>API: authenticated requests with bearer token
-    API->>API: resolve tenant from claims
-    API->>DB: filter data by OrganizationId
-    API-->>Web: tenant-scoped response
+    User->>Client: submit credentials
+    Client->>API: POST /api/v1/auth/login or /web/login
+    API->>SessionDB: create tenant-bound revocable session
+    alt Web
+        API-->>Client: HttpOnly JWT cookie + in-memory CSRF token
+    else Android
+        API-->>Client: short bearer JWT
+        Client->>Client: encrypt with Android Keystore outside Room
+    end
+    Client->>API: authenticated request
+    API->>SessionDB: verify sid is active and unexpired
+    API->>API: resolve OrganizationId from authenticated claims
+    API->>TenantDB: execute role-authorized tenant-scoped query
+    API-->>Client: tenant-scoped response
 ```
 
 ### Implemented role model
@@ -458,12 +474,18 @@ sequenceDiagram
   - seeded for backend completeness and future mobile integration;
   - reserved for the Android app evolution.
 
-### Sprint 01 guarantees
+### Session and authorization guarantees
 
 - two organizations cannot read each other's tenant-scoped data;
 - an `Operator` cannot access user administration APIs;
 - invalid and expired tokens are rejected;
 - login and administrative actions are audited.
+- revocation, administrator revocation, and global logout take effect on the next API request because session state is checked during token validation;
+- Web mutation requests authenticated by cookie require `X-CSRF-Token`; the JWT is never returned to JavaScript or persisted in `localStorage`;
+- Android upgrades preserve the signed-in session while migrating the legacy Room token into Keystore-protected AES-GCM storage and dropping the token column;
+- `/api/v1/auth` and `/api/v1/admin` are the supported contracts; historical `/api/auth`, `/api/admin`, and tracking aliases return explicit deprecation metadata;
+- CSP, anti-framing, MIME-sniffing, referrer, and permissions headers are emitted by the API;
+- role and tenant rejection remain server-side requirements even when the client hides an unavailable action.
 
 ## Frontend Architecture
 
@@ -471,7 +493,7 @@ The web console is a Vue 3 application using Composition API, Pinia, and Vue Rou
 
 ```mermaid
 flowchart LR
-    Router["Vue Router<br/>route guards"] --> Session["Pinia session store"]
+    Router["Vue Router<br/>route guards"] --> Session["Pinia session state<br/>no bearer credential"]
     Session --> ApiClient["Central API client"]
     Session --> Shell["App shell"]
     Shell --> Dashboard["Overview"]
@@ -479,13 +501,14 @@ flowchart LR
     Shell --> Admin["User administration"]
     Shell --> Integrations["Integrations console"]
     Map --> SignalR["SignalR tracking hub"]
-    ApiClient --> Backend["FleetOps API"]
+    ApiClient --> Csrf["HttpOnly cookie +<br/>in-memory CSRF proof"]
+    Csrf --> Backend["FleetOps API"]
 ```
 
 ### Web responsibilities
 
 - login experience for seeded demo accounts;
-- session persistence in local storage;
+- protected cookie-session restoration through `/api/v1/auth/me`, with automatic deletion of the historical local-storage JWT cache;
 - role-aware navigation;
 - organization-scoped user administration;
 - authenticated telemetry fetch and SignalR connection.
@@ -504,7 +527,9 @@ flowchart LR
 - `.NET 10`
 - `ASP.NET Core`
 - `ASP.NET Core Identity`
-- `JWT Bearer Authentication`
+- `JWT Bearer Authentication` for Android and integration clients
+- `HttpOnly / SameSite Web cookies` with double-submit CSRF protection
+- server-side revocable sessions and named ASP.NET Core authorization policies
 - `SignalR`
 - `Entity Framework Core`
 - `SQL Server`
@@ -531,6 +556,7 @@ flowchart LR
 - `Jetpack Compose`
 - `Material 3`
 - `Room`
+- `Android Keystore` with `AES/GCM/NoPadding`
 - `Retrofit`
 - `OkHttp`
 - `WorkManager`
@@ -542,6 +568,7 @@ flowchart LR
 - `Private filesystem-backed object storage abstraction`
 - `Signed download URLs`
 - `Chunked resumable upload sessions`
+- `Magic-byte content validation, configurable malware-signature scanning, and quarantine`
 
 ### Tooling and Infrastructure
 
@@ -723,7 +750,7 @@ Restore a SQL backup:
 
 ## Quality Gate
 
-The repository includes a local quality gate that validates the baseline and the completed Sprint 11 proof layers:
+The repository includes a local quality gate that validates the Sprint 11 proof layers and the active Sprint 12 security changes:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\quality-gate.ps1
@@ -748,7 +775,7 @@ It covers:
 Current local validation includes:
 
 - backend build in `Release`;
-- backend tests including integration coverage for auth, roles, tokens, tenant isolation, and Sprint 11 SQL Server scenarios wired behind Docker-aware execution;
+- backend tests including protected-cookie/CSRF behavior, session revocation, role matrix enforcement, tenant isolation, upload quarantine, and Sprint 11 SQL Server scenarios wired through Docker/Testcontainers;
 - fleet registry unit and integration tests covering tenant isolation, role permissions, duplicate data, stale updates, CSV idempotency, and assignment invariants;
 - tracking unit and integration tests covering duplicate telemetry, out-of-order handling, paged history, tenant isolation, and multi-vehicle visibility;
 - dispatch domain and integration tests covering mission lifecycle, illegal transitions, tenant-safe assignment, schedule conflicts, and mission-to-map linkage;
@@ -762,10 +789,10 @@ Current local validation includes:
 - EF Core migrations for Sprint 01, Sprint 02, Sprint 03, Sprint 04, Sprint 05, Sprint 06, Sprint 07, and Sprint 08;
 - OpenTelemetry OTLP wiring and JSON logs for the API and worker runtime;
 - pilot Docker packaging plus SQL backup and restore scripts;
-- Android unit tests, debug assembly, instrumentation APK compilation, and connected instrumentation execution on a physical Android device for Room-backed offline persistence and unique WorkManager scheduling tests;
+- Android unit tests, debug assembly, instrumentation APK compilation, and connected instrumentation execution on a physical Android device for Room-backed offline persistence, Keystore-separated session credentials, and unique WorkManager scheduling tests;
 - full local quality gate.
 
-On Friday, July 17, 2026, the local Docker Desktop Linux engine was restored without deleting images, volumes, or application data. The full quality gate then passed without skips: 97 fast backend tests, three SQL Server/Testcontainers proofs, 15 Web unit tests, four Playwright critical flows, and three connected Android instrumentation tests on a physical device.
+On Friday, July 17, 2026, the local Docker Desktop Linux engine was restored without deleting images, volumes, or application data. After Sprint 12, the full quality gate passed without skips: 104 fast backend tests, three SQL Server/Testcontainers proofs, 16 Web unit tests, four Playwright critical flows, and four connected Android instrumentation tests on a physical Samsung SM-G975F running Android 12.
 
 ## Engineering Notes
 
@@ -773,9 +800,9 @@ On Friday, July 17, 2026, the local Docker Desktop Linux engine was restored wit
 
 The MVP favors speed, simplicity, and operational clarity. The monolith keeps local development, CI, migrations, and observability much easier while still preserving domain boundaries.
 
-### Why JWT in Sprint 01?
+### Why a hybrid protected-session model?
 
-Sprint 01 needs real claim-based tenant resolution and testable token refusal scenarios. JWT bearer auth gives a lightweight, demonstrable baseline while leaving room for future external OIDC federation.
+The browser never needs direct access to a bearer credential, so it uses an HttpOnly cookie plus CSRF proof. Android must authenticate offline-first synchronization calls and therefore retains bearer compatibility, but encrypts the credential with an Android Keystore key and stores only non-secret profile metadata in Room. Both transports carry a server-side session identifier, so revocation is consistent and immediate without introducing a separate identity microservice.
 
 ### Why separate Web and Android apps?
 
@@ -787,7 +814,8 @@ Admin/Operator and Driver workflows have different interaction models, offline r
 |---|---|
 | Sprint 00–10 | Functional MVP baseline plus Production truth and UX stabilization |
 | Sprint 11 | Completed SQL Server proof, recovery drill, Playwright critical flows, and Android instrumentation baseline |
-| Sprint 12–15 | Security hardening, exception-driven operations, richer driver field workflow, tenant onboarding |
+| Sprint 12 | Completed protected sessions, explicit authorization, Android Keystore migration, and upload quarantine |
+| Sprint 13–15 | Exception-driven operations, richer driver field workflow, tenant onboarding |
 | Sprint 16–20 | Media lifecycle, maintenance work orders, compliance campaigns, dispatch productivity, measured alpha pilot |
 | Sprint 21–25 | Tracking quality, telematics connectors, recipient status, reporting, integration hub |
 | Sprint 26–30 | Device support, retention and performance, design system, production assurance, commercial beta |

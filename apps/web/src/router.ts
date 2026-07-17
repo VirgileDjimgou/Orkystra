@@ -118,8 +118,8 @@ router.beforeEach(async (to) => {
   const session = useSessionStore(pinia);
   const { isAuthenticated, isAdmin } = storeToRefs(session);
 
-  if (!session.user && session.status === "anonymous") {
-    session.hydrate();
+  if (!session.initialized) {
+    await session.hydrate();
   }
   if (session.isAuthenticated && !session.user) {
     await session.refreshProfile();

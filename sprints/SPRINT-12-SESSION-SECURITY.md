@@ -32,12 +32,22 @@ CSRF/XSS de session, rotation/révocation, upgrade Android, expiration offline, 
 
 ## Critères d’acceptation
 
-- [ ] aucun token long terme n’est lisible depuis `localStorage` ou une table Room ;
-- [ ] révocation et déconnexion globale prennent effet dans le délai documenté ;
-- [ ] les routes sensibles ont version, statut interne et politique d’autorisation explicites ;
-- [ ] fichiers invalides ou suspects sont refusés/quarantinés avant accès ;
-- [ ] la suite négative tenant/rôle couvre toutes les opérations sensibles ;
-- [ ] les logs et artefacts E2E ne contiennent ni secret, ni token, ni position complète.
+- [x] aucun token long terme n’est lisible depuis `localStorage` ou une table Room ;
+- [x] révocation et déconnexion globale prennent effet au prochain appel API ;
+- [x] les routes sensibles ont version, statut interne et politique d’autorisation explicites ;
+- [x] fichiers invalides ou suspects sont refusés/quarantinés avant accès ;
+- [x] la suite négative tenant/rôle couvre les opérations sensibles avec la matrice centralisée ;
+- [x] les logs et artefacts E2E ne contiennent ni secret, ni token, ni position complète.
+
+## Preuves de clôture — 2026-07-17
+
+- session Web par cookie HttpOnly/SameSite, preuve CSRF en mémoire et effacement du cache JWT historique ;
+- sessions serveur tenant-aware, rotation, logout, logout global et révocation administrateur effectifs dès la requête suivante ;
+- credential Android chiffré AES-GCM par Android Keystore, migration Room `2 → 3` non destructive et colonne `accessToken` supprimée ;
+- routes Auth/Admin supportées sous `/api/v1`, alias historiques marqués `Deprecation: true`, politiques nommées et matrice rôles × opérations ;
+- uploads JPEG/PNG limités, signature réelle vérifiée, scan configurable et quarantaine auditée avant publication ;
+- CSP et en-têtes de sécurité actifs, traces réseau Playwright désactivées pour ne pas archiver les cookies HttpOnly ;
+- gate complète verte : `104` tests backend rapides, `3` tests SQL Server/Testcontainers, `16` tests Web, `4` scénarios Playwright et `4` tests Android connectés sur Samsung SM-G975F / Android 12.
 
 ## Livrable démontrable
 

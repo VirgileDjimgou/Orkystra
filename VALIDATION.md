@@ -22,8 +22,9 @@ Validation replayed locally on `2026-07-17` on Windows.
 - EF Core migration `Sprint06InspectionsProofs`
 - EF Core migration `Sprint07AlertsMaintenance`
 - EF Core migration `Sprint08IntegrationsAudit`
+- EF Core migrations `Sprint12SessionSecurity` and `Sprint12UploadSecurity`
 - Android `lintDebug testDebugUnitTest assembleDebug assembleDebugAndroidTest`
-- authentication login flow and `/api/auth/me`
+- protected Web login, HttpOnly cookie restoration, CSRF rejection, session rotation/revocation/global logout, and `/api/v1/auth/me`
 - role enforcement for `Admin` versus `Operator`
 - tenant isolation on user administration and tracking endpoints
 - audit log persistence for login and administrative actions
@@ -43,7 +44,7 @@ Validation replayed locally on `2026-07-17` on Windows.
 - mobile command idempotency and stale row-version conflict handling
 - Android offline-first login, cache, command queue, inspection/POD ordering, and resumable upload unit coverage
 - mission start blocked without a valid pre-departure inspection
-- private signed media access and operator proof visibility
+- private signed media access, signature-validated publication, malformed-upload quarantine, and operator proof visibility
 - deterministic alert scanning for compliance, maintenance, and inactive vehicles
 - worker restart-safe re-scan behavior with deduplicated alert keys
 - alert assignment and acknowledgment permissions plus tenant isolation
@@ -53,16 +54,16 @@ Validation replayed locally on `2026-07-17` on Windows.
 - administrator MFA enablement, login challenge, tenant lifecycle export, and controlled purge flows
 - pilot compose packaging plus SQL backup and restore scripts
 - Production configuration refusal for known signing keys/demo seed, safe bootstrap options, login rate limiting, and Identity lockout
-- PowerShell recovery-script parsing in the gate, 97 fast backend tests plus 3 Docker-backed SQL tests executed successfully without skips
+- PowerShell recovery-script parsing in the gate, 104 fast backend tests plus 3 Docker-backed SQL tests executed successfully without skips
 - 4 Playwright browser E2E scenarios against the real API and web client, including cross-tenant discovery and mutation refusal
-- Android instrumentation APK compilation for Room persistence and WorkManager scheduling tests
-- Android `connectedDebugAndroidTest` executed on a connected physical Android device with 3 tests passed
+- Android instrumentation APK compilation for Room persistence, credential separation, and WorkManager scheduling tests
+- Android `connectedDebugAndroidTest` executed on a connected Samsung SM-G975F / Android 12 device with 4 tests passed
 
 ## Remaining limits
 
 - The Android application still does not include native camera capture, biometric signature, or alert workflows; those capabilities remain assigned to later approved sprints.
-- Protected Web and Android session storage remains assigned to Sprint 12.
+- Native camera capture and field-ready photo workflows remain assigned to Sprint 14.
 
 ## Conclusion
 
-Sprint 00 through Sprint 11 are complete locally. Sprint 11 proves migrations from an empty SQL Server database, tenant uniqueness and optimistic concurrency, backup/restore checksum preservation, four critical Playwright flows, and three connected Android instrumentation tests on a physical device. The full quality gate passed without skips on Friday, July 17, 2026.
+Sprint 00 through Sprint 12 are complete locally. Sprint 12 proves protected Web cookies and CSRF, immediate tenant-bound session revocation, Android Keystore credential separation, explicit role policies, and quarantined media validation. The full quality gate passed without skips on Friday, July 17, 2026; Sprint 13 is selected but not implemented in this checkpoint.

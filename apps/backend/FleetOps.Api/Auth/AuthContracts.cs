@@ -18,3 +18,20 @@ public sealed record LoginResponse(
     bool RequiresTwoFactor,
     string? TwoFactorProvider,
     string? ChallengeMessage);
+
+public sealed record WebLoginResponse(
+    DateTimeOffset ExpiresAtUtc,
+    AuthenticatedUserResponse User,
+    string CsrfToken,
+    bool RequiresTwoFactor,
+    string? TwoFactorProvider,
+    string? ChallengeMessage);
+
+public sealed record CsrfTokenResponse(string CsrfToken);
+
+public sealed record UserSessionResponse(
+    Guid SessionId,
+    string ClientType,
+    DateTimeOffset CreatedAtUtc,
+    DateTimeOffset ExpiresAtUtc,
+    bool IsCurrent);

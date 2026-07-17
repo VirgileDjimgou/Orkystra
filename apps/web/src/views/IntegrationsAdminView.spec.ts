@@ -33,7 +33,7 @@ describe("IntegrationsAdminView", () => {
       "fetch",
       vi.fn(async (input: string | URL, init?: RequestInit) => {
         const url = String(input);
-        if (url.endsWith("/api/admin/integrations/api-keys")) {
+        if (url.endsWith("/api/v1/admin/integrations/api-keys")) {
           return new Response(
             JSON.stringify([
               {
@@ -51,7 +51,7 @@ describe("IntegrationsAdminView", () => {
             ]),
           );
         }
-        if (url.endsWith("/api/admin/integrations/webhooks")) {
+        if (url.endsWith("/api/v1/admin/integrations/webhooks")) {
           return new Response(
             JSON.stringify([
               {
@@ -68,7 +68,7 @@ describe("IntegrationsAdminView", () => {
             ]),
           );
         }
-        if (url.endsWith("/api/admin/integrations/contracts")) {
+        if (url.endsWith("/api/v1/admin/integrations/contracts")) {
           return new Response(
             JSON.stringify([
               {
@@ -82,7 +82,7 @@ describe("IntegrationsAdminView", () => {
             ]),
           );
         }
-        if (url.endsWith("/api/admin/integrations/outbox")) {
+        if (url.endsWith("/api/v1/admin/integrations/outbox")) {
           return new Response(
             JSON.stringify([
               {
@@ -123,7 +123,7 @@ describe("IntegrationsAdminView", () => {
       "fetch",
       vi.fn(async (input: string | URL, init?: RequestInit) => {
         const url = String(input);
-        if (url.endsWith("/api/admin/integrations/contracts")) {
+        if (url.endsWith("/api/v1/admin/integrations/contracts")) {
           return new Response(
             JSON.stringify([
               {
@@ -135,7 +135,7 @@ describe("IntegrationsAdminView", () => {
           );
         }
         if (
-          url.endsWith("/api/admin/integrations/api-keys") &&
+          url.endsWith("/api/v1/admin/integrations/api-keys") &&
           (init?.method ?? "GET") === "POST"
         ) {
           return new Response(
@@ -152,13 +152,13 @@ describe("IntegrationsAdminView", () => {
             }),
           );
         }
-        if (url.endsWith("/api/admin/integrations/api-keys")) {
+        if (url.endsWith("/api/v1/admin/integrations/api-keys")) {
           return new Response(JSON.stringify([]));
         }
-        if (url.endsWith("/api/admin/integrations/webhooks")) {
+        if (url.endsWith("/api/v1/admin/integrations/webhooks")) {
           return new Response(JSON.stringify([]));
         }
-        if (url.endsWith("/api/admin/integrations/outbox")) {
+        if (url.endsWith("/api/v1/admin/integrations/outbox")) {
           return new Response(JSON.stringify([]));
         }
 
@@ -214,13 +214,13 @@ describe("IntegrationsAdminView", () => {
       "fetch",
       vi.fn(async (input: string | URL, init?: RequestInit) => {
         const url = String(input);
-        if (url.endsWith("/api/admin/integrations/api-keys")) {
+        if (url.endsWith("/api/v1/admin/integrations/api-keys")) {
           return new Response(JSON.stringify([]));
         }
-        if (url.endsWith("/api/admin/integrations/webhooks")) {
+        if (url.endsWith("/api/v1/admin/integrations/webhooks")) {
           return new Response(JSON.stringify([]));
         }
-        if (url.endsWith("/api/admin/integrations/contracts")) {
+        if (url.endsWith("/api/v1/admin/integrations/contracts")) {
           return new Response(
             JSON.stringify([
               {
@@ -231,7 +231,7 @@ describe("IntegrationsAdminView", () => {
             ]),
           );
         }
-        if (url.endsWith("/api/admin/integrations/outbox")) {
+        if (url.endsWith("/api/v1/admin/integrations/outbox")) {
           return new Response(JSON.stringify([]));
         }
         if (

@@ -8,4 +8,5 @@ public sealed class JwtOptions
     public string Audience { get; init; } = "FleetOps.Web";
     public string SigningKey { get; init; } = "FleetOps_LocalDevelopment_ChangeThisSigningKey_123456789";
     public int TokenLifetimeMinutes { get; init; } = 60;
+    public int SessionLifetimeHours { get; init; } = 12;
 }

@@ -334,9 +334,12 @@ async function loadMfaStatus() {
   isLoadingMfa.value = true;
   mfaMessage.error = "";
   try {
-    mfaStatus.value = await apiRequest<MfaStatus>("/api/admin/security/mfa", {
-      token,
-    });
+    mfaStatus.value = await apiRequest<MfaStatus>(
+      "/api/v1/admin/security/mfa",
+      {
+        token,
+      },
+    );
   } catch {
     mfaMessage.error = "Unable to load administrator MFA status.";
   } finally {
@@ -352,7 +355,7 @@ async function generateSetup() {
   recoveryCodes.value = [];
   try {
     mfaSetup.value = await apiRequest<MfaSetup>(
-      "/api/admin/security/mfa/setup",
+      "/api/v1/admin/security/mfa/setup",
       {
         method: "POST",
         token,
@@ -377,7 +380,7 @@ async function verifySetup() {
   mfaMessage.success = "";
   try {
     const response = await apiRequest<VerifyMfaResponse>(
-      "/api/admin/security/mfa/verify",
+      "/api/v1/admin/security/mfa/verify",
       {
         method: "POST",
         token,
@@ -402,7 +405,7 @@ async function disableMfa() {
   mfaMessage.success = "";
   try {
     mfaStatus.value = await apiRequest<MfaStatus>(
-      "/api/admin/security/mfa/disable",
+      "/api/v1/admin/security/mfa/disable",
       {
         method: "POST",
         token,
@@ -426,7 +429,7 @@ async function loadSummary() {
   summaryError.value = "";
   try {
     summary.value = await apiRequest<DataLifecycleSummary>(
-      "/api/admin/data-lifecycle/summary",
+      "/api/v1/admin/data-lifecycle/summary",
       { token },
     );
     if (purgeForm.categories.length === 0) {
@@ -451,7 +454,7 @@ async function downloadExport() {
   exportMessage.success = "";
   try {
     const payload = await apiRequest<string>(
-      "/api/admin/data-lifecycle/export",
+      "/api/v1/admin/data-lifecycle/export",
       {
         token,
         responseType: "text",
@@ -481,7 +484,7 @@ async function purgeLifecycleData() {
   purgeMessage.success = "";
   try {
     const response = await apiRequest<PurgeLifecycleDataResponse>(
-      "/api/admin/data-lifecycle/purge",
+      "/api/v1/admin/data-lifecycle/purge",
       {
         method: "POST",
         token,

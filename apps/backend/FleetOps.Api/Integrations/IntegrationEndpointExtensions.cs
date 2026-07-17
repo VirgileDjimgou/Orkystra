@@ -2,7 +2,6 @@ using System.Security.Claims;
 using System.Text;
 using FleetOps.Api.Auditing;
 using FleetOps.Api.Security;
-using FleetOps.Core.Modules.Identity;
 using FleetOps.Core.Modules.Integrations;
 using FleetOps.Infrastructure.Integrations;
 using FleetOps.Infrastructure.Persistence;
@@ -13,12 +12,24 @@ namespace FleetOps.Api.Integrations;
 
 public static class IntegrationEndpointExtensions
 {
-    private const string AdminRole = SystemRoles.Admin;
-
     public static IEndpointRouteBuilder MapIntegrationAdministrationEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/admin/integrations")
-            .RequireAuthorization(new AuthorizeAttribute { Roles = AdminRole })
+        MapAdministrationGroup(app.MapGroup("/api/v1/admin/integrations"));
+        var legacy = app.MapGroup("/api/admin/integrations")
+            .AddEndpointFilter(async (context, next) =>
+            {
+                context.HttpContext.Response.Headers.Append("Deprecation", "true");
+                context.HttpContext.Response.Headers.Append("Link", "</api/v1/admin/integrations>; rel=successor-version");
+                return await next(context);
+            });
+        MapAdministrationGroup(legacy);
+
+        return app;
+    }
+
+    private static void MapAdministrationGroup(RouteGroupBuilder group)
+    {
+        group.RequireAuthorization(AuthorizationPolicies.AdminOnly)
             .RequireRateLimiting("integration-admin");
 
         group.MapGet("/api-keys", ListApiKeysAsync);
@@ -32,7 +43,6 @@ public static class IntegrationEndpointExtensions
         group.MapGet("/attempts", ListAttemptsAsync);
         group.MapGet("/sandbox-receipts", ListSandboxReceiptsAsync);
 
-        return app;
     }
 
     public static IEndpointRouteBuilder MapIntegrationPartnerEndpoints(this IEndpointRouteBuilder app)

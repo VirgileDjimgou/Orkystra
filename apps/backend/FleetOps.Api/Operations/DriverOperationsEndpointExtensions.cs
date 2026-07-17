@@ -7,6 +7,7 @@ using FleetOps.Core.Modules.Operations;
 using FleetOps.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace FleetOps.Api.Operations;
 
@@ -18,7 +19,7 @@ public static class DriverOperationsEndpointExtensions
     public static IEndpointRouteBuilder MapDriverOperationsEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/v1/driver")
-            .RequireAuthorization(new AuthorizeAttribute { Roles = SystemRoles.Driver });
+            .RequireAuthorization(AuthorizationPolicies.DriverOnly);
 
         group.MapGet("/missions/{missionId:guid}/inspection", GetInspectionWorkflowAsync);
         group.MapPost("/missions/{missionId:guid}/inspection", SubmitInspectionAsync);
@@ -360,12 +361,31 @@ public static class DriverOperationsEndpointExtensions
         HttpContext httpContext,
         FleetOpsDbContext dbContext,
         ICurrentTenantAccessor currentTenantAccessor,
+        IOptions<MediaUploadSecurityOptions> uploadSecurityOptions,
         CancellationToken cancellationToken)
     {
         var tenant = currentTenantAccessor.GetRequiredTenant(httpContext.User);
         if (tenant.DriverId is not Guid driverId)
         {
             return Results.Forbid();
+        }
+
+        var maximumBytes = Math.Max(1, uploadSecurityOptions.Value.MaximumBytes);
+        if (request.TotalBytes > maximumBytes)
+        {
+            return Results.ValidationProblem(new Dictionary<string, string[]>
+            {
+                ["totalBytes"] = [$"Driver media uploads cannot exceed {maximumBytes} bytes."]
+            });
+        }
+
+        if (!string.Equals(request.ContentType, "image/jpeg", StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(request.ContentType, "image/png", StringComparison.OrdinalIgnoreCase))
+        {
+            return Results.ValidationProblem(new Dictionary<string, string[]>
+            {
+                ["contentType"] = ["Only JPEG and PNG driver media is accepted."]
+            });
         }
 
         MediaUploadSession session;
@@ -426,7 +446,18 @@ public static class DriverOperationsEndpointExtensions
             }, statusCode: StatusCodes.Status409Conflict);
         }
 
-        var bytes = Convert.FromBase64String(request.Base64Content);
+        byte[] bytes;
+        try
+        {
+            bytes = Convert.FromBase64String(request.Base64Content);
+        }
+        catch (FormatException)
+        {
+            return Results.ValidationProblem(new Dictionary<string, string[]>
+            {
+                ["base64Content"] = ["Upload chunks must contain valid Base64 content."]
+            });
+        }
         try
         {
             await storage.AppendAsync(session.TempStorageKey, request.Offset, bytes, cancellationToken);
@@ -457,7 +488,9 @@ public static class DriverOperationsEndpointExtensions
         FleetOpsDbContext dbContext,
         ICurrentTenantAccessor currentTenantAccessor,
         IPrivateMediaStorage storage,
+        IUploadedContentScanner contentScanner,
         IMediaUrlSigner signer,
+        IAuditService auditService,
         CancellationToken cancellationToken)
     {
         var tenant = currentTenantAccessor.GetRequiredTenant(httpContext.User);
@@ -486,8 +519,47 @@ public static class DriverOperationsEndpointExtensions
                 signer.CreateReadUrl(existingAsset.Id, TimeSpan.FromMinutes(30))));
         }
 
+        if (session.ScanDisposition == UploadedContentDisposition.Quarantine)
+        {
+            return Results.Problem(
+                title: "Upload quarantined",
+                detail: "This upload failed content validation and cannot be published.",
+                statusCode: StatusCodes.Status422UnprocessableEntity);
+        }
+
         try
         {
+            var (content, _, _) = await storage.OpenReadAsync(
+                session.TempStorageKey,
+                session.ContentType,
+                session.FileName,
+                cancellationToken);
+            UploadedContentScanResult scanResult;
+            await using (content)
+            {
+                scanResult = await contentScanner.ScanAsync(content, session.ContentType, cancellationToken);
+                session.RecordScan(scanResult);
+            }
+
+            if (scanResult.Disposition == UploadedContentDisposition.Quarantine)
+            {
+                var quarantineKey = $"{tenant.OrganizationId:D}/quarantine/{session.Id:D}.bin";
+                await storage.MoveAsync(session.TempStorageKey, quarantineKey, cancellationToken);
+                await dbContext.SaveChangesAsync(cancellationToken);
+                await auditService.WriteAsync(
+                    tenant.OrganizationId,
+                    tenant.UserId,
+                    "media.upload_quarantined",
+                    "upload_session",
+                    session.Id.ToString(),
+                    new { session.Purpose, session.ContentType, session.TotalBytes, scanResult.Reason },
+                    cancellationToken);
+                return Results.Problem(
+                    title: "Upload quarantined",
+                    detail: "The upload did not pass content validation and was isolated before publication.",
+                    statusCode: StatusCodes.Status422UnprocessableEntity);
+            }
+
             var asset = new MediaAsset(
                 tenant.OrganizationId,
                 $"{tenant.OrganizationId:D}/media/{Guid.NewGuid():D}-{session.FileName}",

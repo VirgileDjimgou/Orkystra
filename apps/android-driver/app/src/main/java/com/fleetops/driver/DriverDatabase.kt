@@ -14,13 +14,14 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.Transaction
 import androidx.room.withTransaction
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
 @Entity(tableName = "driver_session")
 data class DriverSessionEntity(
     @PrimaryKey val id: Int = 0,
-    val accessToken: String,
     val expiresAtUtc: String,
     val userId: String,
     val email: String,
@@ -194,7 +195,7 @@ interface PendingWorkflowOperationDao {
         PendingMissionCommandEntity::class,
         PendingWorkflowOperationEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = false,
 )
 abstract class DriverDatabase : RoomDatabase() {
@@ -204,10 +205,67 @@ abstract class DriverDatabase : RoomDatabase() {
     abstract fun workflowOutboxDao(): PendingWorkflowOperationDao
 
     companion object {
-        fun build(context: Context): DriverDatabase =
+        fun build(
+            context: Context,
+            credentialStore: DriverCredentialStore = AndroidKeystoreDriverCredentialStore(context),
+        ): DriverDatabase =
             Room.databaseBuilder(context, DriverDatabase::class.java, "fleetops-driver.db")
-                .fallbackToDestructiveMigration(dropAllTables = true)
+                .addMigrations(migrationFrom1To2(), migrationFrom2To3(credentialStore))
                 .build()
+
+        internal fun migrationFrom1To2(): Migration =
+            object : Migration(1, 2) {
+                override fun migrate(db: SupportSQLiteDatabase) {
+                    db.execSQL(
+                        """
+                        CREATE TABLE IF NOT EXISTS driver_workflow_outbox (
+                            commandId TEXT NOT NULL PRIMARY KEY,
+                            missionId TEXT NOT NULL,
+                            operationType TEXT NOT NULL,
+                            payloadJson TEXT NOT NULL,
+                            photosJson TEXT NOT NULL,
+                            createdAtUtc TEXT NOT NULL
+                        )
+                        """.trimIndent(),
+                    )
+                }
+            }
+
+        internal fun migrationFrom2To3(credentialStore: DriverCredentialStore): Migration =
+            object : Migration(2, 3) {
+                override fun migrate(db: SupportSQLiteDatabase) {
+                    db.query("SELECT accessToken FROM driver_session WHERE id = 0").use { cursor ->
+                        if (cursor.moveToFirst()) {
+                            cursor.getString(0)?.takeIf { it.isNotBlank() }?.let(credentialStore::writeAccessToken)
+                        }
+                    }
+
+                    db.execSQL(
+                        """
+                        CREATE TABLE IF NOT EXISTS driver_session_v3 (
+                            id INTEGER NOT NULL PRIMARY KEY,
+                            expiresAtUtc TEXT NOT NULL,
+                            userId TEXT NOT NULL,
+                            email TEXT NOT NULL,
+                            fullName TEXT NOT NULL,
+                            organizationName TEXT NOT NULL,
+                            driverId TEXT NOT NULL,
+                            rolesCsv TEXT NOT NULL
+                        )
+                        """.trimIndent(),
+                    )
+                    db.execSQL(
+                        """
+                        INSERT INTO driver_session_v3
+                            (id, expiresAtUtc, userId, email, fullName, organizationName, driverId, rolesCsv)
+                        SELECT id, expiresAtUtc, userId, email, fullName, organizationName, driverId, rolesCsv
+                        FROM driver_session
+                        """.trimIndent(),
+                    )
+                    db.execSQL("DROP TABLE driver_session")
+                    db.execSQL("ALTER TABLE driver_session_v3 RENAME TO driver_session")
+                }
+            }
     }
 }
 
@@ -235,22 +293,29 @@ interface DriverLocalStore {
 
 class RoomDriverLocalStore(
     private val database: DriverDatabase,
+    private val credentialStore: DriverCredentialStore = InMemoryDriverCredentialStore(),
 ) : DriverLocalStore {
     private val sessionDao = database.sessionDao()
     private val missionDao = database.missionDao()
     private val outboxDao = database.outboxDao()
     private val workflowOutboxDao = database.workflowOutboxDao()
 
-    override fun observeSession(): Flow<DriverSession?> = sessionDao.observe().map { it?.toDomain() }
+    override fun observeSession(): Flow<DriverSession?> =
+        sessionDao.observe().map { entity ->
+            entity?.toDomain(credentialStore.readAccessToken())
+        }
 
-    override suspend fun getSession(): DriverSession? = sessionDao.get()?.toDomain()
+    override suspend fun getSession(): DriverSession? =
+        sessionDao.get()?.toDomain(credentialStore.readAccessToken())
 
     override suspend fun saveSession(session: DriverSession) {
+        credentialStore.writeAccessToken(session.accessToken)
         sessionDao.upsert(session.toEntity())
     }
 
     override suspend fun clearSession() {
         sessionDao.clear()
+        credentialStore.clear()
     }
 
     override fun observeMissions(): Flow<List<DriverMission>> =
@@ -344,24 +409,26 @@ class RoomDriverLocalStore(
             missionDao.clearMissions()
             sessionDao.clear()
         }
+        credentialStore.clear()
     }
 }
 
-private fun DriverSessionEntity.toDomain(): DriverSession =
-    DriverSession(
-        accessToken = accessToken,
+private fun DriverSessionEntity.toDomain(accessToken: String?): DriverSession? =
+    accessToken?.let {
+        DriverSession(
+        accessToken = it,
         expiresAtUtc = expiresAtUtc,
         userId = userId,
         email = email,
         fullName = fullName,
         organizationName = organizationName,
         driverId = driverId,
-        roles = rolesCsv.split(",").filter { it.isNotBlank() },
+        roles = rolesCsv.split(",").filter { role -> role.isNotBlank() },
     )
+    }
 
 private fun DriverSession.toEntity(): DriverSessionEntity =
     DriverSessionEntity(
-        accessToken = accessToken,
         expiresAtUtc = expiresAtUtc,
         userId = userId,
         email = email,

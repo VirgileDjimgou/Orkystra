@@ -16,6 +16,7 @@ public sealed class FleetOpsDbContext(DbContextOptions<FleetOpsDbContext> option
     : IdentityDbContext<ApplicationUser, IdentityRole<Guid>, Guid>(options)
 {
     public DbSet<Organization> Organizations => Set<Organization>();
+    public DbSet<UserSession> UserSessions => Set<UserSession>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<Mission> Missions => Set<Mission>();
     public DbSet<MissionStop> MissionStops => Set<MissionStop>();
@@ -89,6 +90,18 @@ public sealed class FleetOpsDbContext(DbContextOptions<FleetOpsDbContext> option
             entity.Property(x => x.TargetType).HasMaxLength(64);
             entity.Property(x => x.TargetId).HasMaxLength(128);
             entity.Property(x => x.Metadata).HasMaxLength(2048);
+        });
+
+        builder.Entity<UserSession>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.OrganizationId, x.UserId, x.ExpiresAtUtc });
+            entity.HasIndex(x => new { x.UserId, x.RevokedAtUtc });
+            entity.Property(x => x.ClientType).HasMaxLength(32);
+            entity.Property(x => x.CreatedAtUtc).HasPrecision(7);
+            entity.Property(x => x.ExpiresAtUtc).HasPrecision(7);
+            entity.Property(x => x.RevokedAtUtc).HasPrecision(7);
+            entity.Property(x => x.RevocationReason).HasMaxLength(120);
         });
 
         builder.Entity<Mission>(entity =>
@@ -221,6 +234,7 @@ public sealed class FleetOpsDbContext(DbContextOptions<FleetOpsDbContext> option
             entity.Property(x => x.ContentType).HasMaxLength(120);
             entity.Property(x => x.TempStorageKey).HasMaxLength(240);
             entity.Property(x => x.ExpiresAtUtc).HasPrecision(7);
+            entity.Property(x => x.ScanReason).HasMaxLength(240);
         });
 
         builder.Entity<DriverWorkflowCommandReceipt>(entity =>

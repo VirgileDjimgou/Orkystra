@@ -16,7 +16,7 @@ public static class DriverAppEndpointExtensions
     public static IEndpointRouteBuilder MapDriverAppEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/v1/driver")
-            .RequireAuthorization(new AuthorizeAttribute { Roles = SystemRoles.Driver });
+            .RequireAuthorization(AuthorizationPolicies.DriverOnly);
 
         group.MapGet("/missions", ListAssignedMissionsAsync);
         group.MapGet("/missions/{id:guid}", GetAssignedMissionAsync);

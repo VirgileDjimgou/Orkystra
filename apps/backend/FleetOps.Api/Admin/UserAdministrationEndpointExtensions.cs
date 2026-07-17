@@ -13,13 +13,25 @@ public static class UserAdministrationEndpointExtensions
 {
     public static IEndpointRouteBuilder MapUserAdministrationEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/admin")
-            .RequireAuthorization(new AuthorizeAttribute { Roles = SystemRoles.Admin });
+        MapGroup(app.MapGroup("/api/v1/admin"));
+        var legacy = app.MapGroup("/api/admin")
+            .AddEndpointFilter(async (context, next) =>
+            {
+                context.HttpContext.Response.Headers.Append("Deprecation", "true");
+                context.HttpContext.Response.Headers.Append("Link", "</api/v1/admin>; rel=successor-version");
+                return await next(context);
+            });
+        MapGroup(legacy);
+
+        return app;
+    }
+
+    private static void MapGroup(RouteGroupBuilder group)
+    {
+        group.RequireAuthorization(AuthorizationPolicies.AdminOnly);
 
         group.MapGet("/users", ListUsersAsync);
         group.MapPost("/users", CreateUserAsync);
-
-        return app;
     }
 
     private static async Task<IResult> ListUsersAsync(

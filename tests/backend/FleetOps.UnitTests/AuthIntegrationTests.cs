@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using FleetOps.Api;
 using FleetOps.Api.Admin;
+using FleetOps.Api.Auth;
 using FleetOps.Api.Tracking;
 using FleetOps.Core.Modules.Identity;
 using FleetOps.Infrastructure.Persistence;
@@ -14,6 +15,77 @@ namespace FleetOps.UnitTests;
 
 public sealed class AuthIntegrationTests(FleetOpsApiFactory factory) : IClassFixture<FleetOpsApiFactory>
 {
+    [Fact]
+    public async Task WebSessionUsesHttpOnlyCookieAndRequiresCsrfForMutation()
+    {
+        using var client = factory.CreateClient();
+        var loginResponse = await client.PostAsJsonAsync(
+            "/api/v1/auth/web/login",
+            new LoginRequest("operator@northwind.local", "Operator123!"));
+        loginResponse.EnsureSuccessStatusCode();
+        var login = await loginResponse.Content.ReadFromJsonAsync<WebLoginResponse>();
+
+        Assert.NotNull(login);
+        Assert.False(string.IsNullOrWhiteSpace(login!.CsrfToken));
+        Assert.Contains(
+            loginResponse.Headers.GetValues("Set-Cookie"),
+            value => value.Contains("fleetops-session=", StringComparison.Ordinal)
+                && value.Contains("httponly", StringComparison.OrdinalIgnoreCase));
+
+        var currentUserResponse = await client.GetAsync("/api/v1/auth/me");
+        Assert.Equal(HttpStatusCode.OK, currentUserResponse.StatusCode);
+
+        var missingCsrfResponse = await client.PostAsync("/api/v1/auth/logout", null);
+        Assert.Equal(HttpStatusCode.BadRequest, missingCsrfResponse.StatusCode);
+
+        client.DefaultRequestHeaders.Add("X-CSRF-Token", login.CsrfToken);
+        var logoutResponse = await client.PostAsync("/api/v1/auth/logout", null);
+        Assert.Equal(HttpStatusCode.NoContent, logoutResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("/api/v1/auth/me")).StatusCode);
+    }
+
+    [Fact]
+    public async Task AdministratorRevocationImmediatelyInvalidatesTargetSessionAndIsTenantScoped()
+    {
+        using var driverClient = factory.CreateClient();
+        var driverLogin = await driverClient.LoginAsync("driver@northwind.local", "Driver123!");
+        driverClient.SetBearer(driverLogin.AccessToken);
+
+        using var adminClient = factory.CreateClient();
+        var adminLogin = await adminClient.LoginAsync("admin@northwind.local", "Admin123!");
+        adminClient.SetBearer(adminLogin.AccessToken);
+        var revokeResponse = await adminClient.PostAsync(
+            $"/api/v1/admin/security/users/{driverLogin.User.UserId}/sessions/revoke",
+            null);
+
+        Assert.Equal(HttpStatusCode.OK, revokeResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await driverClient.GetAsync("/api/v1/auth/me")).StatusCode);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<FleetOpsDbContext>();
+        var southridgeUserId = await dbContext.Users
+            .Where(x => x.Email == "admin@southridge.local")
+            .Select(x => x.Id)
+            .SingleAsync();
+        var crossTenantResponse = await adminClient.PostAsync(
+            $"/api/v1/admin/security/users/{southridgeUserId}/sessions/revoke",
+            null);
+        Assert.Equal(HttpStatusCode.NotFound, crossTenantResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task HistoricalAuthAliasIsExplicitlyDeprecated()
+    {
+        using var client = factory.CreateClient();
+        var response = await client.PostAsJsonAsync(
+            "/api/auth/login",
+            new LoginRequest("operator@northwind.local", "Operator123!"));
+
+        response.EnsureSuccessStatusCode();
+        Assert.Equal("true", response.Headers.GetValues("Deprecation").Single());
+        Assert.Contains("/api/v1/auth", response.Headers.GetValues("Link").Single(), StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task AdminUserListIsRestrictedToCurrentOrganization()
     {

@@ -147,7 +147,7 @@ data class SubmitDeliveryProofRequestDto(
 )
 
 interface DriverApiService {
-    @POST("/api/auth/login")
+    @POST("/api/v1/auth/login")
     suspend fun login(@Body request: LoginRequestDto): LoginResponseDto
 
     @GET("/api/v1/driver/missions")

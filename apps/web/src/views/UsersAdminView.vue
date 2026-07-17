@@ -160,7 +160,7 @@ async function loadUsers() {
   isLoadingUsers.value = true;
   usersError.value = "";
   try {
-    users.value = await apiRequest<UserSummary[]>("/api/admin/users", {
+    users.value = await apiRequest<UserSummary[]>("/api/v1/admin/users", {
       token: session.accessToken,
     });
   } catch (error) {
@@ -182,7 +182,7 @@ async function createUser() {
   formError.value = "";
   formSuccess.value = "";
   try {
-    await apiRequest<UserSummary>("/api/admin/users", {
+    await apiRequest<UserSummary>("/api/v1/admin/users", {
       method: "POST",
       token: session.accessToken,
       body: form,

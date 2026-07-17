@@ -12,7 +12,11 @@ public sealed record IssuedToken(string AccessToken, DateTimeOffset ExpiresAtUtc
 
 public interface IJwtTokenIssuer
 {
-    Task<IssuedToken> IssueAsync(ApplicationUser user, string organizationName, CancellationToken cancellationToken);
+    Task<IssuedToken> IssueAsync(
+        ApplicationUser user,
+        string organizationName,
+        Guid sessionId,
+        CancellationToken cancellationToken);
 }
 
 public sealed class JwtTokenIssuer(
@@ -24,6 +28,7 @@ public sealed class JwtTokenIssuer(
     public async Task<IssuedToken> IssueAsync(
         ApplicationUser user,
         string organizationName,
+        Guid sessionId,
         CancellationToken cancellationToken)
     {
         var roles = await userManager.GetRolesAsync(user);
@@ -35,6 +40,7 @@ public sealed class JwtTokenIssuer(
             new(ClaimTypes.Email, user.Email ?? string.Empty),
             new(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
             new(JwtRegisteredClaimNames.Email, user.Email ?? string.Empty),
+            new(JwtRegisteredClaimNames.Sid, sessionId.ToString()),
             new(TenantClaimTypes.OrganizationId, user.OrganizationId.ToString()),
             new(TenantClaimTypes.OrganizationName, organizationName),
         };

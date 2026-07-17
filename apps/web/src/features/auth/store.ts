@@ -1,31 +1,35 @@
 import { defineStore } from "pinia";
-import { apiRequest } from "../../services/api";
+import {
+  apiRequest,
+  cookieSessionMarker,
+  setCsrfToken,
+} from "../../services/api";
 import type {
   AuthenticatedUser,
+  CsrfTokenResponse,
   LoginRequest,
   LoginResponse,
 } from "./contracts";
-import {
-  clearStoredSession,
-  readStoredSession,
-  writeStoredSession,
-  type StoredSession,
-} from "./session";
+import { clearLegacyStoredSession } from "./session";
 
-type SessionStatus = "anonymous" | "authenticating" | "authenticated";
-type ExtendedSessionStatus = SessionStatus | "twoFactorRequired";
+type SessionStatus =
+  "anonymous" | "authenticating" | "authenticated" | "twoFactorRequired";
 
 export const useSessionStore = defineStore("session", {
   state: () => ({
-    status: "anonymous" as ExtendedSessionStatus,
+    status: "anonymous" as SessionStatus,
+    // Compatibility marker for existing feature stores. It is never a credential.
     accessToken: null as string | null,
     expiresAtUtc: null as string | null,
     user: null as AuthenticatedUser | null,
+    initialized: false,
+    monitoringSession: false,
     error: "",
   }),
   getters: {
     isAuthenticated: (state) =>
-      state.status === "authenticated" && !!state.accessToken,
+      state.status === "authenticated" &&
+      state.accessToken === cookieSessionMarker,
     isAdmin: (state) => !!state.user?.roles.includes("Admin"),
     canManageUsers(): boolean {
       return this.isAdmin;
@@ -35,24 +39,41 @@ export const useSessionStore = defineStore("session", {
     },
   },
   actions: {
-    hydrate() {
-      const session = readStoredSession();
-      if (!session) {
-        this.reset();
+    async hydrate() {
+      if (this.initialized) {
         return;
       }
 
-      this.applySession(session);
+      this.startSessionMonitoring();
+      clearLegacyStoredSession();
+      this.status = "authenticating";
+      try {
+        const user = await apiRequest<AuthenticatedUser>("/api/v1/auth/me");
+        const csrf = await apiRequest<CsrfTokenResponse>("/api/v1/auth/csrf");
+        setCsrfToken(csrf.csrfToken);
+        this.status = "authenticated";
+        this.accessToken = cookieSessionMarker;
+        this.user = user;
+        this.error = "";
+      } catch {
+        this.reset();
+      } finally {
+        this.initialized = true;
+      }
     },
     async login(payload: LoginRequest) {
+      this.startSessionMonitoring();
       this.status = "authenticating";
       this.error = "";
 
       try {
-        const response = await apiRequest<LoginResponse>("/api/auth/login", {
-          method: "POST",
-          body: payload,
-        });
+        const response = await apiRequest<LoginResponse>(
+          "/api/v1/auth/web/login",
+          {
+            method: "POST",
+            body: payload,
+          },
+        );
 
         if (response.requiresTwoFactor) {
           this.status = "twoFactorRequired";
@@ -62,7 +83,7 @@ export const useSessionStore = defineStore("session", {
           this.error =
             response.challengeMessage ??
             "Enter the 6-digit code from your authenticator app.";
-          clearStoredSession();
+          setCsrfToken(null);
           return response;
         }
 
@@ -78,49 +99,49 @@ export const useSessionStore = defineStore("session", {
       }
     },
     async refreshProfile() {
-      if (!this.accessToken) {
-        this.reset();
-        return;
-      }
-
       try {
-        const user = await apiRequest<AuthenticatedUser>("/api/auth/me", {
-          token: this.accessToken,
-        });
-        this.user = user;
+        this.user = await apiRequest<AuthenticatedUser>("/api/v1/auth/me");
         this.status = "authenticated";
-        if (this.expiresAtUtc) {
-          writeStoredSession({
-            accessToken: this.accessToken,
-            expiresAtUtc: this.expiresAtUtc,
-            user,
-          });
-        }
+        this.accessToken = cookieSessionMarker;
       } catch {
         this.reset();
       }
     },
-    logout() {
-      this.reset();
+    async logout() {
+      try {
+        if (this.isAuthenticated) {
+          await apiRequest<void>("/api/v1/auth/logout", { method: "POST" });
+        }
+      } finally {
+        this.reset();
+      }
     },
     reset() {
       this.status = "anonymous";
       this.accessToken = null;
       this.expiresAtUtc = null;
       this.user = null;
-      clearStoredSession();
+      this.initialized = true;
+      setCsrfToken(null);
+      clearLegacyStoredSession();
     },
-    applySession(session: StoredSession | LoginResponse) {
+    applySession(session: LoginResponse) {
       this.status = "authenticated";
-      this.accessToken = session.accessToken;
+      this.accessToken = cookieSessionMarker;
       this.expiresAtUtc = session.expiresAtUtc;
       this.user = session.user;
+      this.initialized = true;
       this.error = "";
-      writeStoredSession({
-        accessToken: session.accessToken,
-        expiresAtUtc: session.expiresAtUtc,
-        user: session.user,
-      });
+      setCsrfToken(session.csrfToken ?? null);
+      clearLegacyStoredSession();
+    },
+    startSessionMonitoring() {
+      if (this.monitoringSession || typeof window === "undefined") {
+        return;
+      }
+
+      window.addEventListener("fleetops:session-expired", () => this.reset());
+      this.monitoringSession = true;
     },
   },
 });

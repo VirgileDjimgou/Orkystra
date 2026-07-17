@@ -8,6 +8,7 @@ import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertFalse
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -17,12 +18,14 @@ class DriverDatabaseInstrumentationTest {
     private lateinit var database: DriverDatabase
     private lateinit var store: RoomDriverLocalStore
     private lateinit var context: Context
+    private lateinit var credentialStore: InMemoryDriverCredentialStore
 
     @Before
     fun setUp() {
         context = ApplicationProvider.getApplicationContext()
+        credentialStore = InMemoryDriverCredentialStore()
         database = buildDatabase("fleetops-driver-instrumentation")
-        store = RoomDriverLocalStore(database)
+        store = RoomDriverLocalStore(database, credentialStore)
     }
 
     @After
@@ -45,7 +48,7 @@ class DriverDatabaseInstrumentationTest {
 
         database.close()
         database = buildDatabase("fleetops-driver-instrumentation")
-        store = RoomDriverLocalStore(database)
+        store = RoomDriverLocalStore(database, credentialStore)
 
         val reopenedMission = store.getMission("mission-1")
         val pendingCommands = store.pendingCommands()
@@ -54,6 +57,33 @@ class DriverDatabaseInstrumentationTest {
         assertEquals(MissionSyncState.Pending, reopenedMission?.syncState)
         assertEquals(1, pendingCommands.size)
         assertEquals("cmd-1", pendingCommands.single().commandId)
+    }
+
+    @Test
+    fun accessTokenIsKeptOutsideRoom() = runBlocking {
+        store.saveSession(
+            DriverSession(
+                accessToken = "sensitive-access-token",
+                expiresAtUtc = "2026-07-18T08:00:00Z",
+                userId = "user-1",
+                email = "driver@northwind.local",
+                fullName = "Northwind Driver",
+                organizationName = "Northwind Logistics",
+                driverId = "driver-1",
+                roles = listOf("Driver"),
+            ),
+        )
+
+        val columns = mutableListOf<String>()
+        database.openHelper.readableDatabase.query("PRAGMA table_info(driver_session)").use { cursor ->
+            val nameIndex = cursor.getColumnIndexOrThrow("name")
+            while (cursor.moveToNext()) {
+                columns += cursor.getString(nameIndex)
+            }
+        }
+
+        assertFalse(columns.contains("accessToken"))
+        assertEquals("sensitive-access-token", store.getSession()?.accessToken)
     }
 
     @Test

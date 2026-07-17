@@ -52,6 +52,19 @@ public sealed class MediaUploadSession : TenantEntity
     public string TempStorageKey { get; private init; } = string.Empty;
     public bool IsCompleted { get; private set; }
     public Guid? MediaAssetId { get; private set; }
+    public UploadedContentDisposition? ScanDisposition { get; private set; }
+    public string? ScanReason { get; private set; }
+
+    public void RecordScan(UploadedContentScanResult result)
+    {
+        if (IsCompleted)
+        {
+            throw new InvalidOperationException("Completed uploads cannot be rescanned.");
+        }
+
+        ScanDisposition = result.Disposition;
+        ScanReason = result.Reason.Length <= 240 ? result.Reason : result.Reason[..240];
+    }
 
     public void Advance(long bytesUploaded)
     {
@@ -82,6 +95,11 @@ public sealed class MediaUploadSession : TenantEntity
         if (UploadedBytes != TotalBytes)
         {
             throw new InvalidOperationException("Upload session cannot be completed before all bytes are uploaded.");
+        }
+
+        if (ScanDisposition != UploadedContentDisposition.Clean)
+        {
+            throw new InvalidOperationException("Upload content must pass security scanning before completion.");
         }
 
         IsCompleted = true;
