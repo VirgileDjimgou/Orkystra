@@ -98,6 +98,10 @@ public sealed class DriverAppIntegrationTests(FleetOpsApiFactory factory) : ICla
         Assert.True(secondPayload!.WasDuplicate);
         Assert.Equal(MissionStatus.EnRoute, secondPayload.Mission.Status);
 
+        var missions = await driverClient.GetFromJsonAsync<List<DriverMissionSummaryResponse>>("/api/v1/driver/missions");
+        var listedMission = Assert.Single(missions!);
+        Assert.Equal(0, listedMission.PendingCommandCount);
+
         await using var scope = factory.Services.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<FleetOpsDbContext>();
         var mission = await dbContext.Missions.SingleAsync(x => x.Id == assignedMission.Id);

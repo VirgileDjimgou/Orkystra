@@ -30,6 +30,14 @@ Gate Sprint 15 validée et Sprints 16–19 prêts pour le scénario choisi.
 
 Dry-run onboarding, restauration périodique, sécurité tenant trois organisations, revue d’incidents, cohérence métriques et consentement/information analytics.
 
+### Dry-run technique validé le 18 juillet 2026
+
+- un simulateur modulaire rejoue 33 preuves produit via les API réelles pour Northwind Logistics, Southridge Transport et Westland Field Services ;
+- chaque organisation possède des comptes fictifs Admin, Operator et Driver, ainsi que flotte, appareils, télémétrie, mission, preuve, maintenance, conformité, opérations et métriques agrégées ;
+- les rôles non Admin reçoivent `403` sur la revue pilote et les ressources d'un autre tenant restent masquées en `404` ;
+- les rapports sont explicitement marqués comme preuves de développement simulées et aucune décision de niche n'est créée ;
+- ce dry-run ne coche aucun critère d'adoption ou commercial ci-dessous.
+
 ## Critères d’acceptation
 
 - [ ] trois organisations sont onboardées sans manipulation manuelle de données ;

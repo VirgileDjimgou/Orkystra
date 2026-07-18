@@ -1,13 +1,8 @@
 using System.Net;
 using System.Net.Http.Json;
 using FleetOps.Api.Pilot;
-using FleetOps.Core.Modules.Identity;
 using FleetOps.Core.Modules.Pilot;
-using FleetOps.Infrastructure.Identity;
-using FleetOps.Infrastructure.Persistence;
 using FleetOps.UnitTests.Infrastructure;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace FleetOps.UnitTests;
@@ -17,8 +12,6 @@ public sealed class PilotIntegrationTests(FleetOpsApiFactory factory) : IClassFi
     [Fact]
     public async Task ConsentMetricsIncidentsAndExportsStayInsideAuthenticatedTenants()
     {
-        await CreateThirdPilotAdministratorAsync();
-
         using var north = factory.CreateClient();
         north.SetBearer((await north.LoginAsync("admin@northwind.local", "Admin123!")).AccessToken);
         Assert.Equal(
@@ -92,27 +85,5 @@ public sealed class PilotIntegrationTests(FleetOpsApiFactory factory) : IClassFi
         operatorClient.SetBearer((await operatorClient.LoginAsync("operator@northwind.local", "Operator123!")).AccessToken);
 
         Assert.Equal(HttpStatusCode.Forbidden, (await operatorClient.GetAsync("/api/v1/pilot/metrics")).StatusCode);
-    }
-
-    private async Task CreateThirdPilotAdministratorAsync()
-    {
-        await using var scope = factory.Services.CreateAsyncScope();
-        var db = scope.ServiceProvider.GetRequiredService<FleetOpsDbContext>();
-        var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
-        var organization = new Organization("Westland Field Services", "westland");
-        db.Organizations.Add(organization);
-        await db.SaveChangesAsync();
-
-        var user = new ApplicationUser
-        {
-            UserName = "admin@westland.local",
-            Email = "admin@westland.local",
-            FullName = "Westland Admin",
-            OrganizationId = organization.Id,
-            EmailConfirmed = true,
-            IsActive = true,
-        };
-        Assert.True((await users.CreateAsync(user, "Admin123!")).Succeeded);
-        Assert.True((await users.AddToRoleAsync(user, SystemRoles.Admin)).Succeeded);
     }
 }

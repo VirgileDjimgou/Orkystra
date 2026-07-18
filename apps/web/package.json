@@ -11,6 +11,7 @@
     "lint": "eslint . --max-warnings 0",
     "format:check": "prettier --check .",
     "e2e": "playwright test",
+    "simulation:screenshots": "playwright test --config playwright.simulation.config.ts",
     "e2e:install": "playwright install chromium"
   },
   "dependencies": {

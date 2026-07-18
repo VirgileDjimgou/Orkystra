@@ -108,6 +108,10 @@ try {
     }
   }
 
+  Invoke-Step "Full Multi-Tenant Simulation" {
+    powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-full-simulation.ps1 -SkipScreenshots
+  }
+
   Invoke-Step "Web Install" {
     Push-Location apps/web
     try { npm ci } finally { Pop-Location }

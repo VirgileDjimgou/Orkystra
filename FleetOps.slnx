@@ -4,5 +4,6 @@
   <Project Path="apps/backend/FleetOps.Api/FleetOps.Api.csproj" />
   <Project Path="apps/backend/FleetOps.Worker/FleetOps.Worker.csproj" />
   <Project Path="simulators/GpsSimulator/GpsSimulator.csproj" />
+  <Project Path="simulators/FleetOpsScenarioSimulator/FleetOpsScenarioSimulator.csproj" />
   <Project Path="tests/backend/FleetOps.UnitTests/FleetOps.UnitTests.csproj" />
 </Solution>

@@ -2,6 +2,49 @@
 
 Orkystra FleetOps is a modular fleet operations MVP for small and mid-sized transport businesses. The platform covers the operational chain from identity and tenant isolation to vehicle tracking, dispatch execution, offline-capable driver workflows, proof of delivery, deterministic alerting, exception-driven operator work, maintenance coordination, external integrations, and pilot packaging.
 
+## Full Multi-Tenant Simulation
+
+FleetOps includes a deterministic development simulator that exercises the real versioned APIs as nine fictitious users across three isolated organizations. It creates and executes missions, telemetry, inspection evidence, proof of delivery, maintenance, compliance, operations, integrations, and Sprint 20 pilot-review data. The runner also proves that resources from one organization return `404` to authenticated users from another organization and that Operator and Driver accounts cannot access Admin-only pilot controls.
+
+```mermaid
+flowchart LR
+  Runner["Scenario runner"] --> Tenants["3 fictitious tenants"]
+  Tenants --> Roles["Admin / Operator / Driver / device"]
+  Roles --> API["Versioned FleetOps APIs"]
+  API --> Modules["Fleet · tracking · dispatch · proof · maintenance · compliance · operations · pilot"]
+  Modules --> Evidence["JSON/Markdown report + Web/Android screenshots"]
+```
+
+Run the complete Web/API scenario from the repository root:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/run-full-simulation.ps1
+```
+
+With exactly one Android device connected through ADB, include installation, real driver sign-in, mission-list capture, and mission-detail capture:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/run-full-simulation.ps1 -IncludeAndroid
+```
+
+The command builds the solution, starts an isolated in-memory Development API, seeds only fictitious data, drives all tenant and role workflows over HTTP, starts the Web console for Playwright captures, and then stops its processes. It does not use or mutate the configured SQL Server database. Runtime reports and logs are written to `.runtime/full-simulation/`; curated screenshots are written to `docs/assets/screenshots/`.
+
+The automated walkthrough performs the following sequence for every tenant:
+
+1. authenticate the Admin, Operator, and Driver personas and verify role restrictions;
+2. inspect tenant-scoped fleet data and ingest device telemetry;
+3. create, plan, assign, inspect, execute, and complete a mission;
+4. upload private delivery photo and signature evidence and submit proof of delivery;
+5. create, cost, schedule, and complete a maintenance work order;
+6. create expiring compliance data, scan alerts, and inspect the coverage matrix;
+7. inspect integration contracts and the operations queue;
+8. enable simulated pilot consent, aggregate privacy-minimal metrics, resolve a support incident, and export the evidence package;
+9. prove cross-tenant mission isolation in both directions.
+
+All generated reports are labelled **SIMULATED DEVELOPMENT EVIDENCE — NOT PILOT OR COMMERCIAL PROOF**. The simulator never creates a Sprint 20 niche decision and therefore cannot replace measured alpha evidence from real consenting pilot organizations.
+
+![Northwind operator mission and proof timeline](docs/assets/screenshots/simulation-northwind-operator-dispatch.png)
+
 ## Dispatch productivity
 
 Operators can prepare a daily or weekly plan from a paged capacity board, save reusable route templates, preview and confirm idempotent imports, and retain an auditable record of every bulk assignment decision. Resource suggestions are deterministic: FleetOps selects the first active, non-conflicting driver and vehicle by name and registration; it does not apply opaque route optimisation.
@@ -44,7 +87,7 @@ flowchart LR
   R --> A[Vehicle available]
 ```
 
-The repository currently delivers Sprint 00 through Sprint 16, giving the product a seventeen-sprint functional, recovery, end-to-end validation, security, field-execution, tenant-activation, and private-media-resilience baseline:
+The repository currently delivers Sprints 00 through 19 and the product-side controls of active Sprint 20, giving the product a functional, recovery, end-to-end validation, security, field-execution, tenant-activation, private-media, maintenance, compliance, and dispatch-productivity baseline:
 
 - reproducible local environment;
 - modular ASP.NET Core backend;
@@ -76,7 +119,7 @@ The repository currently delivers Sprint 00 through Sprint 16, giving the produc
 - a durable mobile proof queue that preserves image bytes, upload offsets, and immutable command identifiers across app process restarts.
 - administrator-guided tenant activation with resumable CSV preview and confirmation, role-aware invitations, one-use Android pairing codes, removable sample data, readiness checks, privacy-minimal diagnostics, and activation metrics.
 
-The audit reviewed on Thursday, July 16, 2026 classifies this baseline as a usable MVP, not yet a production-ready product. Sprint 10 delivered fail-fast Production configuration, safe tenant bootstrap, login protection, recovery tooling, and the Web/Android UX foundation. Sprint 11 proved SQL Server migrations, relational constraints, optimistic concurrency, backup/restore checksum preservation, critical browser workflows, and Android offline instrumentation. Sprint 12 hardened sessions, authorization, sensitive uploads, and client credential storage before pilot data is admitted. Sprints 13 and 14 made exception handling and driver field execution operational; Sprint 15 provides a guided path from an empty tenant to first mission value, and Sprint 16 makes field evidence private, object-backed, checksum-verified, migratable, and retention-aware. The approved roadmap contains twenty evidence-gated delivery sprints, Sprint 11 through Sprint 30, while keeping the mission–proof–exception core and modular-monolith architecture.
+The audit baseline remains a usable MVP, not yet a production-ready product. Sprints 10 through 16 established Production truth, recovery, security, field execution, tenant activation, and private evidence. Sprints 17 through 19 added maintenance work orders, compliance campaigns, and dispatch productivity. Active Sprint 20 adds measured-alpha controls, but its commercial gate still requires real consenting pilot organizations; deterministic simulation is deliberately excluded from that decision evidence. The approved roadmap continues through Sprint 30 while preserving the mission–proof–exception core and modular-monolith architecture.
 
 ## Product Goal
 
@@ -138,6 +181,7 @@ apps/
   android-driver/              Android driver application
 simulators/
   GpsSimulator/                deterministic telemetry simulator
+  FleetOpsScenarioSimulator/   multi-tenant role and module walkthrough
 docs/                          product, architecture, engineering, and commercial docs
 scripts/                       local environment and quality-gate automation
 tests/
@@ -691,7 +735,35 @@ flowchart LR
 
 ## Product Surfaces
 
-The following captures were produced from a deterministic pilot walkthrough on July 16, 2026. They show the same product baseline across role-specific surfaces and two isolated demo tenants.
+The simulation captures below were produced from the real applications and APIs on July 18, 2026; no UI network response was mocked. Together they cover Admin, Operator, and Driver surfaces across all three fictitious tenants.
+
+### Northwind administrator pilot review
+
+The review makes the boundary between simulated operational evidence and a real commercial decision explicit.
+
+![Northwind simulated pilot review](docs/assets/screenshots/simulation-northwind-admin-pilot-review.png)
+
+### Southridge live fleet map
+
+Southridge receives its own vehicles, devices, positions, missions, and alerts without Northwind or Westland records.
+
+![Southridge isolated live map](docs/assets/screenshots/simulation-southridge-live-map.png)
+
+### Westland field-service operations center
+
+The operations queue combines simulated compliance, inactivity, and mission exceptions for the field-service sector.
+
+![Westland operations center](docs/assets/screenshots/simulation-westland-operations-center.png)
+
+### Connected Android driver session
+
+The physical-device run signs in with the Northwind Driver persona and opens the mission created by the simulator.
+
+![Android simulated mission list](docs/assets/screenshots/simulation-android-driver-missions.png)
+
+![Android simulated mission detail](docs/assets/screenshots/simulation-android-driver-mission-detail.png)
+
+The historical baseline captures that follow remain useful for the security, dashboard, and field-evidence details delivered in earlier sprints.
 
 ### Northwind Logistics admin security and governance
 
@@ -757,6 +829,10 @@ Development mode can explicitly seed isolated demo organizations and users throu
 | Northwind Logistics | Driver | `driver@northwind.local` | `Driver123!` |
 | Southridge Transport | Admin | `admin@southridge.local` | `Admin123!` |
 | Southridge Transport | Operator | `operator@southridge.local` | `Operator123!` |
+| Southridge Transport | Driver | `driver@southridge.local` | `Driver123!` |
+| Westland Field Services | Admin | `admin@westland.local` | `Admin123!` |
+| Westland Field Services | Operator | `operator@westland.local` | `Operator123!` |
+| Westland Field Services | Driver | `driver@westland.local` | `Driver123!` |
 
 ## Local Environment
 
@@ -811,7 +887,19 @@ npm ci
 npm run dev -- --host 127.0.0.1
 ```
 
-### 6. Optional: start the GPS simulator
+### 6. Optional: run the complete role and tenant simulation
+
+The recommended command needs only the local .NET and Node.js toolchains; it uses an isolated in-memory API and cleans up its processes automatically:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/run-full-simulation.ps1
+```
+
+Add `-IncludeAndroid` when exactly one authorized ADB device is connected. The Android helper installs a Debug build configured for the isolated API, clears only the FleetOps Debug app data, creates an ADB reverse port mapping for the run, and removes that mapping afterward.
+
+Use `-SkipScreenshots` for a faster headless API-only scenario, or `-ApiPort` and `-WebPort` when the default simulation ports `5090` and `4174` are occupied.
+
+### 7. Optional: start the GPS simulator
 
 Dry-run:
 
@@ -831,7 +919,7 @@ Replay duplicate and out-of-order events:
 dotnet run --project simulators/GpsSimulator -- --once --replay-duplicate --send-out-of-order
 ```
 
-### 7. Optional: validate the Android app
+### 8. Optional: validate the Android app
 
 ```powershell
 Set-Location apps/android-driver
@@ -844,7 +932,7 @@ If your API is running on a host other than the Android emulator loopback, set:
 $env:FLEETOPS_API_URL="http://10.0.2.2:5080/"
 ```
 
-### 8. Pilot container deployment
+### 9. Pilot container deployment
 
 Before starting a new Production database, replace every placeholder in `.env`. `JWT_SIGNING_KEY` and `MEDIA_SIGNING_KEY` must be independent random values of at least 32 characters; MinIO credentials and `MINIO_KMS_SECRET_KEY` must also be independently generated. The bootstrap organization/admin values are used only when the database has no organization; rotate the temporary administrator password immediately and enable MFA.
 
@@ -870,7 +958,7 @@ Optional observability:
 $env:OTEL_EXPORTER_OTLP_ENDPOINT="http://localhost:4317"
 ```
 
-### 9. Backup and restore drills
+### 10. Backup and restore drills
 
 Create a SQL backup:
 
@@ -900,6 +988,7 @@ It covers:
 - PowerShell recovery-script parsing;
 - backend restore, format, build, fast tests, and Docker-backed SQL tests;
 - GPS simulator dry-run;
+- 33-step full multi-tenant role simulation against an isolated API;
 - web install, format, lint, unit tests, build, browser provisioning, and Playwright E2E;
 - API health check;
 - API readiness check through the production boot path;
@@ -930,7 +1019,7 @@ Current local validation includes:
 - Android unit tests, debug assembly, instrumentation APK compilation, and connected instrumentation execution on a physical Android device for Room-backed offline persistence, Keystore-separated session credentials, and unique WorkManager scheduling tests;
 - full local quality gate.
 
-On Friday, July 17, 2026, the full Sprint 15 quality gate passed without skips: 115 fast backend tests, three SQL Server/Testcontainers proofs, 19 Web unit tests, five Playwright critical flows, and five connected Android instrumentation tests on a physical Samsung SM-G975F running Android 12.
+On Saturday, July 18, 2026, the complete gate passed without skips: 142 fast backend tests, one live MinIO contract, three SQL Server/Testcontainers proofs, the 33-step multi-tenant simulation, 20 Web unit tests, five Playwright critical flows, and five connected Android instrumentation tests on a physical Samsung SM-G975F running Android 12.
 
 ## Engineering Notes
 
@@ -970,6 +1059,7 @@ Admin/Operator and Driver workflows have different interaction models, offline r
 - [docs/01-architecture/ARCHITECTURE.md](./docs/01-architecture/ARCHITECTURE.md)
 - [docs/01-architecture/DOMAIN_MODEL.md](./docs/01-architecture/DOMAIN_MODEL.md)
 - [docs/02-engineering/ENGINEERING_STANDARDS.md](./docs/02-engineering/ENGINEERING_STANDARDS.md)
+- [docs/02-engineering/SIMULATION_STRATEGY.md](./docs/02-engineering/SIMULATION_STRATEGY.md)
 - [docs/02-engineering/PILOT_RUNBOOK.md](./docs/02-engineering/PILOT_RUNBOOK.md)
 - [docs/03-commercial/PILOT_ONBOARDING.md](./docs/03-commercial/PILOT_ONBOARDING.md)
 - [sprints/SPRINT-01-IDENTITY-TENANCY.md](./sprints/SPRINT-01-IDENTITY-TENANCY.md)

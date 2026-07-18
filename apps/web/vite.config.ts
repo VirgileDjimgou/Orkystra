@@ -1,6 +1,8 @@
 import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
 
+const apiTarget = process.env.VITE_API_BASE_URL ?? "http://localhost:5080";
+
 export default defineConfig({
   plugins: [vue()],
   test: {
@@ -12,9 +14,9 @@ export default defineConfig({
   server: {
     port: 5183,
     proxy: {
-      "/api": { target: "http://localhost:5080", changeOrigin: true },
+      "/api": { target: apiTarget, changeOrigin: true },
       "/hubs": {
-        target: "http://localhost:5080",
+        target: apiTarget,
         changeOrigin: true,
         ws: true,
       },

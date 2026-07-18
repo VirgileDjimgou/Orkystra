@@ -114,7 +114,7 @@ public sealed class DispatchIntegrationTests(FleetOpsApiFactory factory) : IClas
         var southDrivers = await southClient.GetFromJsonAsync<List<DriverAssignmentCandidate>>("/api/v1/fleet/drivers");
         var southVehicles = await southClient.GetFromJsonAsync<List<VehicleAssignmentCandidate>>("/api/v1/fleet/vehicles");
         var southDriver = Assert.Single(southDrivers!);
-        var southVehicle = Assert.Single(southVehicles!);
+        var southVehicle = Assert.Single(southVehicles!, vehicle => vehicle.RegistrationNumber == "SR-200");
 
         var assignmentResponse = await northClient.PutAsJsonAsync(
             $"/api/v1/dispatch/missions/{planned!.Id}/assignment",

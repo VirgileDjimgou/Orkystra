@@ -8,6 +8,7 @@
     <ProjectReference Include="../../../apps/backend/FleetOps.Api/FleetOps.Api.csproj" />
     <ProjectReference Include="../../../apps/backend/FleetOps.Core/FleetOps.Core.csproj" />
     <ProjectReference Include="../../../apps/backend/FleetOps.Infrastructure/FleetOps.Infrastructure.csproj" />
+    <ProjectReference Include="../../../simulators/FleetOpsScenarioSimulator/FleetOpsScenarioSimulator.csproj" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />

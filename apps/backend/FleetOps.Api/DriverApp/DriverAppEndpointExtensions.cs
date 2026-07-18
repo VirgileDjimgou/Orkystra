@@ -63,12 +63,6 @@ public static class DriverAppEndpointExtensions
             return Results.Forbid();
         }
 
-        var missionIdsWithPendingCommands = await dbContext.DriverSyncCommandReceipts
-            .Where(x => x.OrganizationId == tenant.OrganizationId && x.DriverId == driverId)
-            .GroupBy(x => x.MissionId)
-            .Select(x => new { MissionId = x.Key, Count = x.Count() })
-            .ToDictionaryAsync(x => x.MissionId, x => x.Count, cancellationToken);
-
         var vehicleNames = await dbContext.Vehicles
             .Where(x => x.OrganizationId == tenant.OrganizationId)
             .ToDictionaryAsync(x => x.Id, x => x.RegistrationNumber, cancellationToken);
@@ -101,7 +95,9 @@ public static class DriverAppEndpointExtensions
                 ? vehicleName
                 : null,
             mission.StopCount,
-            missionIdsWithPendingCommands.GetValueOrDefault(mission.Id),
+            // Pending commands exist only in the device outbox. Server receipts represent
+            // already processed commands and must never be surfaced as pending work.
+            0,
             mission.RowVersion)));
     }
 

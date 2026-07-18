@@ -6,6 +6,8 @@ Toutes les modifications fonctionnelles significatives sont documentées ici.
 
 ### Added
 
+- A modular full-project simulator that drives Admin, Operator, Driver, and device behavior through real APIs for three fictitious tenant sectors, produces clearly labelled reports, validates cross-tenant isolation, and captures deterministic Web and connected-Android walkthrough evidence.
+- Reproducible simulation seeds for Northwind Logistics, Southridge Transport, and Westland Field Services, each with isolated fleet assets and all three human roles.
 - Sprint 20 measured alpha pilot controls: explicit tenant administrator consent, privacy-minimal and idempotent daily operational aggregates, support-incident tracking, evidence export, and auditable `GO`/`SIMPLIFY`/`PIVOT`/`STOP` niche decisions.
 - Administrator Pilot review workspace with aggregate-only evidence, consent-aware collection, support workaround tracking, and downloadable tenant-scoped evidence packages.
 - Sprint 19 dispatch productivity: tenant-scoped route templates, draft duplication, replay-safe mission imports with preview and confirmation, a paged day/week planning board, saved views, deterministic resource suggestions, and atomic bulk assignment validation with maintenance, compliance, overlap, concurrency, and audit checks.
@@ -66,6 +68,9 @@ Toutes les modifications fonctionnelles significatives sont documentées ici.
 
 ### Changed
 
+- Driver mission summaries no longer misclassify processed idempotency receipts as unsynchronized device commands.
+- Fixed Android dark-theme contrast for the app bar, mission cards, sync summary, stops, timeline, inspection, and delivery-proof panels.
+- The mandatory PowerShell quality gate now executes the full multi-tenant API scenario in addition to the focused GPS dry run.
 - Sprint 15 is closed with a `GO` gate after 115 fast backend tests, 3 SQL Server/Testcontainers proofs, 19 Web tests, 5 Playwright flows, and 5 connected Android tests on a Samsung SM-G975F.
 - Sprint 14 is closed after Android unit tests, five connected Android instrumentation tests on a Samsung SM-G975F, backend proof authorization tests, and the full repository quality gate.
 - Sprint 13 is closed after a green quality gate with 107 fast backend tests, 3 SQL Server/Testcontainers tests, 17 Web tests, 4 Playwright flows, API health/readiness validation, GPS dry run, and Android build validation.

@@ -76,6 +76,8 @@ private val DriverDarkColorScheme = darkColorScheme(
     secondary = Color(0xFFB4D7E1),
 )
 
+private val LightCardContent = Color(0xFF0F172A)
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -126,7 +128,11 @@ private fun FleetOpsDriverApp(viewModel: DriverAppViewModel) {
                             }
                         }
                     },
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White),
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        titleContentColor = MaterialTheme.colorScheme.onSurface,
+                        actionIconContentColor = MaterialTheme.colorScheme.primary,
+                    ),
                 )
             },
             snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -252,7 +258,7 @@ private fun MissionListScreen(
             Text(
                 text = state.session?.organizationName ?: "FleetOps",
                 style = MaterialTheme.typography.labelLarge,
-                color = Color(0xFF475569),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
                 text = "Assigned missions",
@@ -268,7 +274,7 @@ private fun MissionListScreen(
 
         if (state.complianceCampaignTasks.isNotEmpty()) {
             item {
-                Card(colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFBEB))) {
+                Card(colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFBEB), contentColor = LightCardContent)) {
                     Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text("Inspection campaign", style = MaterialTheme.typography.titleMedium)
                         Text("These assigned checks remain on this device and sync when coverage returns.", style = MaterialTheme.typography.bodySmall)
@@ -301,6 +307,7 @@ private fun MissionListScreen(
             Card(
                 colors = CardDefaults.cardColors(
                     containerColor = if (pendingCount == 0) Color(0xFFE8F5F0) else Color(0xFFFFF7E0),
+                    contentColor = LightCardContent,
                 ),
             ) {
                 Row(
@@ -343,7 +350,7 @@ private fun MissionListScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable { onMissionClick(mission.id) },
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC), contentColor = LightCardContent),
             ) {
                 Column(modifier = Modifier.padding(18.dp)) {
                     Text(mission.reference, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
@@ -435,7 +442,7 @@ private fun MissionDetailScreen(
             TextButton(onClick = onBack) {
                 Text("Back to mission list")
             }
-            Text(mission.reference, style = MaterialTheme.typography.labelLarge, color = Color(0xFF64748B))
+            Text(mission.reference, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(mission.title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
             Row(
                 modifier = Modifier.padding(top = 10.dp),
@@ -469,7 +476,7 @@ private fun MissionDetailScreen(
         }
 
         item {
-            Card(colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC))) {
+            Card(colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC), contentColor = LightCardContent)) {
                 Column(modifier = Modifier.padding(18.dp)) {
                     Text("Stops", style = MaterialTheme.typography.titleMedium)
                     mission.stops.sortedBy { it.sequence }.forEachIndexed { index, stop ->
@@ -490,7 +497,7 @@ private fun MissionDetailScreen(
         }
 
         item {
-            Card(colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFBEB))) {
+            Card(colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFBEB), contentColor = LightCardContent)) {
                 Column(modifier = Modifier.padding(18.dp)) {
                     Text("Recent timeline", style = MaterialTheme.typography.titleMedium)
                     mission.timeline.takeLast(5).reversed().forEach { event ->
@@ -558,7 +565,7 @@ private fun InspectionPanel(
 ) {
     var showEvidenceChooser by remember { mutableStateOf(false) }
     val evidence = remember { mutableStateListOf<CapturedEvidence>() }
-    Card(colors = CardDefaults.cardColors(containerColor = Color(0xFFEFF6FF))) {
+    Card(colors = CardDefaults.cardColors(containerColor = Color(0xFFEFF6FF), contentColor = LightCardContent)) {
         Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("Pre-departure inspection", style = MaterialTheme.typography.titleMedium)
             Text(
@@ -605,7 +612,7 @@ private fun DeliveryProofPanel(
     var showSignatureCapture by rememberSaveable(mission.id) { mutableStateOf(false) }
     var recipientConsented by rememberSaveable(mission.id) { mutableStateOf(false) }
 
-    Card(colors = CardDefaults.cardColors(containerColor = Color(0xFFECFDF5))) {
+    Card(colors = CardDefaults.cardColors(containerColor = Color(0xFFECFDF5), contentColor = LightCardContent)) {
         Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("Delivery proof", style = MaterialTheme.typography.titleMedium)
             Text(
