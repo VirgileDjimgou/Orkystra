@@ -56,6 +56,7 @@ builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptio
 builder.Services.Configure<TrackingOptions>(builder.Configuration.GetSection(TrackingOptions.SectionName));
 builder.Services.AddScoped<TrackingQualityAnalyzer>();
 builder.Services.AddScoped<TrackingDerivationService>();
+builder.Services.AddScoped<SandboxTelematicsAdapter>();
 builder.Services.AddOpenTelemetry()
     .ConfigureResource(resource => resource.AddService(
         serviceName: "fleetops-api",

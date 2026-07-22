@@ -15,6 +15,77 @@
       }}</span>
     </section>
 
+    <section class="surface-panel">
+      <div class="panel-heading">
+        <div>
+          <h2>Virtual telematics provider</h2>
+          <p>
+            Operate the tenant-scoped sandbox connection and inspect its
+            recovery cursor.
+          </p>
+        </div>
+        <button
+          class="btn btn-outline-secondary"
+          @click="loadSandboxConnections"
+        >
+          Refresh
+        </button>
+      </div>
+      <div class="d-flex gap-2 mb-3">
+        <input
+          v-model="sandboxName"
+          class="form-control"
+          maxlength="100"
+          required
+          aria-label="Sandbox connection name"
+        />
+        <button
+          class="btn btn-primary"
+          type="button"
+          @click="createSandboxConnection"
+        >
+          Create connection
+        </button>
+      </div>
+      <div v-if="sandboxError" class="alert alert-danger">
+        {{ sandboxError }}
+      </div>
+      <div v-if="sandboxConnections.length === 0" class="empty-placeholder">
+        No virtual provider connection configured.
+      </div>
+      <div v-else class="user-list">
+        <article
+          v-for="connection in sandboxConnections"
+          :key="connection.id"
+          class="user-card"
+        >
+          <div>
+            <strong>{{ connection.name }}</strong>
+            <div class="tiny-meta">
+              Cursor: {{ connection.resumeCursor || "Not started" }}
+            </div>
+            <div class="tiny-meta">{{ connection.lastError || "Healthy" }}</div>
+          </div>
+          <div class="user-meta">
+            <div :class="connection.isActive ? 'text-success' : 'text-danger'">
+              {{ connection.isActive ? "Active" : "Disabled" }}
+            </div>
+            <div>
+              <small>{{ formatDateTime(connection.lastSucceededAtUtc) }}</small>
+            </div>
+            <div>
+              <button
+                class="btn btn-outline-secondary btn-sm"
+                @click="setSandboxConnection(connection, !connection.isActive)"
+              >
+                {{ connection.isActive ? "Disable" : "Enable" }}
+              </button>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+
     <div class="row g-4">
       <div class="col-xl-7">
         <section class="surface-panel">
@@ -525,6 +596,7 @@ import type {
   CreatedApiClientCredential,
   IntegrationContract,
   IntegrationOutboxMessage,
+  SandboxTelematicsConnection,
   WebhookEndpoint,
 } from "../features/integrations/contracts";
 
@@ -542,6 +614,9 @@ const apiKeys = ref<ApiClientCredential[]>([]);
 const webhooks = ref<WebhookEndpoint[]>([]);
 const contracts = ref<IntegrationContract[]>([]);
 const outbox = ref<IntegrationOutboxMessage[]>([]);
+const sandboxConnections = ref<SandboxTelematicsConnection[]>([]);
+const sandboxName = ref("FleetOps virtual provider");
+const sandboxError = ref("");
 
 const isLoadingCredentials = ref(false);
 const isRefreshingCredentials = ref(false);
@@ -684,6 +759,45 @@ function formatDateTime(value: string | null) {
     timeStyle: "short",
     timeZone: "UTC",
   }).format(new Date(value));
+}
+
+async function loadSandboxConnections() {
+  try {
+    sandboxConnections.value = await apiRequest<SandboxTelematicsConnection[]>(
+      "/api/v1/admin/integrations/sandbox-telematics",
+      { token: requireToken() },
+    );
+  } catch {
+    sandboxError.value = "Unable to load virtual telematics connections.";
+  }
+}
+
+async function createSandboxConnection() {
+  try {
+    await apiRequest("/api/v1/admin/integrations/sandbox-telematics", {
+      method: "POST",
+      token: requireToken(),
+      body: { name: sandboxName.value },
+    });
+    await loadSandboxConnections();
+  } catch {
+    sandboxError.value = "Unable to create the virtual telematics connection.";
+  }
+}
+
+async function setSandboxConnection(
+  connection: SandboxTelematicsConnection,
+  enabled: boolean,
+) {
+  try {
+    await apiRequest(
+      `/api/v1/admin/integrations/sandbox-telematics/${connection.id}/enable?enabled=${enabled}`,
+      { method: "POST", token: requireToken() },
+    );
+    await loadSandboxConnections();
+  } catch {
+    sandboxError.value = "Unable to update the virtual telematics connection.";
+  }
 }
 
 function formatExample(payload: Record<string, unknown>) {
@@ -931,6 +1045,7 @@ onMounted(async () => {
     loadWebhooks(),
     loadContracts(),
     loadOutbox(),
+    loadSandboxConnections(),
   ]);
 });
 </script>

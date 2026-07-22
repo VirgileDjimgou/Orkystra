@@ -71,3 +71,13 @@ export type CreateWebhookEndpointRequest = {
   signingSecret: string;
   isSandbox: boolean;
 };
+
+export type SandboxTelematicsConnection = {
+  id: string;
+  name: string;
+  isActive: boolean;
+  lastSucceededAtUtc: string | null;
+  lastError: string | null;
+  resumeCursor: string | null;
+  rowVersion: number;
+};

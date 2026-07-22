@@ -101,3 +101,21 @@ public sealed record DeviceTelemetryIngestionRequest(
     double Longitude,
     double SpeedKph,
     double HeadingDegrees);
+
+public sealed record SandboxTelematicsEventRequest(
+    string ContractVersion,
+    Guid VehicleId,
+    string ProviderEventId,
+    string DeviceExternalId,
+    DateTimeOffset OccurredAtUtc,
+    double Latitude,
+    double Longitude,
+    double SpeedKph,
+    double HeadingDegrees,
+    long? SequenceNumber,
+    double? AccuracyMeters,
+    int? OdometerKm,
+    string EventKind);
+
+public sealed record CreateSandboxTelematicsConnectionRequest(string Name);
+public sealed record SandboxTelematicsConnectionResponse(Guid Id, string Name, bool IsActive, DateTimeOffset? LastSucceededAtUtc, string? LastError, string? ResumeCursor, long RowVersion);

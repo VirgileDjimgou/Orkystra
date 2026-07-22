@@ -6,6 +6,8 @@ Toutes les modifications fonctionnelles significatives sont documentées ici.
 
 ### Added
 
+- Sprint 22 start: a versioned HTTP Sandbox Telematics Provider adapter normalizes virtual provider events into canonical tenant-scoped tracking ingestion with existing replay protection.
+
 - Sprint 21 tracking quality: accepted telemetry retains source, sequence, accuracy, quality score, and anomaly flags; unreliable updates do not overwrite the live position.
 - Tenant-safe tracking diagnostics, versioned bounded trip recalculation, and circular or polygonal business zones with enter/exit events.
 

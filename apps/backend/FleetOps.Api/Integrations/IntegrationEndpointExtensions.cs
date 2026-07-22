@@ -42,6 +42,9 @@ public static class IntegrationEndpointExtensions
         group.MapGet("/outbox", ListOutboxAsync);
         group.MapGet("/attempts", ListAttemptsAsync);
         group.MapGet("/sandbox-receipts", ListSandboxReceiptsAsync);
+        group.MapGet("/sandbox-telematics", ListSandboxTelematicsConnectionsAsync);
+        group.MapPost("/sandbox-telematics", CreateSandboxTelematicsConnectionAsync);
+        group.MapPost("/sandbox-telematics/{connectionId:guid}/enable", EnableSandboxTelematicsConnectionAsync);
 
     }
 
@@ -66,6 +69,12 @@ public static class IntegrationEndpointExtensions
         var device = app.MapGroup("/api/v1/integrations/device")
             .RequireRateLimiting("integration-api-key");
         device.MapPost("/tracking/events", IngestDeviceTelemetryAsync)
+            .RequireAuthorization(new AuthorizeAttribute
+            {
+                AuthenticationSchemes = ApiKeyAuthenticationHandler.SchemeName,
+                Policy = "device-tracking-write"
+            });
+        device.MapPost("/sandbox-telematics/events", IngestSandboxTelematicsAsync)
             .RequireAuthorization(new AuthorizeAttribute
             {
                 AuthenticationSchemes = ApiKeyAuthenticationHandler.SchemeName,
@@ -497,6 +506,61 @@ public static class IntegrationEndpointExtensions
             });
         }
     }
+
+    private static async Task<IResult> IngestSandboxTelematicsAsync(
+        SandboxTelematicsEventRequest request,
+        ClaimsPrincipal user,
+        SandboxTelematicsAdapter adapter,
+        FleetOpsDbContext dbContext,
+        Tracking.TrackingIngestionService ingestionService,
+        CancellationToken cancellationToken)
+    {
+        if (!IsApiKeyType(user, ApiClientCredentialType.Device, out var organizationId)) return Results.Forbid();
+        try
+        {
+            var connection = await dbContext.SandboxTelematicsConnections.FirstOrDefaultAsync(x => x.OrganizationId == organizationId && x.IsActive, cancellationToken);
+            if (connection is null) return Results.Conflict(new { message = "No active Sandbox Telematics Provider connection is configured." });
+            var canonical = adapter.Normalize(request);
+            var response = await ingestionService.IngestAsync(new Tracking.IngestTelemetryRequest(
+                organizationId, request.VehicleId, canonical.ExternalDeviceId,
+                $"sandbox:{canonical.ProviderEventId}", canonical.OccurredAtUtc,
+                canonical.Latitude, canonical.Longitude, canonical.SpeedKph, canonical.HeadingDegrees,
+                canonical.SequenceNumber, canonical.AccuracyMeters, SandboxTelematicsAdapter.ContractVersion), cancellationToken);
+            connection.RecordSuccess(canonical.ProviderEventId, canonical.OccurredAtUtc);
+            await dbContext.SaveChangesAsync(cancellationToken);
+            return Results.Accepted("/api/v1/tracking/positions", response);
+        }
+        catch (Tracking.TrackingValidationException ex)
+        {
+            return Results.ValidationProblem(new Dictionary<string, string[]> { [ex.Field] = [ex.Message] });
+        }
+    }
+
+    private static async Task<IResult> ListSandboxTelematicsConnectionsAsync(HttpContext httpContext, FleetOpsDbContext dbContext, ICurrentTenantAccessor currentTenantAccessor, CancellationToken cancellationToken)
+    {
+        var tenant = currentTenantAccessor.GetRequiredTenant(httpContext.User);
+        var items = await dbContext.SandboxTelematicsConnections.Where(x => x.OrganizationId == tenant.OrganizationId).OrderBy(x => x.Name).ToListAsync(cancellationToken);
+        return Results.Ok(items.Select(MapSandboxConnection));
+    }
+
+    private static async Task<IResult> CreateSandboxTelematicsConnectionAsync(CreateSandboxTelematicsConnectionRequest request, HttpContext httpContext, FleetOpsDbContext dbContext, ICurrentTenantAccessor currentTenantAccessor, TimeProvider timeProvider, CancellationToken cancellationToken)
+    {
+        var tenant = currentTenantAccessor.GetRequiredTenant(httpContext.User);
+        if (string.IsNullOrWhiteSpace(request.Name) || request.Name.Length > 100) return Results.ValidationProblem(new Dictionary<string, string[]> { ["name"] = ["Name must contain up to 100 characters."] });
+        var connection = new SandboxTelematicsConnection(tenant.OrganizationId, request.Name, timeProvider.GetUtcNow());
+        dbContext.SandboxTelematicsConnections.Add(connection); await dbContext.SaveChangesAsync(cancellationToken);
+        return Results.Created($"/api/v1/admin/integrations/sandbox-telematics/{connection.Id}", MapSandboxConnection(connection));
+    }
+
+    private static async Task<IResult> EnableSandboxTelematicsConnectionAsync(Guid connectionId, bool enabled, HttpContext httpContext, FleetOpsDbContext dbContext, ICurrentTenantAccessor currentTenantAccessor, CancellationToken cancellationToken)
+    {
+        var tenant = currentTenantAccessor.GetRequiredTenant(httpContext.User);
+        var connection = await dbContext.SandboxTelematicsConnections.FirstOrDefaultAsync(x => x.OrganizationId == tenant.OrganizationId && x.Id == connectionId, cancellationToken);
+        if (connection is null) return Results.NotFound();
+        connection.SetActive(enabled); await dbContext.SaveChangesAsync(cancellationToken); return Results.Ok(MapSandboxConnection(connection));
+    }
+
+    private static SandboxTelematicsConnectionResponse MapSandboxConnection(SandboxTelematicsConnection item) => new(item.Id, item.Name, item.IsActive, item.LastSucceededAtUtc, item.LastError, item.ResumeCursor, item.RowVersion);
 
     private static async Task<IResult> ReceiveSandboxWebhookAsync(
         Guid webhookId,

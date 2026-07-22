@@ -105,6 +105,28 @@ public sealed class IntegrationApiTests(FleetOpsApiFactory factory) : IClassFixt
     }
 
     [Fact]
+    public async Task SandboxTelematicsReplayIsTenantScopedAndIdempotent()
+    {
+        using var adminClient = factory.CreateClient();
+        var login = await adminClient.LoginAsync("admin@northwind.local", "Admin123!");
+        adminClient.SetBearer(login.AccessToken);
+        var connection = await adminClient.PostAsJsonAsync("/api/v1/admin/integrations/sandbox-telematics", new CreateSandboxTelematicsConnectionRequest($"Sandbox-{Guid.NewGuid():N}"));
+        Assert.Equal(HttpStatusCode.Created, connection.StatusCode);
+        var key = await (await adminClient.PostAsJsonAsync("/api/v1/admin/integrations/api-keys", new CreateApiClientCredentialRequest("Sandbox device", ApiClientCredentialType.Device, [IntegrationScope.DeviceTrackingWrite]))).Content.ReadFromJsonAsync<CreatedApiClientCredentialResponse>();
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<FleetOpsDbContext>();
+        var vehicle = await db.Vehicles.SingleAsync(x => x.RegistrationNumber == "NW-100");
+        using var provider = factory.CreateClient();
+        provider.DefaultRequestHeaders.Add("X-Api-Key", key!.PlainTextSecret);
+        var payload = new SandboxTelematicsEventRequest(SandboxTelematicsAdapter.ContractVersion, vehicle.Id, $"evt-{Guid.NewGuid():N}", "NW-GPS-100", DateTimeOffset.UtcNow, 48.5, 9.3, 30, 90, 1, 8, 1200, "position");
+        var first = await provider.PostAsJsonAsync("/api/v1/integrations/device/sandbox-telematics/events", payload);
+        var replay = await provider.PostAsJsonAsync("/api/v1/integrations/device/sandbox-telematics/events", payload);
+        var replayBody = await replay.Content.ReadFromJsonAsync<TelemetryIngestionResponse>();
+        Assert.Equal(HttpStatusCode.Accepted, first.StatusCode);
+        Assert.True(replayBody!.Duplicate);
+    }
+
+    [Fact]
     public async Task ForgedSandboxWebhookIsRejected()
     {
         using var adminClient = factory.CreateClient();

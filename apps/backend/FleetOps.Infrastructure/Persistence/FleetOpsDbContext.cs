@@ -56,6 +56,7 @@ public sealed class FleetOpsDbContext(DbContextOptions<FleetOpsDbContext> option
     public DbSet<IntegrationOutboxMessage> IntegrationOutboxMessages => Set<IntegrationOutboxMessage>();
     public DbSet<WebhookDeliveryAttempt> WebhookDeliveryAttempts => Set<WebhookDeliveryAttempt>();
     public DbSet<SandboxWebhookReceipt> SandboxWebhookReceipts => Set<SandboxWebhookReceipt>();
+    public DbSet<SandboxTelematicsConnection> SandboxTelematicsConnections => Set<SandboxTelematicsConnection>();
     public DbSet<TenantInvitation> TenantInvitations => Set<TenantInvitation>();
     public DbSet<DriverPairingCode> DriverPairingCodes => Set<DriverPairingCode>();
     public DbSet<OnboardingImportSession> OnboardingImportSessions => Set<OnboardingImportSession>();
@@ -722,6 +723,16 @@ public sealed class FleetOpsDbContext(DbContextOptions<FleetOpsDbContext> option
             entity.Property(x => x.Signature).HasMaxLength(180);
             entity.Property(x => x.PayloadJson).HasMaxLength(4000);
             entity.Property(x => x.ReceivedAtUtc).HasPrecision(7);
+        });
+
+        builder.Entity<SandboxTelematicsConnection>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.OrganizationId, x.Name }).IsUnique();
+            entity.Property(x => x.Name).HasMaxLength(100);
+            entity.Property(x => x.LastError).HasMaxLength(300);
+            entity.Property(x => x.ResumeCursor).HasMaxLength(128);
+            entity.Property(x => x.LastSucceededAtUtc).HasPrecision(7);
         });
     }
 

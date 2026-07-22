@@ -58,6 +58,10 @@ flowchart LR
 
 Tracking reads remain under `/api/v1/tracking` for Administrator and Operator roles. `POST /trips/recalculate` and `POST /geofences` are Administrator-only and every query is server-side tenant filtered.
 
+## Virtual telematics provider
+
+Development and demos can submit versioned virtual-provider events through the internal Sandbox Telematics Provider. The HTTP adapter normalizes `sandbox-telematics.v1` events into the same tenant-scoped tracking ingestion pipeline as a real device, including replay protection. It is non-commercial by design and can be replaced by a real-provider adapter without changing the tracking domain; see [the contract guide](docs/02-engineering/SANDBOX_TELEMATICS_PROVIDER.md).
+
 ![Northwind operator mission and proof timeline](docs/assets/screenshots/simulation-northwind-operator-dispatch.png)
 
 ## Dispatch productivity
