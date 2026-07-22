@@ -8,6 +8,12 @@ export type TrackingPositionResponse = {
   longitude: number;
   speedKph: number;
   headingDegrees: number;
+  sequenceNumber?: number | null;
+  accuracyMeters?: number | null;
+  source?: string;
+  qualityScore?: number;
+  qualityStatus?: "Fresh" | "Delayed" | "Inaccurate" | "Invalid" | "Silent";
+  qualityReason?: string;
 };
 
 export type TrackingHistoryItemResponse = {
@@ -20,6 +26,11 @@ export type TrackingHistoryItemResponse = {
   longitude: number;
   speedKph: number;
   headingDegrees: number;
+  sequenceNumber?: number | null;
+  accuracyMeters?: number | null;
+  source?: string;
+  qualityScore?: number;
+  anomalyFlags?: string;
 };
 
 export type TrackingHistoryPageResponse = {
@@ -36,4 +47,19 @@ export type TrackingMetricsResponse = {
   duplicateCount: number;
   outOfOrderCount: number;
   retentionDays: number;
+};
+
+export type TrackingDiagnosticResponse = {
+  vehicleId: string;
+  registrationNumber: string;
+  displayName: string;
+  driverName: string | null;
+  deviceId: string;
+  lastCommunicationAtUtc: string | null;
+  status: "Fresh" | "Delayed" | "Inaccurate" | "Invalid" | "Silent";
+  reason: string;
+  qualityScore: number;
+  accuracyMeters: number | null;
+  source: string;
+  sequenceNumber: number | null;
 };

@@ -2,7 +2,7 @@
 
 ## Principe
 
-L’état réel du dépôt compte dix-sept sprints terminés, `SPRINT-00` à `SPRINT-16`. La trajectoire approuvée ajoute exactement vingt sprints denses, `SPRINT-11` à `SPRINT-30`, pour transformer le MVP audité à 66/100 en produit de flotte exploitable, mesurable et commercialisable.
+L’état réel du dépôt compte vingt-et-un sprints terminés, `SPRINT-00` à `SPRINT-20`. La trajectoire approuvée se poursuit avec Sprint 21 actif jusqu’à Sprint 30 pour transformer le MVP audité en produit de flotte exploitable, mesurable et commercialisable.
 
 L’extension reste centrée sur le noyau **mission → conducteur offline → inspection/preuve → exception → action opérateur**. Elle consolide ensuite maintenance, conformité, télématique ouverte, communication destinataire, reporting et exploitation SaaS. Chaque sprint laisse le système exécutable et possède un résultat démontrable, des métriques, des tests, une vérification sécurité/tenant et un rollback.
 
@@ -31,9 +31,9 @@ Les sprints futurs sont une séquence de décisions, pas une promesse de tout co
 | 16 | Stockage objet, médias sûrs et cycle de vie | Résilience des preuves | Terminé | L |
 | 17 | Ordres de maintenance, immobilisation et coûts | Disponibilité véhicule | Terminé | XL |
 | 18 | Conformité documentaire et campagnes d’inspection | Réduction du risque réglementaire | Terminé | L |
-| 19 | Dispatch productif, modèles et actions en masse | Capacité opérationnelle | En cours | XL |
-| 20 | Pilote alpha mesuré et décision de niche | Validation de la valeur | Planifié | L |
-| 21 | Qualité du tracking, trajets et zones métier | Confiance télématique | Planifié | XL |
+| 19 | Dispatch productif, modèles et actions en masse | Capacité opérationnelle | Terminé | XL |
+| 20 | Pilote alpha mesuré et décision de niche | Validation qualitative de la valeur | Terminé (`GO` D-016) | L |
+| 21 | Qualité du tracking, trajets et zones métier | Confiance télématique | En cours | XL |
 | 22 | Cadre de connecteurs et premier fournisseur télématique | Écosystème matériel ouvert | Planifié | XL |
 | 23 | Statut destinataire, ETA prudent et notifications contrôlées | Réduction des appels | Planifié | L |
 | 24 | Rapports opérationnels et indicateurs de valeur | Pilotage et ROI | Planifié | L |

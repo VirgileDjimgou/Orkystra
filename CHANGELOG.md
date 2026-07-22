@@ -6,6 +6,9 @@ Toutes les modifications fonctionnelles significatives sont documentées ici.
 
 ### Added
 
+- Sprint 21 tracking quality: accepted telemetry retains source, sequence, accuracy, quality score, and anomaly flags; unreliable updates do not overwrite the live position.
+- Tenant-safe tracking diagnostics, versioned bounded trip recalculation, and circular or polygonal business zones with enter/exit events.
+
 - A modular full-project simulator that drives Admin, Operator, Driver, and device behavior through real APIs for three fictitious tenant sectors, produces clearly labelled reports, validates cross-tenant isolation, and captures deterministic Web and connected-Android walkthrough evidence.
 - Reproducible simulation seeds for Northwind Logistics, Southridge Transport, and Westland Field Services, each with isolated fleet assets and all three human roles.
 - Sprint 20 measured alpha pilot controls: explicit tenant administrator consent, privacy-minimal and idempotent daily operational aggregates, support-incident tracking, evidence export, and auditable `GO`/`SIMPLIFY`/`PIVOT`/`STOP` niche decisions.

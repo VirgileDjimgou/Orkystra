@@ -123,6 +123,9 @@
                 <div class="text-secondary small">
                   {{ formatCoordinates(position.latitude, position.longitude) }}
                 </div>
+                <span :class="qualityBadgeClass(position.qualityStatus)">{{
+                  position.qualityStatus ?? "Fresh"
+                }}</span>
               </div>
               <div class="user-meta">
                 <span>{{ position.speedKph.toFixed(0) }} km/h</span>
@@ -133,6 +136,15 @@
         </section>
 
         <section class="surface-panel mt-4">
+          <div v-if="selectedDiagnostic" class="diagnostic-card mb-3">
+            <strong>Vehicle and device diagnostic</strong>
+            <span>{{ selectedDiagnostic.reason }}</span>
+            <small>
+              Device {{ selectedDiagnostic.deviceId }} ·
+              {{ selectedDiagnostic.source }} · accuracy
+              {{ selectedDiagnostic.accuracyMeters?.toFixed(0) ?? "—" }} m
+            </small>
+          </div>
           <div class="panel-heading">
             <div>
               <h2>Tracking history</h2>
@@ -231,6 +243,12 @@ const markers = new Map<string, L.CircleMarker>();
 const selectedVehicle = computed(
   () =>
     tracking.positions.find(
+      (item) => item.vehicleId === selectedVehicleId.value,
+    ) ?? null,
+);
+const selectedDiagnostic = computed(
+  () =>
+    tracking.diagnostics.find(
       (item) => item.vehicleId === selectedVehicleId.value,
     ) ?? null,
 );
@@ -352,15 +370,41 @@ function syncMarkers() {
     marker.setLatLng([position.latitude, position.longitude]);
     marker.setStyle({
       color:
-        selectedVehicleId.value === position.vehicleId ? "#0d6efd" : "#198754",
+        selectedVehicleId.value === position.vehicleId
+          ? "#0d6efd"
+          : qualityColor(position.qualityStatus),
       fillColor:
-        selectedVehicleId.value === position.vehicleId ? "#8fb9ff" : "#63d297",
+        selectedVehicleId.value === position.vehicleId
+          ? "#8fb9ff"
+          : qualityColor(position.qualityStatus),
       fillOpacity: 0.9,
     });
     marker.bindPopup(
       `${position.registrationNumber} · ${position.speedKph.toFixed(0)} km/h`,
     );
   }
+}
+
+function qualityColor(status?: TrackingPositionResponse["qualityStatus"]) {
+  return (
+    {
+      Fresh: "#198754",
+      Delayed: "#fd7e14",
+      Inaccurate: "#ffc107",
+      Invalid: "#dc3545",
+      Silent: "#6c757d",
+    } as const
+  )[status ?? "Fresh"];
+}
+
+function qualityBadgeClass(status?: TrackingPositionResponse["qualityStatus"]) {
+  const tone =
+    status === "Fresh"
+      ? "text-bg-success"
+      : status === "Delayed" || status === "Inaccurate"
+        ? "text-bg-warning"
+        : "text-bg-secondary";
+  return `badge ${tone}`;
 }
 
 async function refresh() {
@@ -430,6 +474,7 @@ onMounted(async () => {
       (state) => {
         tracking.setConnectionState(state);
       },
+      async () => refresh(),
     );
   } catch {
     tracking.setConnectionState("offline");
@@ -497,5 +542,13 @@ onBeforeUnmount(async () => {
   border-radius: 1rem;
   background: linear-gradient(180deg, rgba(248, 249, 250, 0.96), #ffffff);
   border: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.diagnostic-card {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.85rem;
+  border-left: 4px solid #0d6efd;
+  background: #f8f9fa;
 }
 </style>

@@ -110,6 +110,27 @@ describe("FleetMapView", () => {
           );
         }
 
+        if (url.includes("/api/v1/tracking/diagnostics")) {
+          return new Response(
+            JSON.stringify([
+              {
+                vehicleId: "veh-1",
+                registrationNumber: "NW-100",
+                displayName: "Dispatch van",
+                driverName: null,
+                deviceId: "NW-GPS-100",
+                lastCommunicationAtUtc: "2026-07-15T10:00:01Z",
+                status: "Fresh",
+                reason: "Position is reliable.",
+                qualityScore: 100,
+                accuracyMeters: 8,
+                source: "simulator",
+                sequenceNumber: 1,
+              },
+            ]),
+          );
+        }
+
         if (url.includes("/api/v1/tracking/history")) {
           return new Response(
             JSON.stringify({
@@ -155,6 +176,7 @@ describe("FleetMapView", () => {
 
     expect(wrapper.text()).toContain("Fleet map");
     expect(wrapper.text()).toContain("NW-100");
+    expect(wrapper.text()).toContain("Vehicle and device diagnostic");
     expect(wrapper.text()).toContain("NW-101");
     expect(wrapper.text()).toContain("Duplicates ignored");
     expect(wrapper.text()).toContain("evt-2");

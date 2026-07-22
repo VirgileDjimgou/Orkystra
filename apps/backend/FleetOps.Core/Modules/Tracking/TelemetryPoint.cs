@@ -16,7 +16,12 @@ public sealed class TelemetryPoint : TenantEntity
         double longitude,
         double speedKph,
         double headingDegrees,
-        DateTimeOffset ingestedAtUtc)
+        DateTimeOffset ingestedAtUtc,
+        long? sequenceNumber = null,
+        double? accuracyMeters = null,
+        string source = "unknown",
+        int qualityScore = 100,
+        string anomalyFlags = "")
     {
         if (organizationId == Guid.Empty) throw new ArgumentException("Organization is required.", nameof(organizationId));
         if (vehicleId == Guid.Empty) throw new ArgumentException("Vehicle identifier is required.", nameof(vehicleId));
@@ -37,6 +42,11 @@ public sealed class TelemetryPoint : TenantEntity
         SpeedKph = speedKph;
         HeadingDegrees = headingDegrees;
         IngestedAtUtc = ingestedAtUtc.ToUniversalTime();
+        SequenceNumber = sequenceNumber;
+        AccuracyMeters = accuracyMeters;
+        Source = string.IsNullOrWhiteSpace(source) ? "unknown" : source.Trim();
+        QualityScore = Math.Clamp(qualityScore, 0, 100);
+        AnomalyFlags = anomalyFlags?.Trim() ?? string.Empty;
     }
 
     public Guid VehicleId { get; private set; }
@@ -48,4 +58,9 @@ public sealed class TelemetryPoint : TenantEntity
     public double Longitude { get; private set; }
     public double SpeedKph { get; private set; }
     public double HeadingDegrees { get; private set; }
+    public long? SequenceNumber { get; private set; }
+    public double? AccuracyMeters { get; private set; }
+    public string Source { get; private set; } = "unknown";
+    public int QualityScore { get; private set; }
+    public string AnomalyFlags { get; private set; } = string.Empty;
 }

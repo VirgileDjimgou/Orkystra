@@ -23,6 +23,8 @@ public sealed class TrackingIngestionService(
     FleetOpsDbContext dbContext,
     IHubContext<TrackingHub> hubContext,
     TrackingMetricsStore metricsStore,
+    TrackingQualityAnalyzer qualityAnalyzer,
+    TrackingDerivationService derivationService,
     TimeProvider timeProvider,
     IOptions<TrackingOptions> options)
 {
@@ -62,6 +64,11 @@ public sealed class TrackingIngestionService(
             throw new TrackingValidationException("deviceId", "Device is not actively assigned to the target vehicle.");
         }
 
+        var currentPosition = await dbContext.CurrentVehiclePositions
+            .FirstOrDefaultAsync(
+                x => x.OrganizationId == request.OrganizationId && x.VehicleId == request.VehicleId,
+                cancellationToken);
+        var assessment = qualityAnalyzer.Assess(currentPosition, request);
         var point = new TelemetryPoint(
             request.OrganizationId,
             request.VehicleId,
@@ -72,18 +79,13 @@ public sealed class TrackingIngestionService(
             request.Longitude,
             request.SpeedKph,
             request.HeadingDegrees,
-            timeProvider.GetUtcNow());
+            timeProvider.GetUtcNow(), request.SequenceNumber, request.AccuracyMeters, request.Source, assessment.Score, assessment.Flags);
 
         dbContext.TelemetryPoints.Add(point);
 
-        var currentPosition = await dbContext.CurrentVehiclePositions
-            .FirstOrDefaultAsync(
-                x => x.OrganizationId == request.OrganizationId && x.VehicleId == request.VehicleId,
-                cancellationToken);
-
         var currentUpdated = false;
         var outOfOrder = false;
-        if (currentPosition is null)
+        if (currentPosition is null && assessment.IsReliable)
         {
             dbContext.CurrentVehiclePositions.Add(new CurrentVehiclePosition(
                 point.OrganizationId,
@@ -94,10 +96,10 @@ public sealed class TrackingIngestionService(
                 point.Latitude,
                 point.Longitude,
                 point.SpeedKph,
-                point.HeadingDegrees));
+                point.HeadingDegrees, point.IngestedAtUtc, point.SequenceNumber, point.AccuracyMeters, point.Source, point.QualityScore, point.AnomalyFlags));
             currentUpdated = true;
         }
-        else if (point.RecordedAtUtc > currentPosition.RecordedAtUtc)
+        else if (currentPosition is not null && assessment.IsReliable && point.RecordedAtUtc > currentPosition.RecordedAtUtc)
         {
             currentPosition.UpdateFrom(point);
             currentUpdated = true;
@@ -108,6 +110,7 @@ public sealed class TrackingIngestionService(
         }
 
         var retentionDeletedCount = await ApplyRetentionAsync(request.OrganizationId, cancellationToken);
+        await derivationService.ProcessGeofencesAsync(point, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
 
         metricsStore.RecordAccepted(request.OrganizationId, outOfOrder);

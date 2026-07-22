@@ -43,6 +43,21 @@ The automated walkthrough performs the following sequence for every tenant:
 
 All generated reports are labelled **SIMULATED DEVELOPMENT EVIDENCE — NOT PILOT OR COMMERCIAL PROOF**. The simulator never creates a Sprint 20 niche decision and therefore cannot replace measured alpha evidence from real consenting pilot organizations.
 
+## Tracking quality, trips and business zones
+
+The live fleet map distinguishes fresh, delayed, inaccurate, invalid, and silent signals. Operators can inspect freshness, accuracy, source, sequence, and quality reason without trusting implausible jumps. Administrators can create tenant-scoped circular or polygonal business zones and recalculate versioned trip summaries for one vehicle over at most seven days.
+
+```mermaid
+flowchart LR
+  Device["Device telemetry"] --> Quality["Quality assessment"]
+  Quality -->|Reliable| Map["Live map and diagnostics"]
+  Quality -->|All events| History["Immutable history"]
+  History --> Trips["Versioned trip recalculation"]
+  Map --> Zones["Tenant-scoped zone transitions"]
+```
+
+Tracking reads remain under `/api/v1/tracking` for Administrator and Operator roles. `POST /trips/recalculate` and `POST /geofences` are Administrator-only and every query is server-side tenant filtered.
+
 ![Northwind operator mission and proof timeline](docs/assets/screenshots/simulation-northwind-operator-dispatch.png)
 
 ## Dispatch productivity

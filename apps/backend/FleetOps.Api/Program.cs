@@ -54,6 +54,8 @@ builder.Services.AddSignalR();
 builder.Services.AddFleetOpsInfrastructure(builder.Configuration);
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
 builder.Services.Configure<TrackingOptions>(builder.Configuration.GetSection(TrackingOptions.SectionName));
+builder.Services.AddScoped<TrackingQualityAnalyzer>();
+builder.Services.AddScoped<TrackingDerivationService>();
 builder.Services.AddOpenTelemetry()
     .ConfigureResource(resource => resource.AddService(
         serviceName: "fleetops-api",

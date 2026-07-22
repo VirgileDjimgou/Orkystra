@@ -2,6 +2,7 @@ import { defineStore } from "pinia";
 import { apiRequest } from "../../services/api";
 import type {
   TrackingHistoryPageResponse,
+  TrackingDiagnosticResponse,
   TrackingMetricsResponse,
   TrackingPositionResponse,
 } from "./contracts";
@@ -14,12 +15,14 @@ export const useTrackingStore = defineStore("tracking", {
     positions: [] as TrackingPositionResponse[],
     metrics: null as TrackingMetricsResponse | null,
     history: null as TrackingHistoryPageResponse | null,
+    diagnostics: [] as TrackingDiagnosticResponse[],
     positionsStatus: "idle" as AsyncStatus,
     historyStatus: "idle" as AsyncStatus,
     metricsStatus: "idle" as AsyncStatus,
     positionsError: "",
     historyError: "",
     metricsError: "",
+    diagnosticsError: "",
     connectionState: "idle" as TrackingConnectionState,
   }),
   actions: {
@@ -52,6 +55,17 @@ export const useTrackingStore = defineStore("tracking", {
         this.metricsError = "Unable to load tracking metrics.";
       }
     },
+    async loadDiagnostics(token: string) {
+      this.diagnosticsError = "";
+      try {
+        this.diagnostics = await apiRequest<TrackingDiagnosticResponse[]>(
+          "/api/v1/tracking/diagnostics",
+          { token },
+        );
+      } catch {
+        this.diagnosticsError = "Unable to load tracking diagnostics.";
+      }
+    },
     async loadHistory(
       token: string,
       vehicleId: string,
@@ -72,7 +86,11 @@ export const useTrackingStore = defineStore("tracking", {
       }
     },
     async refresh(token: string) {
-      await Promise.all([this.loadPositions(token), this.loadMetrics(token)]);
+      await Promise.all([
+        this.loadPositions(token),
+        this.loadMetrics(token),
+        this.loadDiagnostics(token),
+      ]);
     },
     applyLivePosition(position: TrackingPositionResponse) {
       const existing = this.positions.find(

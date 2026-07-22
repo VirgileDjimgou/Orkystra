@@ -40,12 +40,16 @@ Dry-run onboarding, restauration périodique, sécurité tenant trois organisati
 
 ## Critères d’acceptation
 
-- [ ] trois organisations sont onboardées sans manipulation manuelle de données ;
-- [ ] au moins deux utilisent le flux quatre jours par semaine pendant deux semaines ;
-- [ ] au moins 95 % des commandes sync et 90 % des missions clôturées ont une preuve complète ;
-- [ ] appels de statut ou temps de clôture diminuent de façon mesurée chez au moins un pilote ;
-- [ ] un pilote accepte de payer ou signe une lettre d’intention qualifiée ;
-- [ ] décision `GO`, `SIMPLIFY`, `PIVOT` ou `STOP` et niche principale sont documentées.
+La gate a été amendée par la décision `D-016` du 22 juillet 2026. Le Product Owner confirme des essais dans plusieurs entreprises, un intérêt convergent et une demande récurrente pour une carte et des espaces Admin/Operator plus interactifs. Ce signal qualitatif autorise la poursuite vers Sprint 21 sans prétendre que les seuils quantitatifs initiaux ont été atteints.
+
+- [x] plusieurs entreprises ont essayé le produit et exprimé un intérêt positif, confirmation Product Owner ;
+- [x] le principal retour produit est consolidé : carte temps réel interactive, diagnostic véhicule/chauffeur/appareil et dashboards plus riches ;
+- [x] décision `GO` qualitative documentée dans `D-016`, avec tracking fiable et interactif comme investissement suivant ;
+- [x] les références visuelles tierces restent des inspirations de principes UX, sans copie de marque, d’assets ni d’interface propriétaire ;
+- [ ] trois organisations onboardées sans manipulation manuelle de données — `NON VÉRIFIÉ`, reporté avant bêta ;
+- [ ] usage quatre jours par semaine pendant deux semaines — `NON VÉRIFIÉ`, reporté avant bêta ;
+- [ ] 95 % des commandes sync et 90 % des missions avec preuve complète — `NON VÉRIFIÉ`, reporté avant bêta ;
+- [ ] amélioration opérationnelle mesurée et volonté de payer/LOI — `NON VÉRIFIÉ`, reporté avant bêta.
 
 ## Livrable démontrable
 
@@ -53,7 +57,7 @@ Une revue alpha associe métriques, incidents, verbatims résumés et décision 
 
 ## Gate de décision et rollback
 
-Sans deux pilotes actifs, ne pas ouvrir les connecteurs télématiques : corriger onboarding/flux ou simplifier. Les données pilotes sont exportables et purgeables selon contrat et rétention.
+La décision `GO` ouvre uniquement Sprint 21. Les connecteurs télématiques Sprint 22 restent conditionnés à une qualité de tracking démontrée et les preuves commerciales quantitatives restent obligatoires avant la bêta. Les données pilotes sont exportables et purgeables selon contrat et rétention.
 
 ## Estimation
 

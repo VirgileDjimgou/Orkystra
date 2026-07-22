@@ -15,7 +15,13 @@ public sealed class CurrentVehiclePosition : TenantEntity
         double latitude,
         double longitude,
         double speedKph,
-        double headingDegrees)
+        double headingDegrees,
+        DateTimeOffset? ingestedAtUtc = null,
+        long? sequenceNumber = null,
+        double? accuracyMeters = null,
+        string source = "unknown",
+        int qualityScore = 100,
+        string anomalyFlags = "")
     {
         if (organizationId == Guid.Empty) throw new ArgumentException("Organization is required.", nameof(organizationId));
         OrganizationId = organizationId;
@@ -29,6 +35,12 @@ public sealed class CurrentVehiclePosition : TenantEntity
             longitude,
             speedKph,
             headingDegrees);
+        IngestedAtUtc = (ingestedAtUtc ?? recordedAtUtc).ToUniversalTime();
+        SequenceNumber = sequenceNumber;
+        AccuracyMeters = accuracyMeters;
+        Source = string.IsNullOrWhiteSpace(source) ? "unknown" : source.Trim();
+        QualityScore = Math.Clamp(qualityScore, 0, 100);
+        AnomalyFlags = anomalyFlags?.Trim() ?? string.Empty;
     }
 
     public Guid VehicleId { get; private set; }
@@ -39,6 +51,12 @@ public sealed class CurrentVehiclePosition : TenantEntity
     public double Longitude { get; private set; }
     public double SpeedKph { get; private set; }
     public double HeadingDegrees { get; private set; }
+    public DateTimeOffset IngestedAtUtc { get; private set; }
+    public long? SequenceNumber { get; private set; }
+    public double? AccuracyMeters { get; private set; }
+    public string Source { get; private set; } = "unknown";
+    public int QualityScore { get; private set; } = 100;
+    public string AnomalyFlags { get; private set; } = string.Empty;
 
     public void UpdateFrom(TelemetryPoint point)
     {
@@ -53,6 +71,12 @@ public sealed class CurrentVehiclePosition : TenantEntity
             point.Longitude,
             point.SpeedKph,
             point.HeadingDegrees);
+        IngestedAtUtc = point.IngestedAtUtc;
+        SequenceNumber = point.SequenceNumber;
+        AccuracyMeters = point.AccuracyMeters;
+        Source = point.Source;
+        QualityScore = point.QualityScore;
+        AnomalyFlags = point.AnomalyFlags;
     }
 
     private void Apply(

@@ -44,6 +44,9 @@ public sealed class FleetOpsDbContext(DbContextOptions<FleetOpsDbContext> option
     public DbSet<DeviceAssignment> DeviceAssignments => Set<DeviceAssignment>();
     public DbSet<TelemetryPoint> TelemetryPoints => Set<TelemetryPoint>();
     public DbSet<CurrentVehiclePosition> CurrentVehiclePositions => Set<CurrentVehiclePosition>();
+    public DbSet<TrackingTrip> TrackingTrips => Set<TrackingTrip>();
+    public DbSet<TrackingGeofence> TrackingGeofences => Set<TrackingGeofence>();
+    public DbSet<TrackingGeofenceEvent> TrackingGeofenceEvents => Set<TrackingGeofenceEvent>();
     public DbSet<ComplianceDocument> ComplianceDocuments => Set<ComplianceDocument>();
     public DbSet<VehicleMaintenancePlan> VehicleMaintenancePlans => Set<VehicleMaintenancePlan>();
     public DbSet<OperationalAlert> OperationalAlerts => Set<OperationalAlert>();
@@ -554,6 +557,9 @@ public sealed class FleetOpsDbContext(DbContextOptions<FleetOpsDbContext> option
             entity.Property(x => x.RecordedAtUtc).HasPrecision(7);
             entity.Property(x => x.IngestedAtUtc).HasPrecision(7);
             entity.Property(x => x.HeadingDegrees).HasPrecision(6, 2);
+            entity.Property(x => x.Source).HasMaxLength(32);
+            entity.Property(x => x.AnomalyFlags).HasMaxLength(160);
+            entity.Property(x => x.AccuracyMeters).HasPrecision(8, 2);
         });
 
         builder.Entity<CurrentVehiclePosition>(entity =>
@@ -563,7 +569,43 @@ public sealed class FleetOpsDbContext(DbContextOptions<FleetOpsDbContext> option
             entity.Property(x => x.DeviceId).HasMaxLength(64);
             entity.Property(x => x.EventId).HasMaxLength(128);
             entity.Property(x => x.RecordedAtUtc).HasPrecision(7);
+            entity.Property(x => x.IngestedAtUtc).HasPrecision(7);
             entity.Property(x => x.HeadingDegrees).HasPrecision(6, 2);
+            entity.Property(x => x.Source).HasMaxLength(32);
+            entity.Property(x => x.AnomalyFlags).HasMaxLength(160);
+            entity.Property(x => x.AccuracyMeters).HasPrecision(8, 2);
+        });
+
+        builder.Entity<TrackingTrip>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.OrganizationId, x.VehicleId, x.StartedAtUtc });
+            entity.Property(x => x.StartedAtUtc).HasPrecision(7);
+            entity.Property(x => x.EndedAtUtc).HasPrecision(7);
+            entity.Property(x => x.CalculatedAtUtc).HasPrecision(7);
+            entity.Property(x => x.DistanceKm).HasPrecision(12, 3);
+            entity.Property(x => x.AlgorithmVersion).HasMaxLength(32);
+        });
+
+        builder.Entity<TrackingGeofence>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.OrganizationId, x.Name }).IsUnique();
+            entity.Property(x => x.Name).HasMaxLength(100);
+            entity.Property(x => x.Shape).HasConversion<string>().HasMaxLength(16);
+            entity.Property(x => x.RadiusMeters).HasPrecision(10, 2);
+            entity.Property(x => x.PolygonJson).HasMaxLength(4000);
+            entity.Property(x => x.CreatedAtUtc).HasPrecision(7);
+        });
+
+        builder.Entity<TrackingGeofenceEvent>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.OrganizationId, x.GeofenceId, x.VehicleId, x.TelemetryEventId, x.Transition }).IsUnique();
+            entity.HasIndex(x => new { x.OrganizationId, x.OccurredAtUtc });
+            entity.Property(x => x.TelemetryEventId).HasMaxLength(128);
+            entity.Property(x => x.Transition).HasConversion<string>().HasMaxLength(16);
+            entity.Property(x => x.OccurredAtUtc).HasPrecision(7);
         });
 
         builder.Entity<ComplianceDocument>(entity =>
