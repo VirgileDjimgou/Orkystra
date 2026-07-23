@@ -25,6 +25,7 @@ public sealed class FleetOpsDbContext(DbContextOptions<FleetOpsDbContext> option
     public DbSet<Mission> Missions => Set<Mission>();
     public DbSet<MissionStop> MissionStops => Set<MissionStop>();
     public DbSet<MissionTimelineEvent> MissionTimelineEvents => Set<MissionTimelineEvent>();
+    public DbSet<RecipientStatusLink> RecipientStatusLinks => Set<RecipientStatusLink>();
     public DbSet<DriverSyncCommandReceipt> DriverSyncCommandReceipts => Set<DriverSyncCommandReceipt>();
     public DbSet<ChecklistTemplate> ChecklistTemplates => Set<ChecklistTemplate>();
     public DbSet<ChecklistTemplateItem> ChecklistTemplateItems => Set<ChecklistTemplateItem>();
@@ -405,6 +406,17 @@ public sealed class FleetOpsDbContext(DbContextOptions<FleetOpsDbContext> option
             entity.HasKey(x => x.Id);
             entity.HasIndex(x => new { x.OrganizationId, x.DeliveryProofId, x.MediaAssetId }).IsUnique();
             entity.Property(x => x.Caption).HasMaxLength(240);
+        });
+
+        builder.Entity<RecipientStatusLink>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.TokenHash).IsUnique();
+            entity.HasIndex(x => new { x.OrganizationId, x.MissionId, x.ExpiresAtUtc });
+            entity.Property(x => x.TokenHash).HasMaxLength(64);
+            entity.Property(x => x.ExpiresAtUtc).HasPrecision(7);
+            entity.Property(x => x.RevokedAtUtc).HasPrecision(7);
+            entity.Property(x => x.LastViewedAtUtc).HasPrecision(7);
         });
 
         builder.Entity<MediaAsset>(entity =>

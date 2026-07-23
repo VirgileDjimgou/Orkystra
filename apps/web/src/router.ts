@@ -19,10 +19,12 @@ import UsersAdminView from "./views/UsersAdminView.vue";
 import VehiclesView from "./views/VehiclesView.vue";
 import MaintenanceView from "./views/MaintenanceView.vue";
 import ComplianceView from "./views/ComplianceView.vue";
+import RecipientStatusView from "./views/RecipientStatusView.vue";
 
 export const router = createRouter({
   history: createWebHistory(),
   routes: [
+    { path: "/public/recipient-status/:token", component: RecipientStatusView, meta: { public: true } },
     { path: "/login", component: LoginView, meta: { guestOnly: true } },
     {
       path: "/admin/onboarding",
@@ -184,6 +186,9 @@ router.beforeEach(async (to) => {
   const session = useSessionStore(pinia);
   const { isAuthenticated, isAdmin } = storeToRefs(session);
 
+  if (to.meta.public) {
+    return true;
+  }
   if (!session.initialized) {
     await session.hydrate();
   }

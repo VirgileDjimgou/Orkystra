@@ -1,5 +1,5 @@
 <template>
-  <RouterView v-if="isLoginRoute" />
+  <RouterView v-if="isLoginRoute || isPublicRoute" />
   <template v-else>
     <a class="skip-link" href="#main-content">Skip to main content</a>
     <div class="app-shell">
@@ -117,6 +117,7 @@ const router = useRouter();
 const session = useSessionStore();
 const isNavigationOpen = ref(false);
 const isLoginRoute = computed(() => route.path === "/login");
+const isPublicRoute = computed(() => route.meta.public === true);
 const pageTitle = computed(() =>
   String(route.meta.title ?? "Operations overview"),
 );

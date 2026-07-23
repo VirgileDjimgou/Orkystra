@@ -4,16 +4,21 @@ using FleetOps.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+
+#pragma warning disable CA1861 // EF-generated migration metadata uses array literals.
 
 #nullable disable
 
 namespace FleetOps.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(FleetOpsDbContext))]
-    partial class FleetOpsDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260722235418_Sprint23RecipientStatus")]
+    partial class Sprint23RecipientStatus
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

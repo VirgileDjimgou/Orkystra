@@ -17,6 +17,7 @@ using FleetOps.Api.Observability;
 using FleetOps.Api.Onboarding;
 using FleetOps.Api.Operations;
 using FleetOps.Api.Pilot;
+using FleetOps.Api.RecipientStatus;
 using FleetOps.Api.Security;
 using FleetOps.Api.Tracking;
 using FleetOps.Core.Modules.Integrations;
@@ -229,6 +230,12 @@ builder.Services.AddRateLimiter(options =>
         limiter.Window = TimeSpan.FromMinutes(1);
         limiter.QueueLimit = 0;
     });
+    options.AddFixedWindowLimiter("recipient-status", limiter =>
+    {
+        limiter.PermitLimit = 30;
+        limiter.Window = TimeSpan.FromMinutes(1);
+        limiter.QueueLimit = 0;
+    });
 });
 builder.Services.AddCors(options => options.AddDefaultPolicy(policy =>
     policy.WithOrigins(webOrigin)
@@ -297,6 +304,7 @@ app.MapDriverEndpoints();
 app.MapDeviceEndpoints();
 app.MapFleetAlertConfigurationEndpoints();
 app.MapDispatchEndpoints();
+app.MapRecipientStatusEndpoints();
 app.MapDispatchProductivityEndpoints();
 app.MapDriverAppEndpoints();
 app.MapDriverOperationsEndpoints();

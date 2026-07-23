@@ -1058,6 +1058,10 @@ The browser never needs direct access to a bearer credential, so it uses an Http
 
 Admin/Operator and Driver workflows have different interaction models, offline requirements, and device constraints. The split keeps each experience focused and technically appropriate.
 
+### Recipient status links (in progress)
+
+Sprint 23 introduces the secured API foundation for a temporary recipient status link. Links are opaque, stored only as hashes, expire automatically, can be revoked immediately, and return a deliberately minimal, non-cacheable mission-status response. Recipient preferences, delivery channels, and the public Web page are not yet available.
+
 ## Roadmap Snapshot
 
 | Range | Outcome |
