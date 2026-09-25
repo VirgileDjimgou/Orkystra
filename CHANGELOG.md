@@ -6,6 +6,8 @@ Toutes les modifications fonctionnelles significatives sont documentées ici.
 
 ### Added
 
+- Sprint 23 recipient status: opaque expiring/revocable mission links, a privacy-minimal public status page with broad ETA window and contact correction, tenant-controlled notification consent/preferences, and a protected, deduplicated notification outbox with delivery metrics.
+
 - Sprint 22 start: a versioned HTTP Sandbox Telematics Provider adapter normalizes virtual provider events into canonical tenant-scoped tracking ingestion with existing replay protection.
 
 - Sprint 21 tracking quality: accepted telemetry retains source, sequence, accuracy, quality score, and anomaly flags; unreliable updates do not overwrite the live position.
@@ -72,6 +74,8 @@ Toutes les modifications fonctionnelles significatives sont documentées ici.
 - Production hardening and pilot readiness with administrator MFA, tenant lifecycle export/purge, OTLP observability, readiness checks, pilot Docker packaging, and SQL backup/restore scripts.
 
 ### Changed
+
+- Updated `Testcontainers.MsSql` to 4.15.0 and its SQL integration factory to remove the vulnerable transitive `SSH.NET 2024.2.0` dependency and retain SQL Server test compatibility.
 
 - Driver mission summaries no longer misclassify processed idempotency receipts as unsynchronized device commands.
 - Fixed Android dark-theme contrast for the app bar, mission cards, sync summary, stops, timeline, inspection, and delivery-proof panels.

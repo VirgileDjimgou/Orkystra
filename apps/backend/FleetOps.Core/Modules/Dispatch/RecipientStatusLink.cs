@@ -18,6 +18,7 @@ public sealed class RecipientStatusLink : TenantEntity
 
     public Guid MissionId { get; private init; }
     public string TokenHash { get; private init; } = string.Empty;
+    public string? RecipientEmailProtected { get; private set; }
     public DateTimeOffset ExpiresAtUtc { get; private set; }
     public DateTimeOffset? RevokedAtUtc { get; private set; }
     public DateTimeOffset? LastViewedAtUtc { get; private set; }
@@ -29,5 +30,11 @@ public sealed class RecipientStatusLink : TenantEntity
     {
         LastViewedAtUtc = now.ToUniversalTime();
         ViewCount++;
+    }
+
+    public void SetRecipientEmailProtected(string protectedEmail)
+    {
+        if (string.IsNullOrWhiteSpace(protectedEmail) || protectedEmail.Length > 1000) throw new ArgumentException("A protected recipient email is required.", nameof(protectedEmail));
+        RecipientEmailProtected = protectedEmail;
     }
 }

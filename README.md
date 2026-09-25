@@ -62,6 +62,21 @@ Tracking reads remain under `/api/v1/tracking` for Administrator and Operator ro
 
 Development and demos can submit versioned virtual-provider events through the internal Sandbox Telematics Provider. The HTTP adapter normalizes `sandbox-telematics.v1` events into the same tenant-scoped tracking ingestion pipeline as a real device, including replay protection. It is non-commercial by design and can be replaced by a real-provider adapter without changing the tracking domain; see [the contract guide](docs/02-engineering/SANDBOX_TELEMATICS_PROVIDER.md).
 
+## Recipient delivery status
+
+Dispatchers can create a short-lived recipient link for one mission. The public page deliberately shows only the mission state and a broad ETA window; it never exposes an address, driver, fleet identity, live position, contact details, or a map. Links are opaque, SHA-256-backed, rate-limited, non-cacheable, and immediately unavailable when revoked or when a mission is completed or cancelled.
+
+```mermaid
+flowchart LR
+  D["Dispatcher"] --> L["Expiring recipient link"]
+  L --> P["Minimal public status"]
+  P --> C["Optional contact correction"]
+  D --> S["Tenant notification preferences"]
+  S --> O["Deduplicated notification outbox"]
+```
+
+An Administrator explicitly enables recipient notifications per organization, selects the supported Email channel, language, time zone, and optional quiet hours. A protected recipient email may be corrected from the link itself. The Worker records delivery/retry/dead-letter state without logging the address; the built-in channel is a development delivery adapter and should be replaced by a production email provider before commercial use.
+
 ![Northwind operator mission and proof timeline](docs/assets/screenshots/simulation-northwind-operator-dispatch.png)
 
 ## Dispatch productivity

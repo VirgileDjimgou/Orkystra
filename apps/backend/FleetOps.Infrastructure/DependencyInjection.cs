@@ -3,7 +3,9 @@ using FleetOps.Infrastructure.Alerts;
 using FleetOps.Infrastructure.Identity;
 using FleetOps.Infrastructure.Integrations;
 using FleetOps.Infrastructure.Persistence;
+using FleetOps.Infrastructure.RecipientStatus;
 using FleetOps.Infrastructure.Storage;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -49,6 +51,12 @@ public static class DependencyInjection
             .AddEntityFrameworkStores<FleetOpsDbContext>()
             .AddSignInManager()
             .AddDefaultTokenProviders();
+        var dataProtection = services.AddDataProtection();
+        var dataProtectionKeysPath = configuration["DataProtection:KeysPath"];
+        if (!string.IsNullOrWhiteSpace(dataProtectionKeysPath))
+        {
+            dataProtection.PersistKeysToFileSystem(new DirectoryInfo(dataProtectionKeysPath));
+        }
         services.Configure<ObjectStorageOptions>(configuration.GetSection(ObjectStorageOptions.SectionName));
         services.Configure<MediaUploadSecurityOptions>(configuration.GetSection(MediaUploadSecurityOptions.SectionName));
         services.Configure<BootstrapOptions>(configuration.GetSection(BootstrapOptions.SectionName));
@@ -72,6 +80,7 @@ public static class DependencyInjection
         services.AddScoped<IApiKeyCredentialService, ApiKeyCredentialService>();
         services.AddScoped<IIntegrationOutboxService, IntegrationOutboxService>();
         services.AddScoped<IWebhookDispatchService, WebhookDispatchService>();
+        services.AddScoped<IRecipientStatusNotificationService, RecipientStatusNotificationService>();
         services.AddHttpClient(nameof(WebhookDispatchService));
         return services;
     }

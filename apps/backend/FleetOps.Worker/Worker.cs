@@ -1,5 +1,6 @@
 using FleetOps.Infrastructure.Alerts;
 using FleetOps.Infrastructure.Integrations;
+using FleetOps.Infrastructure.RecipientStatus;
 using FleetOps.Infrastructure.Storage;
 using Microsoft.Extensions.Options;
 
@@ -9,6 +10,7 @@ public sealed partial class Worker(
     ILogger<Worker> logger,
     IAlertScanningService alertScanningService,
     IWebhookDispatchService webhookDispatchService,
+    IRecipientStatusNotificationService recipientStatusNotificationService,
     TimeProvider timeProvider,
     IOptions<AlertingOptions> alertingOptions,
     IServiceScopeFactory scopeFactory) : BackgroundService
@@ -45,6 +47,9 @@ public sealed partial class Worker(
                         dispatch.Retried,
                         dispatch.DeadLettered);
                 }
+
+                var recipientDispatch = await recipientStatusNotificationService.DispatchPendingAsync(stoppingToken);
+                Log.RecipientStatusNotificationDispatchCompleted(logger, recipientDispatch.Delivered, recipientDispatch.Retried, recipientDispatch.DeadLettered);
 
                 await using var scope = scopeFactory.CreateAsyncScope();
                 var lifecycle = scope.ServiceProvider.GetRequiredService<MediaLifecycleService>();
@@ -94,6 +99,9 @@ public sealed partial class Worker(
             int delivered,
             int retried,
             int deadLettered);
+
+        [LoggerMessage(EventId = 6, Level = LogLevel.Information, Message = "Recipient notification dispatch completed. Delivered={Delivered}, Retried={Retried}, DeadLettered={DeadLettered}")]
+        public static partial void RecipientStatusNotificationDispatchCompleted(ILogger logger, int delivered, int retried, int deadLettered);
 
         [LoggerMessage(EventId = 5, Level = LogLevel.Information, Message = "Media lifecycle completed. DeletedAssets={DeletedAssets}, DeletedUploadSessions={DeletedUploadSessions}")]
         public static partial void MediaLifecycleCompleted(ILogger logger, int deletedAssets, int deletedUploadSessions);

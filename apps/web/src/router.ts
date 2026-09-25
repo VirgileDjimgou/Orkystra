@@ -24,7 +24,11 @@ import RecipientStatusView from "./views/RecipientStatusView.vue";
 export const router = createRouter({
   history: createWebHistory(),
   routes: [
-    { path: "/public/recipient-status/:token", component: RecipientStatusView, meta: { public: true } },
+    {
+      path: "/public/recipient-status/:token",
+      component: RecipientStatusView,
+      meta: { public: true },
+    },
     { path: "/login", component: LoginView, meta: { guestOnly: true } },
     {
       path: "/admin/onboarding",

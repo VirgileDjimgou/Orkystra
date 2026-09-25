@@ -11,6 +11,7 @@ using FleetOps.Core.Modules.Integrations;
 using FleetOps.Core.Modules.Maintenance;
 using FleetOps.Infrastructure.Integrations;
 using FleetOps.Infrastructure.Persistence;
+using FleetOps.Infrastructure.RecipientStatus;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 
@@ -427,6 +428,7 @@ public static class DispatchEndpointExtensions
         ICurrentTenantAccessor currentTenantAccessor,
         IAuditService auditService,
         IIntegrationOutboxService integrationOutboxService,
+        IRecipientStatusNotificationService recipientStatusNotificationService,
         IOperationsRealtimeNotifier notifier,
         CancellationToken cancellationToken)
     {
@@ -452,6 +454,7 @@ public static class DispatchEndpointExtensions
         {
             mission.TransitionTo(request.TargetStatus, DateTimeOffset.UtcNow);
             dbContext.MissionTimelineEvents.Add(mission.Timeline.OrderByDescending(x => x.OccurredAtUtc).First());
+            await recipientStatusNotificationService.QueueMissionStatusAsync(tenant.OrganizationId, mission.Id, mission.Status, cancellationToken);
         }
         catch (InvalidOperationException ex)
         {

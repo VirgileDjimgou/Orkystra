@@ -21,7 +21,7 @@ namespace FleetOps.UnitTests.Infrastructure;
 public sealed class FleetOpsSqlServerApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
     private readonly string _databaseName = $"FleetOpsSprint11_{Guid.NewGuid():N}";
-    private readonly MsSqlContainer _sqlContainer = new MsSqlBuilder().Build();
+    private readonly MsSqlContainer _sqlContainer = new MsSqlBuilder("mcr.microsoft.com/mssql/server:2022-CU14-ubuntu-22.04").Build();
 
     public string DatabaseName => _databaseName;
 

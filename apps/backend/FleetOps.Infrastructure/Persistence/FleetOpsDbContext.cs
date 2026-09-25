@@ -26,6 +26,8 @@ public sealed class FleetOpsDbContext(DbContextOptions<FleetOpsDbContext> option
     public DbSet<MissionStop> MissionStops => Set<MissionStop>();
     public DbSet<MissionTimelineEvent> MissionTimelineEvents => Set<MissionTimelineEvent>();
     public DbSet<RecipientStatusLink> RecipientStatusLinks => Set<RecipientStatusLink>();
+    public DbSet<RecipientNotificationPreference> RecipientNotificationPreferences => Set<RecipientNotificationPreference>();
+    public DbSet<RecipientStatusNotification> RecipientStatusNotifications => Set<RecipientStatusNotification>();
     public DbSet<DriverSyncCommandReceipt> DriverSyncCommandReceipts => Set<DriverSyncCommandReceipt>();
     public DbSet<ChecklistTemplate> ChecklistTemplates => Set<ChecklistTemplate>();
     public DbSet<ChecklistTemplateItem> ChecklistTemplateItems => Set<ChecklistTemplateItem>();
@@ -417,6 +419,33 @@ public sealed class FleetOpsDbContext(DbContextOptions<FleetOpsDbContext> option
             entity.Property(x => x.ExpiresAtUtc).HasPrecision(7);
             entity.Property(x => x.RevokedAtUtc).HasPrecision(7);
             entity.Property(x => x.LastViewedAtUtc).HasPrecision(7);
+            entity.Property(x => x.RecipientEmailProtected).HasMaxLength(1000);
+        });
+
+        builder.Entity<RecipientNotificationPreference>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.OrganizationId).IsUnique();
+            entity.Property(x => x.Channel).HasConversion<string>().HasMaxLength(16);
+            entity.Property(x => x.Language).HasMaxLength(16);
+            entity.Property(x => x.TimeZoneId).HasMaxLength(128);
+        });
+
+        builder.Entity<RecipientStatusNotification>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.OrganizationId, x.DeduplicationKey }).IsUnique();
+            entity.HasIndex(x => new { x.DeliveryStatus, x.NextAttemptAtUtc });
+            entity.HasIndex(x => new { x.OrganizationId, x.MissionId, x.OccurredAtUtc });
+            entity.Property(x => x.Channel).HasConversion<string>().HasMaxLength(16);
+            entity.Property(x => x.Status).HasMaxLength(40);
+            entity.Property(x => x.DeduplicationKey).HasMaxLength(160);
+            entity.Property(x => x.DeliveryStatus).HasConversion<string>().HasMaxLength(16);
+            entity.Property(x => x.OccurredAtUtc).HasPrecision(7);
+            entity.Property(x => x.NextAttemptAtUtc).HasPrecision(7);
+            entity.Property(x => x.DeliveredAtUtc).HasPrecision(7);
+            entity.Property(x => x.DeadLetteredAtUtc).HasPrecision(7);
+            entity.Property(x => x.LastError).HasMaxLength(500);
         });
 
         builder.Entity<MediaAsset>(entity =>

@@ -27,6 +27,7 @@ services:
       Bootstrap__AdminEmail: ${BOOTSTRAP_ADMIN_EMAIL:-}
       Bootstrap__AdminPassword: ${BOOTSTRAP_ADMIN_PASSWORD:-}
       Tracking__RetentionDays: ${TRACKING_RETENTION_DAYS:-7}
+      DataProtection__KeysPath: /var/opt/fleetops/data-protection-keys
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
     depends_on:
       sqlserver:
@@ -41,6 +42,7 @@ services:
       - "${FLEETOPS_API_PORT:-5080}:8080"
     volumes:
       - private-media:/var/opt/fleetops/private-media
+      - data-protection-keys:/var/opt/fleetops/data-protection-keys
 
   worker:
     build:
@@ -56,6 +58,7 @@ services:
       ObjectStorage__SecretKey: ${MINIO_SECRET_KEY}
       ObjectStorage__RootPath: /var/opt/fleetops/private-media
       ObjectStorage__MediaSigningKey: ${MEDIA_SIGNING_KEY:-}
+      DataProtection__KeysPath: /var/opt/fleetops/data-protection-keys
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
     depends_on:
       sqlserver:
@@ -66,6 +69,7 @@ services:
         condition: service_completed_successfully
     volumes:
       - private-media:/var/opt/fleetops/private-media
+      - data-protection-keys:/var/opt/fleetops/data-protection-keys
 
   web:
     build:
@@ -79,3 +83,4 @@ services:
 
 volumes:
   private-media:
+  data-protection-keys:

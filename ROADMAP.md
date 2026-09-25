@@ -2,7 +2,7 @@
 
 ## Principe
 
-L’état réel du dépôt compte vingt-deux sprints terminés, `SPRINT-00` à `SPRINT-21`. Le Sprint 22 est sélectionné mais bloqué dans l’attente du choix documenté d’un fournisseur télématique ou d’un contrat sandbox approuvé.
+L’état réel du dépôt compte vingt-quatre sprints terminés, `SPRINT-00` à `SPRINT-23`. Le Sprint 24 (rapports opérationnels et indicateurs de valeur) est le prochain travail ; la télématique réelle reste un adaptateur virtuel explicitement non commercial tant qu’aucun fournisseur n’est validé.
 
 L’extension reste centrée sur le noyau **mission → conducteur offline → inspection/preuve → exception → action opérateur**. Elle consolide ensuite maintenance, conformité, télématique ouverte, communication destinataire, reporting et exploitation SaaS. Chaque sprint laisse le système exécutable et possède un résultat démontrable, des métriques, des tests, une vérification sécurité/tenant et un rollback.
 
@@ -35,7 +35,7 @@ Les sprints futurs sont une séquence de décisions, pas une promesse de tout co
 | 20 | Pilote alpha mesuré et décision de niche | Validation qualitative de la valeur | Terminé (`GO` D-016) | L |
 | 21 | Qualité du tracking, trajets et zones métier | Confiance télématique | Terminé | XL |
 | 22 | Cadre de connecteurs et premier fournisseur télématique | Écosystème matériel ouvert | Terminé — sandbox D-017 | XL |
-| 23 | Statut destinataire, ETA prudent et notifications contrôlées | Réduction des appels | Planifié | L |
+| 23 | Statut destinataire, ETA prudent et notifications contrôlées | Réduction des appels | Terminé | L |
 | 24 | Rapports opérationnels et indicateurs de valeur | Pilotage et ROI | Planifié | L |
 | 25 | Hub d’intégrations fiable et exploitable | Interopérabilité durable | Planifié | XL |
 | 26 | Administration des appareils, support et diagnostic distant | Réduction du support | Planifié | L |

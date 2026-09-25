@@ -5,8 +5,10 @@ using FleetOps.Api.RecipientStatus;
 using FleetOps.Core.Modules.Dispatch;
 using FleetOps.Infrastructure.Identity;
 using FleetOps.Infrastructure.Persistence;
+using FleetOps.Infrastructure.RecipientStatus;
 using FleetOps.UnitTests.Infrastructure;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
@@ -47,6 +49,37 @@ public sealed class RecipientStatusIntegrationTests(FleetOpsApiFactory factory) 
         Assert.Equal(HttpStatusCode.NoContent, revoke.StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await anonymous.GetAsync(publicApiUrl)).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await anonymous.GetAsync("/public/v1/recipient-status/" + new string('a', 64))).StatusCode);
+    }
+
+    [Fact]
+    public async Task ConsentContactCorrectionAndOutboxAreTenantSafeAndDeduplicated()
+    {
+        await ResetDatabaseAsync();
+        using var admin = factory.CreateClient();
+        var login = await admin.LoginAsync("admin@northwind.local", "Admin123!");
+        admin.SetBearer(login.AccessToken);
+        var mission = await CreateMissionAsync(admin);
+        var preference = await admin.PutAsJsonAsync("/api/v1/recipient-status/preferences", new UpdateRecipientNotificationPreferenceRequest(true, RecipientNotificationChannel.Email, "en", "UTC", null, null));
+        Assert.Equal(HttpStatusCode.OK, preference.StatusCode);
+        var create = await admin.PostAsJsonAsync($"/api/v1/dispatch/missions/{mission.Id}/recipient-status/links", new CreateRecipientStatusLinkRequest(DateTimeOffset.UtcNow.AddHours(12)));
+        var link = (await create.Content.ReadFromJsonAsync<RecipientStatusLinkResponse>())!;
+        using var anonymous = factory.CreateClient();
+        var token = link.Url.Split('/').Last();
+        Assert.Equal(HttpStatusCode.NoContent, (await anonymous.PostAsJsonAsync($"/public/v1/recipient-status/{token}/contact", new CorrectRecipientContactRequest("recipient@example.test"))).StatusCode);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<FleetOpsDbContext>();
+        var storedLink = await db.RecipientStatusLinks.SingleAsync(x => x.Id == link.Id);
+        Assert.NotNull(storedLink.RecipientEmailProtected);
+        Assert.DoesNotContain("recipient@example.test", storedLink.RecipientEmailProtected!, StringComparison.OrdinalIgnoreCase);
+        var notifications = scope.ServiceProvider.GetRequiredService<IRecipientStatusNotificationService>();
+        await notifications.QueueMissionStatusAsync(storedLink.OrganizationId, mission.Id, MissionStatus.EnRoute, CancellationToken.None);
+        await notifications.QueueMissionStatusAsync(storedLink.OrganizationId, mission.Id, MissionStatus.EnRoute, CancellationToken.None);
+        await db.SaveChangesAsync();
+        Assert.Single(await db.RecipientStatusNotifications.ToListAsync());
+        var dispatch = await notifications.DispatchPendingAsync(CancellationToken.None);
+        Assert.Equal(1, dispatch.Delivered);
+        Assert.Equal(RecipientStatusNotificationDeliveryStatus.Delivered, (await db.RecipientStatusNotifications.SingleAsync()).DeliveryStatus);
     }
 
     private static async Task<MissionDetailResponse> CreateMissionAsync(HttpClient client)

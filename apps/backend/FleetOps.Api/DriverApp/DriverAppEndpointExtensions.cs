@@ -7,6 +7,7 @@ using FleetOps.Core.Modules.Dispatch;
 using FleetOps.Core.Modules.Identity;
 using FleetOps.Core.Modules.Operations;
 using FleetOps.Infrastructure.Persistence;
+using FleetOps.Infrastructure.RecipientStatus;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 
@@ -125,6 +126,7 @@ public static class DriverAppEndpointExtensions
         FleetOpsDbContext dbContext,
         ICurrentTenantAccessor currentTenantAccessor,
         IAuditService auditService,
+        IRecipientStatusNotificationService recipientStatusNotificationService,
         IDriverSyncIncidentService driverSyncIncidentService,
         IOperationsRealtimeNotifier notifier,
         CancellationToken cancellationToken)
@@ -235,6 +237,7 @@ public static class DriverAppEndpointExtensions
 
             mission.TransitionTo(ToMissionStatus(request.Action), request.OccurredAtUtc);
             dbContext.MissionTimelineEvents.Add(mission.Timeline.OrderByDescending(x => x.OccurredAtUtc).First());
+            await recipientStatusNotificationService.QueueMissionStatusAsync(tenant.OrganizationId, mission.Id, mission.Status, cancellationToken);
             dbContext.DriverSyncCommandReceipts.Add(new DriverSyncCommandReceipt(
                 tenant.OrganizationId,
                 driverId,
