@@ -1,5 +1,12 @@
 # Rapport de qualité
 
+## Sprint 26 — Fleet Map Semantics & Workflow Integration
+
+- Statut : `PASSED — 2026-09-26`.
+- Web : marqueurs accessibles, légende, focus mission/exception, trail sélectionné et configuration de tuiles couverts par tests ; lint, Vitest, build et 6 parcours Playwright passants.
+- Gate canonique : `.runtime/sprint26-quality-gate.log` confirme format/build/tests .NET, MinIO, SQL Server, GPS, simulation multi-tenant, Web/E2E, health/readiness et Android build. Android connecté non configuré.
+- Sécurité : configuration de tuiles sans identifiant métier ni secret ; trail et contexte restent issus des réponses tenant-filtrées existantes.
+
 ## Sprint 25 — Map-First Operations Cockpit
 
 - Statut : `PASSED — 2026-09-26`.

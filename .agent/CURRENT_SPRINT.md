@@ -1,23 +1,23 @@
-# Sprint actif — SPRINT-26
+# Sprint actif — SPRINT-27
 
 ## Objectif
 
-Rendre les sémantiques de carte et l'intégration des workflows opérationnels plus explicites, sans casser le cockpit ou les liens map existants.
+Créer un moteur de démonstration hébergé avec une flotte synthétique réaliste, sans contourner les workflows métiers existants.
 
 ## État
 
-`NOT_STARTED — SPRINT-25 completed 2026-09-26.`
+`NOT_STARTED — SPRINT-26 completed 2026-09-26.`
 
 ## Source de vérité
 
-`sprints/SPRINT-26-FLEET-MAP-SEMANTICS-WORKFLOW-INTEGRATION.md`
+`sprints/SPRINT-27-HOSTED-DEMO-ENGINE-VIRTUAL-FLEET.md`
 
 ## Prérequis vérifiés
 
-- Sprint 25 : `DONE` avec une quality gate complète verte le 2026-09-26 ;
-- `/` est un cockpit map-first, `/operations` conserve la file d'exceptions et `/map` reste compatible avec `vehicleId` et `missionRef` ;
-- le prochain sprint doit préserver les contrats tracking, opérations et dispatch composés par le cockpit.
+- Sprint 26 : `DONE` avec une quality gate complète verte le 2026-09-26 ;
+- les marqueurs cockpit ont une sémantique accessible, les trails restent sélectionnés et les tuiles sont configurables ;
+- le moteur de démo doit employer les contrats applicatifs existants et des données strictement synthétiques.
 
 ## Démarrage
 
-Await a new explicit `Start Next Sprint` before acquiring the Sprint-26 lock.
+Batch execution is active; acquire the Sprint-27 lock after Sprint 26 checkpoint completion.

@@ -1,8 +1,8 @@
-# Handoff — Sprint 25 complete
+# Handoff — Sprint 26 complete
 
 ## Current state
 
-Sprint 25 is `DONE`. Authenticated `/` now renders the map-first Operations Cockpit, with a dominant live Leaflet map, fleet KPIs, contextual inspector, and a keyboard-accessible collapsible/resizable activity dock. `/operations` preserves the former exception workspace; `/map?vehicleId=...&missionRef=...` remains available for bookmarked workflows.
+Sprint 26 is `DONE`. Cockpit markers now expose movement, freshness and exception state using non-colour cues; the selected vehicle alone renders a bounded trail, and Leaflet tile URL/attribution are runtime-configurable.
 
 The canonical `scripts/quality-gate.ps1` passed on 2026-09-26: compose/MinIO/recovery, .NET format/build/tests including MinIO and SQL Server, GPS dry-run, full multi-tenant simulation, Web format/lint/Vitest/build/6 Playwright flows, API health/readiness, and Android lint/unit/APK build. Connected Android execution was not configured.
 
