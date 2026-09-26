@@ -6,6 +6,7 @@ Toutes les modifications fonctionnelles significatives sont documentées ici.
 
 ### Changed
 
+- Authenticated `/` is now a map-first Operations Cockpit. The former exception workspace remains available at `/operations`, while `/map` retains bookmarked vehicle and mission focus links.
 - Tracking live updates are now coalesced per vehicle, preserve quality/source/sequence metadata, reject stale browser events, and restore the tenant snapshot before a reconnect is marked live. Expired telemetry cleanup now runs in bounded Worker batches rather than in the ingestion hot path.
 - Rebased the remaining unimplemented plans into the `Demo Readiness / Autonomous Fleet Simulation` program (Sprints 24–32), retaining the former plans under `sprints/archive/pre-demo-readiness/` as `SUPERSEDED — NOT IMPLEMENTED`.
 - Reconciled Sprint 23 documentation with its recorded implementation, migrations, integration tests, and 2026-09-25 full quality gate. This does not change recipient-status behavior.
@@ -13,6 +14,7 @@ Toutes les modifications fonctionnelles significatives sont documentées ici.
 
 ### Added
 
+- A reusable cockpit map canvas, contextual vehicle/mission/driver/exception inspector, and collapsible/resizable activity dock for exception, mission, and timeline context.
 - Sprint 23 recipient status: opaque expiring/revocable mission links, a privacy-minimal public status page with broad ETA window and contact correction, tenant-controlled notification consent/preferences, and a protected, deduplicated notification outbox with delivery metrics.
 
 - Sprint 22 start: a versioned HTTP Sandbox Telematics Provider adapter normalizes virtual provider events into canonical tenant-scoped tracking ingestion with existing replay protection.

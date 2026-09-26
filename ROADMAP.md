@@ -23,7 +23,7 @@ This is consolidation, not a business-surface expansion. Invoicing, accounting, 
 | Sprint | Outcome | Status | Source of truth |
 |---|---|---|---|
 | 24 | Repository truth and real-time tracking hardening | DONE — 2026-09-26 | `sprints/SPRINT-24-REPOSITORY-TRUTH-REALTIME-HARDENING.md` |
-| 25 | Map-first Operations Cockpit | NOT_STARTED | `sprints/SPRINT-25-MAP-FIRST-OPERATIONS-COCKPIT.md` |
+| 25 | Map-first Operations Cockpit | DONE — 2026-09-26 | `sprints/SPRINT-25-MAP-FIRST-OPERATIONS-COCKPIT.md` |
 | 26 | Fleet map semantics and workflow integration | NOT_STARTED | `sprints/SPRINT-26-FLEET-MAP-SEMANTICS-WORKFLOW-INTEGRATION.md` |
 | 27 | Hosted Demo Engine and realistic virtual fleet | NOT_STARTED | `sprints/SPRINT-27-HOSTED-DEMO-ENGINE-VIRTUAL-FLEET.md` |
 | 28 | Autonomous virtual-driver agents | NOT_STARTED | `sprints/SPRINT-28-AUTONOMOUS-VIRTUAL-DRIVER-AGENTS.md` |

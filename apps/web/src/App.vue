@@ -138,7 +138,8 @@ const navigation: Array<{ label: string; items: NavigationItem[] }> = [
   {
     label: "Operate",
     items: [
-      { label: "Operations center", to: "/", icon: "01" },
+      { label: "Operations cockpit", to: "/", icon: "01" },
+      { label: "Exception queue", to: "/operations", icon: "!" },
       { label: "Overview", to: "/overview", icon: "02" },
       { label: "Alert center", to: "/alerts", icon: "03" },
       { label: "Maintenance", to: "/maintenance", icon: "M" },

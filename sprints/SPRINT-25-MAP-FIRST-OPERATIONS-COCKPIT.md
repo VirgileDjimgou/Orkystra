@@ -2,7 +2,7 @@
 
 ## Status
 
-`NOT_STARTED`
+`DONE — 2026-09-26`
 
 ## Goal
 
@@ -64,12 +64,12 @@ Map remains primary and interactive with 20 live vehicles; selection changes do 
 
 ## Acceptance criteria
 
-- [ ] `/` presents the fleet state primarily through a live map.
-- [ ] Vehicle, mission, driver, and exception selections resolve into one contextual inspector.
-- [ ] Existing exception and dispatch value is reachable without duplicating backend logic.
-- [ ] `/map?vehicleId=...` and mission focus remain compatible and tested.
-- [ ] Keyboard, loading, empty, error, and responsive behavior are explicit.
-- [ ] Authorization and tenant isolation regressions are absent.
+- [x] `/` presents the fleet state primarily through a live map.
+- [x] Vehicle, mission, driver, and exception selections resolve into one contextual inspector.
+- [x] Existing exception and dispatch value is reachable without duplicating backend logic.
+- [x] `/map?vehicleId=...` and mission focus remain compatible and tested.
+- [x] Keyboard, loading, empty, error, and responsive behavior are explicit.
+- [x] Authorization and tenant isolation regressions are absent.
 
 ## Demo proof
 

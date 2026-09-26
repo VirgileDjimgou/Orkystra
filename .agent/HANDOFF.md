@@ -1,16 +1,16 @@
-# Handoff — Demo Readiness rebaseline
+# Handoff — Sprint 25 complete
 
 ## Current state
 
-Sprint 24 is `DONE`. Its implementation passed Release build (zero warnings/errors), six tracking integration tests, four new tracking Vitest tests, Web lint, Web production build, Web Prettier check, and `git diff --check`.
+Sprint 25 is `DONE`. Authenticated `/` now renders the map-first Operations Cockpit, with a dominant live Leaflet map, fleet KPIs, contextual inspector, and a keyboard-accessible collapsible/resizable activity dock. `/operations` preserves the former exception workspace; `/map?vehicleId=...&missionRef=...` remains available for bookmarked workflows.
 
-The canonical `scripts/quality-gate.ps1` is green after its formatter invocation was made explicit (`--no-restore --verbosity diagnostic`). It passed compose/MinIO/recovery, backend format/build/147 fast tests/MinIO/SQL Server, GPS dry-run, the 33-step multi-tenant simulation, Web format/lint/25 tests/build/5 Playwright flows, API health/readiness, and Android lint/unit/APK build. Connected Android execution was not requested or configured.
+The canonical `scripts/quality-gate.ps1` passed on 2026-09-26: compose/MinIO/recovery, .NET format/build/tests including MinIO and SQL Server, GPS dry-run, full multi-tenant simulation, Web format/lint/Vitest/build/6 Playwright flows, API health/readiness, and Android lint/unit/APK build. Connected Android execution was not configured.
 
-Sprint-24 changes: browser SignalR events are coalesced independently by vehicle; reconnect waits for tenant snapshot catch-up before becoming live; stale local live updates are rejected; all mutable quality metadata is updated; hub and snapshot mapping share the same metadata/status rules; telemetry retention runs in a bounded Worker batch instead of ingestion.
+Sprint-25 changes are UI composition only: it reuses tenant-filtered tracking, operations, and dispatch stores/contracts, adds no API or persistence behavior, and leaves server authorization unchanged. Cockpit component tests cover selection, inspector context, dock resizing/collapse, and mission selection. Playwright proves sign-in to the cockpit and map bookmark compatibility.
 
 ## Rebaseline state
 
-The repository has been rebased to `2026.09-demo-readiness`. The next eligible sprint is `SPRINT-25` and its source of truth is `sprints/SPRINT-25-MAP-FIRST-OPERATIONS-COCKPIT.md`.
+The repository remains on `2026.09-demo-readiness`. The next eligible sprint is `SPRINT-26`; its source of truth is `sprints/SPRINT-26-FLEET-MAP-SEMANTICS-WORKFLOW-INTEGRATION.md`.
 
 Sprint 23 is factually `DONE`: commit `94e4201`, its two migrations, recipient-status integration tests, and the quality report dated 2026-09-25 prove the implementation. The unchecked Sprint-23 acceptance boxes were a documentation drift and have been reconciled; no product behavior changed during this rebaseline.
 

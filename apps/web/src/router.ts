@@ -14,6 +14,7 @@ import FleetMapView from "./views/FleetMapView.vue";
 import IntegrationsAdminView from "./views/IntegrationsAdminView.vue";
 import LoginView from "./views/LoginView.vue";
 import OperationsCenterView from "./views/OperationsCenterView.vue";
+import OperationsCockpitView from "./views/OperationsCockpitView.vue";
 import OnboardingView from "./views/OnboardingView.vue";
 import UsersAdminView from "./views/UsersAdminView.vue";
 import VehiclesView from "./views/VehiclesView.vue";
@@ -53,6 +54,16 @@ export const router = createRouter({
     },
     {
       path: "/",
+      component: OperationsCockpitView,
+      meta: {
+        requiresAuth: true,
+        title: "Operations cockpit",
+        description:
+          "Map-first fleet context with operations activity and mission focus.",
+      },
+    },
+    {
+      path: "/operations",
       component: OperationsCenterView,
       meta: {
         requiresAuth: true,

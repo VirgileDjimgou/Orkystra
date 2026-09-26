@@ -7,21 +7,29 @@ const samplePngBase64 =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9pN96ZQAAAAASUVORK5CYII=";
 let missionScheduleSequence = 0;
 
-test("operator can sign in and reach the tenant-aware operations center", async ({
+test("operator can sign in and reach the tenant-aware operations cockpit", async ({
   page,
 }) => {
   await loginViaUi(page, "operator@northwind.local", "Operator123!");
 
   await expect(
-    page.getByRole("heading", { name: "Operations center" }),
+    page.getByRole("heading", { name: "Operations cockpit" }),
   ).toBeVisible();
   await expect(page.locator(".brand-subtitle")).toHaveText(
     "Northwind Logistics",
   );
   await expect(
-    page.getByRole("link", { name: "Operations center" }),
+    page.getByRole("link", { name: "Operations cockpit" }),
   ).toHaveAttribute("aria-current", "page");
   await expect(page.getByRole("link", { name: "Overview" })).toBeVisible();
+});
+
+test("bookmarked fleet map focus remains available", async ({ page }) => {
+  await loginViaUi(page, "operator@northwind.local", "Operator123!");
+  await page.goto("/map?vehicleId=missing-vehicle&missionRef=NW-BOOKMARK");
+
+  await expect(page.getByRole("heading", { name: "Fleet map" })).toBeVisible();
+  await expect(page.getByText("Mission focus: NW-BOOKMARK")).toBeVisible();
 });
 
 test("administrator can run guided activation through first mission value", async ({

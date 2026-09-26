@@ -1,5 +1,12 @@
 # Rapport de qualité
 
+## Sprint 25 — Map-First Operations Cockpit
+
+- Statut : `PASSED — 2026-09-26`.
+- Web : Prettier, ESLint, 26 tests Vitest, build de production et 6 parcours Playwright passants. Les nouvelles preuves couvrent la sélection cockpit, l'inspecteur, le dock redimensionnable/repliable, la connexion vers `/`, et le bookmark `/map?vehicleId=...&missionRef=...`.
+- Gate canonique : `pwsh -ExecutionPolicy Bypass -File scripts/quality-gate.ps1` passée : format/build/tests .NET (fast, MinIO et SQL Server), GPS dry-run, simulation multi-tenant complète, Web format/lint/tests/build/Playwright, API health/readiness et Android lint/unit/APK build. Le test Android connecté est resté non configuré.
+- Sécurité/multi-tenant : le cockpit ne reçoit que des stores et réponses API déjà tenant-filtrés ; l'identité reste l'unique source de l'organisation. Aucun identifiant libre transmis par l'UI ne produit d'autorisation ou d'accès à une nouvelle ressource.
+
 ## Sprint 24 — Real-Time Hardening
 
 - Statut : `PASSED — 2026-09-26`.
