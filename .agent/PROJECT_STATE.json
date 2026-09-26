@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 2,
+  "project": "FleetOps",
+  "phase": "demo-readiness-autonomous-fleet-simulation",
+  "roadmapVersion": "2026.09-demo-readiness",
+  "activeSprint": "SPRINT-24",
+  "sprints": {
+    "SPRINT-00": "DONE",
+    "SPRINT-01": "DONE",
+    "SPRINT-02": "DONE",
+    "SPRINT-03": "DONE",
+    "SPRINT-04": "DONE",
+    "SPRINT-05": "DONE",
+    "SPRINT-06": "DONE",
+    "SPRINT-07": "DONE",
+    "SPRINT-08": "DONE",
+    "SPRINT-09": "DONE",
+    "SPRINT-10": "DONE",
+    "SPRINT-11": "DONE",
+    "SPRINT-12": "DONE",
+    "SPRINT-13": "DONE",
+    "SPRINT-14": "DONE",
+    "SPRINT-15": "DONE",
+    "SPRINT-16": "DONE",
+    "SPRINT-17": "DONE",
+    "SPRINT-18": "DONE",
+    "SPRINT-19": "DONE",
+    "SPRINT-20": "DONE",
+    "SPRINT-21": "DONE",
+    "SPRINT-22": "DONE",
+    "SPRINT-23": "DONE",
+    "SPRINT-24": "NOT_STARTED",
+    "SPRINT-25": "NOT_STARTED",
+    "SPRINT-26": "NOT_STARTED",
+    "SPRINT-27": "NOT_STARTED",
+    "SPRINT-28": "NOT_STARTED",
+    "SPRINT-29": "NOT_STARTED",
+    "SPRINT-30": "NOT_STARTED",
+    "SPRINT-31": "NOT_STARTED",
+    "SPRINT-32": "NOT_STARTED"
+  },
+  "supersededPlans": {
+    "path": "sprints/archive/pre-demo-readiness",
+    "status": "SUPERSEDED — NOT IMPLEMENTED",
+    "sprints": ["SPRINT-24", "SPRINT-25", "SPRINT-26", "SPRINT-27", "SPRINT-28", "SPRINT-29", "SPRINT-30"]
+  },
+  "execution": {
+    "status": "IDLE",
+    "currentSprint": "SPRINT-24",
+    "batch": {
+      "requestedCount": 0,
+      "completedCount": 0
+    },
+    "attemptCount": 0,
+    "lastSuccessfulGate": {
+      "sprint": "SPRINT-23",
+      "status": "PASSED",
+      "timestampUtc": "2026-09-25T03:04:17+00:00"
+    },
+    "lastCommit": "94e4201",
+    "currentBlocker": null,
+    "agentTool": null,
+    "updatedAtUtc": "2026-09-26T00:00:00+00:00"
+  },
+  "lastQualityGate": {
+    "status": "PASSED",
+    "timestampUtc": "2026-09-25T03:04:17+00:00",
+    "report": ".agent/QUALITY_REPORT.md"
+  },
+  "lastCheckpoint": {
+    "timestampUtc": "2026-09-25T03:04:17+00:00",
+    "summary": "complete Sprint 23 recipient status, tenant preferences, notification outbox and public status page"
+  },
+  "knownBlockers": [],
+  "openDecisions": [
+    "Choose the final commercial name before public publication.",
+    "Validate the primary market positioning before any commercial claim.",
+    "Choose a hosted map-tile provider or approved policy before public Demo hosting."
+  ]
+}

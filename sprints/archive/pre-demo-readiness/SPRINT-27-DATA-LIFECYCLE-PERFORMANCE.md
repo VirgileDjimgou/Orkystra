@@ -1,3 +1,7 @@
+# SUPERSEDED — NOT IMPLEMENTED
+
+Ce plan appartient à la roadmap antérieure à la phase **Demo Readiness / Autonomous Fleet Simulation**. Il est conservé pour traçabilité historique, n'est pas éligible à l'autopilot et ne doit pas être interprété comme livré. Les éléments encore pertinents sont reportés dans les contrats actifs SPRINT-24 à SPRINT-32.
+
 # SPRINT-27 — Cycle de vie des données et performance cible
 
 ## Objectif

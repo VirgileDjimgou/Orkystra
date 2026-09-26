@@ -1,5 +1,16 @@
 # SPRINT-23 — Statut destinataire et notifications contrôlées
 
+## Statut
+
+`DONE — 2026-09-25`
+
+## Preuves de clôture
+
+- commit `94e4201` ; migrations `20260722235418_Sprint23RecipientStatus` et `20260913201321_Sprint23RecipientNotifications` ;
+- `RecipientStatusIntegrationTests` couvre le lien public minimisé, révocation, consentement, correction de contact, isolation tenant et déduplication ;
+- `.agent/QUALITY_REPORT.md` enregistre la gate complète du 2026-09-25 : build/format/tests backend, MinIO, SQL Server, simulation, Web/Vitest/Playwright, santé API et Android ;
+- la présente réconciliation corrige uniquement les cases laissées décochées malgré les preuves existantes.
+
 ## Objectif
 
 Réduire les appels de statut en permettant à un destinataire de consulter une information minimale et temporaire sur une mission.
@@ -32,12 +43,12 @@ Expiration/révocation, token guessing, cache headers, minimisation, fuseaux/lan
 
 ## Critères d’acceptation
 
-- [ ] lien ne donne accès qu’à une mission et expire selon la politique ;
-- [ ] aucune position temps réel précise ni donnée d’un autre destinataire n’est exposée ;
-- [ ] ETA est présentée comme fenêtre avec fraîcheur et fallback sans tracking ;
-- [ ] une transition génère au plus une notification par canal configuré ;
-- [ ] révocation est effective immédiatement côté lecture ;
-- [ ] efficacité est mesurable sans profilage inutile du destinataire.
+- [x] lien ne donne accès qu’à une mission et expire selon la politique ;
+- [x] aucune position temps réel précise ni donnée d’un autre destinataire n’est exposée ;
+- [x] ETA est présentée comme fenêtre avec fraîcheur et fallback sans tracking ;
+- [x] une transition génère au plus une notification par canal configuré ;
+- [x] révocation est effective immédiatement côté lecture ;
+- [x] efficacité est mesurable sans profilage inutile du destinataire.
 
 ## Livrable démontrable
 

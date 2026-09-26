@@ -4,6 +4,12 @@ Toutes les modifications fonctionnelles significatives sont documentées ici.
 
 ## Unreleased
 
+### Changed
+
+- Rebased the remaining unimplemented plans into the `Demo Readiness / Autonomous Fleet Simulation` program (Sprints 24–32), retaining the former plans under `sprints/archive/pre-demo-readiness/` as `SUPERSEDED — NOT IMPLEMENTED`.
+- Reconciled Sprint 23 documentation with its recorded implementation, migrations, integration tests, and 2026-09-25 full quality gate. This does not change recipient-status behavior.
+- Added a canonical atomic sprint orchestration contract with persisted state, locking, bounded batch intent, human gates, and OpenCode/generic-agent command guidance.
+
 ### Added
 
 - Sprint 23 recipient status: opaque expiring/revocable mission links, a privacy-minimal public status page with broad ETA window and contact correction, tenant-controlled notification consent/preferences, and a protected, deduplicated notification outbox with delivery metrics.
