@@ -2,6 +2,7 @@ using FleetOps.Infrastructure.Alerts;
 using FleetOps.Infrastructure.Integrations;
 using FleetOps.Infrastructure.RecipientStatus;
 using FleetOps.Infrastructure.Storage;
+using FleetOps.Infrastructure.Tracking;
 using Microsoft.Extensions.Options;
 
 namespace FleetOps.Worker;
@@ -55,6 +56,10 @@ public sealed partial class Worker(
                 var lifecycle = scope.ServiceProvider.GetRequiredService<MediaLifecycleService>();
                 var lifecycleResult = await lifecycle.PurgeExpiredAsync(timeProvider.GetUtcNow(), stoppingToken);
                 Log.MediaLifecycleCompleted(logger, lifecycleResult.DeletedAssets, lifecycleResult.DeletedUploadSessions);
+
+                var telemetryRetention = scope.ServiceProvider.GetRequiredService<ITelemetryRetentionService>();
+                var telemetryDeleted = await telemetryRetention.PurgeExpiredAsync(timeProvider.GetUtcNow(), stoppingToken);
+                Log.TelemetryRetentionCompleted(logger, telemetryDeleted);
             }
             catch (Exception ex)
             {
@@ -105,5 +110,8 @@ public sealed partial class Worker(
 
         [LoggerMessage(EventId = 5, Level = LogLevel.Information, Message = "Media lifecycle completed. DeletedAssets={DeletedAssets}, DeletedUploadSessions={DeletedUploadSessions}")]
         public static partial void MediaLifecycleCompleted(ILogger logger, int deletedAssets, int deletedUploadSessions);
+
+        [LoggerMessage(EventId = 7, Level = LogLevel.Information, Message = "Telemetry retention completed. DeletedPoints={DeletedPoints}")]
+        public static partial void TelemetryRetentionCompleted(ILogger logger, int deletedPoints);
     }
 }

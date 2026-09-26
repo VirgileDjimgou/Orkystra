@@ -71,7 +71,7 @@ try {
   }
 
   Invoke-Step "Backend Restore" { dotnet restore FleetOps.slnx }
-  Invoke-Step "Backend Format" { dotnet format FleetOps.slnx --verify-no-changes }
+  Invoke-Step "Backend Format" { dotnet format FleetOps.slnx --verify-no-changes --no-restore --verbosity diagnostic }
   Invoke-Step "Backend Build" { dotnet build FleetOps.slnx --no-restore -c Release }
   Invoke-Step "Backend Test (Fast)" {
     dotnet test FleetOps.slnx --no-build -c Release --filter "Category!=SqlServer&Category!=Minio"

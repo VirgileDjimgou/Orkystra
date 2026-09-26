@@ -2,7 +2,6 @@ using FleetOps.Core.Modules.Tracking;
 using FleetOps.Infrastructure.Persistence;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 
 namespace FleetOps.Api.Tracking;
 
@@ -25,8 +24,7 @@ public sealed class TrackingIngestionService(
     TrackingMetricsStore metricsStore,
     TrackingQualityAnalyzer qualityAnalyzer,
     TrackingDerivationService derivationService,
-    TimeProvider timeProvider,
-    IOptions<TrackingOptions> options)
+    TimeProvider timeProvider)
 {
     public async Task<TelemetryIngestionResponse> IngestAsync(
         IngestTelemetryRequest request,
@@ -109,7 +107,6 @@ public sealed class TrackingIngestionService(
             outOfOrder = true;
         }
 
-        var retentionDeletedCount = await ApplyRetentionAsync(request.OrganizationId, cancellationToken);
         await derivationService.ProcessGeofencesAsync(point, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
 
@@ -125,36 +122,14 @@ public sealed class TrackingIngestionService(
             await hubContext.Clients.Group($"organization:{request.OrganizationId}")
                 .SendAsync(
                     "trackingPositionChanged",
-                    new TrackingPositionResponse(
-                        point.VehicleId,
+                    TrackingPositionMapper.FromTelemetry(
+                        point,
                         vehicle.RegistrationNumber,
                         vehicle.DisplayName,
-                        point.DeviceId,
-                        point.RecordedAtUtc,
-                        point.Latitude,
-                        point.Longitude,
-                        point.SpeedKph,
-                        point.HeadingDegrees),
+                        timeProvider.GetUtcNow()),
                     cancellationToken);
         }
 
-        return new TelemetryIngestionResponse("accepted", false, outOfOrder, currentUpdated, retentionDeletedCount);
-    }
-
-    private async Task<int> ApplyRetentionAsync(Guid organizationId, CancellationToken cancellationToken)
-    {
-        var retentionDays = Math.Max(1, options.Value.RetentionDays);
-        var cutoffUtc = timeProvider.GetUtcNow().AddDays(-retentionDays);
-        var toDelete = await dbContext.TelemetryPoints
-            .Where(x => x.OrganizationId == organizationId && x.RecordedAtUtc < cutoffUtc)
-            .ToListAsync(cancellationToken);
-
-        if (toDelete.Count == 0)
-        {
-            return 0;
-        }
-
-        dbContext.TelemetryPoints.RemoveRange(toDelete);
-        return toDelete.Count;
+        return new TelemetryIngestionResponse("accepted", false, outOfOrder, currentUpdated, 0);
     }
 }

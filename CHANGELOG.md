@@ -6,6 +6,7 @@ Toutes les modifications fonctionnelles significatives sont documentées ici.
 
 ### Changed
 
+- Tracking live updates are now coalesced per vehicle, preserve quality/source/sequence metadata, reject stale browser events, and restore the tenant snapshot before a reconnect is marked live. Expired telemetry cleanup now runs in bounded Worker batches rather than in the ingestion hot path.
 - Rebased the remaining unimplemented plans into the `Demo Readiness / Autonomous Fleet Simulation` program (Sprints 24–32), retaining the former plans under `sprints/archive/pre-demo-readiness/` as `SUPERSEDED — NOT IMPLEMENTED`.
 - Reconciled Sprint 23 documentation with its recorded implementation, migrations, integration tests, and 2026-09-25 full quality gate. This does not change recipient-status behavior.
 - Added a canonical atomic sprint orchestration contract with persisted state, locking, bounded batch intent, human gates, and OpenCode/generic-agent command guidance.

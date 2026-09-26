@@ -97,6 +97,18 @@ export const useTrackingStore = defineStore("tracking", {
         (item) => item.vehicleId === position.vehicleId,
       );
       if (existing) {
+        const incomingRecordedAt = Date.parse(position.recordedAtUtc);
+        const existingRecordedAt = Date.parse(existing.recordedAtUtc);
+        const hasOlderTimestamp = incomingRecordedAt < existingRecordedAt;
+        const hasLowerSequenceAtSameTimestamp =
+          incomingRecordedAt === existingRecordedAt &&
+          position.sequenceNumber != null &&
+          existing.sequenceNumber != null &&
+          position.sequenceNumber < existing.sequenceNumber;
+        if (hasOlderTimestamp || hasLowerSequenceAtSameTimestamp) {
+          return;
+        }
+
         existing.registrationNumber =
           position.registrationNumber || existing.registrationNumber;
         existing.displayName = position.displayName || existing.displayName;
@@ -106,6 +118,12 @@ export const useTrackingStore = defineStore("tracking", {
         existing.longitude = position.longitude;
         existing.speedKph = position.speedKph;
         existing.headingDegrees = position.headingDegrees;
+        existing.sequenceNumber = position.sequenceNumber;
+        existing.accuracyMeters = position.accuracyMeters;
+        existing.source = position.source;
+        existing.qualityScore = position.qualityScore;
+        existing.qualityStatus = position.qualityStatus;
+        existing.qualityReason = position.qualityReason;
       } else {
         this.positions.push(position);
       }

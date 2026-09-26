@@ -5,6 +5,7 @@ using FleetOps.Infrastructure.Integrations;
 using FleetOps.Infrastructure.Persistence;
 using FleetOps.Infrastructure.RecipientStatus;
 using FleetOps.Infrastructure.Storage;
+using FleetOps.Infrastructure.Tracking;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -62,6 +63,7 @@ public static class DependencyInjection
         services.Configure<BootstrapOptions>(configuration.GetSection(BootstrapOptions.SectionName));
         services.Configure<AlertingOptions>(configuration.GetSection(AlertingOptions.SectionName));
         services.Configure<IntegrationOptions>(configuration.GetSection(IntegrationOptions.SectionName));
+        services.Configure<TrackingRetentionOptions>(configuration.GetSection(TrackingRetentionOptions.SectionName));
         var objectStorage = configuration.GetSection(ObjectStorageOptions.SectionName).Get<ObjectStorageOptions>() ?? new ObjectStorageOptions();
         services.AddSingleton<FileSystemPrivateMediaStorage>();
         if (string.Equals(objectStorage.Provider, "S3", StringComparison.OrdinalIgnoreCase))
@@ -81,6 +83,7 @@ public static class DependencyInjection
         services.AddScoped<IIntegrationOutboxService, IntegrationOutboxService>();
         services.AddScoped<IWebhookDispatchService, WebhookDispatchService>();
         services.AddScoped<IRecipientStatusNotificationService, RecipientStatusNotificationService>();
+        services.AddScoped<ITelemetryRetentionService, TelemetryRetentionService>();
         services.AddHttpClient(nameof(WebhookDispatchService));
         return services;
     }

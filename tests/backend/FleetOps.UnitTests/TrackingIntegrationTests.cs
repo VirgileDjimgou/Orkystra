@@ -1,7 +1,11 @@
 using System.Net;
 using System.Net.Http.Json;
 using FleetOps.Api.Tracking;
+using FleetOps.Core.Modules.Tracking;
+using FleetOps.Infrastructure.Persistence;
+using FleetOps.Infrastructure.Tracking;
 using FleetOps.UnitTests.Infrastructure;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace FleetOps.UnitTests;
@@ -120,6 +124,94 @@ public sealed class TrackingIntegrationTests(FleetOpsApiFactory factory) : IClas
         Assert.Equal(9.21, current.Longitude);
         Assert.NotNull(metrics);
         Assert.Equal(1, metrics!.OutOfOrderCount);
+    }
+
+    [Fact]
+    public async Task CurrentPositionExposesLiveQualityMetadata()
+    {
+        using var client = factory.CreateClient();
+        var scenario = await ResetAndLoadScenarioAsync(client, "northwind");
+        var vehicle = scenario.Vehicles[0];
+        var recordedAt = DateTimeOffset.UtcNow;
+
+        var response = await client.PostAsJsonAsync("/api/internal/v1/tracking/events", new IngestTelemetryRequest(
+            scenario.OrganizationId,
+            vehicle.VehicleId,
+            vehicle.DeviceId,
+            "degraded-quality",
+            recordedAt,
+            48.4,
+            9.2,
+            30,
+            180,
+            SequenceNumber: 42,
+            AccuracyMeters: 150,
+            Source: "simulator"));
+        Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
+
+        using var webClient = factory.CreateClient();
+        var login = await webClient.LoginAsync("operator@northwind.local", "Operator123!");
+        webClient.SetBearer(login.AccessToken);
+        var positions = await webClient.GetFromJsonAsync<List<TrackingPositionResponse>>("/api/v1/tracking/positions");
+        var current = Assert.Single(positions!, x => x.VehicleId == vehicle.VehicleId);
+
+        Assert.Equal(42, current.SequenceNumber);
+        Assert.Equal(150, current.AccuracyMeters);
+        Assert.Equal("simulator", current.Source);
+        Assert.Equal(65, current.QualityScore);
+        Assert.Equal("Inaccurate", current.QualityStatus);
+        Assert.Equal("GPS accuracy is above 100 metres.", current.QualityReason);
+    }
+
+    [Fact]
+    public async Task RetentionDeletesExpiredTelemetryInBoundedBatches()
+    {
+        using var client = factory.CreateClient();
+        var scenario = await ResetAndLoadScenarioAsync(client, "northwind");
+        var vehicle = scenario.Vehicles[0];
+        var now = DateTimeOffset.UtcNow;
+
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<FleetOpsDbContext>();
+            for (var i = 0; i < 3; i++)
+            {
+                dbContext.TelemetryPoints.Add(new TelemetryPoint(
+                    scenario.OrganizationId,
+                    vehicle.VehicleId,
+                    vehicle.DeviceId,
+                    $"expired-{i}",
+                    now.AddDays(-8).AddSeconds(i),
+                    48.4,
+                    9.2,
+                    30,
+                    180,
+                    now.AddDays(-8).AddSeconds(i)));
+            }
+            dbContext.TelemetryPoints.Add(new TelemetryPoint(
+                scenario.OrganizationId,
+                vehicle.VehicleId,
+                vehicle.DeviceId,
+                "fresh",
+                now,
+                48.4,
+                9.2,
+                30,
+                180,
+                now));
+            await dbContext.SaveChangesAsync();
+        }
+
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var retention = scope.ServiceProvider.GetRequiredService<ITelemetryRetentionService>();
+            Assert.Equal(2, await retention.PurgeExpiredAsync(now, CancellationToken.None));
+            Assert.Equal(1, await retention.PurgeExpiredAsync(now, CancellationToken.None));
+        }
+
+        await using var verificationScope = factory.Services.CreateAsyncScope();
+        var verificationDb = verificationScope.ServiceProvider.GetRequiredService<FleetOpsDbContext>();
+        Assert.Single(verificationDb.TelemetryPoints, x => x.EventId == "fresh");
     }
 
     [Fact]

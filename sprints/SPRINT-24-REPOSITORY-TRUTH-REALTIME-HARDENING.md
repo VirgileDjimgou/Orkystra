@@ -2,7 +2,7 @@
 
 ## Status
 
-`NOT_STARTED`
+`DONE — 2026-09-26`
 
 ## Goal
 
@@ -69,13 +69,13 @@ At 20–50 synthetic vehicles, each accepted current update reaches the client e
 
 ## Acceptance criteria
 
-- [ ] No vehicle update is lost because another vehicle emits during the same client throttle interval.
-- [ ] SignalR and snapshot responses contain matching live metadata.
-- [ ] Quality-state changes are rendered from live events without a page refresh.
-- [ ] Duplicate and out-of-order telemetry cannot regress the current position.
-- [ ] Reconnect and API restart restore a consistent tenant-scoped snapshot.
-- [ ] Retention is no longer an O(N) per-event in-memory operation.
-- [ ] All mandatory gates pass with no P0/P1 regression left open.
+- [x] No vehicle update is lost because another vehicle emits during the same client throttle interval.
+- [x] SignalR and snapshot responses contain matching live metadata.
+- [x] Quality-state changes are rendered from live events without a page refresh.
+- [x] Duplicate and out-of-order telemetry cannot regress the current position.
+- [x] Reconnect and API restart restore a consistent tenant-scoped snapshot.
+- [x] Retention is no longer an O(N) per-event in-memory operation.
+- [x] All mandatory gates pass with no P0/P1 regression left open.
 
 ## Demo proof
 

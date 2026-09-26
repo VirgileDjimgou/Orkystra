@@ -1,23 +1,23 @@
-# Sprint actif — SPRINT-24
+# Sprint actif — SPRINT-25
 
 ## Objectif
 
-Établir une baseline fiable avant le cockpit, le moteur de démo ou les agents : vérité documentaire, robustesse SignalR/Pinia, métadonnées de tracking, rétention et reconnexion.
+Créer un cockpit opérationnel map-first pour les Administrateurs et Opérateurs authentifiés.
 
 ## État
 
-`NOT_STARTED — préparé le 2026-09-26`
+`NOT_STARTED — SPRINT-24 completed 2026-09-26.`
 
 ## Source de vérité
 
-`sprints/SPRINT-24-REPOSITORY-TRUTH-REALTIME-HARDENING.md`
+`sprints/SPRINT-25-MAP-FIRST-OPERATIONS-COCKPIT.md`
 
 ## Prérequis vérifiés
 
-- Sprint 23 : `DONE` avec migrations, tests d'intégration et quality gate du 2026-09-25 ;
-- ancien plan 24–30 archivé comme `SUPERSEDED — NOT IMPLEMENTED` ;
-- les défauts de flux temps réel sont documentés et doivent être corrigés dans ce sprint, pas pendant le rebaselining.
+- Sprint 24 : `DONE` avec une quality gate complète verte le 2026-09-26 ;
+- contrat de suivi temps réel renforcé : coalescence par véhicule, métadonnées cohérentes, reconnexion et purge bornée ;
+- aucun cockpit existant n'est supprimé avant la preuve de compatibilité des routes.
 
 ## Démarrage
 
-L'utilisateur doit invoquer `Start Next Sprint`. Le runner canonique doit acquérir le verrou avant toute modification produit.
+Await a new explicit `Start Next Sprint` before acquiring the Sprint-25 lock.

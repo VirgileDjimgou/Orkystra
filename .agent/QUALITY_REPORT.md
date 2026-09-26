@@ -1,5 +1,13 @@
 # Rapport de qualité
 
+## Sprint 24 — Real-Time Hardening
+
+- Statut : `PASSED — 2026-09-26`.
+- Backend : `dotnet build FleetOps.slnx --no-restore -c Release -m:1 /nodeReuse:false` passed with 0 warning and 0 error. The six `TrackingIntegrationTests` passed, including actual snapshot quality metadata and bounded retention batches.
+- Web : four new Vitest regression tests passed (two-vehicle coalescing, reconnect catch-up ordering, live quality transition, stale update rejection); Prettier, ESLint, and production build passed.
+- Security/multi-tenant : tenant-scoped SignalR group and snapshot filter remain unchanged; metadata is derived only from the canonical accepted current position. Retention does not accept client tenant input and only deletes points older than configured policy.
+- Canonical gate : `scripts/quality-gate.ps1` passed after the formatter command was updated to `--no-restore --verbosity diagnostic`; it verified 278 files without changes, backend format/build/147 fast tests/MinIO/SQL Server, GPS, 33-step simulation, Web format/lint/25 Vitest tests/build/5 Playwright flows, API health/readiness, and Android lint/unit/APK build. Android connected tests were correctly skipped because no device was configured.
+
 ## Rebaseline Demo Readiness — 2026-09-26
 
 - Statut : `PARTIAL — planning validation passed; full product quality gate not concluded in this execution`.

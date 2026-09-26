@@ -35,7 +35,8 @@ public sealed class FleetOpsApiFactory : WebApplicationFactory<Program>, IAsyncL
                 ["Bootstrap:SeedDemoData"] = "true",
                 ["Security:LoginPermitLimit"] = "100",
                 ["Integrations:RetryBaseDelaySeconds"] = "0",
-                ["Integrations:MaxWebhookAttempts"] = "3"
+                ["Integrations:MaxWebhookAttempts"] = "3",
+                ["Tracking:RetentionBatchSize"] = "2"
             });
         });
 

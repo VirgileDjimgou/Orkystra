@@ -57,34 +57,21 @@ public static class TrackingEndpointExtensions
         HttpContext httpContext,
         FleetOpsDbContext dbContext,
         ICurrentTenantAccessor currentTenantAccessor,
+        TimeProvider timeProvider,
         CancellationToken cancellationToken)
     {
         var tenant = currentTenantAccessor.GetRequiredTenant(httpContext.User);
-        var positions = await (
+        var rows = await (
             from current in dbContext.CurrentVehiclePositions
             join vehicle in dbContext.Vehicles on current.VehicleId equals vehicle.Id
             where current.OrganizationId == tenant.OrganizationId
                 && vehicle.OrganizationId == tenant.OrganizationId
             orderby vehicle.RegistrationNumber
-            select new TrackingPositionResponse(
-                current.VehicleId,
-                vehicle.RegistrationNumber,
-                vehicle.DisplayName,
-                current.DeviceId,
-                current.RecordedAtUtc,
-                current.Latitude,
-                current.Longitude,
-                current.SpeedKph,
-                current.HeadingDegrees,
-                current.SequenceNumber,
-                current.AccuracyMeters,
-                current.Source,
-                current.QualityScore,
-                PositionStatus(current, DateTimeOffset.UtcNow).Status,
-                PositionStatus(current, DateTimeOffset.UtcNow).Reason)
+            select new { current, vehicle.RegistrationNumber, vehicle.DisplayName }
         ).ToListAsync(cancellationToken);
 
-        return Results.Ok(positions);
+        var now = timeProvider.GetUtcNow();
+        return Results.Ok(rows.Select(x => TrackingPositionMapper.FromCurrent(x.current, x.RegistrationNumber, x.DisplayName, now)));
     }
 
     private static async Task<IResult> GetHistoryAsync(
@@ -186,7 +173,7 @@ public static class TrackingEndpointExtensions
         var now = timeProvider.GetUtcNow();
         return Results.Ok(rows.Select(x =>
         {
-            var status = x.position is null ? ("Silent", "No accepted telemetry has been received.") : PositionStatus(x.position, now);
+            var status = x.position is null ? ("Silent", "No accepted telemetry has been received.") : TrackingPositionMapper.GetStatus(x.position.QualityScore, x.position.AnomalyFlags, x.position.AccuracyMeters, x.position.IngestedAtUtc, now);
             return new TrackingDiagnosticResponse(x.vehicle.Id, x.vehicle.RegistrationNumber, x.vehicle.DisplayName, null, x.position?.DeviceId ?? x.assignment?.DeviceId.ToString() ?? "unassigned", x.position?.IngestedAtUtc, status.Item1, status.Item2, x.position?.QualityScore ?? 0, x.position?.AccuracyMeters, x.position?.Source ?? "unknown", x.position?.SequenceNumber);
         }));
     }
@@ -237,15 +224,6 @@ public static class TrackingEndpointExtensions
     private static TrackingGeofenceResponse ToGeofenceResponse(TrackingGeofence fence) => new(fence.Id, fence.Name, fence.Shape.ToString(), fence.CenterLatitude, fence.CenterLongitude, fence.RadiusMeters, JsonSerializer.Deserialize<List<TrackingCoordinateRequest>>(fence.PolygonJson) ?? []);
     private static bool IsCoordinate(double? latitude, double? longitude) => latitude is >= -90 and <= 90 && longitude is >= -180 and <= 180;
     private static bool IsCoordinate(double latitude, double longitude) => IsCoordinate((double?)latitude, longitude);
-    private static (string Status, string Reason) PositionStatus(CurrentVehiclePosition position, DateTimeOffset now)
-    {
-        if (position.QualityScore < 50 || position.AnomalyFlags.Contains("implausible-jump", StringComparison.Ordinal) || position.AnomalyFlags.Contains("clock-skew", StringComparison.Ordinal)) return ("Invalid", string.IsNullOrEmpty(position.AnomalyFlags) ? "Telemetry failed quality checks." : position.AnomalyFlags);
-        if (position.AccuracyMeters is > 100) return ("Inaccurate", "GPS accuracy is above 100 metres.");
-        if (now - position.IngestedAtUtc > TimeSpan.FromMinutes(10)) return ("Silent", "No recent communication was received.");
-        if (now - position.IngestedAtUtc > TimeSpan.FromMinutes(2)) return ("Delayed", "Last telemetry is older than two minutes.");
-        return ("Fresh", "Position is reliable.");
-    }
-
     private static async Task<IResult> IngestInternalAsync(
         IngestTelemetryRequest request,
         IWebHostEnvironment environment,
