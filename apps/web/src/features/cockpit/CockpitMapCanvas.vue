@@ -1,6 +1,9 @@
 <template>
   <div class="cockpit-map-frame">
     <div ref="mapElement" class="cockpit-map" aria-label="Live fleet map" />
+    <p class="map-legend" aria-label="Map legend">
+      › moving · ■ stopped · ! exception · ring indicates tracking quality
+    </p>
     <div v-if="positions.length === 0" class="cockpit-map-empty">
       No live telemetry is available yet.
     </div>
@@ -11,31 +14,33 @@
 import { onBeforeUnmount, onMounted, ref, watch } from "vue";
 import L from "leaflet";
 import type { TrackingPositionResponse } from "../tracking/contracts";
+import type { TrackingHistoryItemResponse } from "../tracking/contracts";
+import { getMapTileProviderConfiguration } from "../map/configuration";
+import { markerSemantics } from "../map/markerSemantics";
 
 const props = defineProps<{
   positions: TrackingPositionResponse[];
   selectedVehicleId: string | null;
+  exceptionVehicleIds?: string[];
+  trailPoints?: TrackingHistoryItemResponse[];
 }>();
 const emit = defineEmits<{ select: [vehicleId: string] }>();
 
 const mapElement = ref<HTMLElement | null>(null);
 const markers = new Map<string, L.CircleMarker>();
 let map: L.Map | undefined;
+let selectedTrail: L.Polyline | undefined;
 
 function ensureMap() {
   if (map || !mapElement.value) return;
   map = L.map(mapElement.value).setView([48.4914, 9.2043], 11);
   if (import.meta.env.MODE !== "test") {
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      maxZoom: 19,
-      attribution: "&copy; OpenStreetMap contributors",
+    const provider = getMapTileProviderConfiguration();
+    L.tileLayer(provider.url, {
+      maxZoom: provider.maxZoom,
+      attribution: provider.attribution,
     }).addTo(map);
   }
-}
-
-function markerColor(position: TrackingPositionResponse) {
-  if (position.vehicleId === props.selectedVehicleId) return "#0d6efd";
-  return position.qualityStatus === "Invalid" ? "#dc3545" : "#198754";
 }
 
 function syncMarkers() {
@@ -59,15 +64,35 @@ function syncMarkers() {
       markers.set(position.vehicleId, marker);
     }
     marker.setLatLng([position.latitude, position.longitude]);
+    const semantics = markerSemantics(
+      position,
+      props.exceptionVehicleIds?.includes(position.vehicleId) ?? false,
+    );
     marker.setStyle({
-      color: markerColor(position),
-      fillColor: markerColor(position),
+      color:
+        position.vehicleId === props.selectedVehicleId
+          ? "#0d6efd"
+          : semantics.color,
+      fillColor: semantics.color,
       fillOpacity: 0.9,
     });
-    marker.bindPopup(
-      `${position.registrationNumber} · ${position.speedKph.toFixed(0)} km/h`,
-    );
+    marker.bindPopup(`${semantics.symbol} ${semantics.label}`);
+    marker.getElement?.()?.setAttribute("aria-label", semantics.label);
   }
+}
+
+function syncTrail() {
+  selectedTrail?.remove();
+  selectedTrail = undefined;
+  if (!map || !props.trailPoints || props.trailPoints.length < 2) return;
+  selectedTrail = L.polyline(
+    props.trailPoints.map((point) => [point.latitude, point.longitude]),
+    {
+      color: "#0d6efd",
+      weight: 4,
+      opacity: 0.7,
+    },
+  ).addTo(map);
 }
 
 function focusSelectedVehicle() {
@@ -80,11 +105,18 @@ function focusSelectedVehicle() {
 onMounted(() => {
   ensureMap();
   syncMarkers();
+  syncTrail();
 });
 watch(
-  () => [props.positions, props.selectedVehicleId],
+  () => [
+    props.positions,
+    props.selectedVehicleId,
+    props.exceptionVehicleIds,
+    props.trailPoints,
+  ],
   () => {
     syncMarkers();
+    syncTrail();
     focusSelectedVehicle();
   },
   { deep: true },

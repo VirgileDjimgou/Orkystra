@@ -25,6 +25,8 @@
         <CockpitMapCanvas
           :positions="tracking.positions"
           :selected-vehicle-id="selection.vehicleId"
+          :exception-vehicle-ids="exceptionVehicleIds"
+          :trail-points="tracking.history?.items"
           @select="selectVehicle"
         />
         <div class="cockpit-kpis" aria-label="Fleet indicators">
@@ -143,6 +145,12 @@ const selectedException = computed(
   () =>
     queue.value.items.find((item) => item.id === selection.exceptionId) ?? null,
 );
+const exceptionVehicleIds = computed(() =>
+  queue.value.items
+    .filter((item) => item.workflowStatus !== "Resolved")
+    .map((item) => item.links.vehicleId)
+    .filter((vehicleId): vehicleId is string => !!vehicleId),
+);
 const connectionLabel = computed(() =>
   trackingState.value === "live"
     ? "Live stream"
@@ -214,12 +222,16 @@ function selectVehicle(vehicleId: string) {
     (item) => item.vehicleId === vehicleId,
   );
   selection.missionId = mission?.id ?? null;
+  if (session.accessToken)
+    void tracking.loadHistory(session.accessToken, vehicleId, 1, 40);
   updateFocusQuery();
 }
 function selectMission(missionId: string) {
   const mission = dispatch.missions.find((item) => item.id === missionId);
   selection.missionId = missionId;
   selection.vehicleId = mission?.vehicleId ?? null;
+  if (session.accessToken && mission?.vehicleId)
+    void tracking.loadHistory(session.accessToken, mission.vehicleId, 1, 40);
   activeTab.value = "timeline";
   updateFocusQuery();
 }
@@ -228,6 +240,8 @@ function selectException(exceptionId: string) {
   selection.exceptionId = exceptionId;
   selection.vehicleId = exception?.links.vehicleId ?? selection.vehicleId;
   selection.missionId = exception?.links.missionId ?? selection.missionId;
+  if (session.accessToken && selection.vehicleId)
+    void tracking.loadHistory(session.accessToken, selection.vehicleId, 1, 40);
   activeTab.value = "exceptions";
   updateFocusQuery();
 }

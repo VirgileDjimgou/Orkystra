@@ -6,6 +6,7 @@ Toutes les modifications fonctionnelles significatives sont documentées ici.
 
 ### Changed
 
+- Cockpit map markers now show movement, tracking freshness and exception state with symbols and accessible labels; selected vehicle history is the only rendered trail and tile settings are runtime-configurable.
 - Authenticated `/` is now a map-first Operations Cockpit. The former exception workspace remains available at `/operations`, while `/map` retains bookmarked vehicle and mission focus links.
 - Tracking live updates are now coalesced per vehicle, preserve quality/source/sequence metadata, reject stale browser events, and restore the tenant snapshot before a reconnect is marked live. Expired telemetry cleanup now runs in bounded Worker batches rather than in the ingestion hot path.
 - Rebased the remaining unimplemented plans into the `Demo Readiness / Autonomous Fleet Simulation` program (Sprints 24–32), retaining the former plans under `sprints/archive/pre-demo-readiness/` as `SUPERSEDED — NOT IMPLEMENTED`.

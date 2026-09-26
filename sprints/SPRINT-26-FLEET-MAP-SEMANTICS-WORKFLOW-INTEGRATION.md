@@ -2,7 +2,7 @@
 
 ## Status
 
-`NOT_STARTED`
+`DONE — 2026-09-26`
 
 ## Goal
 
@@ -62,12 +62,12 @@ Only selected history is rendered. At the Sprint-31 target cadence, updates do n
 
 ## Acceptance criteria
 
-- [ ] A marker conveys identity, movement, operational state, quality/freshness, and important exception state.
-- [ ] Selection flows bidirectionally between map, inspector, missions, and exceptions.
-- [ ] Selected trail/route is useful without rendering all history.
-- [ ] Tile URL and attribution can change by configuration without cockpit rewrite.
-- [ ] Reconnect and safe batching remain intact under realistic fleet updates.
-- [ ] The map avoids visual clutter and is accessible without color alone.
+- [x] A marker conveys identity, movement, operational state, quality/freshness, and important exception state.
+- [x] Selection flows bidirectionally between map, inspector, missions, and exceptions.
+- [x] Selected trail/route is useful without rendering all history.
+- [x] Tile URL and attribution can change by configuration without cockpit rewrite.
+- [x] Reconnect and safe batching remain intact under realistic fleet updates.
+- [x] The map avoids visual clutter and is accessible without color alone.
 
 ## Demo proof
 

@@ -30,6 +30,11 @@ vi.mock("leaflet", () => ({
       bindPopup: vi.fn(),
       remove: vi.fn(),
     })),
+    polyline: vi.fn(() => {
+      const layer = { addTo: vi.fn(), remove: vi.fn() };
+      layer.addTo.mockReturnValue(layer);
+      return layer;
+    }),
   },
 }));
 
@@ -74,6 +79,36 @@ describe("OperationsCockpitView", () => {
             duplicateCount: 0,
             outOfOrderCount: 0,
             retentionDays: 7,
+          });
+        if (url.includes("tracking/history"))
+          return json({
+            page: 1,
+            pageSize: 40,
+            totalCount: 2,
+            items: [
+              {
+                eventId: "history-1",
+                vehicleId: "vehicle-1",
+                deviceId: "gps-1",
+                recordedAtUtc: "2026-09-26T09:59:00Z",
+                ingestedAtUtc: "2026-09-26T09:59:00Z",
+                latitude: 48.39,
+                longitude: 9.19,
+                speedKph: 40,
+                headingDegrees: 90,
+              },
+              {
+                eventId: "history-2",
+                vehicleId: "vehicle-1",
+                deviceId: "gps-1",
+                recordedAtUtc: "2026-09-26T10:00:00Z",
+                ingestedAtUtc: "2026-09-26T10:00:00Z",
+                latitude: 48.4,
+                longitude: 9.2,
+                speedKph: 42,
+                headingDegrees: 90,
+              },
+            ],
           });
         if (url.includes("tracking/diagnostics"))
           return json([

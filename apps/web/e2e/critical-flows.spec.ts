@@ -21,6 +21,7 @@ test("operator can sign in and reach the tenant-aware operations cockpit", async
   await expect(
     page.getByRole("link", { name: "Operations cockpit" }),
   ).toHaveAttribute("aria-current", "page");
+  await expect(page.getByLabel("Map legend")).toContainText("exception");
   await expect(page.getByRole("link", { name: "Overview" })).toBeVisible();
 });
 
