@@ -28,6 +28,7 @@ public sealed class CsrfProtectionMiddleware(RequestDelegate next)
         !SafeMethods.Contains(request.Method)
         && request.Cookies.ContainsKey(WebSessionSecurity.AuthenticationCookie)
         && !request.Path.StartsWithSegments("/api/v1/auth/web/login")
+        && !request.Path.StartsWithSegments("/api/v1/demo/public/launch")
         && !request.Path.StartsWithSegments("/hubs/tracking");
 
     private static bool HasValidToken(HttpRequest request)

@@ -5,6 +5,7 @@ public sealed class BootstrapOptions
     public const string SectionName = "Bootstrap";
 
     public bool SeedDemoData { get; init; }
+    public bool PublicDemoOnly { get; init; }
 
     public string OrganizationName { get; init; } = string.Empty;
 

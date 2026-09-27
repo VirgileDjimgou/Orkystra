@@ -1,3 +1,4 @@
+using FleetOps.Api.Demo;
 using FleetOps.Infrastructure.Persistence;
 using FleetOps.Infrastructure.Storage;
 
@@ -11,8 +12,31 @@ public static class ProductionConfigurationValidator
 
     public static void Validate(IConfiguration configuration, IHostEnvironment environment)
     {
+        var publicDemo = configuration.GetSection(PublicDemoOptions.SectionName).Get<PublicDemoOptions>()
+            ?? new PublicDemoOptions();
+        var bootstrap = configuration.GetSection(BootstrapOptions.SectionName).Get<BootstrapOptions>()
+            ?? new BootstrapOptions();
+
+        if (environment.IsEnvironment("Demo") || environment.IsEnvironment("DemoTesting"))
+        {
+            var demoFailures = new List<string>();
+            if (!publicDemo.Enabled) demoFailures.Add("PublicDemo:Enabled must be true in Demo.");
+            if (!publicDemo.SideEffectsSandboxed) demoFailures.Add("PublicDemo:SideEffectsSandboxed must be true in Demo.");
+            if (!bootstrap.SeedDemoData) demoFailures.Add("Bootstrap:SeedDemoData must be true in Demo.");
+            if (environment.IsEnvironment("Demo") && !bootstrap.PublicDemoOnly)
+                demoFailures.Add("Bootstrap:PublicDemoOnly must be true in Demo.");
+            if (publicDemo.SessionLifetimeSeconds is < 1 or > 1800) demoFailures.Add("PublicDemo:SessionLifetimeSeconds must be between 1 and 1800.");
+            if (publicDemo.LaunchPermitLimit is < 1 or > 100) demoFailures.Add("PublicDemo:LaunchPermitLimit must be between 1 and 100.");
+            if (publicDemo.MaxConcurrentSessions is < 1 or > 100) demoFailures.Add("PublicDemo:MaxConcurrentSessions must be between 1 and 100.");
+            if (demoFailures.Count > 0)
+                throw new InvalidOperationException("Unsafe FleetOps Demo configuration: " + string.Join(" ", demoFailures));
+            return;
+        }
+
         if (!environment.IsProduction())
         {
+            if (publicDemo.Enabled)
+                throw new InvalidOperationException("PublicDemo:Enabled is only valid in the Demo environment.");
             return;
         }
 
@@ -20,8 +44,6 @@ public static class ProductionConfigurationValidator
         var jwt = configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>() ?? new JwtOptions();
         var storage = configuration.GetSection(ObjectStorageOptions.SectionName).Get<ObjectStorageOptions>()
             ?? new ObjectStorageOptions();
-        var bootstrap = configuration.GetSection(BootstrapOptions.SectionName).Get<BootstrapOptions>()
-            ?? new BootstrapOptions();
         var connectionString = configuration.GetConnectionString("FleetOps");
 
         ValidateSecret(jwt.SigningKey, DevelopmentJwtKey, "Jwt:SigningKey", failures);
@@ -53,6 +75,10 @@ public static class ProductionConfigurationValidator
         if (bootstrap.SeedDemoData)
         {
             failures.Add("Bootstrap:SeedDemoData cannot be enabled in Production.");
+        }
+        if (publicDemo.Enabled)
+        {
+            failures.Add("PublicDemo:Enabled cannot be enabled in Production.");
         }
 
         if (failures.Count > 0)

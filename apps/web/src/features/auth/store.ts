@@ -7,6 +7,7 @@ import {
 import type {
   AuthenticatedUser,
   CsrfTokenResponse,
+  DemoLaunchResponse,
   LoginRequest,
   LoginResponse,
 } from "./contracts";
@@ -31,6 +32,7 @@ export const useSessionStore = defineStore("session", {
       state.status === "authenticated" &&
       state.accessToken === cookieSessionMarker,
     isAdmin: (state) => !!state.user?.roles.includes("Admin"),
+    isDemo: (state) => state.user?.isDemo === true,
     canManageUsers(): boolean {
       return this.isAdmin;
     },
@@ -95,6 +97,23 @@ export const useSessionStore = defineStore("session", {
           error instanceof Error
             ? "Sign-in failed. Check your credentials."
             : "Sign-in failed.";
+        throw error;
+      }
+    },
+    async launchDemo() {
+      this.startSessionMonitoring();
+      this.status = "authenticating";
+      this.error = "";
+      try {
+        const response = await apiRequest<DemoLaunchResponse>(
+          "/api/v1/demo/public/launch",
+          { method: "POST" },
+        );
+        this.applySession(response);
+        return response;
+      } catch (error) {
+        this.reset();
+        this.error = "The live demo is temporarily unavailable.";
         throw error;
       }
     },

@@ -38,12 +38,36 @@ public static class FleetOpsSeedData
             return;
         }
 
+        if (bootstrapOptions.SeedDemoData && bootstrapOptions.PublicDemoOnly)
+        {
+            var publicDemo = new Organization("FleetOps Public Demo", "public-demo");
+            var publicDemoVan = new Vehicle(publicDemo.Id, "DEMO-100", "Synthetic delivery van");
+            var publicDemoDevice = new GpsDevice(publicDemo.Id, "DEMO-GPS-100", "Synthetic van tracker");
+            dbContext.Organizations.Add(publicDemo);
+            dbContext.Vehicles.Add(publicDemoVan);
+            dbContext.GpsDevices.Add(publicDemoDevice);
+            dbContext.DeviceAssignments.Add(new DeviceAssignment(
+                publicDemo.Id,
+                publicDemoDevice.Id,
+                publicDemoVan.Id,
+                new DateTimeOffset(2026, 1, 1, 9, 0, 0, TimeSpan.Zero)));
+            await dbContext.SaveChangesAsync(cancellationToken);
+            await EnsurePasswordlessUserAsync(
+                userManager,
+                publicDemo,
+                "public-demo@fleetops.invalid",
+                "Public Demo Operator",
+                SystemRoles.Operator);
+            return;
+        }
+
         if (bootstrapOptions.SeedDemoData)
         {
             var north = new Organization("Northwind Logistics", "northwind");
             var south = new Organization("Southridge Transport", "southridge");
             var west = new Organization("Westland Field Services", "westland");
-            dbContext.Organizations.AddRange(north, south, west);
+            var publicDemo = new Organization("FleetOps Public Demo", "public-demo");
+            dbContext.Organizations.AddRange(north, south, west, publicDemo);
 
             var northVan = new Vehicle(north.Id, "NW-100", "Northwind Dispatch Van");
             var southHauler = new Vehicle(south.Id, "SR-200", "Southridge Line Hauler");
@@ -57,7 +81,8 @@ public static class FleetOpsSeedData
             var westServiceTruck = new Vehicle(west.Id, "WF-300", "Westland Service Truck");
             var westSupportVan = new Vehicle(west.Id, "WF-301", "Westland Support Van");
             var westReserveVan = new Vehicle(west.Id, "WF-302", "Westland Reserve Van");
-            dbContext.Vehicles.AddRange(northVan, southHauler, southRelayTruck, southReserveTruck, backupVan, serviceVan, westServiceTruck, westSupportVan, westReserveVan);
+            var publicDemoVan = new Vehicle(publicDemo.Id, "DEMO-100", "Synthetic delivery van");
+            dbContext.Vehicles.AddRange(northVan, southHauler, southRelayTruck, southReserveTruck, backupVan, serviceVan, westServiceTruck, westSupportVan, westReserveVan, publicDemoVan);
             dbContext.Vehicles.AddRange(demoVehicles);
 
             var northDriver = new Driver(north.Id, "Alex North", "NW-DL-001", "+1-555-0100");
@@ -79,7 +104,8 @@ public static class FleetOpsSeedData
             var westServiceDevice = new GpsDevice(west.Id, "WF-GPS-300", "Service truck tracker");
             var westSupportDevice = new GpsDevice(west.Id, "WF-GPS-301", "Support van tracker");
             var westReserveDevice = new GpsDevice(west.Id, "WF-GPS-302", "Reserve van tracker");
-            dbContext.GpsDevices.AddRange(northDevice, southDevice, southRelayDevice, southReserveDevice, northSpareDevice, northServiceDevice, westServiceDevice, westSupportDevice, westReserveDevice);
+            var publicDemoDevice = new GpsDevice(publicDemo.Id, "DEMO-GPS-100", "Synthetic van tracker");
+            dbContext.GpsDevices.AddRange(northDevice, southDevice, southRelayDevice, southReserveDevice, northSpareDevice, northServiceDevice, westServiceDevice, westSupportDevice, westReserveDevice, publicDemoDevice);
             dbContext.GpsDevices.AddRange(demoDevices);
 
             var historicalUtc = new DateTimeOffset(2026, 1, 1, 9, 0, 0, TimeSpan.Zero);
@@ -92,7 +118,8 @@ public static class FleetOpsSeedData
                 new DeviceAssignment(south.Id, southReserveDevice.Id, southReserveTruck.Id, historicalUtc),
                 new DeviceAssignment(west.Id, westServiceDevice.Id, westServiceTruck.Id, historicalUtc),
                 new DeviceAssignment(west.Id, westSupportDevice.Id, westSupportVan.Id, historicalUtc),
-                new DeviceAssignment(west.Id, westReserveDevice.Id, westReserveVan.Id, historicalUtc));
+                new DeviceAssignment(west.Id, westReserveDevice.Id, westReserveVan.Id, historicalUtc),
+                new DeviceAssignment(publicDemo.Id, publicDemoDevice.Id, publicDemoVan.Id, historicalUtc));
             dbContext.DeviceAssignments.AddRange(demoVehicles.Zip(
                 demoDevices,
                 (vehicle, device) => new DeviceAssignment(north.Id, device.Id, vehicle.Id, historicalUtc)));
@@ -111,6 +138,7 @@ public static class FleetOpsSeedData
             await EnsureUserAsync(userManager, west, "admin@westland.local", "Westland Admin", "Admin123!", SystemRoles.Admin);
             await EnsureUserAsync(userManager, west, "operator@westland.local", "Westland Operator", "Operator123!", SystemRoles.Operator);
             await EnsureUserAsync(userManager, west, "driver@westland.local", "Westland Driver", "Driver123!", SystemRoles.Driver, westDriver.Id);
+            await EnsurePasswordlessUserAsync(userManager, publicDemo, "public-demo@fleetops.invalid", "Public Demo Operator", SystemRoles.Operator);
             return;
         }
 
@@ -241,6 +269,40 @@ public static class FleetOpsSeedData
             throw new InvalidOperationException($"Could not seed user {email}: {string.Join("; ", createResult.Errors.Select(x => x.Description))}");
         }
 
+        var roleResult = await userManager.AddToRoleAsync(user, role);
+        if (!roleResult.Succeeded)
+        {
+            throw new InvalidOperationException($"Could not add role {role} to {email}: {string.Join("; ", roleResult.Errors.Select(x => x.Description))}");
+        }
+    }
+
+    private static async Task EnsurePasswordlessUserAsync(
+        UserManager<ApplicationUser> userManager,
+        Organization organization,
+        string email,
+        string fullName,
+        string role)
+    {
+        var existingUser = await userManager.FindByEmailAsync(email);
+        if (existingUser is not null)
+        {
+            return;
+        }
+
+        var user = new ApplicationUser
+        {
+            UserName = email,
+            Email = email,
+            FullName = fullName,
+            OrganizationId = organization.Id,
+            EmailConfirmed = true,
+            IsActive = true,
+        };
+        var createResult = await userManager.CreateAsync(user);
+        if (!createResult.Succeeded)
+        {
+            throw new InvalidOperationException($"Could not seed passwordless user {email}: {string.Join("; ", createResult.Errors.Select(x => x.Description))}");
+        }
         var roleResult = await userManager.AddToRoleAsync(user, role);
         if (!roleResult.Succeeded)
         {

@@ -59,6 +59,40 @@ public sealed class ProductionSecurityTests(FleetOpsApiFactory factory) : IClass
     }
 
     [Fact]
+    public void ProductionRejectsPublicDemoAndDemoRequiresExplicitSandbox()
+    {
+        var productionConfiguration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["ConnectionStrings:FleetOps"] = "Server=sql;Database=FleetOps;User Id=fleetops;Password=Independent-Database-Password;Encrypt=True",
+                ["Jwt:SigningKey"] = "production-jwt-key-with-independent-random-material-2026",
+                ["ObjectStorage:MediaSigningKey"] = "production-media-key-with-independent-random-material-2026",
+                ["ObjectStorage:Provider"] = "S3",
+                ["ObjectStorage:ServiceUrl"] = "https://objects.example.invalid",
+                ["ObjectStorage:BucketName"] = "fleetops-private-media",
+                ["ObjectStorage:AccessKey"] = "production-access-key",
+                ["ObjectStorage:SecretKey"] = "production-secret-key",
+                ["PublicDemo:Enabled"] = "true",
+            }).Build();
+        Assert.Contains(
+            "PublicDemo:Enabled",
+            Assert.Throws<InvalidOperationException>(() => ProductionConfigurationValidator.Validate(productionConfiguration, ProductionEnvironment)).Message,
+            StringComparison.Ordinal);
+
+        var unsafeDemo = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Bootstrap:SeedDemoData"] = "true",
+                ["PublicDemo:Enabled"] = "true",
+                ["PublicDemo:SideEffectsSandboxed"] = "false",
+            }).Build();
+        Assert.Contains(
+            "SideEffectsSandboxed",
+            Assert.Throws<InvalidOperationException>(() => ProductionConfigurationValidator.Validate(unsafeDemo, DemoEnvironment)).Message,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task RepeatedInvalidPasswordsLockTheUser()
     {
         const string email = "lockout.operator@northwind.local";
@@ -112,6 +146,7 @@ public sealed class ProductionSecurityTests(FleetOpsApiFactory factory) : IClass
     }
 
     private static IHostEnvironment ProductionEnvironment { get; } = new TestHostEnvironment();
+    private static IHostEnvironment DemoEnvironment { get; } = new TestHostEnvironment { EnvironmentName = "Demo" };
 
     private sealed class TestHostEnvironment : IHostEnvironment
     {

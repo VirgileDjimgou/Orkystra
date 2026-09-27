@@ -6,6 +6,20 @@ export type AuthenticatedUser = {
   driverId?: string | null;
   roles: string[];
   twoFactorEnabled?: boolean;
+  isDemo?: boolean;
+};
+
+export type DemoSessionState = {
+  scenario: string;
+  status: string;
+  revision: number;
+  updatedAtUtc: string;
+  expiresAtUtc: string;
+};
+
+export type DemoLaunchResponse = LoginResponse & {
+  label: string;
+  scenario: DemoSessionState;
 };
 
 export type LoginResponse = {

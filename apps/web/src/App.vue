@@ -70,6 +70,7 @@
       ></button>
 
       <main id="main-content" class="main-content" tabindex="-1">
+        <DemoControlBar v-if="session.isDemo" />
         <header class="topbar">
           <div class="topbar-context">
             <button
@@ -104,6 +105,7 @@
 import { computed, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useSessionStore } from "./features/auth/store";
+import DemoControlBar from "./features/demo/DemoControlBar.vue";
 
 type NavigationItem = {
   label: string;

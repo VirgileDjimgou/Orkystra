@@ -64,6 +64,9 @@
                 : "Sign in"
           }}
         </button>
+        <RouterLink class="btn btn-link w-100 mt-2" to="/demo">
+          Launch Live Demo
+        </RouterLink>
       </form>
     </section>
 

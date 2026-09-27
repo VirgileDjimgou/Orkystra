@@ -2,7 +2,7 @@
 
 ## Status
 
-`NOT_STARTED`
+`DONE — 2026-09-27; full quality gate passed`
 
 ## Goal
 
@@ -64,12 +64,12 @@ Rate limits and reset coordination tolerate a defined small visitor burst withou
 
 ## Acceptance criteria
 
-- [ ] Public visitors launch a live demo without copied credentials.
-- [ ] Demo sessions are server-issued, HttpOnly, short-lived, scoped, rate-limited, and CSRF-protected.
-- [ ] Demo mode is visibly synthetic and has sandboxed side effects.
-- [ ] Controls cannot appear or operate in ordinary Production workspaces.
-- [ ] Concurrent visitors cannot access each other's tenant/session state.
-- [ ] Production configuration validation remains as strict as before.
+- [x] Public visitors launch a live demo without copied credentials.
+- [x] Demo sessions are server-issued, HttpOnly, short-lived, scoped, rate-limited, and CSRF-protected.
+- [x] Demo mode is visibly synthetic and has sandboxed side effects.
+- [x] Controls cannot appear or operate in ordinary Production workspaces.
+- [x] Concurrent visitors cannot access each other's tenant/session state.
+- [x] Production configuration validation remains as strict as before.
 
 ## Demo proof
 

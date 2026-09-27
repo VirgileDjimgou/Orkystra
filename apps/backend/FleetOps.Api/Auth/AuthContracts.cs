@@ -9,7 +9,8 @@ public sealed record AuthenticatedUserResponse(
     string OrganizationName,
     Guid? DriverId,
     string[] Roles,
-    bool TwoFactorEnabled);
+    bool TwoFactorEnabled,
+    bool IsDemo = false);
 
 public sealed record LoginResponse(
     string AccessToken,

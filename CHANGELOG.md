@@ -4,6 +4,8 @@ Toutes les modifications fonctionnelles significatives sont documentées ici.
 
 ## Unreleased
 
+- Added a first-class public Demo runtime with passwordless launch, short-lived HttpOnly/CSRF sessions, rate/capacity limits, read-only least privilege, session-isolated scenario controls, persistent simulated-data labelling, and safe expiry recovery.
+
 ### Changed
 
 - Cockpit map markers now show movement, tracking freshness and exception state with symbols and accessible labels; selected vehicle history is the only rendered trail and tile settings are runtime-configurable.

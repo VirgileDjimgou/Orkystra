@@ -56,6 +56,7 @@ builder.Services.AddSignalR();
 builder.Services.AddFleetOpsInfrastructure(builder.Configuration);
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
 builder.Services.Configure<TrackingOptions>(builder.Configuration.GetSection(TrackingOptions.SectionName));
+builder.Services.Configure<PublicDemoOptions>(builder.Configuration.GetSection(PublicDemoOptions.SectionName));
 builder.Services.AddScoped<TrackingQualityAnalyzer>();
 builder.Services.AddScoped<TrackingDerivationService>();
 builder.Services.AddScoped<SandboxTelematicsAdapter>();
@@ -101,6 +102,7 @@ builder.Services.AddScoped<IOperationsRealtimeNotifier, OperationsRealtimeNotifi
 builder.Services.AddScoped<IDriverSyncIncidentService, DriverSyncIncidentService>();
 builder.Services.AddSingleton<TrackingMetricsStore>();
 builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton<IDemoSessionStateStore, DemoSessionStateStore>();
 builder.Services.AddSingleton<IMediaUrlSigner, MediaUrlSigner>();
 builder.Services.AddSingleton<IAuthorizationHandler, ApiKeyScopeHandler>();
 builder.Services.AddAuthentication(options =>
@@ -161,14 +163,20 @@ builder.Services.AddAuthentication(options =>
 
                 var dbContext = context.HttpContext.RequestServices.GetRequiredService<FleetOpsDbContext>();
                 var now = DateTimeOffset.UtcNow;
-                var isActive = await dbContext.UserSessions.AnyAsync(
+                var session = await dbContext.UserSessions
+                    .Where(
                     x => x.Id == sessionId
                         && x.UserId == userId
                         && x.OrganizationId == organizationId
                         && x.RevokedAtUtc == null
-                        && x.ExpiresAtUtc > now,
-                    context.HttpContext.RequestAborted);
-                if (!isActive)
+                        && x.ExpiresAtUtc > now)
+                    .Select(x => new { x.ClientType })
+                    .SingleOrDefaultAsync(context.HttpContext.RequestAborted);
+                var hasDemoClaim = string.Equals(
+                    context.Principal?.FindFirst(TenantClaimTypes.DemoSession)?.Value,
+                    "true",
+                    StringComparison.Ordinal);
+                if (session is null || hasDemoClaim != string.Equals(session.ClientType, "public-demo", StringComparison.Ordinal))
                 {
                     context.Fail("The session has expired or has been revoked.");
                 }
@@ -219,6 +227,22 @@ builder.Services.AddRateLimiter(options =>
                 QueueLimit = 0,
                 AutoReplenishment = true
             }));
+    options.AddPolicy("demo-launch", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = Math.Max(1, builder.Configuration.GetValue("PublicDemo:LaunchPermitLimit", 10)),
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
+    options.AddFixedWindowLimiter("demo-control", limiter =>
+    {
+        limiter.PermitLimit = 30;
+        limiter.Window = TimeSpan.FromMinutes(1);
+        limiter.QueueLimit = 0;
+    });
     options.AddFixedWindowLimiter("integration-admin", limiter =>
     {
         limiter.PermitLimit = 20;
@@ -282,6 +306,7 @@ app.Use(async (context, next) =>
 });
 app.UseAuthentication();
 app.UseMiddleware<CsrfProtectionMiddleware>();
+app.UseMiddleware<DemoSessionGuardMiddleware>();
 app.UseAuthorization();
 app.UseRateLimiter();
 app.MapHealthChecks("/health");
@@ -306,6 +331,7 @@ app.MapDeviceEndpoints();
 app.MapFleetAlertConfigurationEndpoints();
 app.MapDispatchEndpoints();
 app.MapAgentActivityEndpoints();
+app.MapPublicDemoEndpoints();
 app.MapRecipientStatusEndpoints();
 app.MapDispatchProductivityEndpoints();
 app.MapDriverAppEndpoints();

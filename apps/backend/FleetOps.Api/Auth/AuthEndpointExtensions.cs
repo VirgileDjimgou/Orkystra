@@ -126,7 +126,7 @@ public static class AuthEndpointExtensions
                 result.ChallengeMessage));
         }
 
-        var csrfToken = SetWebSessionCookies(httpContext, result.Token!);
+        var csrfToken = WebSessionSecurity.SetSessionCookies(httpContext, result.Token!);
         return Results.Ok(new WebLoginResponse(
             result.Token!.ExpiresAtUtc,
             result.User!,
@@ -228,7 +228,8 @@ public static class AuthEndpointExtensions
             tenant.OrganizationName,
             user.DriverId,
             roles.OrderBy(x => x).ToArray(),
-            user.TwoFactorEnabled));
+            user.TwoFactorEnabled,
+            string.Equals(httpContext.User.FindFirst(TenantClaimTypes.DemoSession)?.Value, "true", StringComparison.Ordinal)));
     }
 
     private static IResult GetCsrfToken(HttpContext httpContext)
@@ -297,7 +298,7 @@ public static class AuthEndpointExtensions
         await dbContext.SaveChangesAsync(cancellationToken);
 
         var token = await tokenIssuer.IssueAsync(user, tenant.OrganizationName, replacement.Id, cancellationToken);
-        var csrfToken = SetWebSessionCookies(httpContext, token);
+        var csrfToken = WebSessionSecurity.SetSessionCookies(httpContext, token);
         await auditService.WriteAsync(
             tenant.OrganizationId,
             tenant.UserId,
@@ -379,21 +380,6 @@ public static class AuthEndpointExtensions
 
     private static Guid? GetSessionId(System.Security.Claims.ClaimsPrincipal user) =>
         Guid.TryParse(user.FindFirst(JwtRegisteredClaimNames.Sid)?.Value, out var sessionId) ? sessionId : null;
-
-    private static string SetWebSessionCookies(HttpContext httpContext, IssuedToken token)
-    {
-        var secure = httpContext.Request.IsHttps;
-        httpContext.Response.Cookies.Append(
-            WebSessionSecurity.AuthenticationCookie,
-            token.AccessToken,
-            WebSessionSecurity.CreateCookieOptions(token.ExpiresAtUtc, secure, httpOnly: true));
-        var csrfToken = WebSessionSecurity.CreateCsrfToken();
-        httpContext.Response.Cookies.Append(
-            WebSessionSecurity.CsrfCookie,
-            csrfToken,
-            WebSessionSecurity.CreateCookieOptions(token.ExpiresAtUtc, secure, httpOnly: true));
-        return csrfToken;
-    }
 
     private static void DeleteWebSessionCookies(HttpContext httpContext)
     {

@@ -7,6 +7,34 @@ const samplePngBase64 =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9pN96ZQAAAAASUVORK5CYII=";
 let missionScheduleSequence = 0;
 
+test("public visitor launches an isolated expiring simulated demo", async ({
+  page,
+}) => {
+  await page.goto("/demo");
+  await expect(
+    page.getByRole("heading", { name: "Explore FleetOps live." }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Launch Live Demo" }).click();
+
+  await expect(
+    page.getByRole("heading", { name: "Operations cockpit" }),
+  ).toBeVisible();
+  const controls = page.getByLabel("Simulated demo controls");
+  await expect(controls).toContainText("SIMULATED DEMO");
+  await controls.getByLabel("Scenario").selectOption("LATE_DELIVERY");
+  await controls.getByRole("button", { name: "Start" }).click();
+  await expect(controls).toContainText("RUNNING");
+  await expect(page.getByRole("link", { name: "Users" })).toHaveCount(0);
+
+  await page.goto("/admin/security");
+  await expect(page).toHaveURL(/\/$/);
+
+  await page.waitForTimeout(3_200);
+  await controls.getByRole("button", { name: "Pause" }).click();
+  await expect(page).toHaveURL(/\/demo\?expired=1$/);
+  await expect(page.getByText("expired safely")).toBeVisible();
+});
+
 test("operator can sign in and reach the tenant-aware operations cockpit", async ({
   page,
 }) => {

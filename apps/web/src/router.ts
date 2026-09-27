@@ -21,6 +21,7 @@ import VehiclesView from "./views/VehiclesView.vue";
 import MaintenanceView from "./views/MaintenanceView.vue";
 import ComplianceView from "./views/ComplianceView.vue";
 import RecipientStatusView from "./views/RecipientStatusView.vue";
+import DemoLaunchView from "./views/DemoLaunchView.vue";
 
 export const router = createRouter({
   history: createWebHistory(),
@@ -30,6 +31,7 @@ export const router = createRouter({
       component: RecipientStatusView,
       meta: { public: true },
     },
+    { path: "/demo", component: DemoLaunchView, meta: { public: true } },
     { path: "/login", component: LoginView, meta: { guestOnly: true } },
     {
       path: "/admin/onboarding",

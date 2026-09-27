@@ -16,7 +16,9 @@ public interface IJwtTokenIssuer
         ApplicationUser user,
         string organizationName,
         Guid sessionId,
-        CancellationToken cancellationToken);
+        CancellationToken cancellationToken,
+        DateTimeOffset? expiresAtUtc = null,
+        bool isDemoSession = false);
 }
 
 public sealed class JwtTokenIssuer(
@@ -29,10 +31,12 @@ public sealed class JwtTokenIssuer(
         ApplicationUser user,
         string organizationName,
         Guid sessionId,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        DateTimeOffset? expiresAtUtc = null,
+        bool isDemoSession = false)
     {
         var roles = await userManager.GetRolesAsync(user);
-        var expiresAtUtc = DateTimeOffset.UtcNow.AddMinutes(_options.TokenLifetimeMinutes);
+        var tokenExpiry = expiresAtUtc ?? DateTimeOffset.UtcNow.AddMinutes(_options.TokenLifetimeMinutes);
         var claims = new List<Claim>
         {
             new(ClaimTypes.NameIdentifier, user.Id.ToString()),
@@ -44,6 +48,11 @@ public sealed class JwtTokenIssuer(
             new(TenantClaimTypes.OrganizationId, user.OrganizationId.ToString()),
             new(TenantClaimTypes.OrganizationName, organizationName),
         };
+
+        if (isDemoSession)
+        {
+            claims.Add(new Claim(TenantClaimTypes.DemoSession, "true"));
+        }
 
         if (user.DriverId is Guid driverId)
         {
@@ -59,9 +68,9 @@ public sealed class JwtTokenIssuer(
             audience: _options.Audience,
             claims: claims,
             notBefore: DateTime.UtcNow,
-            expires: expiresAtUtc.UtcDateTime,
+            expires: tokenExpiry.UtcDateTime,
             signingCredentials: credentials);
 
-        return new IssuedToken(new JwtSecurityTokenHandler().WriteToken(token), expiresAtUtc);
+        return new IssuedToken(new JwtSecurityTokenHandler().WriteToken(token), tokenExpiry);
     }
 }

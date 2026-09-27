@@ -1,0 +1,15 @@
+services:
+  api:
+    environment:
+      ASPNETCORE_ENVIRONMENT: Demo
+      Bootstrap__SeedDemoData: "true"
+      Bootstrap__PublicDemoOnly: "true"
+      Bootstrap__OrganizationName: ""
+      Bootstrap__OrganizationSlug: ""
+      Bootstrap__AdminEmail: ""
+      Bootstrap__AdminPassword: ""
+      PublicDemo__Enabled: "true"
+      PublicDemo__SideEffectsSandboxed: "true"
+      PublicDemo__SessionLifetimeSeconds: ${PUBLIC_DEMO_SESSION_LIFETIME_SECONDS:-900}
+      PublicDemo__LaunchPermitLimit: ${PUBLIC_DEMO_LAUNCH_PERMIT_LIMIT:-10}
+      PublicDemo__MaxConcurrentSessions: ${PUBLIC_DEMO_MAX_CONCURRENT_SESSIONS:-20}

@@ -1,5 +1,16 @@
 # Rapport de qualité
 
+## Sprint 29 — Public Demo Mode
+
+- Statut : `PASSED — 2026-09-27`; journal `.runtime/sprint29-quality-gate.log`.
+- Backend : format/analyse sur 307 fichiers, build Release sans avertissement, 170 tests rapides, 1 test MinIO et 3 tests SQL Server passants.
+- Preuves Sprint : 18 tests ciblés couvrent séparation Development/Demo/Production, tenant public unique, utilisateur sans mot de passe, session HttpOnly courte, CSRF, limites de lancement, lecture seule, refus Admin, deux visiteurs isolés et expiration.
+- Simulation : 33 étapes multi-tenant passantes avec refus de découverte croisée dans les trois directions.
+- Web/runtime : 28 Vitest, build production et 7 Playwright passants ; le nouveau parcours lance la Demo, pilote un scénario, refuse l'administration, attend l'expiration et relance proprement.
+- Android : lint, tests unitaires et APK application/instrumentation passants ; connecté non configuré et non requis pour ce sprint Web/API.
+- Sécurité : le profil Demo réel provisionne seulement `public-demo`, l'identité Operator n'a aucun mot de passe, les claims sont liés au type de session persistant, les mutations ordinaires et surfaces sensibles sont interdites, et Production refuse toujours seed et lancement Demo.
+- Limite connue : l'état privé des contrôles est process-local et suppose une instance API ; un déploiement horizontal devra fournir un store partagé borné. Les 6 avis npm déjà relevés restent planifiés au Sprint 31.
+
 ## Sprint 28 — Autonomous Virtual Driver Agents
 
 - Statut : `PASSED — 2026-09-27`; journal `.runtime/sprint28-quality-gate.log`.
