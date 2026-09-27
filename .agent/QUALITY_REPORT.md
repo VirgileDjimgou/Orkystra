@@ -1,5 +1,16 @@
 # Rapport de qualité
 
+## Sprint 28 — Autonomous Virtual Driver Agents
+
+- Statut : `PASSED — 2026-09-27`; journal `.runtime/sprint28-quality-gate.log`.
+- Backend : format/analyse sur 302 fichiers, build Release sans avertissement, 165 tests rapides, 1 test MinIO et 3 tests SQL Server passants.
+- Preuves Sprint : 18 tests ciblés couvrent machine d'état, transition invalide, rejeu des trois fautes, retry avec clé stable, 12 agents concurrents, activité idempotente/auditée/isolée et workflow HTTP réel inspection-départ-arrivée-preuve-fin.
+- Simulation : 33 étapes multi-tenant passantes avec refus de découverte croisée dans les trois directions.
+- Web/runtime : 28 Vitest, build production, 6 Playwright, GPS et santé API passants ; l'onglet agents exclut le raisonnement privé.
+- Android : lint, tests unitaires et APK application/instrumentation passants ; connecté non configuré et non requis pour ce sprint backend/Web.
+- Sécurité : l'organisation vient de l'identité, les ressources Driver/Vehicle/Mission sont revalidées dans le tenant, l'agent ne reçoit ni URL, ni token, ni DbContext, les preuves restent dans le stockage privé et les actions sont auditées.
+- Dépendances Web : `npm ci` rapporte 6 vulnérabilités transitives (3 modérées, 3 élevées) ; elles ne proviennent pas du périmètre Sprint 28 et restent à traiter dans le Sprint 31 sans mise à jour majeure non planifiée.
+
 ## Sprint 27 — Hosted Demo Engine & Realistic Virtual Fleet
 
 - Statut : `PASSED — 2026-09-27`; journal `.runtime/sprint27-quality-gate.log`.

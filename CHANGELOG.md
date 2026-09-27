@@ -15,6 +15,7 @@ Toutes les modifications fonctionnelles significatives sont documentées ici.
 
 ### Added
 
+- Deterministic autonomous virtual drivers with explicit guarded states, typed real-workflow tools, retry-safe idempotency, controlled fault recovery, tenant-scoped audited activity, Operations SignalR refresh, and a safe cockpit activity tab.
 - A disabled-by-default hosted Demo engine with five deterministic scenarios, 12-vehicle synthetic fleet discovery, local route interpolation, canonical telemetry and mission workflow bridges, guarded Demo configuration, and restart snapshots.
 - A reusable cockpit map canvas, contextual vehicle/mission/driver/exception inspector, and collapsible/resizable activity dock for exception, mission, and timeline context.
 - Sprint 23 recipient status: opaque expiring/revocable mission links, a privacy-minimal public status page with broad ETA window and contact correction, tenant-controlled notification consent/preferences, and a protected, deduplicated notification outbox with delivery metrics.

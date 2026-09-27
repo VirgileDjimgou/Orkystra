@@ -26,9 +26,15 @@ builder.Services.AddSingleton<IDemoScenarioStateStore, FileDemoScenarioStateStor
 builder.Services.AddHttpClient(nameof(HttpDemoTelemetryEmitter));
 builder.Services.AddHttpClient(nameof(HttpDemoFleetSource));
 builder.Services.AddHttpClient(nameof(HttpDemoMissionEmitter));
+builder.Services.AddHttpClient(nameof(HttpAgentActivitySink));
+builder.Services.AddHttpClient(nameof(HttpVirtualDriverTools) + ":driver");
+builder.Services.AddHttpClient(nameof(HttpVirtualDriverTools) + ":operator");
 builder.Services.AddSingleton<IDemoTelemetryEmitter, HttpDemoTelemetryEmitter>();
 builder.Services.AddSingleton<IDemoFleetSource, HttpDemoFleetSource>();
 builder.Services.AddSingleton<IDemoMissionEmitter, HttpDemoMissionEmitter>();
+builder.Services.AddSingleton<IAgentDecisionProvider, DeterministicAgentDecisionProvider>();
+builder.Services.AddSingleton<IVirtualDriverTools, HttpVirtualDriverTools>();
+builder.Services.AddSingleton<IAgentActivitySink, HttpAgentActivitySink>();
 builder.Services.AddOpenTelemetry()
     .ConfigureResource(resource => resource.AddService(
         serviceName: "fleetops-worker",
@@ -54,6 +60,7 @@ builder.Services.AddOpenTelemetry()
     });
 builder.Services.AddHostedService<Worker>();
 builder.Services.AddHostedService<DemoScenarioHostedService>();
+builder.Services.AddHostedService<VirtualDriverHostedService>();
 using var host = builder.Build();
 if (args.Contains("--migrate-media", StringComparer.Ordinal))
 {

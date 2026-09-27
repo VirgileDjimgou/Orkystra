@@ -60,6 +60,7 @@
       :collapsed="dockCollapsed"
       :exceptions="queue.items"
       :missions="dispatch.missions"
+      :activities="agentActivities"
       @toggle="dockCollapsed = !dockCollapsed"
       @select-exception="selectException"
       @select-mission="selectMission"
@@ -74,6 +75,7 @@ import CockpitActivityDock from "../features/cockpit/CockpitActivityDock.vue";
 import CockpitInspector from "../features/cockpit/CockpitInspector.vue";
 import CockpitMapCanvas from "../features/cockpit/CockpitMapCanvas.vue";
 import type {
+  AgentActivityResponse,
   CockpitDockTab,
   CockpitSelection,
 } from "../features/cockpit/contracts";
@@ -108,6 +110,7 @@ const queue = ref<OperationsExceptionQueueResponse>({
   },
   items: [],
 });
+const agentActivities = ref<AgentActivityResponse[]>([]);
 const activeTab = ref<CockpitDockTab>("exceptions");
 const dockCollapsed = ref(false);
 const dockHeight = ref(280);
@@ -176,6 +179,14 @@ async function loadQueue() {
   );
 }
 
+async function loadAgentActivities() {
+  if (!session.accessToken) return;
+  agentActivities.value = await apiRequest<AgentActivityResponse[]>(
+    "/api/v1/demo/agent-activities?take=50",
+    { token: session.accessToken },
+  );
+}
+
 async function refresh() {
   if (!session.accessToken) return;
   pageError.value = "";
@@ -184,6 +195,7 @@ async function refresh() {
       tracking.refresh(session.accessToken),
       dispatch.loadMissions(session.accessToken),
       loadQueue(),
+      loadAgentActivities(),
     ]);
     const vehicleId =
       typeof route.query.vehicleId === "string" ? route.query.vehicleId : "";
@@ -259,7 +271,8 @@ onMounted(async () => {
       refresh,
     );
     operationsConnection = await connectOperationsStream(
-      loadQueue,
+      async () =>
+        Promise.all([loadQueue(), loadAgentActivities()]).then(() => undefined),
       () => undefined,
     );
   } catch {

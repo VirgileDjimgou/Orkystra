@@ -73,6 +73,20 @@
           No missions to show.
         </p>
       </div>
+      <div v-else-if="activeTab === 'agents'" class="cockpit-list">
+        <article
+          v-for="activity in (activities ?? []).slice(0, 8)"
+          :key="activity.id"
+          class="cockpit-list-item agent-activity"
+        >
+          <strong>{{ activity.action }} · {{ activity.observedState }}</strong>
+          <span>{{ activity.policy }} · {{ activity.resultCode }}</span>
+          <small>{{ activity.resultMessage }}</small>
+        </article>
+        <p v-if="(activities ?? []).length === 0" class="empty-placeholder">
+          No virtual-driver activity yet.
+        </p>
+      </div>
       <div v-else class="cockpit-list">
         <p class="empty-placeholder">
           Select a mission or exception to view its operational timeline.
@@ -84,7 +98,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import type { CockpitDockTab } from "./contracts";
+import type { AgentActivityResponse, CockpitDockTab } from "./contracts";
 import type { MissionSummaryResponse } from "../dispatch/contracts";
 import type { OperationsExceptionListItemResponse } from "../operations/contracts";
 
@@ -94,6 +108,7 @@ const props = defineProps<{
   height: number;
   exceptions: OperationsExceptionListItemResponse[];
   missions: MissionSummaryResponse[];
+  activities?: AgentActivityResponse[];
 }>();
 const emit = defineEmits<{
   toggle: [];
@@ -105,6 +120,7 @@ const emit = defineEmits<{
 const tabs: Array<{ id: CockpitDockTab; label: string }> = [
   { id: "exceptions", label: "Exceptions" },
   { id: "missions", label: "Missions" },
+  { id: "agents", label: "Virtual drivers" },
   { id: "timeline", label: "Timeline" },
 ];
 const activeTabLabel = computed(
@@ -186,5 +202,8 @@ function missionContext(mission: MissionSummaryResponse) {
 .cockpit-list-item span {
   color: var(--muted);
   font-size: 0.88rem;
+}
+.agent-activity small {
+  color: var(--muted);
 }
 </style>

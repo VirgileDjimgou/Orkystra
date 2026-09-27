@@ -171,6 +171,23 @@ describe("OperationsCockpitView", () => {
               },
             ],
           });
+        if (url.includes("demo/agent-activities"))
+          return json([
+            {
+              id: "activity-1",
+              agentId: "agent-1",
+              driverId: "driver-1",
+              vehicleId: "vehicle-1",
+              missionId: "mission-1",
+              sequence: 3,
+              observedState: "EnRoute",
+              policy: "schedule-delay",
+              action: "ReportDelay",
+              resultCode: "delay-reported",
+              resultMessage: "Controlled 15-minute delay recorded.",
+              occurredAtUtc: "2026-09-26T10:00:00Z",
+            },
+          ]);
         if (url.includes("dispatch/missions"))
           return json([
             {
@@ -230,6 +247,15 @@ describe("OperationsCockpitView", () => {
     await nextTick();
     await wrapper.get(".cockpit-list-item").trigger("click");
     expect(wrapper.text()).toContain("Morning delivery");
+
+    await wrapper
+      .findAll('button[role="tab"]')
+      .find((tab) => tab.text() === "Virtual drivers")!
+      .trigger("click");
+    await nextTick();
+    expect(wrapper.text()).toContain("ReportDelay · EnRoute");
+    expect(wrapper.text()).toContain("schedule-delay · delay-reported");
+    expect(wrapper.text()).not.toContain("chain-of-thought");
   });
 });
 

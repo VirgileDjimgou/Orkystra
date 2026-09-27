@@ -1,5 +1,6 @@
 using FleetOps.Core.Modules.Alerts;
 using FleetOps.Core.Modules.Compliance;
+using FleetOps.Core.Modules.Demo;
 using FleetOps.Core.Modules.Dispatch;
 using FleetOps.Core.Modules.Fleet;
 using FleetOps.Core.Modules.Identity;
@@ -25,6 +26,7 @@ public sealed class FleetOpsDbContext(DbContextOptions<FleetOpsDbContext> option
     public DbSet<Mission> Missions => Set<Mission>();
     public DbSet<MissionStop> MissionStops => Set<MissionStop>();
     public DbSet<MissionTimelineEvent> MissionTimelineEvents => Set<MissionTimelineEvent>();
+    public DbSet<AgentActivity> AgentActivities => Set<AgentActivity>();
     public DbSet<RecipientStatusLink> RecipientStatusLinks => Set<RecipientStatusLink>();
     public DbSet<RecipientNotificationPreference> RecipientNotificationPreferences => Set<RecipientNotificationPreference>();
     public DbSet<RecipientStatusNotification> RecipientStatusNotifications => Set<RecipientStatusNotification>();
@@ -94,6 +96,17 @@ public sealed class FleetOpsDbContext(DbContextOptions<FleetOpsDbContext> option
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+
+        builder.Entity<AgentActivity>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.OrganizationId, x.AgentId, x.Sequence }).IsUnique();
+            entity.HasIndex(x => new { x.OrganizationId, x.OccurredAtUtc });
+            entity.Property(x => x.Policy).HasMaxLength(80);
+            entity.Property(x => x.ResultCode).HasMaxLength(80);
+            entity.Property(x => x.ResultMessage).HasMaxLength(240);
+            entity.Property(x => x.OccurredAtUtc).HasPrecision(7);
+        });
 
         builder.Entity<ComplianceDocumentType>(entity =>
         {

@@ -2,7 +2,7 @@
 
 ## Status
 
-`NOT_STARTED`
+`DONE — 2026-09-27; full quality gate passed`
 
 ## Goal
 
@@ -63,12 +63,12 @@ Multiple agents progress independently without serial global blocking. Activity 
 
 ## Acceptance criteria
 
-- [ ] Multiple agents independently execute their assigned synthetic missions.
-- [ ] Every action follows a valid explicit state transition and typed tool contract.
-- [ ] Delays, vehicle issues, and offline events lead to deterministic, recoverable behavior.
-- [ ] Actions are idempotent, tenant scoped, authorized, and auditable.
-- [ ] Cockpit shows safe agent activity without private chain-of-thought.
-- [ ] No LLM or external provider is required for the demo.
+- [x] Multiple agents independently execute their assigned synthetic missions.
+- [x] Every action follows a valid explicit state transition and typed tool contract.
+- [x] Delays, vehicle issues, and offline events lead to deterministic, recoverable behavior.
+- [x] Actions are idempotent, tenant scoped, authorized, and auditable.
+- [x] Cockpit shows safe agent activity without private chain-of-thought.
+- [x] No LLM or external provider is required for the demo.
 
 ## Demo proof
 
