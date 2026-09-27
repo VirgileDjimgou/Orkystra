@@ -25,3 +25,18 @@ The runner rejects a dirty worktree, `STOP`, unresolved `HUMAN_REQUIRED.json`, a
 After each failed repair, record it with `-Action Fail`. On the third failure, the orchestrator writes `.agent/HUMAN_REQUIRED.json` with sprint, gate, failure, repairs, files, required decision, and safe resume command. Resolve only with explicit human direction using `-Action ResolveGate -Note <decision>`. `-Action Stop` releases the lock and records a stop reason.
 
 The runner never pushes, deploys, merges, weakens tests, changes acceptance criteria silently, or steals a stale lock.
+## Visible local status
+
+The canonical runner records sprint selection and validation state; it does not itself run an AI coding worker in the background. To see the current state, working-tree changes and the current sprint journal in a terminal, run:
+
+```powershell
+pwsh -ExecutionPolicy Bypass -File scripts/sprint-dashboard.ps1 -Watch
+```
+
+Each active sprint must append factual milestones to `.runtime/<sprint>-progress.log`. A sprint is only genuinely executing while Codex is processing a turn or an explicitly started validation command is running; a lock alone is not evidence of background implementation.
+
+## Interactive lifecycle
+
+The normal lifecycle is `IDLE -> RUNNING -> VALIDATING -> DONE`. If a Codex turn ends before validation completes, it must execute `-Action Pause -Note <factual handoff>`. That transition records the sprint as `PARTIAL`, changes execution to `IDLE`, releases the lock, and makes the next `Start Next Sprint` resume the same sprint.
+
+Use `scripts/sprint-progress.ps1 -Status <status> -Message <message>` for factual milestones. `scripts/sprint-dashboard.ps1 -Watch` displays the remaining sprint count, last activity, lock, working tree and current progress log. No state may claim continuous background work unless an actual worker process is running and identifiable.

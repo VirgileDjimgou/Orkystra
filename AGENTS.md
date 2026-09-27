@@ -74,7 +74,11 @@ Créer un checkpoint avec `python scripts/agent/checkpoint.py --summary "..."` a
 
 Quand l'utilisateur écrit `Start Next Sprint`, appliquer le contrat atomique documenté dans `docs/02-engineering/SPRINT_AUTOPILOT.md` : exécuter `scripts/sprint-runner.ps1 -Action Start`, prendre le verrou, sélectionner exactement le plus petit sprint éligible, lire son contrat complet, n'implémenter que lui, valider, mettre à jour les preuves et libérer le verrou. Arrêter après ce sprint ; ne jamais commencer le suivant dans le même contexte.
 
+Le démarrage doit être visible et factuel : afficher immédiatement le sprint sélectionné, le nombre de sprints restants et le chemin du journal `.runtime/<sprint>-progress.log`; enregistrer chaque jalon avec `scripts/sprint-progress.ps1`; fournir des mises à jour utilisateur pendant l'exécution. Un verrou n'est jamais une preuve qu'un agent travaille en arrière-plan. Si la session s'arrête avant la Definition of Done, exécuter `scripts/sprint-runner.ps1 -Action Pause -Note "..."`, marquer le sprint `PARTIAL/IDLE` et libérer le verrou. Le prochain `Start Next Sprint` reprend ce sprint partiel.
+
 Quand l'utilisateur écrit `Start Next Sprints N`, accepter seulement `1 <= N <= 10`, lancer `scripts/sprint-batch-runner.ps1 -Count N`, puis traiter chaque sprint comme une itération atomique et un contexte agent distinct. Le runner atomique reste l'unique autorité de sélection. S'arrêter dès qu'une gate échoue ou qu'une intervention humaine est nécessaire.
+
+Ne jamais présenter un batch enregistré comme une exécution autonome : sans worker externe réellement lancé et observable, les itérations restent séquentielles et interactives.
 
 L'état machine canonique est `.agent/PROJECT_STATE.json`. Ne pas contourner `.agent/sprint.lock.json`, `STOP`, `.agent/STOP` ou `.agent/HUMAN_REQUIRED.json`. Après trois échecs de réparation du même gate, enregistrer le blocage structuré et demander la décision requise. Ne jamais voler un verrou expiré sans résolution humaine explicite.
 

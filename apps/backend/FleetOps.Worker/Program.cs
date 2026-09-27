@@ -2,6 +2,8 @@ using System.Text.Json;
 using FleetOps.Infrastructure;
 using FleetOps.Infrastructure.Storage;
 using FleetOps.Worker;
+using FleetOps.Worker.Demo;
+using FleetOps.Core.Modules.Demo;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
@@ -16,6 +18,11 @@ builder.Logging.AddJsonConsole(options =>
 });
 builder.Services.AddFleetOpsInfrastructure(builder.Configuration);
 builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.Configure<DemoEngineOptions>(builder.Configuration.GetSection(DemoEngineOptions.SectionName));
+builder.Services.AddSingleton<IDemoClock>(_ => new DeterministicDemoClock(DateTimeOffset.UtcNow));
+builder.Services.AddSingleton<IDemoScenarioEngine, DeterministicDemoScenarioEngine>();
+builder.Services.AddHttpClient(nameof(HttpDemoTelemetryEmitter));
+builder.Services.AddSingleton<IDemoTelemetryEmitter, HttpDemoTelemetryEmitter>();
 builder.Services.AddOpenTelemetry()
     .ConfigureResource(resource => resource.AddService(
         serviceName: "fleetops-worker",
@@ -40,6 +47,7 @@ builder.Services.AddOpenTelemetry()
         }
     });
 builder.Services.AddHostedService<Worker>();
+builder.Services.AddHostedService<DemoScenarioHostedService>();
 using var host = builder.Build();
 if (args.Contains("--migrate-media", StringComparer.Ordinal))
 {

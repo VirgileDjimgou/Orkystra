@@ -1,5 +1,12 @@
 # Rapport de qualité
 
+## Sprint 27 — checkpoint partiel et méthodologie visible
+
+- Statut : `PARTIAL/IDLE — 2026-09-27`; aucune gate complète n'est revendiquée et aucun worker ne tourne en arrière-plan.
+- Backend ciblé : build Release de `FleetOps.Worker` passé avec 0 avertissement/0 erreur ; `DemoScenarioEngineTests` passés (3/3).
+- Orchestration : compilation Python, parse des scripts PowerShell et `git diff --check` passés. La commande `sprint-dashboard.ps1` affiche sprint, reste à faire, verrou, dernière activité, diff et journal.
+- Restant Sprint 27 : repository/fixtures réalistes, catalogue complet, intégration effective télémétrie/mission, reprise Worker, isolation tenant, sandbox des effets, preuve 10–20 véhicules et gate complète.
+
 ## Sprint 26 — Fleet Map Semantics & Workflow Integration
 
 - Statut : `PASSED — 2026-09-26`.

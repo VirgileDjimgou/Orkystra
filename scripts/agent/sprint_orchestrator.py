@@ -146,6 +146,12 @@ def start(root: pathlib.Path, owner: str, lease_minutes: int) -> str:
             "currentBlocker": None,
             "agentTool": owner,
             "startedAtUtc": iso_now(),
+            "lastActivity": {
+                "status": "STARTED",
+                "timestampUtc": iso_now(),
+                "summary": f"{sprint} selected for visible implementation by {owner}.",
+                "log": f".runtime/{sprint.lower().replace('-', '')}-progress.log",
+            },
         }
     )
     state["activeSprint"] = sprint
@@ -234,6 +240,44 @@ def stop(root: pathlib.Path, reason: str) -> None:
         lock_path.unlink()
 
 
+def pause(root: pathlib.Path, note: str, cancel_batch: bool) -> str:
+    if not note.strip():
+        raise SprintGateError("A factual progress note is required when pausing a sprint.")
+    state = load_state(root)
+    execution = state["execution"]
+    sprint = execution.get("currentSprint") or state.get("activeSprint")
+    lock = read_lock(root)
+    if not sprint or not lock or lock.get("sprint") != sprint:
+        raise SprintGateError("Cannot pause without a matching active sprint lock.")
+    if state["sprints"].get(sprint) != "DONE":
+        state["sprints"][sprint] = "PARTIAL"
+    if cancel_batch and execution["batch"]["requestedCount"]:
+        execution["lastBatch"] = {
+            **execution["batch"],
+            "status": "CANCELLED",
+            "cancelledAtUtc": iso_now(),
+            "reason": note,
+        }
+        execution["batch"] = {"requestedCount": 0, "completedCount": 0}
+    execution.update(
+        {
+            "status": "IDLE",
+            "currentSprint": sprint,
+            "currentBlocker": None,
+            "lastActivity": {
+                "status": "PAUSED",
+                "timestampUtc": iso_now(),
+                "summary": note,
+                "log": f".runtime/{sprint.lower().replace('-', '')}-progress.log",
+            },
+        }
+    )
+    state["activeSprint"] = sprint
+    save_state(state, root)
+    (root / ".agent" / "sprint.lock.json").unlink()
+    return sprint
+
+
 def resolve_gate(root: pathlib.Path, note: str) -> None:
     if not note.strip():
         raise SprintGateError("A human resolution note is required.")
@@ -295,6 +339,9 @@ def main() -> int:
     fail_parser.add_argument("--affected-file", action="append", default=[])
     stop_parser = subparsers.add_parser("stop")
     stop_parser.add_argument("--reason", required=True)
+    pause_parser = subparsers.add_parser("pause")
+    pause_parser.add_argument("--note", required=True)
+    pause_parser.add_argument("--cancel-batch", action="store_true")
     resolve_parser = subparsers.add_parser("resolve-gate")
     resolve_parser.add_argument("--note", required=True)
     subparsers.add_parser("status")
@@ -316,6 +363,9 @@ def main() -> int:
         elif args.command == "stop":
             stop(ROOT, args.reason)
             print("STOPPED")
+        elif args.command == "pause":
+            sprint = pause(ROOT, args.note, args.cancel_batch)
+            print(f"PAUSED {sprint}; next Start Next Sprint will resume it")
         elif args.command == "resolve-gate":
             resolve_gate(ROOT, args.note)
             print("GATE_RESOLVED")

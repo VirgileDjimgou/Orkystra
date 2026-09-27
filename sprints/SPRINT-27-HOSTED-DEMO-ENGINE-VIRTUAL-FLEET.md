@@ -2,7 +2,7 @@
 
 ## Status
 
-`NOT_STARTED`
+`PARTIAL — paused 2026-09-27; resume with Start Next Sprint`
 
 ## Goal
 

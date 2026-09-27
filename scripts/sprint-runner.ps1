@@ -1,5 +1,5 @@
 param(
-  [ValidateSet('Start', 'Validate', 'Complete', 'Fail', 'Stop', 'ResolveGate', 'Status')][string]$Action = 'Status',
+  [ValidateSet('Start', 'Validate', 'Complete', 'Fail', 'Pause', 'Stop', 'ResolveGate', 'Status')][string]$Action = 'Status',
   [string]$Owner = 'powershell-agent',
   [int]$LeaseMinutes = 240,
   [string]$Gate,
@@ -7,7 +7,8 @@ param(
   [string]$ObservedFailure,
   [string[]]$AffectedFile = @(),
   [string]$Reason,
-  [string]$Note
+  [string]$Note,
+  [switch]$CancelBatch
 )
 
 $ErrorActionPreference = 'Stop'
@@ -19,6 +20,7 @@ $arguments = switch ($Action) {
   'Complete' { @($orchestrator, 'complete', '--gate', $Gate, '--checkpoint', $Checkpoint) }
   'Fail' { @($orchestrator, 'fail', '--gate', $Gate, '--observed-failure', $ObservedFailure) + ($AffectedFile | ForEach-Object { @('--affected-file', $_) }) }
   'Stop' { @($orchestrator, 'stop', '--reason', $Reason) }
+  'Pause' { @($orchestrator, 'pause', '--note', $Note) + $(if ($CancelBatch) { @('--cancel-batch') } else { @() }) }
   'ResolveGate' { @($orchestrator, 'resolve-gate', '--note', $Note) }
   default { @($orchestrator, 'status') }
 }

@@ -6,7 +6,7 @@ Créer un moteur de démonstration hébergé avec une flotte synthétique réali
 
 ## État
 
-`NOT_STARTED — SPRINT-26 completed 2026-09-26.`
+`PARTIAL — deterministic engine, route interpolation, hosted-service shell and typed telemetry bridge implemented; full Sprint-27 contract not yet complete.`
 
 ## Source de vérité
 
@@ -20,4 +20,4 @@ Créer un moteur de démonstration hébergé avec une flotte synthétique réali
 
 ## Démarrage
 
-Batch execution is active; acquire the Sprint-27 lock after Sprint 26 checkpoint completion.
+`Start Next Sprint` must resume Sprint 27 visibly. If a session ends before completion, record progress and pause it as `PARTIAL/IDLE`; do not leave a false `RUNNING` state.

@@ -1,8 +1,10 @@
-# Handoff — Sprint 26 complete
+# Handoff — Sprint 27 partial, interactive lifecycle restored
 
 ## Current state
 
-Sprint 26 is `DONE`. Cockpit markers now expose movement, freshness and exception state using non-colour cues; the selected vehicle alone renders a bounded trail, and Leaflet tile URL/attribution are runtime-configurable.
+Sprint 27 is `PARTIAL/IDLE`, not running in the background. Implemented and targeted-validated so far: deterministic scenario clock/engine, bounded route interpolation, a disabled-by-default cancellation-aware Worker service, and a typed HTTP telemetry emitter using the existing internal tracking contract. Worker Release build passes with zero warnings/errors and the three Demo unit tests pass.
+
+The previous five-sprint batch was cancelled because it was only persisted orchestration intent, not an autonomous worker. Six sprints remain: Sprint 27 through Sprint 32. The next explicit `Start Next Sprint` must visibly resume Sprint 27, append milestones through `scripts/sprint-progress.ps1`, and either complete it or pause it truthfully before yielding.
 
 The canonical `scripts/quality-gate.ps1` passed on 2026-09-26: compose/MinIO/recovery, .NET format/build/tests including MinIO and SQL Server, GPS dry-run, full multi-tenant simulation, Web format/lint/Vitest/build/6 Playwright flows, API health/readiness, and Android lint/unit/APK build. Connected Android execution was not configured.
 
@@ -10,7 +12,7 @@ Sprint-25 changes are UI composition only: it reuses tenant-filtered tracking, o
 
 ## Rebaseline state
 
-The repository remains on `2026.09-demo-readiness`. The next eligible sprint is `SPRINT-26`; its source of truth is `sprints/SPRINT-26-FLEET-MAP-SEMANTICS-WORKFLOW-INTEGRATION.md`.
+The repository remains on `2026.09-demo-readiness`. The next eligible sprint is the partial `SPRINT-27`; its source of truth is `sprints/SPRINT-27-HOSTED-DEMO-ENGINE-VIRTUAL-FLEET.md`.
 
 Sprint 23 is factually `DONE`: commit `94e4201`, its two migrations, recipient-status integration tests, and the quality report dated 2026-09-25 prove the implementation. The unchecked Sprint-23 acceptance boxes were a documentation drift and have been reconciled; no product behavior changed during this rebaseline.
 

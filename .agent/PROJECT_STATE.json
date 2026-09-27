@@ -32,7 +32,7 @@
     "SPRINT-24": "DONE",
     "SPRINT-25": "DONE",
     "SPRINT-26": "DONE",
-    "SPRINT-27": "NOT_STARTED",
+    "SPRINT-27": "PARTIAL",
     "SPRINT-28": "NOT_STARTED",
     "SPRINT-29": "NOT_STARTED",
     "SPRINT-30": "NOT_STARTED",
@@ -63,23 +63,36 @@
     "lastSuccessfulGate": {
       "sprint": "SPRINT-23",
       "status": "PASSED",
-      "timestampUtc": "2026-09-25T03:04:17+00:00"
+      "timestampUtc": "2026-09-25T05:04:17+02:00"
     },
     "lastCommit": "94e4201",
     "currentBlocker": null,
     "agentTool": "codex",
-    "updatedAtUtc": "2026-09-26T01:15:00+00:00",
-    "startedAtUtc": "2026-09-26T07:14:39+00:00",
-    "completedAtUtc": "2026-09-26T19:00:27+00:00"
+    "updatedAtUtc": "2026-09-26T03:15:00+02:00",
+    "startedAtUtc": "2026-09-26T21:01:37+02:00",
+    "completedAtUtc": "2026-09-26T21:00:27+02:00",
+    "lastActivity": {
+      "status": "PAUSED",
+      "timestampUtc": "2026-09-27T07:32:28+00:00",
+      "summary": "Partial Sprint 27 checkpoint validated; interactive execution methodology restored. Resume Sprint 27 on the next Start Next Sprint.",
+      "log": ".runtime/sprint27-progress.log"
+    },
+    "lastBatch": {
+      "requestedCount": 5,
+      "completedCount": 0,
+      "status": "CANCELLED",
+      "cancelledAtUtc": "2026-09-27T07:32:28+00:00",
+      "reason": "Partial Sprint 27 checkpoint validated; interactive execution methodology restored. Resume Sprint 27 on the next Start Next Sprint."
+    }
   },
   "lastQualityGate": {
     "status": "PASSED",
-    "timestampUtc": "2026-09-26T19:00:27+00:00",
+    "timestampUtc": "2026-09-26T21:00:27+02:00",
     "report": ".agent/QUALITY_REPORT.md",
     "gate": ".runtime/sprint26-quality-gate.log"
   },
   "lastCheckpoint": {
-    "timestampUtc": "2026-09-26T19:00:27+00:00",
+    "timestampUtc": "2026-09-26T21:00:27+02:00",
     "summary": "complete Sprint 26 map semantics, selected trails, and runtime tile provider configuration"
   },
   "knownBlockers": [],
@@ -88,5 +101,5 @@
     "Validate the primary market positioning before any commercial claim.",
     "Choose a hosted map-tile provider or approved policy before public Demo hosting."
   ],
-  "updatedAtUtc": "2026-09-26T19:00:27+00:00"
+  "updatedAtUtc": "2026-09-27T07:32:28+00:00"
 }
