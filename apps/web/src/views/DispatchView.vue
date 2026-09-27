@@ -21,86 +21,14 @@
 
     <div class="row g-4">
       <div class="col-xl-5">
-        <section class="surface-panel">
-          <div class="panel-heading">
-            <div>
-              <h2>Mission backlog</h2>
-              <p>Draft, active, delayed, and completed operations.</p>
-            </div>
-            <button
-              class="btn btn-outline-secondary"
-              :disabled="dispatch.missionsStatus === 'loading'"
-              @click="refresh"
-            >
-              {{
-                dispatch.missionsStatus === "loading"
-                  ? "Refreshing..."
-                  : "Refresh"
-              }}
-            </button>
-          </div>
-
-          <div v-if="dispatch.missionsError" class="alert alert-danger">
-            {{ dispatch.missionsError }}
-          </div>
-          <div v-else-if="isInitialMissionLoading" class="empty-placeholder">
-            Loading missions...
-          </div>
-          <div
-            v-else-if="dispatch.missions.length === 0"
-            class="empty-placeholder"
-          >
-            No mission planned yet for this organization.
-          </div>
-          <div v-else class="user-list">
-            <article
-              v-for="mission in dispatch.missions"
-              :key="mission.id"
-              :class="[
-                'user-card',
-                dispatch.selectedMission?.id === mission.id
-                  ? 'selected-row'
-                  : '',
-              ]"
-              role="button"
-              tabindex="0"
-              @click="selectMission(mission.id)"
-            >
-              <div>
-                <strong>{{ mission.reference }}</strong>
-                <div class="text-secondary small">{{ mission.title }}</div>
-                <div class="text-secondary small">
-                  {{
-                    formatRange(
-                      mission.scheduledStartUtc,
-                      mission.scheduledEndUtc,
-                    )
-                  }}
-                </div>
-                <div class="text-secondary small">
-                  {{ mission.stopCount }} stop(s)
-                  <span v-if="mission.driverName">{{
-                    ` · ${mission.driverName}`
-                  }}</span>
-                  <span v-if="mission.vehicleRegistrationNumber">
-                    · {{ mission.vehicleRegistrationNumber }}
-                  </span>
-                </div>
-              </div>
-              <div class="user-meta">
-                <span :class="statusBadgeClass(mission.status)">
-                  {{ mission.status }}
-                </span>
-                <small v-if="mission.simulatedDelayMinutes > 0">
-                  +{{ mission.simulatedDelayMinutes }} min
-                </small>
-                <small v-if="hasMissionLocation(mission)">
-                  Live map link
-                </small>
-              </div>
-            </article>
-          </div>
-        </section>
+        <MissionBacklog
+          :missions="dispatch.missions"
+          :selected-mission-id="dispatch.selectedMission?.id"
+          :status="dispatch.missionsStatus"
+          :error="dispatch.missionsError"
+          @refresh="refresh"
+          @select="selectMission"
+        />
 
         <section class="surface-panel mt-4">
           <div class="panel-heading">
@@ -466,6 +394,7 @@ import { useSessionStore } from "../features/auth/store";
 import { useFleetStore } from "../features/fleet/store";
 import type { MissionStatus } from "../features/dispatch/contracts";
 import { useDispatchStore } from "../features/dispatch/store";
+import MissionBacklog from "../features/dispatch/MissionBacklog.vue";
 
 const session = useSessionStore();
 const fleet = useFleetStore();
@@ -508,9 +437,6 @@ const activeDrivers = computed(() =>
 );
 const activeVehicles = computed(() =>
   fleet.vehicles.filter((vehicle) => vehicle.isActive),
-);
-const isInitialMissionLoading = computed(
-  () => dispatch.missionsStatus === "loading" && dispatch.missions.length === 0,
 );
 const hasSelectedMapLink = computed(
   () =>
@@ -574,36 +500,6 @@ function toUtcValue(value: string): string {
 
 function formatDateTime(value: string): string {
   return new Date(value).toLocaleString();
-}
-
-function formatRange(start: string, end: string): string {
-  return `${formatDateTime(start)} - ${formatDateTime(end)}`;
-}
-
-function statusBadgeClass(status: MissionStatus): string {
-  switch (status) {
-    case "Completed":
-      return "badge text-bg-success";
-    case "Delayed":
-      return "badge text-bg-warning";
-    case "Cancelled":
-      return "badge text-bg-danger";
-    case "EnRoute":
-    case "Arrived":
-      return "badge text-bg-primary";
-    default:
-      return "badge text-bg-secondary";
-  }
-}
-
-function hasMissionLocation(
-  mission: (typeof dispatch.missions)[number],
-): boolean {
-  return (
-    mission.currentLatitude !== null &&
-    mission.currentLongitude !== null &&
-    !!mission.vehicleId
-  );
 }
 
 function addStop() {

@@ -61,6 +61,32 @@ test("bookmarked fleet map focus remains available", async ({ page }) => {
   await expect(page.getByText("Mission focus: NW-BOOKMARK")).toBeVisible();
 });
 
+test("grouped navigation preserves keyboard planning and bookmarked routes", async ({
+  page,
+}) => {
+  await loginViaUi(page, "operator@northwind.local", "Operator123!");
+
+  await expect(page.getByText("Operate", { exact: true })).toBeVisible();
+  await expect(page.getByText("Fleet", { exact: true })).toBeVisible();
+  await expect(page.getByText("Manage", { exact: true })).toBeVisible();
+  const missionsLink = page.getByRole("link", {
+    name: "Missions",
+    exact: true,
+  });
+  await missionsLink.focus();
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/\/dispatch\/missions$/);
+  await expect(
+    page.getByRole("heading", { name: "Mission control board" }),
+  ).toBeVisible();
+
+  await page.goto("/planning");
+  await expect(page).toHaveURL(/\/dispatch\/productivity$/);
+  await expect(
+    page.getByRole("heading", { name: "Daily planning workspace" }),
+  ).toBeVisible();
+});
+
 test("administrator can run guided activation through first mission value", async ({
   page,
   request,

@@ -5,6 +5,8 @@ Toutes les modifications fonctionnelles significatives sont documentées ici.
 ## Unreleased
 
 - Added a first-class public Demo runtime with passwordless launch, short-lived HttpOnly/CSRF sessions, rate/capacity limits, read-only least privilege, session-isolated scenario controls, persistent simulated-data labelling, and safe expiry recovery.
+- Simplified the Web console into Operate, Fleet, Manage, and Administration navigation groups, with the map-first cockpit as the operator start point and contextual links to overview, alerts, and the fleet map.
+- Added compatible `/missions` and `/planning` redirects, extracted tested mission-backlog and operations-queue presentation boundaries, and made Playwright's Web port configurable for isolated local validation.
 
 ### Changed
 

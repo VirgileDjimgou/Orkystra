@@ -7,6 +7,7 @@
         <p>Map-first fleet context for the work that needs attention now.</p>
       </div>
       <div class="cockpit-toolbar-actions">
+        <CockpitContextLinks />
         <span :class="connectionBadgeClass">{{ connectionLabel }}</span>
         <button
           class="btn btn-outline-secondary"
@@ -74,6 +75,7 @@ import { useRoute, useRouter } from "vue-router";
 import CockpitActivityDock from "../features/cockpit/CockpitActivityDock.vue";
 import CockpitInspector from "../features/cockpit/CockpitInspector.vue";
 import CockpitMapCanvas from "../features/cockpit/CockpitMapCanvas.vue";
+import CockpitContextLinks from "../features/cockpit/CockpitContextLinks.vue";
 import type {
   AgentActivityResponse,
   CockpitDockTab,

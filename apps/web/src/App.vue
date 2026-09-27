@@ -22,24 +22,7 @@
           </button>
         </div>
 
-        <nav aria-label="Primary navigation">
-          <section
-            v-for="group in visibleNavigation"
-            :key="group.label"
-            class="nav-group"
-          >
-            <p class="nav-group-label">{{ group.label }}</p>
-            <RouterLink
-              v-for="item in group.items"
-              :key="item.to"
-              class="nav-link"
-              :to="item.to"
-            >
-              <span class="nav-icon" aria-hidden="true">{{ item.icon }}</span>
-              <span>{{ item.label }}</span>
-            </RouterLink>
-          </section>
-        </nav>
+        <AppSidebarNavigation :is-admin="session.isAdmin" />
 
         <div class="sidebar-footer">
           <div class="workspace-state">
@@ -106,13 +89,7 @@ import { computed, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useSessionStore } from "./features/auth/store";
 import DemoControlBar from "./features/demo/DemoControlBar.vue";
-
-type NavigationItem = {
-  label: string;
-  to: string;
-  icon: string;
-  adminOnly?: boolean;
-};
+import AppSidebarNavigation from "./features/shell/AppSidebarNavigation.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -134,65 +111,6 @@ const userInitials = computed(() =>
     .slice(0, 2)
     .map((part) => part.charAt(0).toUpperCase())
     .join(""),
-);
-
-const navigation: Array<{ label: string; items: NavigationItem[] }> = [
-  {
-    label: "Operate",
-    items: [
-      { label: "Operations cockpit", to: "/", icon: "01" },
-      { label: "Exception queue", to: "/operations", icon: "!" },
-      { label: "Overview", to: "/overview", icon: "02" },
-      { label: "Alert center", to: "/alerts", icon: "03" },
-      { label: "Maintenance", to: "/maintenance", icon: "M" },
-      { label: "Compliance", to: "/compliance", icon: "C" },
-      { label: "Dispatch", to: "/dispatch/missions", icon: "04" },
-      { label: "Daily planning", to: "/dispatch/productivity", icon: "P" },
-      { label: "Live map", to: "/map", icon: "05" },
-    ],
-  },
-  {
-    label: "Fleet",
-    items: [
-      { label: "Vehicles", to: "/fleet/vehicles", icon: "V" },
-      { label: "Drivers", to: "/fleet/drivers", icon: "D" },
-      { label: "Devices", to: "/fleet/devices", icon: "G" },
-    ],
-  },
-  {
-    label: "Administration",
-    items: [
-      {
-        label: "Guided setup",
-        to: "/admin/onboarding",
-        icon: "✓",
-        adminOnly: true,
-      },
-      { label: "Pilot review", to: "/admin/pilot", icon: "α", adminOnly: true },
-      { label: "Users", to: "/admin/users", icon: "U", adminOnly: true },
-      {
-        label: "Security & data",
-        to: "/admin/security",
-        icon: "S",
-        adminOnly: true,
-      },
-      {
-        label: "Integrations",
-        to: "/admin/integrations",
-        icon: "I",
-        adminOnly: true,
-      },
-    ],
-  },
-];
-
-const visibleNavigation = computed(() =>
-  navigation
-    .map((group) => ({
-      ...group,
-      items: group.items.filter((item) => !item.adminOnly || session.isAdmin),
-    }))
-    .filter((group) => group.items.length > 0),
 );
 
 watch(

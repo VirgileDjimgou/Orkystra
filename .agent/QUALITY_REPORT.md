@@ -1,5 +1,15 @@
 # Rapport de qualité
 
+## Sprint 30 — UX Simplification & Frontend Modularization
+
+- Statut : `PASSED — 2026-09-27`; journal `.runtime/sprint30-quality-gate.log`.
+- Backend : format/analyse sur 307 fichiers, build Release sans avertissement, 170 tests rapides, 1 test MinIO et 3 tests SQL Server passants.
+- Simulation : 33 étapes multi-tenant passantes, dont les trois refus d'accès croisé.
+- Web/runtime : Prettier, ESLint, 32 tests Vitest, build production et 8 Playwright passants. Les nouvelles preuves couvrent les quatre groupes de navigation, le chemin clavier vers Missions, `/planning` vers Daily planning, les états async du backlog, les actions de file et les bookmarks map.
+- Android : lint, tests unitaires et APK application/instrumentation passants ; connecté non configuré et non requis pour ce sprint Web.
+- Sécurité : la navigation reste une présentation seulement ; les routes et mutations sensibles conservent les contrôles serveur et l'organisation issue de l'identité. Les alias ne transmettent aucune donnée d'autorisation libre.
+- Stabilité : l'assertion de durée de session publique utilise l'heure de retour de l'appel comme borne supérieure, évitant un faux négatif sous charge sans modifier la durée de session réelle. La configuration Playwright accepte un port Web isolé pour éviter la réutilisation accidentelle d'une autre application locale.
+
 ## Sprint 29 — Public Demo Mode
 
 - Statut : `PASSED — 2026-09-27`; journal `.runtime/sprint29-quality-gate.log`.

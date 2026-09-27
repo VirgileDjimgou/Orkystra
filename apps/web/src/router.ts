@@ -32,6 +32,14 @@ export const router = createRouter({
       meta: { public: true },
     },
     { path: "/demo", component: DemoLaunchView, meta: { public: true } },
+    {
+      path: "/missions",
+      redirect: (to) => ({ path: "/dispatch/missions", query: to.query }),
+    },
+    {
+      path: "/planning",
+      redirect: (to) => ({ path: "/dispatch/productivity", query: to.query }),
+    },
     { path: "/login", component: LoginView, meta: { guestOnly: true } },
     {
       path: "/admin/onboarding",

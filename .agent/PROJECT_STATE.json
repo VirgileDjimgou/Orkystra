@@ -3,7 +3,7 @@
   "project": "FleetOps",
   "phase": "demo-readiness-autonomous-fleet-simulation",
   "roadmapVersion": "2026.09-demo-readiness",
-  "activeSprint": "SPRINT-30",
+  "activeSprint": "SPRINT-31",
   "sprints": {
     "SPRINT-00": "DONE",
     "SPRINT-01": "DONE",
@@ -35,7 +35,7 @@
     "SPRINT-27": "DONE",
     "SPRINT-28": "DONE",
     "SPRINT-29": "DONE",
-    "SPRINT-30": "NOT_STARTED",
+    "SPRINT-30": "DONE",
     "SPRINT-31": "NOT_STARTED",
     "SPRINT-32": "NOT_STARTED"
   },
@@ -54,7 +54,7 @@
   },
   "execution": {
     "status": "IDLE",
-    "currentSprint": "SPRINT-30",
+    "currentSprint": "SPRINT-31",
     "batch": {
       "requestedCount": 0,
       "completedCount": 0
@@ -69,8 +69,8 @@
     "currentBlocker": null,
     "agentTool": "powershell-agent",
     "updatedAtUtc": "2026-09-26T03:15:00+02:00",
-    "startedAtUtc": "2026-09-27T20:55:32+02:00",
-    "completedAtUtc": "2026-09-27T19:19:25+00:00",
+    "startedAtUtc": "2026-09-27T21:27:59+02:00",
+    "completedAtUtc": "2026-09-27T20:16:06+00:00",
     "lastBatch": {
       "requestedCount": 5,
       "completedCount": 0,
@@ -79,21 +79,21 @@
       "reason": "Partial Sprint 27 checkpoint validated; interactive execution methodology restored. Resume Sprint 27 on the next Start Next Sprint."
     },
     "lastActivity": {
-      "status": "DONE",
-      "timestampUtc": "2026-09-27T19:19:14Z",
-      "summary": "Sprint 29 completed: credential-free public Demo, bounded HttpOnly/CSRF sessions, read-only capability boundary, isolated controls, and full gate with 174 backend tests, 33 simulation proofs, 28 Web tests, 7 E2E, API and Android passed.",
-      "log": ".runtime/sprint29-progress.log"
+      "status": "DISCOVERY",
+      "timestampUtc": "2026-09-27T19:28:12Z",
+      "summary": "Sprint 30 selected; auditing Web navigation, route compatibility, oversized surfaces, async states, accessibility, and existing cockpit/dispatch workflows.",
+      "log": ".runtime/sprint30-progress.log"
     }
   },
   "lastQualityGate": {
     "status": "PASSED",
-    "timestampUtc": "2026-09-27T19:19:25+00:00",
+    "timestampUtc": "2026-09-27T20:16:06+00:00",
     "report": ".agent/QUALITY_REPORT.md",
-    "gate": ".runtime/sprint29-quality-gate.log"
+    "gate": ".runtime/sprint30-quality-gate.log"
   },
   "lastCheckpoint": {
-    "timestampUtc": "2026-09-27T19:19:25+00:00",
-    "summary": ".agent/checkpoints/20260927T191914Z.md"
+    "timestampUtc": "2026-09-27T20:16:06+00:00",
+    "summary": ".agent/checkpoints/20260927T201900Z.md"
   },
   "knownBlockers": [],
   "openDecisions": [
@@ -101,5 +101,5 @@
     "Validate the primary market positioning before any commercial claim.",
     "Choose a hosted map-tile provider or approved policy before public Demo hosting."
   ],
-  "updatedAtUtc": "2026-09-27T19:19:25+00:00"
+  "updatedAtUtc": "2026-09-27T20:16:06+00:00"
 }

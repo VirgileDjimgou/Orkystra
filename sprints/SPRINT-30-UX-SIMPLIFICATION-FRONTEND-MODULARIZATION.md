@@ -2,7 +2,7 @@
 
 ## Status
 
-`NOT_STARTED`
+`DONE — 2026-09-27`
 
 ## Goal
 
@@ -63,12 +63,12 @@ Route chunks and component state avoid duplicate fetches. No view creates unboun
 
 ## Acceptance criteria
 
-- [ ] Primary navigation reflects Operate, Fleet, Manage, and Administration.
-- [ ] Cockpit is the obvious operator starting point; alerts/overview/map are contextual rather than competing primary workflows.
-- [ ] Missions include planning access without breaking dispatch links.
-- [ ] Major views are decomposed into meaningful, tested feature boundaries.
-- [ ] Key workflows are keyboard-accessible, responsive, and explicit about async states.
-- [ ] Existing bookmarks/deep routes continue to work or redirect compatibly.
+- [x] Primary navigation reflects Operate, Fleet, Manage, and Administration.
+- [x] Cockpit is the obvious operator starting point; alerts/overview/map are contextual rather than competing primary workflows.
+- [x] Missions include planning access without breaking dispatch links.
+- [x] Major views are decomposed into meaningful, tested feature boundaries.
+- [x] Key workflows are keyboard-accessible, responsive, and explicit about async states.
+- [x] Existing bookmarks/deep routes continue to work or redirect compatibly.
 
 ## Demo proof
 

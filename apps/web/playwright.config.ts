@@ -4,6 +4,7 @@ const apiBaseUrl =
   process.env.PLAYWRIGHT_API_BASE_URL ?? "http://127.0.0.1:5080";
 const webBaseUrl =
   process.env.PLAYWRIGHT_WEB_BASE_URL ?? "http://127.0.0.1:4173";
+const webPort = new URL(webBaseUrl).port || "4173";
 
 export default defineConfig({
   testDir: "./e2e",
@@ -51,7 +52,7 @@ export default defineConfig({
       },
     },
     {
-      command: "npm run dev -- --host 127.0.0.1 --port 4173",
+      command: `npm run dev -- --host 127.0.0.1 --port ${webPort}`,
       url: `${webBaseUrl}/login`,
       cwd: ".",
       reuseExistingServer: !process.env.CI,

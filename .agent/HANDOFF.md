@@ -1,21 +1,21 @@
-# Handoff — Sprint 29 terminé
+# Handoff — Sprint 30 terminé
 
 ## État courant
 
-Sprint 29 est `DONE` après une quality gate complète verte le 2026-09-27. Le prochain sprint éligible est Sprint 30, qui n'a pas commencé. Trois sprints restent : 30 à 32.
+Sprint 30 est `DONE` après une quality gate complète verte le 2026-09-27. Le prochain sprint éligible est Sprint 31, qui n'a pas commencé. Deux sprints restent : 31 et 32.
 
-## Livraison Sprint 29
+## Livraison Sprint 30
 
-- environnement `Demo` explicite avec validation fail-fast distincte de Development et Production ;
-- lancement public sans mot de passe, session serveur courte, cookies HttpOnly/SameSite, CSRF, rate limit et plafond concurrent ;
-- unique tenant synthétique et identité Operator sans mot de passe, capacités publiques en lecture seule et refus des surfaces sensibles ;
-- contrôles de scénario isolés par session, nettoyage borné, label `SIMULATED DEMO` persistant et reprise après expiration ;
-- overlay Compose Demo et parcours navigateur public complet.
+- navigation Web regroupée en `Operate`, `Fleet`, `Manage` et `Administration`, sans déplacer l'autorisation hors du serveur ;
+- cockpit map-first conservé comme point de départ avec liens contextuels Overview, Alerts et Fleet map ;
+- accès Missions et Daily planning sous Manage, avec alias compatibles `/missions` et `/planning` ;
+- limites de présentation testées extraites pour le backlog des missions et les cartes de la file d'exceptions ;
+- validation navigateur isolable grâce à `PLAYWRIGHT_WEB_BASE_URL`, sans conflit avec un autre serveur Web local.
 
 ## Preuves
 
-Le journal complet est `.runtime/sprint29-quality-gate.log`. La gate a validé format/analyse sur 307 fichiers, build sans avertissement, 170 tests rapides, 1 test MinIO, 3 tests SQL Server, GPS, simulation 33 étapes, Web 28 tests et 7 E2E, santé API et Android. Dix-huit tests ciblés couvrent runtime, cookies/CSRF, TTL, rate limit, refus Admin, lecture seule, concurrence et expiration.
+Le journal complet est `.runtime/sprint30-quality-gate.log`. La gate a validé format/analyse sur 307 fichiers, build sans avertissement, 170 tests rapides, 1 test MinIO, 3 tests SQL Server, GPS, simulation 33 étapes, Web 32 tests et 8 E2E, santé API et Android. Les E2E couvrent notamment la navigation au clavier, les alias de planification et les bookmarks map.
 
 ## Reprise
 
-`Start Next Sprint` doit exécuter le runner atomique et sélectionner uniquement Sprint 30.
+`Start Next Sprint` doit exécuter le runner atomique et sélectionner uniquement Sprint 31.

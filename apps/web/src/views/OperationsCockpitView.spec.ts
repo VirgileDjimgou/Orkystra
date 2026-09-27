@@ -216,7 +216,12 @@ describe("OperationsCockpitView", () => {
   it("presents a map-first cockpit and resolves exception context", async () => {
     const router = createRouter({
       history: createWebHistory(),
-      routes: [{ path: "/", component: OperationsCockpitView }],
+      routes: [
+        { path: "/", component: OperationsCockpitView },
+        { path: "/overview", component: { template: "<div />" } },
+        { path: "/alerts", component: { template: "<div />" } },
+        { path: "/map", component: { template: "<div />" } },
+      ],
     });
     await router.push("/?vehicleId=vehicle-1");
     await router.isReady();

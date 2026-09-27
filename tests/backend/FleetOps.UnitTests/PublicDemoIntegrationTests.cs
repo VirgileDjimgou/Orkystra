@@ -43,12 +43,13 @@ public sealed class PublicDemoIntegrationTests
         var launchResponse = await client.PostAsync("/api/v1/demo/public/launch", null);
         launchResponse.EnsureSuccessStatusCode();
         var launch = await launchResponse.Content.ReadFromJsonAsync<DemoLaunchResponse>();
+        var afterLaunch = DateTimeOffset.UtcNow;
 
         Assert.NotNull(launch);
         Assert.True(launch!.User.IsDemo);
         Assert.Equal(["Operator"], launch.User.Roles);
         Assert.Equal("FleetOps Public Demo", launch.User.OrganizationName);
-        Assert.InRange(launch.ExpiresAtUtc, before.AddSeconds(1), before.AddSeconds(31));
+        Assert.InRange(launch.ExpiresAtUtc, before.AddSeconds(1), afterLaunch.AddSeconds(31));
         Assert.Contains(
             launchResponse.Headers.GetValues("Set-Cookie"),
             value => value.Contains("fleetops-session=", StringComparison.Ordinal)

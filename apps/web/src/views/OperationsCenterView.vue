@@ -177,117 +177,24 @@
             No active exceptions match the current filters.
           </div>
           <div v-else class="operations-queue" role="list">
-            <article
+            <OperationsQueueCard
               v-for="item in queue.items"
               :key="item.id"
-              class="operations-card"
-              :class="{ 'operations-card-active': focusedId === item.id }"
-              tabindex="0"
-              role="listitem"
-              @focus="focusedId = item.id"
-            >
-              <div class="operations-card-main">
-                <label class="form-check">
-                  <input
-                    :checked="selectedIds.has(item.id)"
-                    class="form-check-input"
-                    type="checkbox"
-                    @change="toggleSelection(item.id)"
-                  />
-                </label>
-                <div class="operations-card-copy">
-                  <div class="d-flex flex-wrap gap-2 align-items-center">
-                    <strong>{{ item.title }}</strong>
-                    <span :class="severityBadgeClass(item.severity)">{{
-                      item.severity
-                    }}</span>
-                    <span :class="workflowBadgeClass(item.workflowStatus)">{{
-                      item.workflowStatus
-                    }}</span>
-                    <span class="badge text-bg-light">{{
-                      item.sourceType
-                    }}</span>
-                  </div>
-                  <p class="mb-1">{{ item.message }}</p>
-                  <div class="operations-context">
-                    <!-- prettier-ignore -->
-                    <span v-if="item.links.missionReference">Mission {{ item.links.missionReference }}</span>
-                    <!-- prettier-ignore -->
-                    <span v-if="item.links.vehicleRegistrationNumber">Vehicle {{ item.links.vehicleRegistrationNumber }}</span>
-                    <!-- prettier-ignore -->
-                    <span v-if="item.links.driverName">Driver {{ item.links.driverName }}</span>
-                    <!-- prettier-ignore -->
-                    <span v-if="item.assignedToDisplayName">Owner {{ item.assignedToDisplayName }}</span>
-                    <!-- prettier-ignore -->
-                    <span v-if="item.snoozedUntilUtc">Snoozed until {{ formatDateTime(item.snoozedUntilUtc) }}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div class="operations-card-side">
-                <small>{{ formatAge(item.detectedAtUtc) }}</small>
-                <small>{{ formatDateTime(item.detectedAtUtc) }}</small>
-              </div>
-
-              <div class="operations-actions">
-                <select
-                  v-model="assignmentSelections[item.id]"
-                  class="form-select form-select-sm action-select"
-                >
-                  <option value="">Assign owner</option>
-                  <option
-                    v-for="assignee in assignees"
-                    :key="assignee.userId"
-                    :value="assignee.userId"
-                  >
-                    {{ assignee.fullName }}
-                  </option>
-                </select>
-                <button
-                  class="btn btn-outline-primary btn-sm"
-                  type="button"
-                  :disabled="!assignmentSelections[item.id]"
-                  @click="assign(item)"
-                >
-                  Assign
-                </button>
-                <button
-                  class="btn btn-outline-success btn-sm"
-                  type="button"
-                  @click="acknowledge(item)"
-                >
-                  Acknowledge
-                </button>
-                <button
-                  class="btn btn-outline-warning btn-sm"
-                  type="button"
-                  @click="snooze(item)"
-                >
-                  Snooze
-                </button>
-                <button
-                  class="btn btn-outline-dark btn-sm"
-                  type="button"
-                  @click="resolve(item)"
-                >
-                  Resolve
-                </button>
-                <RouterLink
-                  v-if="item.links.alertId"
-                  class="btn btn-link btn-sm"
-                  :to="`/alerts`"
-                >
-                  Open alert flow
-                </RouterLink>
-                <RouterLink
-                  v-else-if="item.links.missionId"
-                  class="btn btn-link btn-sm"
-                  :to="`/dispatch/missions`"
-                >
-                  Open mission flow
-                </RouterLink>
-              </div>
-            </article>
+              :item="item"
+              :assignees="assignees"
+              :assignment-user-id="assignmentSelections[item.id] ?? ''"
+              :selected="selectedIds.has(item.id)"
+              :active="focusedId === item.id"
+              @focus="focusedId = $event"
+              @toggle="toggleSelection"
+              @update:assignment-user-id="
+                assignmentSelections[item.id] = $event
+              "
+              @assign="assign"
+              @acknowledge="acknowledge"
+              @snooze="snooze"
+              @resolve="resolve"
+            />
           </div>
         </section>
       </div>
@@ -341,7 +248,7 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from "vue";
-import { RouterLink } from "vue-router";
+import OperationsQueueCard from "../features/operations/OperationsQueueCard.vue";
 import { useSessionStore } from "../features/auth/store";
 import { apiRequest } from "../services/api";
 import type { AlertAssigneeResponse } from "../features/alerts/contracts";
@@ -415,37 +322,6 @@ const connectionBadgeClass = computed(() =>
       ? "badge text-bg-warning"
       : "badge text-bg-secondary",
 );
-
-function severityBadgeClass(severity: string) {
-  return severity === "Critical"
-    ? "badge text-bg-danger"
-    : severity === "Warning"
-      ? "badge text-bg-warning"
-      : "badge text-bg-secondary";
-}
-
-function workflowBadgeClass(statusValue: string) {
-  return statusValue === "Acknowledged"
-    ? "badge text-bg-primary"
-    : statusValue === "Snoozed"
-      ? "badge text-bg-warning"
-      : "badge text-bg-secondary";
-}
-
-function formatDateTime(value: string) {
-  return new Date(value).toLocaleString();
-}
-
-function formatAge(value: string) {
-  const minutes = Math.max(
-    1,
-    Math.round((Date.now() - new Date(value).getTime()) / 60000),
-  );
-  if (minutes < 60) return `${minutes} min ago`;
-  const hours = Math.round(minutes / 60);
-  if (hours < 24) return `${hours} h ago`;
-  return `${Math.round(hours / 24)} d ago`;
-}
 
 function toggleSelection(id: string) {
   const next = new Set(selectedIds.value);
