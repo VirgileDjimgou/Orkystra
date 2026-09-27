@@ -2,7 +2,7 @@
 
 ## Status
 
-`PARTIAL — paused 2026-09-27; resume with Start Next Sprint`
+`DONE — 2026-09-27; full quality gate passed`
 
 ## Goal
 
@@ -64,12 +64,12 @@ Default scenario sustains 10–20 vehicles at configured cadence without unbound
 
 ## Acceptance criteria
 
-- [ ] A selected deterministic scenario starts, pauses, resumes, accelerates, and resets reproducibly.
-- [ ] Multiple virtual vehicles follow credible fixture routes on the cockpit map.
-- [ ] Telemetry and missions use real FleetOps contracts rather than direct database fakery.
-- [ ] Existing development simulators remain usable.
-- [ ] Scenario restart and worker restart recover safely.
-- [ ] Synthetic tenant isolation and side-effect sandboxing are tested.
+- [x] A selected deterministic scenario starts, pauses, resumes, accelerates, and resets reproducibly.
+- [x] Multiple virtual vehicles follow credible fixture routes on the cockpit map.
+- [x] Telemetry and missions use real FleetOps contracts rather than direct database fakery.
+- [x] Existing development simulators remain usable.
+- [x] Scenario restart and worker restart recover safely.
+- [x] Synthetic tenant isolation and side-effect sandboxing are tested.
 
 ## Demo proof
 

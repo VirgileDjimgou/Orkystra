@@ -1,5 +1,15 @@
 # Rapport de qualité
 
+## Sprint 27 — Hosted Demo Engine & Realistic Virtual Fleet
+
+- Statut : `PASSED — 2026-09-27`; journal `.runtime/sprint27-quality-gate.log`.
+- Backend : format/analyse sur 291 fichiers, build Release sans avertissement, 155 tests rapides, 1 test MinIO et 3 tests SQL Server passants.
+- Preuves Sprint : 8 tests Demo couvrent catalogue, horloge, rejeu identique de 12 véhicules/120 événements, bornes, snapshot/reprise, ingestion et mission canoniques, et rejet inter-tenant.
+- Simulation : 33 étapes multi-tenant passantes ; Northwind expose 12 véhicules/appareils synthétiques, les autres tenants restent isolés.
+- Web/runtime : 28 Vitest, build, 6 Playwright, GPS et santé API passants.
+- Android : lint, tests unitaires et APK application/instrumentation passants ; connecté non configuré et non requis pour ce sprint backend.
+- Sécurité : moteur désactivé par défaut, activation limitée à `RuntimeMode=Demo`, sandbox obligatoire, flotte résolue par tenant synthétique, token Mission non journalisé, aucune écriture SQL directe.
+
 ## Sprint 27 — checkpoint partiel et méthodologie visible
 
 - Statut : `PARTIAL/IDLE — 2026-09-27`; aucune gate complète n'est revendiquée et aucun worker ne tourne en arrière-plan.

@@ -51,10 +51,14 @@ public static class FleetOpsSeedData
             var southReserveTruck = new Vehicle(south.Id, "SR-202", "Southridge Reserve Truck");
             var backupVan = new Vehicle(north.Id, "NW-101", "Northwind Reserve Van");
             var serviceVan = new Vehicle(north.Id, "NW-102", "Northwind Service Van");
+            var demoVehicles = Enumerable.Range(103, 9)
+                .Select(number => new Vehicle(north.Id, $"NW-{number}", $"Northwind Demo Vehicle {number}"))
+                .ToList();
             var westServiceTruck = new Vehicle(west.Id, "WF-300", "Westland Service Truck");
             var westSupportVan = new Vehicle(west.Id, "WF-301", "Westland Support Van");
             var westReserveVan = new Vehicle(west.Id, "WF-302", "Westland Reserve Van");
             dbContext.Vehicles.AddRange(northVan, southHauler, southRelayTruck, southReserveTruck, backupVan, serviceVan, westServiceTruck, westSupportVan, westReserveVan);
+            dbContext.Vehicles.AddRange(demoVehicles);
 
             var northDriver = new Driver(north.Id, "Alex North", "NW-DL-001", "+1-555-0100");
             var southDriver = new Driver(south.Id, "Sam South", "SR-DL-002", "+1-555-0200");
@@ -69,10 +73,14 @@ public static class FleetOpsSeedData
             var southReserveDevice = new GpsDevice(south.Id, "SR-GPS-202", "Reserve truck tracker");
             var northSpareDevice = new GpsDevice(north.Id, "NW-GPS-101", "Reserve van tracker");
             var northServiceDevice = new GpsDevice(north.Id, "NW-GPS-102", "Service van tracker");
+            var demoDevices = Enumerable.Range(103, 9)
+                .Select(number => new GpsDevice(north.Id, $"NW-GPS-{number}", $"Demo vehicle {number} tracker"))
+                .ToList();
             var westServiceDevice = new GpsDevice(west.Id, "WF-GPS-300", "Service truck tracker");
             var westSupportDevice = new GpsDevice(west.Id, "WF-GPS-301", "Support van tracker");
             var westReserveDevice = new GpsDevice(west.Id, "WF-GPS-302", "Reserve van tracker");
             dbContext.GpsDevices.AddRange(northDevice, southDevice, southRelayDevice, southReserveDevice, northSpareDevice, northServiceDevice, westServiceDevice, westSupportDevice, westReserveDevice);
+            dbContext.GpsDevices.AddRange(demoDevices);
 
             var historicalUtc = new DateTimeOffset(2026, 1, 1, 9, 0, 0, TimeSpan.Zero);
             dbContext.DeviceAssignments.AddRange(
@@ -85,6 +93,9 @@ public static class FleetOpsSeedData
                 new DeviceAssignment(west.Id, westServiceDevice.Id, westServiceTruck.Id, historicalUtc),
                 new DeviceAssignment(west.Id, westSupportDevice.Id, westSupportVan.Id, historicalUtc),
                 new DeviceAssignment(west.Id, westReserveDevice.Id, westReserveVan.Id, historicalUtc));
+            dbContext.DeviceAssignments.AddRange(demoVehicles.Zip(
+                demoDevices,
+                (vehicle, device) => new DeviceAssignment(north.Id, device.Id, vehicle.Id, historicalUtc)));
 
             await dbContext.SaveChangesAsync(cancellationToken);
 

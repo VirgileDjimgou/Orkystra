@@ -1,23 +1,13 @@
-# Sprint actif — SPRINT-27
-
-## Objectif
-
-Créer un moteur de démonstration hébergé avec une flotte synthétique réaliste, sans contourner les workflows métiers existants.
+# Sprint suivant — SPRINT-28
 
 ## État
 
-`PARTIAL — deterministic engine, route interpolation, hosted-service shell and typed telemetry bridge implemented; full Sprint-27 contract not yet complete.`
+`NOT_STARTED` — Sprint 27 est terminé et sa quality gate complète est verte. Aucune implémentation du Sprint 28 n'a commencé.
 
 ## Source de vérité
 
-`sprints/SPRINT-27-HOSTED-DEMO-ENGINE-VIRTUAL-FLEET.md`
-
-## Prérequis vérifiés
-
-- Sprint 26 : `DONE` avec une quality gate complète verte le 2026-09-26 ;
-- les marqueurs cockpit ont une sémantique accessible, les trails restent sélectionnés et les tuiles sont configurables ;
-- le moteur de démo doit employer les contrats applicatifs existants et des données strictement synthétiques.
+`sprints/SPRINT-28-AUTONOMOUS-VIRTUAL-DRIVER-AGENTS.md`
 
 ## Démarrage
 
-`Start Next Sprint` must resume Sprint 27 visibly. If a session ends before completion, record progress and pause it as `PARTIAL/IDLE`; do not leave a false `RUNNING` state.
+La prochaine commande `Start Next Sprint` sélectionne et démarre visiblement Sprint 28, avec journal dans `.runtime/sprint28-progress.log`.

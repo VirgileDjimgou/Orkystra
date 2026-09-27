@@ -1,9 +1,9 @@
 using System.Text.Json;
+using FleetOps.Core.Modules.Demo;
 using FleetOps.Infrastructure;
 using FleetOps.Infrastructure.Storage;
 using FleetOps.Worker;
 using FleetOps.Worker.Demo;
-using FleetOps.Core.Modules.Demo;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
@@ -21,8 +21,14 @@ builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.Configure<DemoEngineOptions>(builder.Configuration.GetSection(DemoEngineOptions.SectionName));
 builder.Services.AddSingleton<IDemoClock>(_ => new DeterministicDemoClock(DateTimeOffset.UtcNow));
 builder.Services.AddSingleton<IDemoScenarioEngine, DeterministicDemoScenarioEngine>();
+builder.Services.AddSingleton<IDemoScenarioRepository, DemoScenarioCatalog>();
+builder.Services.AddSingleton<IDemoScenarioStateStore, FileDemoScenarioStateStore>();
 builder.Services.AddHttpClient(nameof(HttpDemoTelemetryEmitter));
+builder.Services.AddHttpClient(nameof(HttpDemoFleetSource));
+builder.Services.AddHttpClient(nameof(HttpDemoMissionEmitter));
 builder.Services.AddSingleton<IDemoTelemetryEmitter, HttpDemoTelemetryEmitter>();
+builder.Services.AddSingleton<IDemoFleetSource, HttpDemoFleetSource>();
+builder.Services.AddSingleton<IDemoMissionEmitter, HttpDemoMissionEmitter>();
 builder.Services.AddOpenTelemetry()
     .ConfigureResource(resource => resource.AddService(
         serviceName: "fleetops-worker",

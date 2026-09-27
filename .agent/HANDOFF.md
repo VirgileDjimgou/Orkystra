@@ -1,37 +1,21 @@
-# Handoff — Sprint 27 partial, interactive lifecycle restored
+# Handoff — Sprint 27 terminé
 
-## Current state
+## État courant
 
-Sprint 27 is `PARTIAL/IDLE`, not running in the background. Implemented and targeted-validated so far: deterministic scenario clock/engine, bounded route interpolation, a disabled-by-default cancellation-aware Worker service, and a typed HTTP telemetry emitter using the existing internal tracking contract. Worker Release build passes with zero warnings/errors and the three Demo unit tests pass.
+Sprint 27 est `DONE` après une quality gate complète verte le 2026-09-27. Le prochain sprint éligible est Sprint 28, qui n'a pas commencé. Cinq sprints restent : 28 à 32.
 
-The previous five-sprint batch was cancelled because it was only persisted orchestration intent, not an autonomous worker. Six sprints remain: Sprint 27 through Sprint 32. The next explicit `Start Next Sprint` must visibly resume Sprint 27, append milestones through `scripts/sprint-progress.ps1`, and either complete it or pause it truthfully before yielding.
+## Livraison Sprint 27
 
-The canonical `scripts/quality-gate.ps1` passed on 2026-09-26: compose/MinIO/recovery, .NET format/build/tests including MinIO and SQL Server, GPS dry-run, full multi-tenant simulation, Web format/lint/Vitest/build/6 Playwright flows, API health/readiness, and Android lint/unit/APK build. Connected Android execution was not configured.
+- moteur, horloge et rejeu déterministes avec pause/reprise/reset, accélération et snapshot de redémarrage ;
+- catalogue de cinq scénarios, quatre polylines locales et génération bornée de 12 véhicules synthétiques ;
+- découverte automatique de la flotte, ingestion Tracking canonique et pont de transition Mission authentifié ;
+- activation fail-closed en mode Demo, sandbox obligatoire et rejet tenant croisé testé ;
+- service Worker désactivé par défaut ; simulateurs de développement conservés.
 
-Sprint-25 changes are UI composition only: it reuses tenant-filtered tracking, operations, and dispatch stores/contracts, adds no API or persistence behavior, and leaves server authorization unchanged. Cockpit component tests cover selection, inspector context, dock resizing/collapse, and mission selection. Playwright proves sign-in to the cockpit and map bookmark compatibility.
+## Preuves
 
-## Rebaseline state
+Le journal complet est `.runtime/sprint27-quality-gate.log`. La gate a validé format/analyse, build sans avertissement, 155 tests rapides, MinIO, SQL Server, GPS, simulation 33 étapes, Web 28 tests et 6 E2E, santé API et Android. Le test Android connecté est resté non configuré, conformément au périmètre backend.
 
-The repository remains on `2026.09-demo-readiness`. The next eligible sprint is the partial `SPRINT-27`; its source of truth is `sprints/SPRINT-27-HOSTED-DEMO-ENGINE-VIRTUAL-FLEET.md`.
+## Reprise
 
-Sprint 23 is factually `DONE`: commit `94e4201`, its two migrations, recipient-status integration tests, and the quality report dated 2026-09-25 prove the implementation. The unchecked Sprint-23 acceptance boxes were a documentation drift and have been reconciled; no product behavior changed during this rebaseline.
-
-The former planned Sprints 24–30 were moved to `sprints/archive/pre-demo-readiness/` and marked `SUPERSEDED — NOT IMPLEMENTED`. The active program now has exactly Sprints 24–32.
-
-## Original confirmed Sprint-24 work
-
-- `apps/web/src/features/tracking/live.ts` uses one global pending position, so simultaneous vehicle events overwrite one another.
-- `TrackingIngestionService` emits `TrackingPositionResponse` without actual sequence/accuracy/source/quality metadata.
-- the Pinia tracking store copies coordinate fields but leaves live quality fields stale.
-- `ApplyRetentionAsync` materializes expired telemetry inside every ingestion call.
-- reconnect calls catch-up, but no regression test proves the full reconnect/server-restart consistency contract.
-
-Do not repair these in the rebaseline. Implement and test them only through Sprint 24.
-
-## Autopilot
-
-Use `scripts/sprint-runner.ps1 -Action Start` only when the user says `Start Next Sprint`. The canonical state is `.agent/PROJECT_STATE.json`; the lock is `.agent/sprint.lock.json`; the implementation is `scripts/agent/sprint_orchestrator.py`. Do not bypass `STOP` or `HUMAN_REQUIRED.json`, and stop after one sprint.
-
-## Rebaseline validation pending/completed
-
-Run the lightweight orchestration/documentation validation listed in `.agent/QUALITY_REPORT.md` after reviewing the final diff. No full product quality gate has been claimed or run by this planning rebaseline.
+`Start Next Sprint` doit exécuter le runner atomique et sélectionner uniquement Sprint 28.

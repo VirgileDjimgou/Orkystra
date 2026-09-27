@@ -1,3 +1,5 @@
+using FleetOps.Core.Modules.Dispatch;
+
 namespace FleetOps.Core.Modules.Demo;
 
 public enum DemoScenarioKind
@@ -16,7 +18,20 @@ public sealed record DemoScenarioState(
     DemoScenarioStatus Status,
     int Seed,
     DateTimeOffset LogicalUtc,
-    double SpeedMultiplier);
+    double SpeedMultiplier,
+    long Tick = 0);
+
+public sealed record DemoVehicleBinding(Guid VehicleId, string DeviceId);
+public sealed record DemoFleetDefinition(Guid OrganizationId, IReadOnlyList<DemoVehicleBinding> Vehicles);
+
+public sealed record DemoScenarioDefinition(
+    DemoScenarioKind Kind,
+    string Code,
+    IReadOnlyList<DemoRoute> Routes,
+    double NominalSpeedKph,
+    int ConnectivityDropEveryTicks = 0);
+
+public sealed record DemoScenarioSnapshot(DemoScenarioState State, DateTimeOffset InitialUtc);
 
 public interface IDemoClock
 {
@@ -33,6 +48,14 @@ public interface IDemoScenarioEngine
     void ContinueScenario();
     void Reset();
     void Advance(TimeSpan elapsed);
+    DemoScenarioSnapshot Capture();
+    void Restore(DemoScenarioSnapshot snapshot);
+}
+
+public interface IDemoScenarioRepository
+{
+    IReadOnlyList<DemoScenarioDefinition> List();
+    DemoScenarioDefinition GetByKind(DemoScenarioKind kind);
 }
 
 public sealed record DemoTelemetryEvent(
@@ -45,9 +68,31 @@ public sealed record DemoTelemetryEvent(
     double Longitude,
     double SpeedKph,
     double HeadingDegrees,
-    long SequenceNumber);
+    long SequenceNumber,
+    double AccuracyMeters = 5,
+    string Source = "demo-engine");
 
 public interface IDemoTelemetryEmitter
 {
     Task EmitAsync(DemoTelemetryEvent telemetry, CancellationToken cancellationToken);
+}
+
+public interface IDemoFleetSource
+{
+    Task<DemoFleetDefinition> LoadAsync(CancellationToken cancellationToken);
+}
+
+public sealed record DemoMissionAction(Guid MissionId, MissionStatus TargetStatus, long RowVersion);
+public sealed record DemoMissionActionResult(Guid MissionId, MissionStatus Status, long RowVersion);
+
+public interface IDemoMissionEmitter
+{
+    Task<DemoMissionActionResult> TransitionAsync(DemoMissionAction action, CancellationToken cancellationToken);
+}
+
+public interface IDemoScenarioStateStore
+{
+    Task<DemoScenarioSnapshot?> LoadAsync(CancellationToken cancellationToken);
+    Task SaveAsync(DemoScenarioSnapshot snapshot, CancellationToken cancellationToken);
+    Task ClearAsync(CancellationToken cancellationToken);
 }

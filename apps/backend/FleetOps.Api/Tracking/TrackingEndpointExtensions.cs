@@ -258,6 +258,7 @@ public static class TrackingEndpointExtensions
 
     private static async Task<IResult> GetScenarioAsync(
         string organizationSlug,
+        int? maxVehicles,
         IWebHostEnvironment environment,
         FleetOpsDbContext dbContext,
         CancellationToken cancellationToken)
@@ -274,6 +275,7 @@ public static class TrackingEndpointExtensions
             return Results.NotFound();
         }
 
+        var requestedVehicleCount = Math.Clamp(maxVehicles ?? 3, 3, 20);
         var vehicles = await (
             from vehicle in dbContext.Vehicles
             join assignment in dbContext.DeviceAssignments on vehicle.Id equals assignment.VehicleId
@@ -289,7 +291,7 @@ public static class TrackingEndpointExtensions
                 vehicle.RegistrationNumber,
                 vehicle.DisplayName,
                 device.SerialNumber)
-        ).Take(3).ToListAsync(cancellationToken);
+        ).Take(requestedVehicleCount).ToListAsync(cancellationToken);
 
         if (vehicles.Count < 3)
         {

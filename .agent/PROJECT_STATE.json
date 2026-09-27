@@ -3,7 +3,7 @@
   "project": "FleetOps",
   "phase": "demo-readiness-autonomous-fleet-simulation",
   "roadmapVersion": "2026.09-demo-readiness",
-  "activeSprint": "SPRINT-27",
+  "activeSprint": "SPRINT-28",
   "sprints": {
     "SPRINT-00": "DONE",
     "SPRINT-01": "DONE",
@@ -32,7 +32,7 @@
     "SPRINT-24": "DONE",
     "SPRINT-25": "DONE",
     "SPRINT-26": "DONE",
-    "SPRINT-27": "PARTIAL",
+    "SPRINT-27": "DONE",
     "SPRINT-28": "NOT_STARTED",
     "SPRINT-29": "NOT_STARTED",
     "SPRINT-30": "NOT_STARTED",
@@ -54,7 +54,7 @@
   },
   "execution": {
     "status": "IDLE",
-    "currentSprint": "SPRINT-27",
+    "currentSprint": "SPRINT-28",
     "batch": {
       "requestedCount": 0,
       "completedCount": 0
@@ -67,33 +67,33 @@
     },
     "lastCommit": "94e4201",
     "currentBlocker": null,
-    "agentTool": "codex",
+    "agentTool": "powershell-agent",
     "updatedAtUtc": "2026-09-26T03:15:00+02:00",
-    "startedAtUtc": "2026-09-26T21:01:37+02:00",
-    "completedAtUtc": "2026-09-26T21:00:27+02:00",
-    "lastActivity": {
-      "status": "PAUSED",
-      "timestampUtc": "2026-09-27T07:32:28+00:00",
-      "summary": "Partial Sprint 27 checkpoint validated; interactive execution methodology restored. Resume Sprint 27 on the next Start Next Sprint.",
-      "log": ".runtime/sprint27-progress.log"
-    },
+    "startedAtUtc": "2026-09-27T09:44:44+02:00",
+    "completedAtUtc": "2026-09-27T08:09:19+00:00",
     "lastBatch": {
       "requestedCount": 5,
       "completedCount": 0,
       "status": "CANCELLED",
-      "cancelledAtUtc": "2026-09-27T07:32:28+00:00",
+      "cancelledAtUtc": "2026-09-27T09:32:28+02:00",
       "reason": "Partial Sprint 27 checkpoint validated; interactive execution methodology restored. Resume Sprint 27 on the next Start Next Sprint."
+    },
+    "lastActivity": {
+      "status": "DONE",
+      "timestampUtc": "2026-09-27T08:09:17Z",
+      "summary": "Sprint 27 implementation and full repository quality gate passed; preparing checkpoint and advancing state to Sprint 28.",
+      "log": ".runtime/sprint27-progress.log"
     }
   },
   "lastQualityGate": {
     "status": "PASSED",
-    "timestampUtc": "2026-09-26T21:00:27+02:00",
+    "timestampUtc": "2026-09-27T08:09:19+00:00",
     "report": ".agent/QUALITY_REPORT.md",
-    "gate": ".runtime/sprint26-quality-gate.log"
+    "gate": ".runtime/sprint27-quality-gate.log"
   },
   "lastCheckpoint": {
-    "timestampUtc": "2026-09-26T21:00:27+02:00",
-    "summary": "complete Sprint 26 map semantics, selected trails, and runtime tile provider configuration"
+    "timestampUtc": "2026-09-27T08:09:19+00:00",
+    "summary": "complete Sprint 27 hosted deterministic Demo engine and 12-vehicle virtual fleet"
   },
   "knownBlockers": [],
   "openDecisions": [
@@ -101,5 +101,5 @@
     "Validate the primary market positioning before any commercial claim.",
     "Choose a hosted map-tile provider or approved policy before public Demo hosting."
   ],
-  "updatedAtUtc": "2026-09-27T07:32:28+00:00"
+  "updatedAtUtc": "2026-09-27T08:09:19+00:00"
 }
