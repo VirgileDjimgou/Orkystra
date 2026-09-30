@@ -1,3 +1,11 @@
+# Handoff — Post-sprint : vidéo de démonstration et correctif Android
+
+## Travaux hors sprint (2026-09-30, après SPRINT-32)
+
+- Pipeline vidéo complet : `scripts/run-demo-video.ps1` (API DemoTesting + 2 Workers moteur, provisioning par les contrats canoniques, parcours Playwright sous-titré `apps/web/demo-video/`, capture Android pilotée par uiautomator/screenrecord, fusion ffmpeg). Vidéo finale : `.runtime/demo-video/FleetOps-demo-20260930-2157.mp4` (23:23, non versionnée).
+- Correctif produit découvert par la démo : l'app Android envoyait `action`/`purpose`/`defectSeverity` en texte alors que l'API attend des entiers — inspection, commandes et preuves ne synchronisaient jamais. Corrigé dans `DriverApi.kt`/`DriverRepository.kt` ; tests unitaires Android verts ; fin de parcours vérifiée jusqu'à la mission `Completed` avec 1 preuve.
+- Les modifications de ce post-sprint n'ont pas encore été commitées (worktree modifié : scripts vidéo, spec Playwright, correctif Android, docs).
+
 # Handoff — Sprint 32 terminé
 
 ## État courant

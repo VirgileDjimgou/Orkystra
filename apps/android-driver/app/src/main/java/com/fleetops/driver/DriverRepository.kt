@@ -236,7 +236,12 @@ class OfflineFirstDriverRepository(
                                             code = item.code,
                                             label = item.label,
                                             isPass = item.isPass,
-                                            defectSeverity = item.defectSeverity.name,
+                                            defectSeverity = when (item.defectSeverity) {
+                                                DriverDefectSeverity.None -> 0
+                                                DriverDefectSeverity.Minor -> 1
+                                                DriverDefectSeverity.Major -> 2
+                                                DriverDefectSeverity.Critical -> 3
+                                            },
                                             notes = item.notes,
                                             photoAssetId = item.photoLocalId?.let { localId ->
                                                 processed.photos.firstOrNull { it.localId == localId }?.remoteAssetId
@@ -343,8 +348,8 @@ class OfflineFirstDriverRepository(
                 photo.contentType,
                 bytes.size.toLong(),
                 when (operationType) {
-                    DriverWorkflowOperationType.Inspection -> "InspectionPhoto"
-                    DriverWorkflowOperationType.DeliveryProof -> "DeliveryProofPhoto"
+                    DriverWorkflowOperationType.Inspection -> 1
+                    DriverWorkflowOperationType.DeliveryProof -> 2
                 },
             ).uploadSessionId
 

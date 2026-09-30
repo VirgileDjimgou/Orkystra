@@ -4,6 +4,8 @@ Toutes les modifications fonctionnelles significatives sont documentées ici.
 
 ## Unreleased
 
+- Fixed the Android driver app enum serialization (mission commands, upload purpose, inspection defect severity) to match the numeric API contracts; without this fix the driver workflow never left the device queue. Android unit tests and a 23-minute end-to-end emulator recording now reach a completed mission with delivery proof.
+- Added a complete captioned demonstration video pipeline (`scripts/run-demo-video.ps1`, `apps/web/playwright.video.config.ts`, `apps/web/demo-video/`, emulator capture) covering every role and feature with two live Demo engine Workers.
 - Added hosted Demo release packaging: a complete `docker-compose.demo.yml` overlay (API, Worker engine, Web), `scripts/demo-up|down|smoke` entry points, a bounded internal service channel for the engine, a synthetic 12-vehicle `public-demo` fleet with driver and delayed mission, and a documented deployment topology and release checklist.
 - Added CI release validation (`.github/workflows/release-validation.yml`) covering backend, Web, Playwright public/operations journeys, and compose configuration, without secrets or deployment.
 - Added current, simulated-labelled Demo screenshots and a recruiter-facing README plus demo walkthrough with deep evidence links.

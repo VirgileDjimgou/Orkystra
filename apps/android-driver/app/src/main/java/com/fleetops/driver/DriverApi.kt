@@ -78,7 +78,7 @@ data class DriverMissionDetailDto(
 
 data class SyncMissionCommandRequestDto(
     val commandId: String,
-    val action: String,
+    val action: Int,
     val rowVersion: Long,
     val occurredAtUtc: String,
 )
@@ -92,7 +92,7 @@ data class UploadSessionRequestDto(
     val fileName: String,
     val contentType: String,
     val totalBytes: Long,
-    val purpose: String,
+    val purpose: Int,
 )
 
 data class UploadSessionResponseDto(
@@ -122,7 +122,7 @@ data class InspectionItemResultRequestDto(
     val code: String,
     val label: String,
     val isPass: Boolean,
-    val defectSeverity: String,
+    val defectSeverity: Int,
     val notes: String?,
     val photoAssetId: String?,
 )
@@ -243,7 +243,7 @@ interface DriverRemoteDataSource {
         fileName: String,
         contentType: String,
         totalBytes: Long,
-        purpose: String,
+        purpose: Int,
     ): UploadSessionResponseDto
     suspend fun appendUploadChunk(
         session: DriverSession,
@@ -299,7 +299,11 @@ class RetrofitDriverRemoteDataSource(
             command.missionId,
             SyncMissionCommandRequestDto(
                 commandId = command.commandId,
-                action = command.action.name,
+                action = when (command.action) {
+                    DriverMissionAction.Start -> 1
+                    DriverMissionAction.Arrive -> 2
+                    DriverMissionAction.Complete -> 3
+                },
                 rowVersion = command.rowVersion,
                 occurredAtUtc = command.occurredAtUtc,
             ),
@@ -316,7 +320,7 @@ class RetrofitDriverRemoteDataSource(
         fileName: String,
         contentType: String,
         totalBytes: Long,
-        purpose: String,
+        purpose: Int,
     ): UploadSessionResponseDto =
         service.createUploadSession(
             session.asAuthorization(),

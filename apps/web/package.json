@@ -12,6 +12,7 @@
     "format:check": "prettier --check .",
     "e2e": "playwright test",
     "demo:screenshots": "playwright test --config playwright.demo.config.ts",
+    "demo:video": "playwright test --config playwright.video.config.ts",
     "simulation:screenshots": "playwright test --config playwright.simulation.config.ts",
     "e2e:install": "playwright install chromium"
   },

@@ -263,7 +263,7 @@ private class FakeDriverRemoteDataSource(
         fileName: String,
         contentType: String,
         totalBytes: Long,
-        purpose: String,
+        purpose: Int,
     ): UploadSessionResponseDto =
         UploadSessionResponseDto(
             uploadSessionId = "upload-1",
