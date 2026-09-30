@@ -37,7 +37,7 @@
     "SPRINT-29": "DONE",
     "SPRINT-30": "DONE",
     "SPRINT-31": "DONE",
-    "SPRINT-32": "NOT_STARTED"
+    "SPRINT-32": "DONE"
   },
   "supersededPlans": {
     "path": "sprints/archive/pre-demo-readiness",
@@ -54,10 +54,10 @@
   },
   "execution": {
     "status": "IDLE",
-    "currentSprint": "SPRINT-32",
+    "currentSprint": null,
     "batch": {
-      "requestedCount": 0,
-      "completedCount": 0
+      "requestedCount": 5,
+      "completedCount": 1
     },
     "attemptCount": 0,
     "lastSuccessfulGate": {
@@ -67,10 +67,10 @@
     },
     "lastCommit": "94e4201",
     "currentBlocker": null,
-    "agentTool": "powershell-agent",
+    "agentTool": "powershell-batch-agent",
     "updatedAtUtc": "2026-09-26T03:15:00+02:00",
-    "startedAtUtc": "2026-09-29T20:53:58+02:00",
-    "completedAtUtc": "2026-09-30T00:29:02+02:00",
+    "startedAtUtc": "2026-09-30T07:59:50+02:00",
+    "completedAtUtc": "2026-09-30T08:34:02+00:00",
     "lastBatch": {
       "requestedCount": 5,
       "completedCount": 0,
@@ -79,21 +79,21 @@
       "reason": "Partial Sprint 27 checkpoint validated; interactive execution methodology restored. Resume Sprint 27 on the next Start Next Sprint."
     },
     "lastActivity": {
-      "status": "DONE",
-      "timestampUtc": "2026-09-29T22:29:15Z",
-      "summary": "Sprint 31 completed after green canonical gate; 20-agent/15-minute measured run, restart/reconnect/reset/security evidence recorded; next eligible SPRINT-32.",
+      "status": "GATE",
+      "timestampUtc": "2026-09-30T08:33:16Z",
+      "summary": "Full quality gate PASSED (.runtime/sprint32-quality-gate.log) and hosted Demo smoke PASSED with 12 tracked vehicles (.runtime/sprint32-demo-smoke.log).",
       "log": ".runtime/sprint32-progress.log"
     }
   },
   "lastQualityGate": {
     "status": "PASSED",
-    "timestampUtc": "2026-09-30T00:29:02+02:00",
+    "timestampUtc": "2026-09-30T08:34:02+00:00",
     "report": ".agent/QUALITY_REPORT.md",
-    "gate": ".runtime/sprint31-quality-gate.log"
+    "gate": ".runtime/sprint32-quality-gate.log"
   },
   "lastCheckpoint": {
-    "timestampUtc": "2026-09-30T00:29:02+02:00",
-    "summary": ".agent/checkpoints/20260929T222840Z.md"
+    "timestampUtc": "2026-09-30T08:34:02+00:00",
+    "summary": ".agent/checkpoints/20260930T083241Z.md"
   },
   "knownBlockers": [],
   "openDecisions": [
@@ -101,5 +101,5 @@
     "Validate the primary market positioning before any commercial claim.",
     "Choose a hosted map-tile provider or approved policy before public Demo hosting."
   ],
-  "updatedAtUtc": "2026-09-29T22:29:15Z"
+  "updatedAtUtc": "2026-09-30T08:34:02+00:00"
 }

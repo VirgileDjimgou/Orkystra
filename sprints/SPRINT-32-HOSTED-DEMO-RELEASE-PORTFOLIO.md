@@ -63,12 +63,12 @@ Run published smoke path at normal Demo load and confirm the release configurati
 
 ## Acceptance criteria
 
-- [ ] A clean documented deployment can start the Demo profile and become ready.
-- [ ] The public journey launches, observes fleet/agent activity, and completes through Playwright.
-- [ ] Health, migration, reset, side-effect sandbox, and rollback procedures are documented and tested.
-- [ ] README is concise for a recruiter and links deep technical evidence.
-- [ ] Screenshots/scenarios are current and visibly labelled simulated.
-- [ ] Release checklist records actual validation and remaining limitations.
+- [x] A clean documented deployment can start the Demo profile and become ready. — `scripts/demo-smoke.ps1` built and started the full overlay, then verified `/health`, `/health/ready`, and the web client (`.runtime/sprint32-demo-smoke.log`).
+- [x] The public journey launches, observes fleet/agent activity, and completes through Playwright. — `public demo journey observes the animated fleet, vehicle mission, and exception` (launch, 12 moving vehicles, inspector, exception) and `operations journey records proof evidence, a delayed exception, and agent activity` (canonical agent-activity contract); both pass in the full gate.
+- [x] Health, migration, reset, side-effect sandbox, and rollback procedures are documented and tested. — smoke assertions plus `docs/01-architecture/DEPLOYMENT_TOPOLOGY.md` and `docs/02-engineering/RELEASE_CHECKLIST.md`.
+- [x] README is concise for a recruiter and links deep technical evidence. — rewritten `README.md`.
+- [x] Screenshots/scenarios are current and visibly labelled simulated. — `docs/assets/screenshots/demo-*.png` captured from the labelled Demo UI; captions in `docs/00-product/DEMO_WALKTHROUGH.md`.
+- [x] Release checklist records actual validation and remaining limitations. — `docs/02-engineering/RELEASE_CHECKLIST.md` (hosted virtual drivers not provisioned, 20-vehicle bound, process-local stores, tile-provider decision, no deployment).
 
 ## Demo proof
 

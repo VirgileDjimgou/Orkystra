@@ -1,27 +1,27 @@
 import { defineConfig, devices } from "@playwright/test";
 
 const apiBaseUrl =
-  process.env.PLAYWRIGHT_API_BASE_URL ?? "http://127.0.0.1:5080";
+  process.env.PLAYWRIGHT_API_BASE_URL ?? "http://127.0.0.1:5083";
 const webBaseUrl =
-  process.env.PLAYWRIGHT_WEB_BASE_URL ?? "http://127.0.0.1:4173";
-const apiPort = new URL(apiBaseUrl).port || "5080";
-const webPort = new URL(webBaseUrl).port || "4173";
+  process.env.PLAYWRIGHT_WEB_BASE_URL ?? "http://127.0.0.1:4175";
+const apiPort = new URL(apiBaseUrl).port || "5083";
+const webPort = new URL(webBaseUrl).port || "4175";
 
 export default defineConfig({
-  testDir: "./e2e",
+  testDir: "./demo",
   fullyParallel: false,
-  retries: process.env.CI ? 1 : 0,
-  reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : "list",
+  retries: 0,
+  reporter: "list",
   use: {
     baseURL: webBaseUrl,
-    // Network traces can retain HttpOnly Set-Cookie values. Keep pilot artifacts credential-free.
     trace: "off",
-    screenshot: "only-on-failure",
-    video: "retain-on-failure",
+    video: "off",
+    screenshot: "off",
+    viewport: { width: 1440, height: 1000 },
   },
   projects: [
     {
-      name: "chromium",
+      name: "demo-chromium",
       use: { ...devices["Desktop Chrome"] },
     },
   ],
@@ -29,17 +29,17 @@ export default defineConfig({
     {
       command: `dotnet run --project ../backend/FleetOps.Api --no-launch-profile --urls http://127.0.0.1:${apiPort}`,
       url: `${apiBaseUrl}/health/ready`,
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer: false,
       timeout: 120_000,
       env: {
         ASPNETCORE_ENVIRONMENT: "DemoTesting",
         Testing__UseInMemoryDatabase: "true",
-        Testing__DatabaseName: "fleetops-playwright",
+        Testing__DatabaseName: "fleetops-demo-captures",
         Bootstrap__SeedDemoData: "true",
         Bootstrap__PublicDemoOnly: "false",
         PublicDemo__Enabled: "true",
         PublicDemo__SideEffectsSandboxed: "true",
-        PublicDemo__SessionLifetimeSeconds: "12",
+        PublicDemo__SessionLifetimeSeconds: "900",
         PublicDemo__LaunchPermitLimit: "100",
         PublicDemo__MaxConcurrentSessions: "20",
         InternalApi__Key: "FleetOps_Tests_Internal_Key_12345678901234567890",
@@ -56,7 +56,7 @@ export default defineConfig({
       command: `npm run dev -- --host 127.0.0.1 --port ${webPort}`,
       url: `${webBaseUrl}/login`,
       cwd: ".",
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer: false,
       timeout: 120_000,
       env: {
         VITE_API_BASE_URL: apiBaseUrl,

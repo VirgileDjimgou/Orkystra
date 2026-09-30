@@ -40,6 +40,8 @@ try {
   Invoke-Step "Dotnet Tools" { dotnet tool restore }
   Invoke-Step "Docker Compose Config" { docker compose --env-file .env config --quiet }
   Invoke-Step "Pilot Compose Config" { docker compose --env-file .env -f docker-compose.yml -f docker-compose.pilot.yml config --quiet }
+  Invoke-Step "Demo Compose Config" { docker compose --env-file .env -f docker-compose.yml -f docker-compose.pilot.yml -f docker-compose.demo.yml config --quiet }
+  Invoke-Step "Demo Smoke Config" { powershell -NoProfile -ExecutionPolicy Bypass -File scripts/demo-smoke.ps1 -ConfigOnly }
   Invoke-Step "Private Object Storage" {
     docker compose --env-file .env up -d --wait minio
     docker compose --env-file .env run --rm --no-deps minio-init

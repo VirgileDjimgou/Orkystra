@@ -1,0 +1,84 @@
+name: Release validation
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: release-validation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend format, build and tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+          dotnet-quality: ga
+      - name: Restore tools
+        run: dotnet tool restore
+      - name: Restore
+        run: dotnet restore FleetOps.slnx
+      - name: Format check
+        run: dotnet format FleetOps.slnx --verify-no-changes --no-restore
+      - name: Build
+        run: dotnet build FleetOps.slnx --no-restore -c Release -m:1 /nodeReuse:false
+      - name: Fast tests (SQL Server, MinIO and Reliability suites excluded)
+        run: dotnet test FleetOps.slnx --no-build -c Release --filter "Category!=SqlServer&Category!=Minio&Category!=Reliability"
+
+  web:
+    name: Web format, lint, tests and build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - run: npm ci
+      - run: npm run format:check
+      - run: npm run lint
+      - run: npm run test
+      - run: npm run build
+
+  e2e:
+    name: Playwright public and operations journeys
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+          dotnet-quality: ga
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run e2e
+
+  compose:
+    name: Demo and pilot compose configuration
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: cp .env.example .env
+      - run: docker compose --env-file .env config --quiet
+      - run: docker compose --env-file .env -f docker-compose.yml -f docker-compose.pilot.yml config --quiet
+      - run: docker compose --env-file .env -f docker-compose.yml -f docker-compose.pilot.yml -f docker-compose.demo.yml config --quiet
+      - name: Demo smoke configuration
+        run: pwsh -NoProfile -File scripts/demo-smoke.ps1 -ConfigOnly

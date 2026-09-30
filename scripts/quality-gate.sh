@@ -28,6 +28,12 @@ run_step "Git Status" git status --short --branch
 run_step "Dotnet Tools" dotnet tool restore
 run_step "Docker Compose Config" docker compose --env-file .env config --quiet
 run_step "Pilot Compose Config" docker compose --env-file .env -f docker-compose.yml -f docker-compose.pilot.yml config --quiet
+run_step "Demo Compose Config" docker compose --env-file .env -f docker-compose.yml -f docker-compose.pilot.yml -f docker-compose.demo.yml config --quiet
+if command -v pwsh >/dev/null 2>&1; then
+  run_step "Demo Smoke Config" pwsh -ExecutionPolicy Bypass -File scripts/demo-smoke.ps1 -ConfigOnly
+else
+  SUMMARY+=("SKIPPED :: Demo Smoke Config (pwsh not available)")
+fi
 run_step "Private Object Storage" docker compose --env-file .env up -d --wait minio
 run_step "Private Object Storage Bucket" docker compose --env-file .env run --rm --no-deps minio-init
 MINIO_PORT_VALUE="$(sed -n 's/^MINIO_PORT=//p' .env | tail -1)"

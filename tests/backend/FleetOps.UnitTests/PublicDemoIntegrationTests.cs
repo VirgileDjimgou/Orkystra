@@ -2,6 +2,9 @@ using System.Net;
 using System.Net.Http.Json;
 using FleetOps.Api.Auth;
 using FleetOps.Api.Demo;
+using FleetOps.Api.Security;
+using FleetOps.Api.Tracking;
+using FleetOps.Core.Modules.Dispatch;
 using FleetOps.Infrastructure.Identity;
 using FleetOps.Infrastructure.Persistence;
 using FleetOps.UnitTests.Infrastructure;
@@ -18,6 +21,8 @@ namespace FleetOps.UnitTests;
 
 public sealed class PublicDemoIntegrationTests
 {
+    private const string TestInternalApiKey = "FleetOps_Tests_Internal_Key_12345678901234567890";
+
     [Fact]
     public async Task DevelopmentDoesNotExposePublicLaunch()
     {
@@ -121,6 +126,93 @@ public sealed class PublicDemoIntegrationTests
         Assert.False(string.IsNullOrWhiteSpace(launch.CsrfToken));
     }
 
+    [Fact]
+    public async Task PublicDemoSeedProvidesTwelveVehiclesAndDelayedMission()
+    {
+        await using var factory = new PublicDemoApiFactory();
+        using var client = factory.CreateClient();
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<FleetOpsDbContext>();
+        var organization = await db.Organizations.SingleAsync();
+        Assert.Equal(12, await db.Vehicles.CountAsync(x => x.OrganizationId == organization.Id && x.IsActive));
+        Assert.Equal(12, await db.DeviceAssignments.CountAsync(
+            x => x.OrganizationId == organization.Id && x.UnassignedAtUtc == null));
+        Assert.Equal(12, await db.GpsDevices.CountAsync(x => x.OrganizationId == organization.Id && x.IsActive));
+        Assert.Equal(1, await db.Drivers.CountAsync(x => x.OrganizationId == organization.Id));
+
+        var mission = await db.Missions.Include(x => x.Stops).SingleAsync(x => x.OrganizationId == organization.Id);
+        Assert.Equal("DEMO-M-100", mission.Reference);
+        Assert.Equal(MissionStatus.Delayed, mission.Status);
+        Assert.Equal(15, mission.SimulatedDelayMinutes);
+        Assert.NotNull(mission.DriverId);
+        Assert.NotNull(mission.VehicleId);
+        Assert.Equal(2, mission.Stops.Count);
+    }
+
+    [Fact]
+    public async Task InternalEngineChannelRequiresConfiguredKeyInDemoProfile()
+    {
+        await using var factory = new PublicDemoApiFactory();
+        using var anonymous = factory.CreateClient();
+
+        Assert.Equal(
+            HttpStatusCode.Unauthorized,
+            (await anonymous.GetAsync("/api/internal/v1/tracking/scenarios/public-demo")).StatusCode);
+
+        anonymous.DefaultRequestHeaders.Add(InternalApiKey.HeaderName, "wrong-key-that-is-at-least-32-characters-long");
+        Assert.Equal(
+            HttpStatusCode.Unauthorized,
+            (await anonymous.GetAsync("/api/internal/v1/tracking/scenarios/public-demo")).StatusCode);
+        anonymous.DefaultRequestHeaders.Remove(InternalApiKey.HeaderName);
+
+        using var engine = factory.CreateClient();
+        engine.DefaultRequestHeaders.Add(InternalApiKey.HeaderName, TestInternalApiKey);
+        var scenario = await engine.GetFromJsonAsync<TrackingScenarioResponse>(
+            "/api/internal/v1/tracking/scenarios/public-demo?maxVehicles=20");
+        Assert.NotNull(scenario);
+        Assert.Equal("public-demo", scenario!.OrganizationSlug);
+        Assert.Equal(12, scenario.Vehicles.Count);
+
+        var vehicle = scenario.Vehicles[0];
+        var ingest = await engine.PostAsJsonAsync("/api/internal/v1/tracking/events", new IngestTelemetryRequest(
+            scenario.OrganizationId,
+            vehicle.VehicleId,
+            vehicle.DeviceId,
+            $"demo-{Guid.NewGuid():N}",
+            DateTimeOffset.UtcNow,
+            48.77,
+            9.18,
+            30,
+            90,
+            1,
+            5,
+            "demo-engine"));
+        Assert.Equal(HttpStatusCode.Accepted, ingest.StatusCode);
+
+        using var visitor = factory.CreateClient();
+        var launch = await LaunchAsync(visitor);
+        Assert.Equal(
+            HttpStatusCode.Forbidden,
+            (await visitor.GetAsync("/api/internal/v1/tracking/scenarios/public-demo")).StatusCode);
+        visitor.DefaultRequestHeaders.Add("X-CSRF-Token", launch.CsrfToken);
+        Assert.Equal(
+            HttpStatusCode.Forbidden,
+            (await visitor.PostAsJsonAsync("/api/internal/v1/tracking/events", new IngestTelemetryRequest(
+                scenario.OrganizationId,
+                vehicle.VehicleId,
+                vehicle.DeviceId,
+                $"demo-{Guid.NewGuid():N}",
+                DateTimeOffset.UtcNow,
+                48.77,
+                9.18,
+                30,
+                90,
+                2,
+                5,
+                "demo-engine"))).StatusCode);
+    }
+
     private static async Task<DemoLaunchResponse> LaunchAsync(HttpClient client)
     {
         var response = await client.PostAsync("/api/v1/demo/public/launch", null);
@@ -153,6 +245,7 @@ public sealed class PublicDemoIntegrationTests
                     ["PublicDemo:SessionLifetimeSeconds"] = sessionLifetimeSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture),
                     ["PublicDemo:LaunchPermitLimit"] = launchPermitLimit.ToString(System.Globalization.CultureInfo.InvariantCulture),
                     ["PublicDemo:MaxConcurrentSessions"] = "20",
+                    [InternalApiKey.ConfigurationKey] = TestInternalApiKey,
                     ["ObjectStorage:Provider"] = "FileSystem",
                 }));
             builder.ConfigureServices(services =>

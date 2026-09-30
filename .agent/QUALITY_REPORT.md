@@ -1,5 +1,16 @@
 # Rapport de qualité
 
+## Sprint 32 — Hosted Demo Release & Portfolio Showcase
+
+- Statut : `PASSED — 2026-09-30`; journal `.runtime/sprint32-quality-gate.log` et smoke hébergé `.runtime/sprint32-demo-smoke.log`.
+- Packaging : l'overlay `docker-compose.demo.yml` complète le profil pilote (API `Demo`, Worker moteur `public-demo`, Web, canal de service `InternalApi:Key`) ; `scripts/demo-up|down|smoke` documentent et valident le profil. Correctifs de packaging : image runtime Worker passée à `dotnet/aspnet:10.0`, `restart: unless-stopped` API/Worker, préflight des clés `.env` manquantes.
+- Smoke hébergé : configuration compose valide, `/health` et `/health/ready` verts, client Web servi, lancement public étiqueté `SIMULATED DEMO`, refus anonyme interne, session minimale refusée sur administration/sessions, RESET accepté, et flotte synthétique animée par le moteur (12 véhicules suivis).
+- Backend : format sans changement, build Release 0 avertissement, 183 tests rapides (dont 2 nouveaux : seed public-demo 12 véhicules + mission retardée, canal interne borné), tests `Reliability`, contrat MinIO et tests SQL Server passants.
+- Web : Prettier, ESLint, 32 Vitest, build production et 10 Playwright passants, dont les deux parcours du sprint : `public demo journey observes the animated fleet, vehicle mission, and exception` et `operations journey records proof evidence, a delayed exception, and agent activity`.
+- Documentation : README recruteur, `docs/00-product/DEMO_WALKTHROUGH.md`, `docs/01-architecture/DEPLOYMENT_TOPOLOGY.md`, `docs/02-engineering/RELEASE_CHECKLIST.md`, mises à jour moteur Demo et sécurité ; 4 captures `demo-*.png` générées depuis l'UI labellisée.
+- CI : `.github/workflows/release-validation.yml` (backend borné, Web, E2E, configurations compose) sans secret ni déploiement.
+- Limites connues : pilotes virtuels non provisionnés dans le profil hébergé (identité publique volontairement sans mot de passe) ; borne 20 véhicules ; stores de session/compteurs process-locaux ; fournisseur de tuiles non décidé ; aucun déploiement public.
+
 ## Sprint 31 — Reliability, Performance, Security & Observability
 
 - Statut : `PASSED — 2026-09-30`; journal `.runtime/sprint31-quality-gate.log`.

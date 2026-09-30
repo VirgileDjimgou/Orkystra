@@ -241,7 +241,7 @@ public static class TrackingEndpointExtensions
         TrackingIngestionService ingestionService,
         CancellationToken cancellationToken)
     {
-        if (!environment.IsDevelopment())
+        if (!IsDemoEngineHost(environment))
         {
             return Results.NotFound();
         }
@@ -274,7 +274,7 @@ public static class TrackingEndpointExtensions
         FleetOpsDbContext dbContext,
         CancellationToken cancellationToken)
     {
-        if (!environment.IsDevelopment())
+        if (!IsDemoEngineHost(environment))
         {
             return Results.NotFound();
         }
@@ -327,7 +327,7 @@ public static class TrackingEndpointExtensions
         TrackingResetCoordinator resetCoordinator,
         CancellationToken cancellationToken)
     {
-        if (!environment.IsDevelopment())
+        if (!IsDemoEngineHost(environment))
         {
             return Results.NotFound();
         }
@@ -387,6 +387,11 @@ public static class TrackingEndpointExtensions
             FleetOpsMetrics.TrackingResetDuration.Record(stopwatch.Elapsed.TotalMilliseconds, tag);
         }
     }
+
+    private static bool IsDemoEngineHost(IWebHostEnvironment environment) =>
+        environment.IsDevelopment()
+        || environment.IsEnvironment("Demo")
+        || environment.IsEnvironment("DemoTesting");
 
     private static async Task<IResult> GetLegacyLatestAsync(
         HttpContext httpContext,

@@ -3,6 +3,7 @@ import { expect, test } from "@playwright/test";
 
 const apiBaseUrl =
   process.env.PLAYWRIGHT_API_BASE_URL ?? "http://127.0.0.1:5080";
+const internalApiKey = "FleetOps_Tests_Internal_Key_12345678901234567890";
 const samplePngBase64 =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9pN96ZQAAAAASUVORK5CYII=";
 let missionScheduleSequence = 0;
@@ -29,10 +30,124 @@ test("public visitor launches an isolated expiring simulated demo", async ({
   await page.goto("/admin/security");
   await expect(page).toHaveURL(/\/$/);
 
-  await page.waitForTimeout(3_200);
+  await page.waitForTimeout(12_400);
   await controls.getByRole("button", { name: "Pause" }).click();
   await expect(page).toHaveURL(/\/demo\?expired=1$/);
   await expect(page.getByText("expired safely")).toBeVisible();
+});
+
+test("public demo journey observes the animated fleet, vehicle mission, and exception", async ({
+  page,
+  request,
+}) => {
+  const fleet = await loadPublicDemoFleet(request);
+  await pushPublicDemoTelemetry(request, fleet);
+
+  await page.goto("/demo");
+  await page.getByRole("button", { name: "Launch Live Demo" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Operations cockpit" }),
+  ).toBeVisible();
+  await expect(page.getByLabel("Simulated demo controls")).toContainText(
+    "SIMULATED DEMO",
+  );
+
+  const indicators = page.getByLabel("Fleet indicators");
+  await expect(indicators).toContainText("12");
+  await expect(indicators).toContainText("tracked");
+  await expect(indicators).toContainText("exceptions");
+
+  const demoVehicle = page.locator('[aria-label^="DEMO-100:"]');
+  await expect(demoVehicle).toHaveCount(1);
+
+  const dock = page.getByRole("tablist", { name: "Cockpit activity" });
+  await expect(dock.getByRole("tab", { name: "Exceptions" })).toBeVisible();
+  await page
+    .getByRole("button", { name: /Mission DEMO-M-100 delayed/ })
+    .click();
+  await expect(
+    page
+      .locator(".cockpit-inspector")
+      .getByRole("heading", { name: "DEMO-100" }),
+  ).toBeVisible();
+  await expect(page.locator(".cockpit-inspector")).toContainText("DEMO-M-100");
+  await expect(page.locator(".cockpit-inspector")).toContainText("Demo Driver");
+});
+
+test("operations journey records proof evidence, a delayed exception, and agent activity", async ({
+  page,
+  request,
+}) => {
+  const reference = `NW-JOURNEY-${Date.now()}`;
+  const mission = await createMissionWithProof(request, reference);
+  const operatorToken = await loginViaApi(
+    request,
+    "operator@northwind.local",
+    "Operator123!",
+  );
+
+  const delay = await request.post(
+    `${apiBaseUrl}/api/v1/dispatch/missions/${mission.id}/delay-simulation`,
+    {
+      headers: { Authorization: `Bearer ${operatorToken}` },
+      data: { delayMinutes: 15, rowVersion: mission.rowVersion },
+    },
+  );
+  expect(delay.ok()).toBeTruthy();
+  const delayed = await delay.json();
+
+  const activity = await request.post(
+    `${apiBaseUrl}/api/v1/demo/agent-activities`,
+    {
+      headers: { Authorization: `Bearer ${operatorToken}` },
+      data: {
+        agentId: mission.id,
+        driverId: mission.driverId,
+        vehicleId: mission.vehicleId,
+        missionId: mission.id,
+        stopId: mission.stops[0].id,
+        sequence: 1,
+        observedState: 3,
+        policy: "schedule-delay",
+        action: 5,
+        resultCode: "delay-reported",
+        resultMessage: "Controlled 15-minute delay recorded.",
+        occurredAtUtc: new Date().toISOString(),
+      },
+    },
+  );
+  expect(activity.ok()).toBeTruthy();
+
+  await loginViaUi(page, "operator@northwind.local", "Operator123!");
+  await expect(
+    page.getByRole("heading", { name: "Operations cockpit" }),
+  ).toBeVisible();
+  await expect(page.getByLabel("Fleet indicators")).toContainText("exceptions");
+
+  const dock = page.getByRole("tablist", { name: "Cockpit activity" });
+  await dock.getByRole("tab", { name: "Exceptions" }).click();
+  await expect(page.getByText(`Mission ${reference} delayed`)).toBeVisible();
+
+  await dock.getByRole("tab", { name: "Virtual drivers" }).click();
+  await expect(page.getByText("ReportDelay · EnRoute").first()).toBeVisible();
+  await expect(
+    page.getByText("Controlled 15-minute delay recorded.").first(),
+  ).toBeVisible();
+
+  await page.goto("/dispatch/missions");
+  await page
+    .locator(".user-card[role='button']")
+    .filter({ hasText: reference })
+    .click();
+  await expect(page.getByText("Delayed").first()).toBeVisible();
+  await expect(
+    page.getByText("Mission delay simulated: 15 minutes."),
+  ).toBeVisible();
+  await expect(page.getByText("Signed by Taylor Receiver")).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Delivery photo" }),
+  ).toBeVisible();
+  expect(delayed.rowVersion).toBeGreaterThan(mission.rowVersion);
 });
 
 test("operator can sign in and reach the tenant-aware operations cockpit", async ({
@@ -499,6 +614,50 @@ async function loginViaApi(
   expect(response.ok()).toBeTruthy();
   const payload = await response.json();
   return payload.accessToken as string;
+}
+
+type PublicDemoFleet = {
+  organizationId: string;
+  vehicles: { vehicleId: string; deviceId: string }[];
+};
+
+async function loadPublicDemoFleet(request: APIRequestContext) {
+  const response = await request.get(
+    `${apiBaseUrl}/api/internal/v1/tracking/scenarios/public-demo?maxVehicles=20`,
+    { headers: { "X-FleetOps-Internal-Key": internalApiKey } },
+  );
+  expect(response.ok()).toBeTruthy();
+  return (await response.json()) as PublicDemoFleet;
+}
+
+async function pushPublicDemoTelemetry(
+  request: APIRequestContext,
+  fleet: PublicDemoFleet,
+) {
+  const base = Date.now();
+  for (const [index, vehicle] of fleet.vehicles.entries()) {
+    const response = await request.post(
+      `${apiBaseUrl}/api/internal/v1/tracking/events`,
+      {
+        headers: { "X-FleetOps-Internal-Key": internalApiKey },
+        data: {
+          organizationId: fleet.organizationId,
+          vehicleId: vehicle.vehicleId,
+          deviceId: vehicle.deviceId,
+          eventId: `demo-e2e-${base}-${index}`,
+          recordedAtUtc: new Date(base - index * 1000).toISOString(),
+          latitude: 48.74 + index * 0.02,
+          longitude: 9.1 + index * 0.02,
+          speedKph: 32 + index,
+          headingDegrees: 90 + index,
+          sequenceNumber: index + 1,
+          accuracyMeters: 5,
+          source: "demo-engine",
+        },
+      },
+    );
+    expect(response.ok()).toBeTruthy();
+  }
 }
 
 function buildFutureSchedule(reference: string) {

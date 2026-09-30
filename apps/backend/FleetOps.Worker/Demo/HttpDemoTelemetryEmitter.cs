@@ -18,6 +18,7 @@ public sealed class HttpDemoTelemetryEmitter(
 
         var client = httpClientFactory.CreateClient(nameof(HttpDemoTelemetryEmitter));
         client.BaseAddress = new Uri(baseUrl, UriKind.Absolute);
+        InternalApiHeader.Apply(client, options.Value.InternalApiKey);
         using var response = await client.PostAsJsonAsync("/api/internal/v1/tracking/events", telemetry, cancellationToken);
         response.EnsureSuccessStatusCode();
     }

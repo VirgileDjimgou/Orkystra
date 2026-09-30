@@ -28,6 +28,9 @@ public static class ProductionConfigurationValidator
             if (publicDemo.SessionLifetimeSeconds is < 1 or > 1800) demoFailures.Add("PublicDemo:SessionLifetimeSeconds must be between 1 and 1800.");
             if (publicDemo.LaunchPermitLimit is < 1 or > 100) demoFailures.Add("PublicDemo:LaunchPermitLimit must be between 1 and 100.");
             if (publicDemo.MaxConcurrentSessions is < 1 or > 100) demoFailures.Add("PublicDemo:MaxConcurrentSessions must be between 1 and 100.");
+            var internalApiKey = configuration[InternalApiKey.ConfigurationKey];
+            if (!string.IsNullOrWhiteSpace(internalApiKey) && internalApiKey.Length < InternalApiKey.MinimumLength)
+                demoFailures.Add($"InternalApi:Key must be at least {InternalApiKey.MinimumLength} characters when configured.");
             if (demoFailures.Count > 0)
                 throw new InvalidOperationException("Unsafe FleetOps Demo configuration: " + string.Join(" ", demoFailures));
             return;

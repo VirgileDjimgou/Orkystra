@@ -1,3 +1,4 @@
+using FleetOps.Core.Modules.Dispatch;
 using FleetOps.Core.Modules.Fleet;
 using FleetOps.Core.Modules.Identity;
 using FleetOps.Core.Modules.Operations;
@@ -41,16 +42,8 @@ public static class FleetOpsSeedData
         if (bootstrapOptions.SeedDemoData && bootstrapOptions.PublicDemoOnly)
         {
             var publicDemo = new Organization("FleetOps Public Demo", "public-demo");
-            var publicDemoVan = new Vehicle(publicDemo.Id, "DEMO-100", "Synthetic delivery van");
-            var publicDemoDevice = new GpsDevice(publicDemo.Id, "DEMO-GPS-100", "Synthetic van tracker");
             dbContext.Organizations.Add(publicDemo);
-            dbContext.Vehicles.Add(publicDemoVan);
-            dbContext.GpsDevices.Add(publicDemoDevice);
-            dbContext.DeviceAssignments.Add(new DeviceAssignment(
-                publicDemo.Id,
-                publicDemoDevice.Id,
-                publicDemoVan.Id,
-                new DateTimeOffset(2026, 1, 1, 9, 0, 0, TimeSpan.Zero)));
+            SeedPublicDemoSyntheticFleet(dbContext, publicDemo);
             await dbContext.SaveChangesAsync(cancellationToken);
             await EnsurePasswordlessUserAsync(
                 userManager,
@@ -81,9 +74,9 @@ public static class FleetOpsSeedData
             var westServiceTruck = new Vehicle(west.Id, "WF-300", "Westland Service Truck");
             var westSupportVan = new Vehicle(west.Id, "WF-301", "Westland Support Van");
             var westReserveVan = new Vehicle(west.Id, "WF-302", "Westland Reserve Van");
-            var publicDemoVan = new Vehicle(publicDemo.Id, "DEMO-100", "Synthetic delivery van");
-            dbContext.Vehicles.AddRange(northVan, southHauler, southRelayTruck, southReserveTruck, backupVan, serviceVan, westServiceTruck, westSupportVan, westReserveVan, publicDemoVan);
+            dbContext.Vehicles.AddRange(northVan, southHauler, southRelayTruck, southReserveTruck, backupVan, serviceVan, westServiceTruck, westSupportVan, westReserveVan);
             dbContext.Vehicles.AddRange(demoVehicles);
+            SeedPublicDemoSyntheticFleet(dbContext, publicDemo);
 
             var northDriver = new Driver(north.Id, "Alex North", "NW-DL-001", "+1-555-0100");
             var southDriver = new Driver(south.Id, "Sam South", "SR-DL-002", "+1-555-0200");
@@ -104,8 +97,7 @@ public static class FleetOpsSeedData
             var westServiceDevice = new GpsDevice(west.Id, "WF-GPS-300", "Service truck tracker");
             var westSupportDevice = new GpsDevice(west.Id, "WF-GPS-301", "Support van tracker");
             var westReserveDevice = new GpsDevice(west.Id, "WF-GPS-302", "Reserve van tracker");
-            var publicDemoDevice = new GpsDevice(publicDemo.Id, "DEMO-GPS-100", "Synthetic van tracker");
-            dbContext.GpsDevices.AddRange(northDevice, southDevice, southRelayDevice, southReserveDevice, northSpareDevice, northServiceDevice, westServiceDevice, westSupportDevice, westReserveDevice, publicDemoDevice);
+            dbContext.GpsDevices.AddRange(northDevice, southDevice, southRelayDevice, southReserveDevice, northSpareDevice, northServiceDevice, westServiceDevice, westSupportDevice, westReserveDevice);
             dbContext.GpsDevices.AddRange(demoDevices);
 
             var historicalUtc = new DateTimeOffset(2026, 1, 1, 9, 0, 0, TimeSpan.Zero);
@@ -118,8 +110,7 @@ public static class FleetOpsSeedData
                 new DeviceAssignment(south.Id, southReserveDevice.Id, southReserveTruck.Id, historicalUtc),
                 new DeviceAssignment(west.Id, westServiceDevice.Id, westServiceTruck.Id, historicalUtc),
                 new DeviceAssignment(west.Id, westSupportDevice.Id, westSupportVan.Id, historicalUtc),
-                new DeviceAssignment(west.Id, westReserveDevice.Id, westReserveVan.Id, historicalUtc),
-                new DeviceAssignment(publicDemo.Id, publicDemoDevice.Id, publicDemoVan.Id, historicalUtc));
+                new DeviceAssignment(west.Id, westReserveDevice.Id, westReserveVan.Id, historicalUtc));
             dbContext.DeviceAssignments.AddRange(demoVehicles.Zip(
                 demoDevices,
                 (vehicle, device) => new DeviceAssignment(north.Id, device.Id, vehicle.Id, historicalUtc)));
@@ -161,6 +152,48 @@ public static class FleetOpsSeedData
 
         throw new InvalidOperationException(
             "FleetOps has no organization. Configure Bootstrap provisioning values or enable Bootstrap:SeedDemoData in Development.");
+    }
+
+    private static void SeedPublicDemoSyntheticFleet(FleetOpsDbContext dbContext, Organization organization)
+    {
+        var assignedAtUtc = new DateTimeOffset(2026, 1, 1, 9, 0, 0, TimeSpan.Zero);
+        var vehicles = Enumerable.Range(100, 12)
+            .Select(number => new Vehicle(organization.Id, $"DEMO-{number}", $"Synthetic demo van {number}"))
+            .ToList();
+        var devices = Enumerable.Range(100, 12)
+            .Select(number => new GpsDevice(organization.Id, $"DEMO-GPS-{number}", $"Synthetic tracker {number}"))
+            .ToList();
+        dbContext.Vehicles.AddRange(vehicles);
+        dbContext.GpsDevices.AddRange(devices);
+        for (var index = 0; index < vehicles.Count; index++)
+        {
+            dbContext.DeviceAssignments.Add(new DeviceAssignment(
+                organization.Id,
+                devices[index].Id,
+                vehicles[index].Id,
+                assignedAtUtc));
+        }
+
+        var driver = new Driver(organization.Id, "Demo Driver", "DEMO-DL-001", "+1-555-0199");
+        dbContext.Drivers.Add(driver);
+
+        var missionStartUtc = new DateTimeOffset(2026, 1, 6, 8, 0, 0, TimeSpan.Zero);
+        var mission = new Mission(
+            organization.Id,
+            "DEMO-M-100",
+            "Synthetic late delivery route",
+            missionStartUtc,
+            missionStartUtc.AddHours(2));
+        mission.ReplaceStops(
+        [
+            new MissionStop(organization.Id, mission.Id, 1, "Synthetic depot", "1 Simulation Way", missionStartUtc.AddMinutes(30)),
+            new MissionStop(organization.Id, mission.Id, 2, "Synthetic customer", "2 Simulation Way", missionStartUtc.AddMinutes(90)),
+        ]);
+        mission.SetAssignment(driver.Id, vehicles[0].Id);
+        mission.TransitionTo(MissionStatus.Planned, assignedAtUtc);
+        mission.TransitionTo(MissionStatus.Assigned, assignedAtUtc);
+        mission.SimulateDelay(15, assignedAtUtc);
+        dbContext.Missions.Add(mission);
     }
 
     private static void SeedChecklistTemplates(

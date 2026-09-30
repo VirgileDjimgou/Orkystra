@@ -4,6 +4,10 @@ Toutes les modifications fonctionnelles significatives sont documentées ici.
 
 ## Unreleased
 
+- Added hosted Demo release packaging: a complete `docker-compose.demo.yml` overlay (API, Worker engine, Web), `scripts/demo-up|down|smoke` entry points, a bounded internal service channel for the engine, a synthetic 12-vehicle `public-demo` fleet with driver and delayed mission, and a documented deployment topology and release checklist.
+- Added CI release validation (`.github/workflows/release-validation.yml`) covering backend, Web, Playwright public/operations journeys, and compose configuration, without secrets or deployment.
+- Added current, simulated-labelled Demo screenshots and a recruiter-facing README plus demo walkthrough with deep evidence links.
+- Added Playwright journeys for the public demo path (launch, animated fleet, vehicle/mission, exception) and the operations path (proof evidence, delayed exception, virtual-driver activity).
 - Added a measured reliability program: a `FleetOps` OpenTelemetry meter, a deterministic 20-agent load/fault harness with JSON/Markdown reports, API/Worker restart and SignalR reconnect coverage, concurrent reset and ingestion idempotency hardening, atomic tracking counters, a justified `TelemetryPoints.RecordedAtUtc` retention index, and the factual `docs/02-engineering/RELIABILITY_REPORT.md` with explicit limits.
 - Added a first-class public Demo runtime with passwordless launch, short-lived HttpOnly/CSRF sessions, rate/capacity limits, read-only least privilege, session-isolated scenario controls, persistent simulated-data labelling, and safe expiry recovery.
 - Simplified the Web console into Operate, Fleet, Manage, and Administration navigation groups, with the map-first cockpit as the operator start point and contextual links to overview, alerts, and the fleet map.

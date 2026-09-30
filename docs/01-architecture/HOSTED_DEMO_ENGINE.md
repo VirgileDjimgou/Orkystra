@@ -33,3 +33,21 @@ dotnet run --project apps/backend/FleetOps.Worker
 ```
 
 The API must run in the controlled Development/Demo host for the internal discovery and ingestion endpoints. Public exposure and public session issuance remain Sprint 29 scope.
+
+## Hosted public profile (Sprint 32)
+
+The `Demo` runtime mode can now animate the public fleet without granting visitors any write capability:
+
+- the internal engine endpoints (`/api/internal/v1/tracking/events`, `/scenarios/{slug}`, `/scenarios/{slug}/reset`) accept `Development`, `Demo`, and `DemoTesting` hosts and remain `404` in Production;
+- in `Demo`/`DemoTesting`, `DemoSessionGuardMiddleware` still refuses anonymous callers and blocks public Demo sessions; the Worker authenticates with the bounded service channel `InternalApi:Key`, sent as `X-FleetOps-Internal-Key`;
+- the `public-demo` seed contains twelve synthetic vehicle/device assignments, one synthetic driver, and one assigned mission with a controlled 15-minute delay so the public cockpit always has a consistent vehicle/mission/exception context;
+- the engine state is persisted under `/var/opt/fleetops/demo-engine-state.json` in the `docker-compose.demo.yml` profile;
+- per-agent credentials are not provisioned in the hosted profile: virtual-driver execution remains a development/test capability recorded through the canonical activity contract. See `docs/02-engineering/RELEASE_CHECKLIST.md`.
+
+Operational commands:
+
+```powershell
+pwsh -File scripts/demo-up.ps1
+pwsh -File scripts/demo-smoke.ps1 -SkipBuild
+pwsh -File scripts/demo-down.ps1
+```

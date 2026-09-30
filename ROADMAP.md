@@ -29,8 +29,8 @@ This is consolidation, not a business-surface expansion. Invoicing, accounting, 
 | 28 | Autonomous virtual-driver agents | DONE — 2026-09-27 | `sprints/SPRINT-28-AUTONOMOUS-VIRTUAL-DRIVER-AGENTS.md` |
 | 29 | Safe public Demo mode | DONE — 2026-09-27 | `sprints/SPRINT-29-PUBLIC-DEMO-MODE.md` |
 | 30 | UX simplification and frontend modularization | DONE — 2026-09-27 | `sprints/SPRINT-30-UX-SIMPLIFICATION-FRONTEND-MODULARIZATION.md` |
-| 31 | Reliability, performance, security, and observability proof | NOT_STARTED | `sprints/SPRINT-31-RELIABILITY-PERFORMANCE-SECURITY-OBSERVABILITY.md` |
-| 32 | Hosted demo release and portfolio showcase | NOT_STARTED | `sprints/SPRINT-32-HOSTED-DEMO-RELEASE-PORTFOLIO.md` |
+| 31 | Reliability, performance, security, and observability proof | DONE — 2026-09-30 | `sprints/SPRINT-31-RELIABILITY-PERFORMANCE-SECURITY-OBSERVABILITY.md` |
+| 32 | Hosted demo release and portfolio showcase | DONE — 2026-09-30 | `sprints/SPRINT-32-HOSTED-DEMO-RELEASE-PORTFOLIO.md` |
 
 ## Architecture direction
 

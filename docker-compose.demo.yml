@@ -1,5 +1,9 @@
+# Hosted Demo overlay. Always combine it with the pilot packaging:
+#   docker compose --env-file .env -f docker-compose.yml -f docker-compose.pilot.yml -f docker-compose.demo.yml up -d --build
+# The internal key is a bounded service channel between the Demo engine Worker and the API.
 services:
   api:
+    restart: unless-stopped
     environment:
       ASPNETCORE_ENVIRONMENT: Demo
       Bootstrap__SeedDemoData: "true"
@@ -13,3 +17,24 @@ services:
       PublicDemo__SessionLifetimeSeconds: ${PUBLIC_DEMO_SESSION_LIFETIME_SECONDS:-900}
       PublicDemo__LaunchPermitLimit: ${PUBLIC_DEMO_LAUNCH_PERMIT_LIMIT:-10}
       PublicDemo__MaxConcurrentSessions: ${PUBLIC_DEMO_MAX_CONCURRENT_SESSIONS:-20}
+      InternalApi__Key: ${INTERNAL_API_KEY:?Set INTERNAL_API_KEY to an independent secret of at least 32 characters}
+
+  worker:
+    restart: unless-stopped
+    environment:
+      DemoEngine__Enabled: "true"
+      DemoEngine__RuntimeMode: Demo
+      DemoEngine__ApiBaseUrl: http://api:8080
+      DemoEngine__InternalApiKey: ${INTERNAL_API_KEY:?Set INTERNAL_API_KEY to an independent secret of at least 32 characters}
+      DemoEngine__OrganizationSlug: public-demo
+      DemoEngine__Scenario: ${DEMO_ENGINE_SCENARIO:-NORMAL_SHIFT}
+      DemoEngine__Seed: ${DEMO_ENGINE_SEED:-3201}
+      DemoEngine__TickSeconds: ${DEMO_ENGINE_TICK_SECONDS:-5}
+      DemoEngine__SpeedMultiplier: ${DEMO_ENGINE_SPEED_MULTIPLIER:-1}
+      DemoEngine__StatePath: /var/opt/fleetops/demo-engine-state.json
+      DemoEngine__SideEffectsSandboxed: "true"
+    volumes:
+      - demo-engine-state:/var/opt/fleetops/demo-engine-state
+
+volumes:
+  demo-engine-state:

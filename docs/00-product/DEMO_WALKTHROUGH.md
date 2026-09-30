@@ -1,0 +1,69 @@
+# Demo Walkthrough & Scenario
+
+This walkthrough is the portfolio path for the hosted Demo: **launch → moving fleet → vehicle/mission → exception → agent activity → evidence**. Every capture below is `SIMULATED DEVELOPMENT EVIDENCE — NOT PILOT OR COMMERCIAL PROOF`; the public Demo tenant is synthetic and visibly labelled `SIMULATED DEMO` in the product.
+
+## Step 1 — Launch the public Demo
+
+Open `/demo` and press **Launch Live Demo**. The browser receives a short-lived, read-only Operator session on the synthetic `public-demo` tenant; no password, customer data, or external side effect is involved.
+
+![Public Demo launch page, labelled SIMULATED DEMO](assets/screenshots/demo-launch.png)
+
+## Step 2 — Observe the moving fleet
+
+The deterministic Demo engine runs in the Worker and feeds the canonical telemetry ingestion path. The cockpit shows the tracked vehicles, their quality, and the exception count.
+
+![Cockpit with twelve simulated vehicles tracked](assets/screenshots/demo-cockpit-fleet.png)
+
+## Step 3 — Inspect a vehicle, mission, and exception
+
+Selecting a vehicle (or its exception) opens the context inspector with vehicle, device, speed, quality, mission, driver, and the active exception.
+
+![Vehicle context with delayed simulated mission](assets/screenshots/demo-vehicle-exception.png)
+
+## Step 4 — Observe virtual-driver activity
+
+Virtual-driver decisions are recorded through the canonical agent-activity contract and rendered without private reasoning: observed state, policy, action, result code, and message.
+
+![Virtual driver activity: ReportDelay on EnRoute](assets/screenshots/demo-agent-activity.png)
+
+> This capture comes from the development/operations workspace (Northwind development seed); the hosted public profile does not provision per-agent credentials. See the release checklist.
+
+## Step 5 — Inspect evidence
+
+Technical evidence is intentionally deeper than the UI:
+
+- [Reliability report](../02-engineering/RELIABILITY_REPORT.md) — measured load, restart, reconnect, reset, and security budgets.
+- [Hosted Demo engine](../01-architecture/HOSTED_DEMO_ENGINE.md) — deterministic clock, fixtures, contracts.
+- [Demo mode security](../01-architecture/DEMO_MODE_SECURITY.md) — session boundary, sandboxing, rate limits.
+- [Virtual driver agents](../01-architecture/VIRTUAL_DRIVER_AGENTS.md) — decision policy and observable-only activity.
+- [Release checklist](../02-engineering/RELEASE_CHECKLIST.md) — tested facts, limitations, rollback.
+
+## Reproduce it locally
+
+```powershell
+# Hosted Demo profile (SQL Server, MinIO, API, Worker engine, Web)
+pwsh -File scripts/demo-up.ps1
+
+# Bounded smoke: readiness, launch, sandbox, reset, animated fleet
+pwsh -File scripts/demo-smoke.ps1 -SkipBuild
+
+# Optional: regenerate the screenshots above
+pwsh -File scripts/capture-demo-screenshots.ps1
+
+# Stop it
+pwsh -File scripts/demo-down.ps1
+```
+
+The Playwright suite (`apps/web/e2e/critical-flows.spec.ts`) contains the two end-to-end journeys: `public demo journey observes the animated fleet, vehicle mission, and exception` and `operations journey records proof evidence, a delayed exception, and agent activity`.
+
+## Scenario catalogue
+
+| Scenario | Observable effect |
+|---|---|
+| `NORMAL_SHIFT` | Deterministic fleet movement and on-time stops |
+| `LATE_DELIVERY` | Mission delay exception after a controlled 15-minute delay |
+| `VEHICLE_ISSUE` | Inspection defect raised through the driver workflow |
+| `DRIVER_CONNECTIVITY_LOSS` | Offline report and deterministic recovery policy |
+| `COMPLIANCE_WARNING` | Compliance-oriented telemetry variation |
+
+Scenarios are simulation inputs; they never bypass FleetOps application contracts or write business tables directly.

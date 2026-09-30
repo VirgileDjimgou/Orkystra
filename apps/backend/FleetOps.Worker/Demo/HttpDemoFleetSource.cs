@@ -18,6 +18,7 @@ public sealed class HttpDemoFleetSource(
 
         var client = httpClientFactory.CreateClient(nameof(HttpDemoFleetSource));
         client.BaseAddress = new Uri(settings.ApiBaseUrl, UriKind.Absolute);
+        InternalApiHeader.Apply(client, settings.InternalApiKey);
         var slug = Uri.EscapeDataString(settings.OrganizationSlug.Trim());
         var response = await client.GetFromJsonAsync<ScenarioResponse>($"/api/internal/v1/tracking/scenarios/{slug}?maxVehicles=20", cancellationToken)
             ?? throw new InvalidOperationException("Demo fleet discovery returned no content.");

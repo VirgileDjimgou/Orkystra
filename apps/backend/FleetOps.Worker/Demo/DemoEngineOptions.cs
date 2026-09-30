@@ -7,6 +7,7 @@ public sealed class DemoEngineOptions
     public string RuntimeMode { get; init; } = "Disabled";
     public int TickSeconds { get; init; } = 5;
     public string? ApiBaseUrl { get; init; }
+    public string? InternalApiKey { get; init; }
     public string? ApiAccessToken { get; init; }
     public string? DriverAccessToken { get; init; }
     public string OrganizationSlug { get; init; } = "northwind";

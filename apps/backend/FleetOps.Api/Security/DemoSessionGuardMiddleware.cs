@@ -6,14 +6,22 @@ public sealed class DemoSessionGuardMiddleware(RequestDelegate next)
 {
     private static readonly HashSet<string> SafeMethods = new(StringComparer.OrdinalIgnoreCase) { "GET", "HEAD", "OPTIONS" };
 
-    public async Task InvokeAsync(HttpContext context, IHostEnvironment environment)
+    public async Task InvokeAsync(HttpContext context, IHostEnvironment environment, IConfiguration configuration)
     {
         if ((environment.IsEnvironment("Demo") || environment.IsEnvironment("DemoTesting"))
-            && context.Request.Path.StartsWithSegments("/api/internal")
-            && context.User.Identity?.IsAuthenticated != true)
+            && context.Request.Path.StartsWithSegments("/api/internal"))
         {
-            await Results.Unauthorized().ExecuteAsync(context);
-            return;
+            if (InternalApiKey.Matches(context, configuration))
+            {
+                await next(context);
+                return;
+            }
+
+            if (context.User.Identity?.IsAuthenticated != true)
+            {
+                await Results.Unauthorized().ExecuteAsync(context);
+                return;
+            }
         }
 
         if (!string.Equals(context.User.FindFirst(TenantClaimTypes.DemoSession)?.Value, "true", StringComparison.Ordinal))

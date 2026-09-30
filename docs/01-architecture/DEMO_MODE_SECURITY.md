@@ -33,4 +33,6 @@ Validate or run the explicit overlay with:
 docker compose --env-file .env -f docker-compose.yml -f docker-compose.pilot.yml -f docker-compose.demo.yml config
 ```
 
-The overlay clears bootstrap administrator values and enables only the passwordless public Demo tenant. Production continues to use `docker-compose.pilot.yml` without this overlay.
+The overlay clears bootstrap administrator values and enables only the passwordless public Demo tenant. The Demo Worker engine reaches the internal ingestion/discovery endpoints through the bounded service channel `InternalApi:Key` (`X-FleetOps-Internal-Key`); anonymous internal access is still refused, public Demo sessions remain read-only, and Production keeps the internal endpoints `404`. Production continues to use `docker-compose.pilot.yml` without this overlay.
+
+Simplified entry points: `scripts/demo-up.ps1`, `scripts/demo-smoke.ps1`, `scripts/demo-down.ps1`. See [DEPLOYMENT_TOPOLOGY.md](DEPLOYMENT_TOPOLOGY.md).
