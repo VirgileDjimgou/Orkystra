@@ -11,6 +11,7 @@
     <ProjectReference Include="../../../apps/backend/FleetOps.Worker/FleetOps.Worker.csproj" Aliases="worker" />
     <ProjectReference Include="../../../simulators/FleetOpsScenarioSimulator/FleetOpsScenarioSimulator.csproj" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" />

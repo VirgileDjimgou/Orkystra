@@ -3,6 +3,7 @@ using FleetOps.Api.Auditing;
 using FleetOps.Api.Auth;
 using FleetOps.Api.Security;
 using FleetOps.Core.Modules.Identity;
+using FleetOps.Core.Observability;
 using FleetOps.Infrastructure.Identity;
 using FleetOps.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Identity;
@@ -54,7 +55,11 @@ public static class PublicDemoEndpointExtensions
         CancellationToken cancellationToken)
     {
         var settings = options.Value;
-        if (!IsEnabled(environment, settings)) return Results.NotFound();
+        if (!IsEnabled(environment, settings))
+        {
+            RecordLaunch("disabled");
+            return Results.NotFound();
+        }
 
         var now = timeProvider.GetUtcNow();
         var expired = await db.UserSessions
@@ -70,6 +75,7 @@ public static class PublicDemoEndpointExtensions
             cancellationToken);
         if (activeCount >= settings.MaxConcurrentSessions)
         {
+            RecordLaunch("capacity");
             return Results.Problem(
                 title: "Demo capacity reached",
                 detail: "All public Demo slots are currently in use. Try again shortly.",
@@ -79,7 +85,10 @@ public static class PublicDemoEndpointExtensions
         var organization = await db.Organizations.SingleAsync(x => x.Slug == PublicDemoOptions.TenantSlug, cancellationToken);
         var user = await userManager.FindByEmailAsync(PublicDemoOptions.OperatorEmail);
         if (user is null || !user.IsActive || user.OrganizationId != organization.Id)
+        {
+            RecordLaunch("unavailable");
             return Results.Problem(title: "Demo unavailable", statusCode: StatusCodes.Status503ServiceUnavailable);
+        }
 
         var expiresAtUtc = now.AddSeconds(settings.SessionLifetimeSeconds);
         var sessionRecord = new UserSession(organization.Id, user.Id, "public-demo", expiresAtUtc);
@@ -103,6 +112,7 @@ public static class PublicDemoEndpointExtensions
             sessionRecord.Id.ToString(),
             new { expiresAtUtc, sandboxed = true },
             cancellationToken);
+        RecordLaunch("launched");
 
         return Results.Ok(new DemoLaunchResponse(
             expiresAtUtc,
@@ -144,6 +154,9 @@ public static class PublicDemoEndpointExtensions
         try
         {
             var state = states.Apply(sessionId, expiresAtUtc, request.Action, request.Scenario);
+            FleetOpsMetrics.PublicDemoControls.Add(
+                1,
+                new KeyValuePair<string, object?>("action", state.Status == "RUNNING" ? "START" : state.Status == "PAUSED" ? "PAUSE" : "RESET"));
             var tenant = tenantAccessor.GetRequiredTenant(context.User);
             await audit.WriteAsync(
                 tenant.OrganizationId,
@@ -181,4 +194,7 @@ public static class PublicDemoEndpointExtensions
         (environment.IsEnvironment("Demo") || environment.IsEnvironment("DemoTesting"))
         && options.Enabled
         && options.SideEffectsSandboxed;
+
+    private static void RecordLaunch(string result) =>
+        FleetOpsMetrics.PublicDemoSessions.Add(1, new KeyValuePair<string, object?>("result", result));
 }

@@ -1,7 +1,9 @@
+using System.Diagnostics;
 using System.Text.Json;
 using FleetOps.Api.Security;
 using FleetOps.Core.Modules.Identity;
 using FleetOps.Core.Modules.Tracking;
+using FleetOps.Core.Observability;
 using FleetOps.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
@@ -61,6 +63,7 @@ public static class TrackingEndpointExtensions
         CancellationToken cancellationToken)
     {
         var tenant = currentTenantAccessor.GetRequiredTenant(httpContext.User);
+        var stopwatch = Stopwatch.StartNew();
         var rows = await (
             from current in dbContext.CurrentVehiclePositions
             join vehicle in dbContext.Vehicles on current.VehicleId equals vehicle.Id
@@ -69,6 +72,9 @@ public static class TrackingEndpointExtensions
             orderby vehicle.RegistrationNumber
             select new { current, vehicle.RegistrationNumber, vehicle.DisplayName }
         ).ToListAsync(cancellationToken);
+        FleetOpsMetrics.TrackingSnapshotDuration.Record(
+            stopwatch.Elapsed.TotalMilliseconds,
+            new KeyValuePair<string, object?>("surface", "positions"));
 
         var now = timeProvider.GetUtcNow();
         return Results.Ok(rows.Select(x => TrackingPositionMapper.FromCurrent(x.current, x.RegistrationNumber, x.DisplayName, now)));
@@ -109,6 +115,7 @@ public static class TrackingEndpointExtensions
             .Where(x => x.OrganizationId == tenant.OrganizationId && x.VehicleId == vehicleId)
             .OrderByDescending(x => x.RecordedAtUtc);
 
+        var stopwatch = Stopwatch.StartNew();
         var totalCount = await query.CountAsync(cancellationToken);
         var items = await query
             .Skip((page - 1) * pageSize)
@@ -129,6 +136,9 @@ public static class TrackingEndpointExtensions
                 x.QualityScore,
                 x.AnomalyFlags))
             .ToListAsync(cancellationToken);
+        FleetOpsMetrics.TrackingSnapshotDuration.Record(
+            stopwatch.Elapsed.TotalMilliseconds,
+            new KeyValuePair<string, object?>("surface", "history"));
 
         return Results.Ok(new TrackingHistoryPageResponse(page, pageSize, totalCount, items));
     }
@@ -156,7 +166,8 @@ public static class TrackingEndpointExtensions
             snapshot.Accepted,
             snapshot.Duplicate,
             snapshot.OutOfOrder,
-            Math.Max(1, options.Value.RetentionDays)));
+            Math.Max(1, options.Value.RetentionDays),
+            snapshot.Rejected));
     }
 
     private static async Task<IResult> GetDiagnosticsAsync(HttpContext httpContext, FleetOpsDbContext dbContext, ICurrentTenantAccessor currentTenantAccessor, TimeProvider timeProvider, CancellationToken cancellationToken)
@@ -313,6 +324,7 @@ public static class TrackingEndpointExtensions
         IWebHostEnvironment environment,
         FleetOpsDbContext dbContext,
         TrackingMetricsStore metricsStore,
+        TrackingResetCoordinator resetCoordinator,
         CancellationToken cancellationToken)
     {
         if (!environment.IsDevelopment())
@@ -327,19 +339,53 @@ public static class TrackingEndpointExtensions
             return Results.NotFound();
         }
 
-        var history = await dbContext.TelemetryPoints
-            .Where(x => x.OrganizationId == organization.Id)
-            .ToListAsync(cancellationToken);
-        var currentPositions = await dbContext.CurrentVehiclePositions
-            .Where(x => x.OrganizationId == organization.Id)
-            .ToListAsync(cancellationToken);
+        var stopwatch = Stopwatch.StartNew();
+        var outcome = "completed";
+        try
+        {
+            using var _ = await resetCoordinator.AcquireAsync(organization.Id, cancellationToken);
+            int deletedHistory;
+            int deletedPositions;
+            if (dbContext.Database.IsRelational())
+            {
+                await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+                deletedHistory = await dbContext.TelemetryPoints
+                    .Where(x => x.OrganizationId == organization.Id)
+                    .ExecuteDeleteAsync(cancellationToken);
+                deletedPositions = await dbContext.CurrentVehiclePositions
+                    .Where(x => x.OrganizationId == organization.Id)
+                    .ExecuteDeleteAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+            }
+            else
+            {
+                var history = await dbContext.TelemetryPoints
+                    .Where(x => x.OrganizationId == organization.Id)
+                    .ToListAsync(cancellationToken);
+                var currentPositions = await dbContext.CurrentVehiclePositions
+                    .Where(x => x.OrganizationId == organization.Id)
+                    .ToListAsync(cancellationToken);
+                deletedHistory = history.Count;
+                deletedPositions = currentPositions.Count;
+                dbContext.TelemetryPoints.RemoveRange(history);
+                dbContext.CurrentVehiclePositions.RemoveRange(currentPositions);
+                await dbContext.SaveChangesAsync(cancellationToken);
+            }
 
-        dbContext.TelemetryPoints.RemoveRange(history);
-        dbContext.CurrentVehiclePositions.RemoveRange(currentPositions);
-        await dbContext.SaveChangesAsync(cancellationToken);
-        metricsStore.Reset(organization.Id);
-
-        return Results.Ok(new TrackingScenarioResetResponse(history.Count, currentPositions.Count));
+            metricsStore.Reset(organization.Id);
+            return Results.Ok(new TrackingScenarioResetResponse(deletedHistory, deletedPositions));
+        }
+        catch
+        {
+            outcome = "failed";
+            throw;
+        }
+        finally
+        {
+            var tag = new KeyValuePair<string, object?>("outcome", outcome);
+            FleetOpsMetrics.TrackingResetEvents.Add(1, tag);
+            FleetOpsMetrics.TrackingResetDuration.Record(stopwatch.Elapsed.TotalMilliseconds, tag);
+        }
     }
 
     private static async Task<IResult> GetLegacyLatestAsync(

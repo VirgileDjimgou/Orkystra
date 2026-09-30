@@ -76,6 +76,9 @@ try {
   Invoke-Step "Backend Test (Fast)" {
     dotnet test FleetOps.slnx --no-build -c Release --filter "Category!=SqlServer&Category!=Minio"
   }
+  Invoke-Step "Backend Test (Reliability)" {
+    dotnet test tests/backend/FleetOps.UnitTests/FleetOps.UnitTests.csproj --no-build -c Release --filter "Category=Reliability&Category!=SqlServer"
+  }
   Invoke-Step "Backend Test (MinIO)" {
     dotnet test tests/backend/FleetOps.UnitTests/FleetOps.UnitTests.csproj --no-build -c Release --filter "Category=Minio"
   }
@@ -112,6 +115,13 @@ try {
     powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-full-simulation.ps1 -SkipScreenshots
   }
 
+  Invoke-Step "Reliability Smoke Harness" {
+    & (Join-Path $root "scripts\run-reliability-exercise.ps1") -Mode load -DurationSeconds 30 -Vehicles 20 -IntervalMs 1000 -SnapshotEverySeconds 10 -SkipWorker -ApiPort 5092
+    if ($LASTEXITCODE -ne 0) {
+      throw "Reliability smoke harness failed with exit code $LASTEXITCODE."
+    }
+  }
+
   Invoke-Step "Web Install" {
     Push-Location apps/web
     try { npm ci } finally { Pop-Location }
@@ -137,8 +147,19 @@ try {
     try { npx playwright install chromium } finally { Pop-Location }
   }
   Invoke-Step "Web E2E" {
+    $previousApiBaseUrl = $env:PLAYWRIGHT_API_BASE_URL
+    $previousWebBaseUrl = $env:PLAYWRIGHT_WEB_BASE_URL
+    $env:PLAYWRIGHT_API_BASE_URL = "http://127.0.0.1:5081"
+    $env:PLAYWRIGHT_WEB_BASE_URL = "http://127.0.0.1:4176"
     Push-Location apps/web
-    try { npm run e2e } finally { Pop-Location }
+    try {
+      npm run e2e
+    }
+    finally {
+      Pop-Location
+      if ($null -eq $previousApiBaseUrl) { Remove-Item Env:PLAYWRIGHT_API_BASE_URL -ErrorAction SilentlyContinue } else { $env:PLAYWRIGHT_API_BASE_URL = $previousApiBaseUrl }
+      if ($null -eq $previousWebBaseUrl) { Remove-Item Env:PLAYWRIGHT_WEB_BASE_URL -ErrorAction SilentlyContinue } else { $env:PLAYWRIGHT_WEB_BASE_URL = $previousWebBaseUrl }
+    }
   }
 
   Invoke-Step "API Health Check" {
@@ -156,11 +177,19 @@ try {
     $previousUseInMemory = $env:Testing__UseInMemoryDatabase
     $previousDatabaseName = $env:Testing__DatabaseName
     $previousSeedDemoData = $env:Bootstrap__SeedDemoData
+    $previousJwtIssuer = $env:Jwt__Issuer
+    $previousJwtAudience = $env:Jwt__Audience
+    $previousJwtSigningKey = $env:Jwt__SigningKey
+    $previousJwtLifetime = $env:Jwt__TokenLifetimeMinutes
     $env:ASPNETCORE_ENVIRONMENT = "Development"
     $env:ASPNETCORE_URLS = "http://localhost:5080"
     $env:Testing__UseInMemoryDatabase = "true"
     $env:Testing__DatabaseName = "quality-gate-api"
     $env:Bootstrap__SeedDemoData = "true"
+    $env:Jwt__Issuer = "FleetOps.QualityGate"
+    $env:Jwt__Audience = "FleetOps.QualityGate.Web"
+    $env:Jwt__SigningKey = "FleetOps_QualityGate_Signing_Key_12345678901234567890"
+    $env:Jwt__TokenLifetimeMinutes = "60"
     $process = Start-Process dotnet -ArgumentList @('exec', $apiDll) `
       -WorkingDirectory $root `
       -WindowStyle Hidden `
@@ -172,6 +201,9 @@ try {
       $response = $null
       $readinessResponse = $null
       do {
+        if ($process.HasExited) {
+          throw "API health-check process exited early with code $($process.ExitCode). See $errPath."
+        }
         Start-Sleep -Seconds 1
         try {
           $response = Invoke-WebRequest -UseBasicParsing 'http://localhost:5080/health'
@@ -204,6 +236,10 @@ try {
       $env:Testing__UseInMemoryDatabase = $previousUseInMemory
       $env:Testing__DatabaseName = $previousDatabaseName
       $env:Bootstrap__SeedDemoData = $previousSeedDemoData
+      $env:Jwt__Issuer = $previousJwtIssuer
+      $env:Jwt__Audience = $previousJwtAudience
+      $env:Jwt__SigningKey = $previousJwtSigningKey
+      $env:Jwt__TokenLifetimeMinutes = $previousJwtLifetime
     }
   }
 

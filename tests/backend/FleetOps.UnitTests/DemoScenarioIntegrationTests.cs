@@ -21,7 +21,7 @@ public sealed class DemoScenarioIntegrationTests(FleetOpsApiFactory factory) : I
         await ResetDatabaseAsync();
         using var client = factory.CreateClient();
         var northwind = await LoadScenarioAsync(client, "northwind", 20);
-        Assert.Equal(12, northwind.Vehicles.Count);
+        Assert.Equal(20, northwind.Vehicles.Count);
         var northVehicle = northwind.Vehicles[0];
         var engine = new DeterministicDemoScenarioEngine(new DeterministicDemoClock(DateTimeOffset.UtcNow));
         engine.Start(DemoScenarioKind.NormalShift, 2701);

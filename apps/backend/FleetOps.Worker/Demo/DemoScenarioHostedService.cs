@@ -1,4 +1,6 @@
+using System.Diagnostics;
 using FleetOps.Core.Modules.Demo;
+using FleetOps.Core.Observability;
 using Microsoft.Extensions.Options;
 
 namespace FleetOps.Worker.Demo;
@@ -43,8 +45,16 @@ public sealed partial class DemoScenarioHostedService(
 
         while (!stoppingToken.IsCancellationRequested)
         {
+            var scenarioTag = new KeyValuePair<string, object?>("scenario", engine.State.Scenario.ToString());
+            var tickStopwatch = Stopwatch.StartNew();
             var emitted = await simulator.TickAsync(fleet.OrganizationId, vehicles, tick, stoppingToken);
+            FleetOpsMetrics.DemoEngineTickDuration.Record(tickStopwatch.Elapsed.TotalMilliseconds, scenarioTag);
+            FleetOpsMetrics.DemoEngineTelemetryEmitted.Add(emitted, scenarioTag);
+
+            var saveStopwatch = Stopwatch.StartNew();
             await stateStore.SaveAsync(engine.Capture(), stoppingToken);
+            FleetOpsMetrics.DemoEngineStateSaveDuration.Record(saveStopwatch.Elapsed.TotalMilliseconds);
+
             Log.ScenarioTick(logger, engine.State.Scenario, engine.State.LogicalUtc, emitted);
             await Task.Delay(tick, stoppingToken);
         }

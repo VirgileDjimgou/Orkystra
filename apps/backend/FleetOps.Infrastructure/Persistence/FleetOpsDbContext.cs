@@ -607,6 +607,9 @@ public sealed class FleetOpsDbContext(DbContextOptions<FleetOpsDbContext> option
             entity.HasKey(x => x.Id);
             entity.HasIndex(x => new { x.OrganizationId, x.EventId }).IsUnique();
             entity.HasIndex(x => new { x.OrganizationId, x.VehicleId, x.RecordedAtUtc });
+            // Sprint 31: the bounded retention purge orders globally by RecordedAtUtc,
+            // which the tenant-scoped composite index cannot serve.
+            entity.HasIndex(x => x.RecordedAtUtc);
             entity.Property(x => x.DeviceId).HasMaxLength(64);
             entity.Property(x => x.EventId).HasMaxLength(128);
             entity.Property(x => x.RecordedAtUtc).HasPrecision(7);

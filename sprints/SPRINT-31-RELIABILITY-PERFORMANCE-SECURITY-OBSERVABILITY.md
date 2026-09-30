@@ -2,7 +2,7 @@
 
 ## Status
 
-`NOT_STARTED`
+`DONE — 2026-09-30` (quality gate `.runtime/sprint31-quality-gate.log`; mesures `docs/02-engineering/RELIABILITY_REPORT.md`)
 
 ## Goal
 
@@ -63,12 +63,12 @@ Record p50/p95 and error rates. At minimum: 20 agents for 15 minutes, no unexpla
 
 ## Acceptance criteria
 
-- [ ] Measured 20-agent, 15-minute run completes with documented results.
-- [ ] No unexplained missing current positions or cross-tenant leakage occurs.
-- [ ] API/Worker restart and browser reconnect restore consistent state.
-- [ ] Reset concurrency, session expiry, and rate limits behave predictably.
-- [ ] Relevant query/index and OpenTelemetry evidence is recorded.
-- [ ] Failures are injected only in safe isolated scope and regression suite remains green.
+- [x] Measured 20-agent, 15-minute run completes with documented results.
+- [x] No unexplained missing current positions or cross-tenant leakage occurs.
+- [x] API/Worker restart and browser reconnect restore consistent state.
+- [x] Reset concurrency, session expiry, and rate limits behave predictably.
+- [x] Relevant query/index and OpenTelemetry evidence is recorded.
+- [x] Failures are injected only in safe isolated scope and regression suite remains green.
 
 ## Demo proof
 

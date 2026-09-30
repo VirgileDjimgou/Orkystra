@@ -22,6 +22,7 @@ using FleetOps.Api.RecipientStatus;
 using FleetOps.Api.Security;
 using FleetOps.Api.Tracking;
 using FleetOps.Core.Modules.Integrations;
+using FleetOps.Core.Observability;
 using FleetOps.Infrastructure;
 using FleetOps.Infrastructure.Integrations;
 using FleetOps.Infrastructure.Persistence;
@@ -87,7 +88,8 @@ builder.Services.AddOpenTelemetry()
             .AddRuntimeInstrumentation()
             .AddMeter("Microsoft.AspNetCore.Hosting")
             .AddMeter("Microsoft.AspNetCore.Server.Kestrel")
-            .AddMeter("System.Net.Http");
+            .AddMeter("System.Net.Http")
+            .AddMeter(FleetOpsMetrics.MeterName);
 
         if (!string.IsNullOrWhiteSpace(otlpEndpoint))
         {
@@ -101,6 +103,8 @@ builder.Services.AddScoped<TrackingIngestionService>();
 builder.Services.AddScoped<IOperationsRealtimeNotifier, OperationsRealtimeNotifier>();
 builder.Services.AddScoped<IDriverSyncIncidentService, DriverSyncIncidentService>();
 builder.Services.AddSingleton<TrackingMetricsStore>();
+builder.Services.AddSingleton<TrackingConnectionCounter>();
+builder.Services.AddSingleton<TrackingResetCoordinator>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<IDemoSessionStateStore, DemoSessionStateStore>();
 builder.Services.AddSingleton<IMediaUrlSigner, MediaUrlSigner>();

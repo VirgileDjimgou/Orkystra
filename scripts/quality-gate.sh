@@ -38,17 +38,23 @@ run_step "Backend Restore" dotnet restore FleetOps.slnx
 run_step "Backend Format" dotnet format FleetOps.slnx --verify-no-changes
 run_step "Backend Build" dotnet build FleetOps.slnx --no-restore -c Release
 run_step "Backend Test (Fast)" dotnet test FleetOps.slnx --no-build -c Release --filter "Category!=SqlServer&Category!=Minio"
+run_step "Backend Test (Reliability)" dotnet test tests/backend/FleetOps.UnitTests/FleetOps.UnitTests.csproj --no-build -c Release --filter "Category=Reliability&Category!=SqlServer"
 run_step "Backend Test (MinIO)" dotnet test tests/backend/FleetOps.UnitTests/FleetOps.UnitTests.csproj --no-build -c Release --filter "Category=Minio"
 run_step "Backend Test (SqlServer)" dotnet test tests/backend/FleetOps.UnitTests/FleetOps.UnitTests.csproj --no-build -c Release --filter "Category=SqlServer"
 run_step "GPS Dry Run" bash -lc 'mkdir -p .runtime; gps_dll="simulators/GpsSimulator/bin/Release/net10.0/GpsSimulator.dll"; [[ -f "$gps_dll" ]]; tmp_log=".runtime/quality-gps.log"; rm -f "$tmp_log" ".runtime/quality-gps.err"; timeout 5s dotnet exec "$gps_dll" --dry-run >"$tmp_log" 2>".runtime/quality-gps.err" || true; grep -q "\"VehicleId\"" "$tmp_log"'
+if command -v pwsh >/dev/null 2>&1; then
+  run_step "Reliability Smoke Harness" pwsh -ExecutionPolicy Bypass -File scripts/run-reliability-exercise.ps1 -Mode load -DurationSeconds 30 -Vehicles 20 -IntervalMs 1000 -SnapshotEverySeconds 10 -SkipWorker -ApiPort 5092
+else
+  SUMMARY+=("SKIPPED :: Reliability Smoke Harness (pwsh not available)")
+fi
 run_step "Web Install" bash -lc 'cd apps/web && npm ci'
 run_step "Web Format" bash -lc 'cd apps/web && npm run format:check'
 run_step "Web Lint" bash -lc 'cd apps/web && npm run lint'
 run_step "Web Test" bash -lc 'cd apps/web && npm run test'
 run_step "Web Build" bash -lc 'cd apps/web && npm run build'
 run_step "Web E2E Browser" bash -lc 'cd apps/web && npx playwright install chromium'
-run_step "Web E2E" bash -lc 'cd apps/web && npm run e2e'
-run_step "API Health Check" bash -lc 'mkdir -p .runtime; api_dll="apps/backend/FleetOps.Api/bin/Release/net10.0/FleetOps.Api.dll"; [[ -f "$api_dll" ]]; tmp_api=".runtime/quality-api.log"; tmp_err=".runtime/quality-api.err"; rm -f "$tmp_api" "$tmp_err"; ASPNETCORE_ENVIRONMENT=Development ASPNETCORE_URLS=http://localhost:5080 Testing__UseInMemoryDatabase=true Testing__DatabaseName=quality-gate-api dotnet exec "$api_dll" >"$tmp_api" 2>"$tmp_err" & pid=$!; trap "kill $pid 2>/dev/null || true" EXIT; for _ in $(seq 1 20); do if curl -fsS http://localhost:5080/health >/dev/null && curl -fsS http://localhost:5080/health/ready >/dev/null; then ok=1; break; fi; sleep 1; done; [[ "${ok:-0}" = "1" ]]; kill $pid 2>/dev/null || true; wait $pid 2>/dev/null || true; trap - EXIT'
+run_step "Web E2E" bash -lc 'cd apps/web && PLAYWRIGHT_API_BASE_URL=http://127.0.0.1:5081 PLAYWRIGHT_WEB_BASE_URL=http://127.0.0.1:4176 npm run e2e'
+run_step "API Health Check" bash -lc 'mkdir -p .runtime; api_dll="apps/backend/FleetOps.Api/bin/Release/net10.0/FleetOps.Api.dll"; [[ -f "$api_dll" ]]; tmp_api=".runtime/quality-api.log"; tmp_err=".runtime/quality-api.err"; rm -f "$tmp_api" "$tmp_err"; ASPNETCORE_ENVIRONMENT=Development ASPNETCORE_URLS=http://localhost:5080 Testing__UseInMemoryDatabase=true Testing__DatabaseName=quality-gate-api Jwt__Issuer=FleetOps.QualityGate Jwt__Audience=FleetOps.QualityGate.Web Jwt__SigningKey=FleetOps_QualityGate_Signing_Key_12345678901234567890 Jwt__TokenLifetimeMinutes=60 dotnet exec "$api_dll" >"$tmp_api" 2>"$tmp_err" & pid=$!; trap "kill $pid 2>/dev/null || true" EXIT; for _ in $(seq 1 20); do if curl -fsS http://localhost:5080/health >/dev/null && curl -fsS http://localhost:5080/health/ready >/dev/null; then ok=1; break; fi; sleep 1; done; [[ "${ok:-0}" = "1" ]]; kill $pid 2>/dev/null || true; wait $pid 2>/dev/null || true; trap - EXIT'
 
 if [[ ! -x apps/android-driver/gradlew ]]; then
   echo "Gradle wrapper missing in apps/android-driver." >&2

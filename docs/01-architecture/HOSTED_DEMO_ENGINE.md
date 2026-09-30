@@ -16,7 +16,7 @@ The engine must use real application/domain contracts for missions, inspections,
 
 ## Sprint 27 implementation
 
-`FleetOps.Worker` hosts the engine, which is disabled by default. Activation fails closed unless `DemoEngine:RuntimeMode` is `Demo`, side effects are sandboxed, the API URL is absolute, and fleet discovery returns 10–20 active vehicle/device assignments. Northwind's development seed contains 12 synthetic assignments. The internal scenario endpoint keeps its historical three-vehicle default and accepts a bounded `maxVehicles=3..20` query for the hosted engine.
+`FleetOps.Worker` hosts the engine, which is disabled by default. Activation fails closed unless `DemoEngine:RuntimeMode` is `Demo`, side effects are sandboxed, the API URL is absolute, and fleet discovery returns 10–20 active vehicle/device assignments. Northwind's development seed contains 20 synthetic assignments (Sprint 31 extended it from 12 so the engine can run at its 20-vehicle maximum). The internal scenario endpoint keeps its historical three-vehicle default and accepts a bounded `maxVehicles=3..20` query for the hosted engine.
 
 Each tick advances one shared logical clock, interpolates the local Stuttgart-area polylines, and posts telemetry to `/api/internal/v1/tracking/events`. Mission transitions use `IDemoMissionEmitter` and the authenticated `/api/v1/dispatch/missions/{id}/status` workflow; the access token must be short-lived configuration and is never stored in source or logs. State is written atomically to `.runtime/demo-engine-state.json`, so a Worker restart resumes at the next deterministic tick.
 

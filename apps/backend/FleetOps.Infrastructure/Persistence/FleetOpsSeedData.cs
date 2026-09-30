@@ -75,7 +75,7 @@ public static class FleetOpsSeedData
             var southReserveTruck = new Vehicle(south.Id, "SR-202", "Southridge Reserve Truck");
             var backupVan = new Vehicle(north.Id, "NW-101", "Northwind Reserve Van");
             var serviceVan = new Vehicle(north.Id, "NW-102", "Northwind Service Van");
-            var demoVehicles = Enumerable.Range(103, 9)
+            var demoVehicles = Enumerable.Range(103, 17)
                 .Select(number => new Vehicle(north.Id, $"NW-{number}", $"Northwind Demo Vehicle {number}"))
                 .ToList();
             var westServiceTruck = new Vehicle(west.Id, "WF-300", "Westland Service Truck");
@@ -98,7 +98,7 @@ public static class FleetOpsSeedData
             var southReserveDevice = new GpsDevice(south.Id, "SR-GPS-202", "Reserve truck tracker");
             var northSpareDevice = new GpsDevice(north.Id, "NW-GPS-101", "Reserve van tracker");
             var northServiceDevice = new GpsDevice(north.Id, "NW-GPS-102", "Service van tracker");
-            var demoDevices = Enumerable.Range(103, 9)
+            var demoDevices = Enumerable.Range(103, 17)
                 .Select(number => new GpsDevice(north.Id, $"NW-GPS-{number}", $"Demo vehicle {number} tracker"))
                 .ToList();
             var westServiceDevice = new GpsDevice(west.Id, "WF-GPS-300", "Service truck tracker");

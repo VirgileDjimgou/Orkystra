@@ -1,5 +1,6 @@
 using System.Text.Json;
 using FleetOps.Core.Modules.Demo;
+using FleetOps.Core.Observability;
 using FleetOps.Infrastructure;
 using FleetOps.Infrastructure.Storage;
 using FleetOps.Worker;
@@ -52,7 +53,8 @@ builder.Services.AddOpenTelemetry()
         metrics
             .AddHttpClientInstrumentation()
             .AddRuntimeInstrumentation()
-            .AddMeter("System.Net.Http");
+            .AddMeter("System.Net.Http")
+            .AddMeter(FleetOpsMetrics.MeterName);
         if (!string.IsNullOrWhiteSpace(otlpEndpoint))
         {
             metrics.AddOtlpExporter();

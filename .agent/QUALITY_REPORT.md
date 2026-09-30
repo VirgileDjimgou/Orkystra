@@ -1,5 +1,18 @@
 # Rapport de qualité
 
+## Sprint 31 — Reliability, Performance, Security & Observability
+
+- Statut : `PASSED — 2026-09-30`; journal `.runtime/sprint31-quality-gate.log`.
+- Backend : format/analyse sans changement, build Release sans avertissement, 181 tests rapides (dont 11 nouveaux tests `Reliability`), 1 test MinIO et 6 tests SQL Server (3 existants + 3 nouveaux) passants.
+- Preuves Sprint : exécution 20 agents / 900,3 s (identifiant `20260929-222644`) avec redémarrage Worker injecté à 301 s, 3 520 événements acceptés, 3 212 messages SignalR, 0 position manquante, 0 erreur HTTP ; charge 20 véhicules avec injections (identifiant `20260929-222517`) 1 210 requêtes, 6/6 doublons, 4/4 désordres, 0 erreur.
+- Fiabilité ciblée : redémarrage API sur SQL Server (positions et historique conservés), reset concurrent borné (100 lignes supprimées exactement une fois), reconnexion SignalR avec catch-up, plan de purge utilisant `IX_TelemetryPoints_RecordedAtUtc` après migration.
+- Sécurité sous charge : 10 lancements parallèles limités à 3 avec refus 429 sans autre statut, session expirée rejetée sur 10 lectures parallèles, 10 écritures en bac à sable Demo refusées 403 avec lectures 200, 20 lectures croisées 404 et 20 écritures croisées 400.
+- Observabilité : mètre `FleetOps` (ingestion, diffusion, snapshot, reset, connexions SignalR, moteur Demo, agents virtuels, lancements publics) enregistré dans l'API et le Worker ; course de compteurs `TrackingMetricsStore` détectée par le harnais puis corrigée avec incréments atomiques et testée.
+- Simulation : 33 étapes multi-tenant passantes.
+- Web/runtime : Prettier, ESLint, 32 Vitest, build production et 8 Playwright passants ; la gate utilise désormais des ports E2E dédiés (5081/4176) et un contrôle de santé API autonome avec configuration JWT explicite, évitant la réutilisation silencieuse d'un autre serveur local.
+- Android : lint, tests unitaires et APK application/instrumentation passants ; connecté non configuré et non requis pour ce sprint backend/Web.
+- Limites connues : la charge 50 véhicules reste une limite explicite non testée (moteur Demo borné à 20) ; les stores de session Demo et de compteurs restent process-locaux ; la mémoire navigateur n'est pas mesurée automatiquement. Détail dans `docs/02-engineering/RELIABILITY_REPORT.md`.
+
 ## Sprint 30 — UX Simplification & Frontend Modularization
 
 - Statut : `PASSED — 2026-09-27`; journal `.runtime/sprint30-quality-gate.log`.

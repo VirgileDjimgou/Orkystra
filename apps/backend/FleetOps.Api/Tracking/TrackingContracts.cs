@@ -66,7 +66,8 @@ public sealed record TrackingMetricsResponse(
     long AcceptedCount,
     long DuplicateCount,
     long OutOfOrderCount,
-    int RetentionDays);
+    int RetentionDays,
+    long RejectedCount = 0);
 
 public sealed record TrackingScenarioResponse(
     Guid OrganizationId,

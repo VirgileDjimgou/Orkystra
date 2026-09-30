@@ -4,6 +4,7 @@ const apiBaseUrl =
   process.env.PLAYWRIGHT_API_BASE_URL ?? "http://127.0.0.1:5080";
 const webBaseUrl =
   process.env.PLAYWRIGHT_WEB_BASE_URL ?? "http://127.0.0.1:4173";
+const apiPort = new URL(apiBaseUrl).port || "5080";
 const webPort = new URL(webBaseUrl).port || "4173";
 
 export default defineConfig({
@@ -26,8 +27,7 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command:
-        "dotnet run --project ../backend/FleetOps.Api --no-launch-profile --urls http://127.0.0.1:5080",
+      command: `dotnet run --project ../backend/FleetOps.Api --no-launch-profile --urls http://127.0.0.1:${apiPort}`,
       url: `${apiBaseUrl}/health/ready`,
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,

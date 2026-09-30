@@ -1,4 +1,6 @@
+using System.Diagnostics;
 using FleetOps.Core.Modules.Demo;
+using FleetOps.Core.Observability;
 using Microsoft.Extensions.Options;
 
 namespace FleetOps.Worker.Demo;
@@ -23,7 +25,14 @@ public sealed partial class VirtualDriverHostedService(
         {
             if (engine.State.Status == DemoScenarioStatus.Running)
             {
+                var stopwatch = Stopwatch.StartNew();
                 var results = await VirtualDriverAgentCoordinator.StepAsync(agents, engine.State.Scenario, engine.State.Tick, engine.State.LogicalUtc, stoppingToken);
+                FleetOpsMetrics.DemoAgentStepDuration.Record(stopwatch.Elapsed.TotalMilliseconds);
+                foreach (var result in results)
+                {
+                    FleetOpsMetrics.DemoAgentSteps.Add(1, new KeyValuePair<string, object?>("result", result.ResultCode));
+                }
+
                 Log.AgentBatch(logger, results.Length, engine.State.Tick);
             }
             await Task.Delay(interval, stoppingToken);
