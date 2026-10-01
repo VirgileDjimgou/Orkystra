@@ -1,6 +1,26 @@
 # FleetOps Roadmap
 
-## Current phase — Demo Readiness / Autonomous Fleet Simulation
+## Current phase — MVP Consolidation / Public Autonomous Fleet Demo
+
+**Roadmap version:** `2026.10-mvp-consolidation`
+
+**Rebased:** 2026-10-01
+**Decision:** D-022
+
+Goal: turn the current advanced prototype into a credible Fleet Operations Control Tower demo — a synthetic fleet observed on a central map, missions and exceptions, virtual drivers really executing the business workflows, used from a browser or a real Android phone through a self-hosted instance.
+
+This phase is **consolidation only**. The operating principle is `Consolidate > Simplify > Validate > Demonstrate`, never `Add more features`. WMS, ERP, invoicing, accounting, payroll, proprietary route optimization, iOS, generic chatbot/RAG, undemonstrated predictive AI, microservices, Kafka/RabbitMQ, Kubernetes, and any function unrelated to the Fleet Operations demonstration are explicitly forbidden.
+
+| Sprint | Outcome | Status | Source of truth |
+|---|---|---|---|
+| 33 | Repository truth and green CI | READY | `sprints/SPRINT-33-REPOSITORY-TRUTH-GREEN-CI.md` |
+| 34 | Realistic fleet simulation | PLANNED | `sprints/SPRINT-34-REALISTIC-FLEET-SIMULATION.md` |
+| 35 | Operations Control Tower UX | PLANNED | `sprints/SPRINT-35-OPERATIONS-CONTROL-TOWER-UX.md` |
+| 36 | Contract safety and Android modularization | PLANNED | `sprints/SPRINT-36-CONTRACT-SAFETY-ANDROID-MODULARIZATION.md` |
+| 37 | Hosted autonomous virtual drivers | PLANNED | `sprints/SPRINT-37-HOSTED-AUTONOMOUS-VIRTUAL-DRIVERS.md` |
+| 38 | Self-hosted public MVP and final demo proof | PLANNED | `sprints/SPRINT-38-SELF-HOSTED-PUBLIC-MVP.md` |
+
+## Previous phase — Demo Readiness / Autonomous Fleet Simulation (DONE)
 
 **Roadmap version:** `2026.09-demo-readiness`
 
@@ -13,12 +33,13 @@ This is consolidation, not a business-surface expansion. Invoicing, accounting, 
 
 ## Repository truth
 
-- Sprints `00`–`22` are historical `DONE` work and are not rewritten by this rebase.
-- Sprint `23` is `DONE`: commit `94e4201`, migrations `20260722235418_Sprint23RecipientStatus` and `20260913201321_Sprint23RecipientNotifications`, recipient-status integration coverage, and the 2026-09-25 recorded full quality gate provide the evidence. Its original acceptance boxes were not checked: a documentation defect now reconciled in its sprint file and project state.
+- Sprints `00`–`32` are historical `DONE` work and are never rewritten by a rebase.
+- Sprint `23` is `DONE` (commit `94e4201`, migrations `20260722235418_Sprint23RecipientStatus` and `20260913201321_Sprint23RecipientNotifications`, recipient-status coverage, 2026-09-25 gate) and is no longer the last recorded gate.
 - The former planned `SPRINT-24`–`SPRINT-30` files were never implemented. They live under `sprints/archive/pre-demo-readiness/` as **SUPERSEDED — NOT IMPLEMENTED** and cannot be selected by the autopilot.
-- The verified real-time defects are scheduled in Sprint 24: global client coalescing loses cross-vehicle updates; hub messages omit actual quality metadata; the client store retains stale metadata; and telemetry retention materializes expired rows in the ingestion hot path.
+- The real-time defects identified during the rebaseline (cross-vehicle coalescing, quality metadata, stale client metadata, retention in the ingestion hot path) were addressed by Sprints 24–26 and the reliability work of Sprint 31.
+- The Sprint 32 release evidence is the current reference: green quality gate `.runtime/sprint32-quality-gate.log`, hosted smoke `.runtime/sprint32-demo-smoke.log`, and the post-sprint demo-video/Android enum fix commit `ea529f6`.
 
-## Active demo-readiness program
+## Completed demo-readiness program
 
 | Sprint | Outcome | Status | Source of truth |
 |---|---|---|---|
@@ -39,6 +60,8 @@ This is consolidation, not a business-surface expansion. Invoicing, accounting, 
 - The Demo engine runs inside the existing host boundaries, preferably `FleetOps.Worker`; it uses real typed application/domain contracts and never fakes workflows by modifying SQL tables directly.
 - Virtual drivers use constrained typed tools and a deterministic policy provider. They never have arbitrary HTTP/database access, and their activity trace contains only observable state, policy, action, and result—not hidden reasoning.
 - `Demo` is a distinct runtime mode. It uses synthetic tenant data, short-lived server-issued least-privilege sessions, rate limits, sandboxed side effects, automatic reset, and visible simulated-data labelling. Production validation is not weakened.
+- The consolidation phase keeps that runtime and adds three constraints: contract safety between C#/TypeScript/Kotlin is tested, hosted virtual drivers obtain short-lived scoped Demo sessions instead of static credentials (Sprint 37), and public self-hosting exposes only the Web/API origin (Sprint 38).
+- The cockpit becomes the Control Tower: fleet semantics, selection, route/stops, and a real operational timeline are built from existing read models, never from a second business model.
 
 Canonical details: [Demo Readiness](docs/01-architecture/DEMO_READINESS.md), [Map-First Cockpit](docs/01-architecture/MAP_FIRST_COCKPIT.md), [Hosted Demo Engine](docs/01-architecture/HOSTED_DEMO_ENGINE.md), [Virtual Driver Agents](docs/01-architecture/VIRTUAL_DRIVER_AGENTS.md), [Demo Mode Security](docs/01-architecture/DEMO_MODE_SECURITY.md), and [Sprint Autopilot](docs/02-engineering/SPRINT_AUTOPILOT.md).
 
@@ -50,7 +73,7 @@ Every sprint must retain the quality gate: Git/compose/object storage/recovery p
 
 ## Selection rule
 
-The runner chooses the smallest numbered active sprint whose state is neither `DONE` nor `SUPERSEDED`, whose dependencies are satisfied, and that has no unresolved human gate. It ignores `sprints/archive/**`. It stops on a failed gate, failing build/test, acceptance gap, credential/provider/architecture decision, destructive-action approval need, unsafe worktree conflict, `STOP`, existing valid lock, or three repair failures.
+The runner chooses the smallest numbered active sprint whose state is neither `DONE` nor `SUPERSEDED`, whose dependencies are satisfied, and that has no unresolved human gate. It ignores `sprints/archive/**`. The planning vocabulary `READY` (next executable) and `PLANNED` (planned, not yet started) is selectable in numeric order by the canonical runner. It stops on a failed gate, failing build/test, acceptance gap, credential/provider/architecture decision, destructive-action approval need, unsafe worktree conflict, `STOP`, existing valid lock, or three repair failures.
 
 ## History
 

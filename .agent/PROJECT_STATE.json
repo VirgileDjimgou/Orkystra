@@ -1,9 +1,9 @@
 {
   "schemaVersion": 2,
   "project": "FleetOps",
-  "phase": "demo-readiness-autonomous-fleet-simulation",
-  "roadmapVersion": "2026.09-demo-readiness",
-  "activeSprint": "SPRINT-32",
+  "phase": "mvp-consolidation-public-autonomous-fleet-demo",
+  "roadmapVersion": "2026.10-mvp-consolidation",
+  "activeSprint": "SPRINT-33",
   "sprints": {
     "SPRINT-00": "DONE",
     "SPRINT-01": "DONE",
@@ -37,7 +37,13 @@
     "SPRINT-29": "DONE",
     "SPRINT-30": "DONE",
     "SPRINT-31": "DONE",
-    "SPRINT-32": "DONE"
+    "SPRINT-32": "DONE",
+    "SPRINT-33": "READY",
+    "SPRINT-34": "PLANNED",
+    "SPRINT-35": "PLANNED",
+    "SPRINT-36": "PLANNED",
+    "SPRINT-37": "PLANNED",
+    "SPRINT-38": "PLANNED"
   },
   "supersededPlans": {
     "path": "sprints/archive/pre-demo-readiness",
@@ -56,33 +62,33 @@
     "status": "IDLE",
     "currentSprint": null,
     "batch": {
-      "requestedCount": 5,
-      "completedCount": 1
+      "requestedCount": 0,
+      "completedCount": 0
     },
     "attemptCount": 0,
     "lastSuccessfulGate": {
-      "sprint": "SPRINT-23",
+      "sprint": "SPRINT-32",
       "status": "PASSED",
-      "timestampUtc": "2026-09-25T05:04:17+02:00"
+      "timestampUtc": "2026-09-30T08:34:02+00:00"
     },
-    "lastCommit": "94e4201",
+    "lastCommit": "ea529f6",
     "currentBlocker": null,
-    "agentTool": "powershell-batch-agent",
-    "updatedAtUtc": "2026-09-26T03:15:00+02:00",
-    "startedAtUtc": "2026-09-30T07:59:50+02:00",
-    "completedAtUtc": "2026-09-30T08:34:02+00:00",
+    "agentTool": null,
+    "updatedAtUtc": "2026-10-01T00:00:00+00:00",
+    "startedAtUtc": null,
+    "completedAtUtc": null,
     "lastBatch": {
       "requestedCount": 5,
-      "completedCount": 0,
-      "status": "CANCELLED",
-      "cancelledAtUtc": "2026-09-27T09:32:28+02:00",
-      "reason": "Partial Sprint 27 checkpoint validated; interactive execution methodology restored. Resume Sprint 27 on the next Start Next Sprint."
+      "completedCount": 1,
+      "status": "CLOSED",
+      "closedAtUtc": "2026-10-01T00:00:00+00:00",
+      "reason": "Closed during the MVP consolidation rebaseline: only SPRINT-32 remained eligible, the batch could not complete, and the residual entry blocked future batch starts."
     },
     "lastActivity": {
-      "status": "GATE",
-      "timestampUtc": "2026-09-30T08:33:16Z",
-      "summary": "Full quality gate PASSED (.runtime/sprint32-quality-gate.log) and hosted Demo smoke PASSED with 12 tracked vehicles (.runtime/sprint32-demo-smoke.log).",
-      "log": ".runtime/sprint32-progress.log"
+      "status": "REBASELINE",
+      "timestampUtc": "2026-10-01T00:00:00+00:00",
+      "summary": "Planned phase MVP Consolidation / Public Autonomous Fleet Demo with SPRINT-33 READY and SPRINT-34..38 PLANNED; SPRINT-00..32 preserved DONE.",
+      "log": ".agent/CURRENT_SPRINT.md"
     }
   },
   "lastQualityGate": {
@@ -99,7 +105,9 @@
   "openDecisions": [
     "Choose the final commercial name before public publication.",
     "Validate the primary market positioning before any commercial claim.",
-    "Choose a hosted map-tile provider or approved policy before public Demo hosting."
+    "Choose a hosted map-tile provider or approved policy before public Demo hosting.",
+    "Approve a public ingress/tunnel provider and HTTPS domain for the Sprint 38 self-hosted Demo.",
+    "Decide the npm High-severity remediation policy in Sprint 33 if a breaking major upgrade is required."
   ],
-  "updatedAtUtc": "2026-09-30T08:34:02+00:00"
+  "updatedAtUtc": "2026-10-01T00:00:00+00:00"
 }

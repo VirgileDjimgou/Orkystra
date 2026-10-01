@@ -22,6 +22,9 @@ HUMAN_REQUIRED_PATH = ROOT / ".agent" / "HUMAN_REQUIRED.json"
 STOP_PATHS = (ROOT / "STOP", ROOT / ".agent" / "STOP")
 MAX_BATCH_SIZE = 10
 MAX_REPAIR_ATTEMPTS = 3
+# READY/PLANNED are the planning vocabulary introduced by the MVP consolidation rebaseline.
+# They remain selectable in numeric order; DONE/SUPERSEDED are terminal, BLOCKED/HUMAN_REQUIRED stop.
+SELECTABLE_STATUSES = {"NOT_STARTED", "IMPLEMENTED_NOT_VALIDATED", "PARTIAL", "READY", "PLANNED"}
 
 
 class SprintGateError(RuntimeError):
@@ -77,7 +80,7 @@ def next_eligible_sprint(state: dict[str, Any], root: pathlib.Path = ROOT) -> st
             continue
         if status in {"BLOCKED", "HUMAN_REQUIRED"}:
             raise SprintGateError(f"{sprint} is {status}; resolve its human gate before continuing.")
-        if status not in {"NOT_STARTED", "IMPLEMENTED_NOT_VALIDATED", "PARTIAL"}:
+        if status not in SELECTABLE_STATUSES:
             raise SprintGateError(f"{sprint} has unsupported execution status {status}.")
         active_sprint_file(root, sprint)
         return sprint

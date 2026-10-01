@@ -1,25 +1,35 @@
-# Aucun sprint actif
+# Sprint actif — SPRINT-33 Repository Truth & Green CI
 
 ## État
 
-`SPRINT-32` est terminé et sa quality gate est verte le 2026-09-30 (`PASSED`, `.runtime/sprint32-quality-gate.log`). Tous les sprints actifs `SPRINT-00` à `SPRINT-32` sont `DONE`.
+- Phase : `MVP Consolidation / Public Autonomous Fleet Demo` (`2026.10-mvp-consolidation`).
+- `SPRINT-00` à `SPRINT-32` restent `DONE` ; aucun historique n'est réécrit.
+- `SPRINT-33` est `READY` : c'est le prochain sprint sélectionné par `Start Next Sprint`.
+- `SPRINT-34` à `SPRINT-38` sont `PLANNED`.
+- Exécution : `IDLE`, aucun verrou actif, lot résiduel fermé.
 
-## Lots
+## Contrat à lire
 
-Le lot `Start Next Sprints 5` demandé pendant la session est enregistré à 1/5 complété dans `.agent/PROJECT_STATE.json` (`execution.batch`). Comme il ne reste aucun sprint éligible, le lot ne peut pas se compléter : un prochain `Start Next Sprints N` sera refusé par `batch-start` ("A batch is already recorded"). La clôture de ce lot résiduel est une décision humaine (aucune commande du runner ne ferme un lot sans sprint verrouillé).
+`sprints/SPRINT-33-REPOSITORY-TRUTH-GREEN-CI.md` — objectif, périmètre, contraintes, tâches, tests, sécurité, Definition of Done, preuves, conditions d'arrêt et dépendances.
 
-## Reprise
+Contexte immédiat : deux pipelines CI se contredisent (`ci.yml` et `release-validation.yml`), le test `Minio` s'exécute sans infrastructure, l'Android CI est incomplet, 6 avis npm sont ouverts (3 High) et plusieurs documents d'état sont obsolètes. SPRINT-33 rétablit une vérité unique et un `main` réellement vert sans affaiblir aucun test.
 
-Aucun sprint à reprendre. Avant toute nouvelle capacité :
+## Démarrage
 
-- choisir le nom commercial final ;
-- décider du fournisseur de tuiles cartographiques pour un hébergement public ;
-- autoriser explicitement tout déploiement/publication ;
-- si un nouveau lot est nécessaire, fermer d'abord le lot 1/5 résiduel.
+`Start Next Sprint` exécute le runner atomique, acquiert le verrou et sélectionne SPRINT-33. Chaque sprint reste atomique : ne pas démarrer SPRINT-34 dans le même contexte.
 
-## Limites actives
+## Limites actives de la phase
 
-- pilotes virtuels non provisionnés dans le profil Demo hébergé (activité prouvée par la simulation de développement et le parcours Playwright) ;
-- charge 50 véhicules non testée (moteur Demo borné à 20) ;
-- stores de session Demo et de compteurs process-locaux (mono-instance) ;
-- mesures de fiabilité sur environnement de développement isolé uniquement (`docs/02-engineering/RELIABILITY_REPORT.md`).
+- pilotes virtuels hébergés non provisionnés tant que SPRINT-37 n'est pas terminé ;
+- simulation candidate aux téléportations de bouclage tant que SPRINT-34 n'est pas terminé ;
+- cockpit non publiable comme Control Tower tant que SPRINT-35 n'est pas terminé ;
+- contrat C#/TypeScript/Kotlin non couvert tant que SPRINT-36 n'est pas terminé ;
+- auto-hébergement public non validé tant que SPRINT-38 n'est pas terminé.
+
+## Human gates ouverts
+
+- nom commercial final ;
+- positionnement commercial principal ;
+- fournisseur de tuiles cartographiques ;
+- fournisseur d'ingress/tunnel public et domaine HTTPS (SPRINT-38) ;
+- politique de remédiation npm High si une montée majeure cassante est nécessaire (SPRINT-33).

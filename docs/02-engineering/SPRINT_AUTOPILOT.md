@@ -14,7 +14,7 @@ The canonical orchestration implementation is `scripts/agent/sprint_orchestrator
 6. run `-Action Complete -Gate <evidence> -Checkpoint <summary>`;
 7. stop. Do not start the next sprint in the same context.
 
-The runner rejects a dirty worktree, `STOP`, unresolved `HUMAN_REQUIRED.json`, an active/stale lock, unavailable contract, invalid state, or no eligible sprint. It selects the smallest numbered non-`DONE`/non-`SUPERSEDED` sprint and ignores `sprints/archive/`.
+The runner rejects a dirty worktree, `STOP`, unresolved `HUMAN_REQUIRED.json`, an active/stale lock, unavailable contract, invalid state, or no eligible sprint. It selects the smallest numbered non-`DONE`/non-`SUPERSEDED` sprint and ignores `sprints/archive/`. The planning vocabulary `READY` (next executable) and `PLANNED` (planned, not yet started) is selectable in numeric order; `DONE`/`SUPERSEDED` are terminal and `BLOCKED`/`HUMAN_REQUIRED` stop selection.
 
 ## Batch command
 

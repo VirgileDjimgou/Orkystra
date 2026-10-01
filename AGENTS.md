@@ -92,3 +92,15 @@ L'état machine canonique est `.agent/PROJECT_STATE.json`. Ne pas contourner `.a
 - préserver les routes utiles et les contrats existants avec une compatibilité documentée ;
 - enregistrer les décisions d'architecture dans `.agent/DECISIONS.md` ;
 - s'arrêter lorsqu'un jugement humain, une dépendance externe, des credentials ou une action destructive sortent du périmètre autorisé.
+
+## Règles de la phase MVP Consolidation
+
+Phase `MVP Consolidation / Public Autonomous Fleet Demo` (`2026.10-mvp-consolidation`, décision D-022), sprints `SPRINT-33` à `SPRINT-38` uniquement.
+
+- principe directeur : `Consolidate > Simplify > Validate > Demonstrate` ; ne jamais ajouter de fonctionnalité non indispensable à la démonstration ;
+- extensions interdites : WMS, ERP, facturation, comptabilité, paie, optimisation propriétaire, iOS, chatbot générique, RAG, IA prédictive non démontrée, microservices, Kafka/RabbitMQ, Kubernetes ;
+- préserver le monolithe modulaire, le multi-tenant, les workflows métier réels et les simulateurs passant par les contrats applicatifs ;
+- aucun agent ni simulateur n'écrit directement dans les tables métier ;
+- ne jamais affaiblir un test, une assertion, l'isolation tenant ou l'autorisation serveur, y compris pour obtenir du vert ;
+- conserver les mécanismes de verrou, checkpoint, quality gate, handoff, journaux de progression, stop/human gate et batch borné ;
+- `README.md`, `ROADMAP.md` et les documents d'état doivent rester cohérents avec les contrats de sprint ; ne pas réécrire la documentation saine sans raison.

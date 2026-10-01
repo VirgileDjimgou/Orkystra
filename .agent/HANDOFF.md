@@ -1,3 +1,18 @@
+# Handoff — Rebaseline phase MVP Consolidation (2026-10-01)
+
+## Nouvelle phase planifiée
+
+- Phase : `MVP Consolidation / Public Autonomous Fleet Demo`, version roadmap `2026.10-mvp-consolidation` (décision D-022).
+- `SPRINT-00`–`SPRINT-32` conservés `DONE` ; `SPRINT-33` est `READY` ; `SPRINT-34`–`SPRINT-38` sont `PLANNED`.
+- Six contrats créés dans `sprints/` avec les 12 sections obligatoires ; aucun code produit de ces sprints n'a été implémenté.
+- État agentique réconcilié : `activeSprint = SPRINT-33`, `execution.status = IDLE`, lot résiduel 1/5 fermé, `lastSuccessfulGate` reciblé sur SPRINT-32, `lastCommit` = `ea529f6`.
+- Le runner accepte désormais les statuts de planification `READY` et `PLANNED` (sélection dans l'ordre numérique) ; tests unitaires du runner étendus.
+- Incohérences corrigées : `VALIDATION.md` (gelé au Sprint 12) reste à réconcilier par SPRINT-33 ; deux pipelines CI contradictoires identifiés ; 6 avis npm (3 High) documentés ; ajout du human gate ingress/tunnel.
+
+## Prochaine action
+
+`Start Next Sprint` sélectionne SPRINT-33 (Repository Truth & Green CI).
+
 # Handoff — Post-sprint : vidéo de démonstration et correctif Android
 
 ## Travaux hors sprint (2026-09-30, après SPRINT-32)

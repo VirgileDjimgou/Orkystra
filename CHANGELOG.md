@@ -4,6 +4,7 @@ Toutes les modifications fonctionnelles significatives sont documentées ici.
 
 ## Unreleased
 
+- Rebaselined the roadmap into the `MVP Consolidation / Public Autonomous Fleet Demo` phase (`2026.10-mvp-consolidation`): created sprint contracts SPRINT-33 (repository truth and green CI), SPRINT-34 (realistic fleet simulation), SPRINT-35 (Operations Control Tower UX), SPRINT-36 (contract safety and Android modularization), SPRINT-37 (hosted autonomous virtual drivers), and SPRINT-38 (self-hosted public MVP); SPRINT-33 ready, SPRINT-34..38 planned, planning only.
 - Fixed the Android driver app enum serialization (mission commands, upload purpose, inspection defect severity) to match the numeric API contracts; without this fix the driver workflow never left the device queue. Android unit tests and a 23-minute end-to-end emulator recording now reach a completed mission with delivery proof.
 - Added a complete captioned demonstration video pipeline (`scripts/run-demo-video.ps1`, `apps/web/playwright.video.config.ts`, `apps/web/demo-video/`, emulator capture) covering every role and feature with two live Demo engine Workers.
 - Added hosted Demo release packaging: a complete `docker-compose.demo.yml` overlay (API, Worker engine, Web), `scripts/demo-up|down|smoke` entry points, a bounded internal service channel for the engine, a synthetic 12-vehicle `public-demo` fleet with driver and delayed mission, and a documented deployment topology and release checklist.

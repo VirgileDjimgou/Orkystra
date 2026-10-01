@@ -48,6 +48,16 @@ class SprintOrchestratorTests(unittest.TestCase):
         with self.assertRaises(orchestrator.SprintGateError):
             orchestrator.next_eligible_sprint(state, root)
 
+    def test_selects_ready_then_planned_sprints(self) -> None:
+        root = self.make_root()
+        (root / "sprints" / "SPRINT-33-example.md").write_text("# sprint\n", encoding="utf-8")
+        (root / "sprints" / "SPRINT-34-example.md").write_text("# sprint\n", encoding="utf-8")
+        state = {"sprints": {"SPRINT-32": "DONE", "SPRINT-33": "READY", "SPRINT-34": "PLANNED"}}
+        self.assertEqual("SPRINT-33", orchestrator.next_eligible_sprint(state, root))
+
+        state["sprints"]["SPRINT-33"] = "DONE"
+        self.assertEqual("SPRINT-34", orchestrator.next_eligible_sprint(state, root))
+
 
 if __name__ == "__main__":
     unittest.main()
