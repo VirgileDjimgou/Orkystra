@@ -44,6 +44,7 @@ try {
   Invoke-Step "Demo Smoke Config" { powershell -NoProfile -ExecutionPolicy Bypass -File scripts/demo-smoke.ps1 -ConfigOnly }
   Invoke-Step "Agent State Consistency" { python scripts/agent/verify_state_consistency.py }
   Invoke-Step "Sprint Orchestrator Tests" { python scripts/agent/test_sprint_orchestrator.py }
+  Invoke-Step "State Consistency Tests" { python scripts/agent/test_verify_state_consistency.py }
   Invoke-Step "Private Object Storage" {
     docker compose --env-file .env up -d --wait minio
     docker compose --env-file .env run --rm --no-deps minio-init

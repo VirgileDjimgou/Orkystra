@@ -38,6 +38,10 @@ dist/
 playwright-report/
 test-results/
 
+# Python
+__pycache__/
+*.pyc
+
 # Android/Gradle
 .gradle/
 **/build/
@@ -90,7 +94,6 @@ AGENTS.md
 agent.md
 MANIFEST.json
 prompts/
-scripts/agent/
 .github/copilot-instructions.md
 .github/instructions/
 .github/prompts/

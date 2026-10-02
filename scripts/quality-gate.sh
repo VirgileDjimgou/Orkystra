@@ -36,6 +36,7 @@ else
 fi
 run_step "Agent State Consistency" python3 scripts/agent/verify_state_consistency.py
 run_step "Sprint Orchestrator Tests" python3 scripts/agent/test_sprint_orchestrator.py
+run_step "State Consistency Tests" python3 scripts/agent/test_verify_state_consistency.py
 run_step "Private Object Storage" docker compose --env-file .env up -d --wait minio
 run_step "Private Object Storage Bucket" docker compose --env-file .env run --rm --no-deps minio-init
 MINIO_PORT_VALUE="$(sed -n 's/^MINIO_PORT=//p' .env | tail -1)"

@@ -44,15 +44,31 @@ jobs:
         run: dotnet test tests/backend/FleetOps.UnitTests/FleetOps.UnitTests.csproj --no-build -c Release --filter "Category=Reliability&Category!=SqlServer"
       - name: Start MinIO and create the private bucket
         run: |
+          for attempt in $(seq 1 5); do
+            if docker pull minio/minio; then break; fi
+            sleep 10
+          done
           docker run -d --name fleetops-minio -p 9010:9000 \
             -e MINIO_ROOT_USER="$MINIO_ROOT_USER" \
             -e MINIO_ROOT_PASSWORD="$MINIO_ROOT_PASSWORD" \
             minio/minio server /data
+          healthy=0
           for attempt in $(seq 1 30); do
-            if curl -fsS http://127.0.0.1:9010/minio/health/live >/dev/null; then break; fi
+            if curl -fsS http://127.0.0.1:9010/minio/health/live >/dev/null; then
+              healthy=1
+              break
+            fi
             sleep 2
           done
-          curl -fsS http://127.0.0.1:9010/minio/health/live
+          if [ "$healthy" != "1" ]; then
+            echo "MinIO did not become healthy; container logs follow." >&2
+            docker logs fleetops-minio >&2 || true
+            exit 1
+          fi
+          for attempt in $(seq 1 5); do
+            if docker pull minio/mc; then break; fi
+            sleep 10
+          done
           docker run --rm --network host \
             -e MC_HOST_local="http://$MINIO_ROOT_USER:$MINIO_ROOT_PASSWORD@127.0.0.1:9010" \
             minio/mc mb --ignore-existing local/fleetops-private-media
@@ -121,7 +137,7 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
-      - uses: android-actions/setup-android@v3
+      - uses: android-actions/setup-android@v4
       - name: Accept licenses and install SDK components
         run: |
           yes | sdkmanager --licenses >/dev/null
@@ -149,10 +165,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
       - name: Sprint orchestrator tests
         run: python scripts/agent/test_sprint_orchestrator.py
+      - name: State consistency tests
+        run: python scripts/agent/test_verify_state_consistency.py
       - name: State consistency
         run: python scripts/agent/verify_state_consistency.py
