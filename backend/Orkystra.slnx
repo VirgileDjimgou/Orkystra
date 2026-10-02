@@ -6,4 +6,5 @@
     <Project Path="src/Orkystra.Domain/Orkystra.Domain.csproj" />
   </Folder>
   <Project Path="../tests/backend/Orkystra.Domain.Tests/Orkystra.Domain.Tests.csproj" />
+  <Project Path="../tests/backend/Orkystra.Integration.Tests/Orkystra.Integration.Tests.csproj" />
 </Solution>

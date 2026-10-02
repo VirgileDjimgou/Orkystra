@@ -1,0 +1,781 @@
+# Project Status
+
+Last updated: 2026-07-14
+
+## Current Sprint
+
+Sprint 200 - Release reproducibility and verification completeness
+
+Status: Completed
+
+## Previous Sprint
+
+Sprint 199 - Release tag preparation or remote CI verification
+
+Status: Completed
+
+## Current Objective
+
+The release-candidate stack now has a post-release-candidate maturity checkpoint, a consolidated readiness verification script, a support-bundle export path, the GPS fleet board, the writeback safety envelope, bounded automatic outbox recovery, the reset-and-rebuild workflow, the persistence diagnostics endpoint, one-command self-host bring-up, the universal prompt, the release preflight, the publication manifest, a repeatable support handoff and issue-reproduction flow, a lightweight in-product support intake surface, backend escalation cues, a local support issue packet flow, normalized support artifact naming, packet validation, packaged maintainer handoff, operator packet readiness cues, release-posture handshake guidance, a packet refresh loop after reset or retry, packet attempt history continuity, validator-driven reuse versus refresh guidance, visible retry guidance in the support panel, archive-before-refresh support packet preservation, archive index continuity, archive pruning, operator-visible archive hygiene guidance, an explicit lifecycle summary with canonical handoff guidance, readable timeline plus delta narration for the active packet, an explicit packet classification layer, a triage shortcut surface, triage metadata embedded in the packet contract, triage-aware handoff files, documentation for triage-first packet review, captured repository and runtime context inside each support packet, lifecycle and handoff release context sections, validation-aware release context checks, operator-facing release context prompts, per-attempt context snapshots, lifecycle drift summaries, drift-aware validation, visible attempt-drift guidance, explicit evidence provenance plus artifact reading order, evidence-gap scoring by category, a synthesized remediation checklist across lifecycle, handoff, and UI, and release-aware capture shortcuts across lifecycle, handoff, and UI; the next sprint should focus on reusable evidence presets so the fastest capture move becomes even easier to apply.
+
+## Source Of Truth
+
+- Workflow: `AGENTS.md`
+- Current state: `CURRENT_STATE.md`
+- Constitution: `constitution/SMART_LOGISTICS_TWIN_CONSTITUTION_v2.md`
+- Blueprint: `docs/blueprints/Smart_Logistics_Twin_Blueprint_Complete.md`
+- Decisions: `docs/decisions.md`
+- Roadmap: `IMPLEMENTATION_ROADMAP.md`
+
+## Completed
+
+- Completed Sprint 200 release reproducibility and verification completeness.
+- Un-ignored the release-required memory files (`prompts/`, `constitution/`, `PROJECT_STATUS.md`, `IMPLEMENTATION_ROADMAP.md`) in `.gitignore`, keeping the genuinely-private authoring artifacts (`docs/blueprints/`, `docs/methodology/`, `docs/adr/0001-project-execution-model.md`) ignored.
+- Added `Orkystra.Integration.Tests` to `backend/Orkystra.slnx` so the manifest's `dotnet test backend/Orkystra.slnx` command now covers all 158 backend tests (143 domain + 15 integration) instead of only the 143 domain tests.
+- Verified release preflight passes and all three component checks are green.
+- Remaining Risks: The CI workflow has not yet been validated on a real remote GitHub Actions push. `docs/blueprints/`, `docs/methodology/`, and `docs/adr/0001-project-execution-model.md` remain gitignored even though `PROJECT_STATUS.md` references the blueprint as a source of truth; this is a minor dangling-reference risk, not release-blocking.
+- Completed Sprint 199 release tag preparation and CI verification.
+- Fixed the release preflight by renaming prompt files to match expected names (`prompts/AUTOPILOT.md` → `prompts/CODEX_AUTOPILOT.md`, `prompts/PROJECT_PROMPT.md` → `prompts/ORKYSTRA_UNIVERSAL_AGENT_PROMPT_FR.md`).
+- Updated internal references in `prompts/CODEX_AUTOPILOT.md` to point to the renamed universal prompt file.
+- Updated `PROJECT_STATUS.md` Sprint 119 entry to reference `prompts/CODEX_AUTOPILOT.md`.
+- Added the AI Agent Continuation section to `README.md` with direct links to the universal prompt and autopilot entrypoint.
+- Verified all three CI jobs pass locally (Python: 17 tests, Backend: 158 tests, Frontend: 39-module build).
+- Release preflight now passes with all checks green.
+- Remaining Risks: The CI workflow has not yet been validated on a real remote GitHub Actions push. The next step is to push the workflow and confirm all three jobs pass on an actual push, then cut the `v0.1.0-rc.1` tag from a clean tree.
+- Completed Sprint 195 release-aware evidence preset refinement.
+- Added reusable capture preset metadata and action lists to `buildSupportPacketCaptureGuidance` and surfaced those presets in the support panel UI.
+- Extended `summarize-support-issue.ps1` so lifecycle outputs now include `captureGuidance.presetId`, `captureGuidance.presetLabel`, `captureGuidance.releasePosture`, and `captureGuidance.presetActions`.
+- Extended `package-support-issue.ps1` and `refresh-support-issue.ps1` so `MAINTAINER_HANDOFF.md` now includes capture preset identity and preset actions.
+- Extended `validate-support-issue.ps1` so lifecycle markdown requires the `Capture preset actions` section and lifecycle JSON requires the new capture preset fields.
+- Re-verified the frontend production build, PowerShell parser checks, and a local support packet package smoke flow (`temp/support-packet-preset-test`) with preset sections present in lifecycle and handoff outputs.
+- Remaining estimate for a production-usable open-source product after Sprint 195: about 1 to 4 more consistent sprints, assuming we keep prioritizing cross-cutting maturity over local polish-only passes.
+- Completed Sprint 194 capture workflow documentation and smoke verification.
+- Updated support packet review, handoff, and lifecycle docs so capture guidance is now part of the triage-first flow.
+- Re-verified the frontend production build, PowerShell parser checks, and a thin support-packet smoke flow with capture sections present in lifecycle and handoff outputs.
+- Completed Sprint 193 operator capture surface in the support intake UI.
+- Added `buildSupportPacketCaptureGuidance` and a visible `Capture shortcut` block in the support panel with next-owner and exit criteria.
+- Completed Sprint 192 maintainer handoff capture surface.
+- Extended `package-support-issue.ps1` and `refresh-support-issue.ps1` so `MAINTAINER_HANDOFF.md` now includes capture guidance and stop conditions.
+- Completed Sprint 191 capture guidance validation contract.
+- Extended `validate-support-issue.ps1` so lifecycle capture-guidance fields and markdown sections are part of the packet contract.
+- Completed Sprint 190 release-aware evidence capture shortcuts.
+- Extended `summarize-support-issue.ps1` so lifecycle outputs now carry `captureGuidance` with shortcuts, checks, and exit criteria.
+- Remaining estimate for a production-usable open-source product after Sprint 194: about 1 to 5 more consistent sprints, assuming we keep prioritizing cross-cutting maturity over local polish-only passes.
+- Completed Sprint 189 remediation workflow documentation and smoke verification.
+- Updated support packet review, handoff, and lifecycle docs so remediation checklist use is now part of the triage-first flow.
+- Re-verified the frontend production build, PowerShell parser checks, and a thin support-packet smoke flow with remediation sections present in lifecycle and handoff outputs.
+- Completed Sprint 188 operator remediation guidance in the support intake UI.
+- Added `buildSupportPacketRemediationGuidance` and a visible `Remediation pass` block in the support panel with owner and exit criteria.
+- Completed Sprint 187 maintainer handoff remediation surface.
+- Extended `package-support-issue.ps1` and `refresh-support-issue.ps1` so `MAINTAINER_HANDOFF.md` now includes remediation checklist and stop conditions.
+- Completed Sprint 186 validation-aware remediation checklist contract.
+- Extended `validate-support-issue.ps1` so lifecycle remediation-checklist fields and markdown sections are part of the packet contract.
+- Completed Sprint 185 support packet remediation checklist synthesis.
+- Extended `summarize-support-issue.ps1` so lifecycle outputs now carry `remediationChecklist` with posture, focus category, ordered actions, and stop conditions.
+- Remaining estimate for a production-usable open-source product after Sprint 189: about 1 to 6 more consistent sprints, assuming we keep prioritizing cross-cutting maturity over local polish-only passes.
+- Completed Sprint 184 evidence gap review documentation.
+- Updated support packet docs so `evidenceGapScore` is now part of triage-first review.
+- Clarified that packet improvement should target the highest-priority weak or absent category before broad attachment collection.
+- Re-verified the package flow after the documentation and evidence scoring pass.
+- Completed Sprint 183 handoff evidence gap prioritization.
+- Extended `package-support-issue.ps1` and `refresh-support-issue.ps1` so `MAINTAINER_HANDOFF.md` now includes evidence-gap scoring and prioritized categories.
+- Completed Sprint 182 validation-aware evidence gap contract.
+- Extended `validate-support-issue.ps1` so lifecycle evidence-gap scoring fields and markdown sections are part of the packet contract.
+- Completed Sprint 181 lifecycle evidence gap summary.
+- Extended `summarize-support-issue.ps1` so lifecycle outputs now carry `evidenceGapScore` with top-priority category and next action.
+- Completed Sprint 180 support packet evidence gap scoring.
+- Added `buildSupportPacketEvidenceGapGuidance`, a visible `Weakest evidence` block in the support panel, and validation-driven evidence gap categories.
+- Re-verified the frontend production build and re-ran a thin-packet smoke flow after the evidence gap scoring surface was added.
+- Remaining estimate for a production-usable open-source product after Sprint 184: about 1 to 7 more consistent sprints, assuming we keep prioritizing cross-cutting maturity over local polish-only passes.
+- Completed Sprint 179 provenance review documentation and serializer cleanup.
+- Updated support packet docs so `evidenceProvenance` is now part of triage-first review.
+- Stabilized the provenance ordering and post-write summary refresh so lifecycle and handoff stay aligned on artifact presence and reading order.
+- Re-ran the packet smoke flow and confirmed canonical, optional, and absent artifacts are differentiated consistently.
+- Completed Sprint 178 handoff evidence reading-order surface.
+- Extended `package-support-issue.ps1` and `refresh-support-issue.ps1` so `MAINTAINER_HANDOFF.md` now includes `Reading order` and `Optional comparison context`.
+- Completed Sprint 177 validation-aware evidence provenance checks.
+- Extended `validate-support-issue.ps1` so evidence-provenance lifecycle fields and markdown sections are part of the packet contract.
+- Completed Sprint 176 lifecycle evidence provenance contract.
+- Extended `summarize-support-issue.ps1` so lifecycle outputs now carry `evidenceProvenance` with reading order, primary files, optional files, and comparison-context posture.
+- Completed Sprint 175 evidence provenance and attachment anchors.
+- Added `buildSupportPacketEvidenceGuidance`, a visible `Attachment anchors` block in the support panel, and explicit artifact reading order in the support packet outputs.
+- Re-verified the frontend production build and re-ran the local support packet smoke flow after the evidence provenance surface was added.
+- Remaining estimate for a production-usable open-source product after Sprint 179: about 1 to 8 more consistent sprints, assuming we keep prioritizing cross-cutting maturity over local polish-only passes.
+- Completed Sprint 174 drift review documentation and contract hardening.
+- Updated support packet docs with context-drift review guidance.
+- Hardened attempt-history serialization so nested release and runtime context snapshots now survive PowerShell object-shape differences.
+- Re-ran the drift-specific smoke flow and confirmed the packet now surfaces concrete changed fields such as branch, commit, host, shell, and capture source.
+- Completed Sprint 173 maintainer and operator drift guidance surfaces.
+- Added `buildSupportPacketDriftGuidance`, a visible `Attempt drift` block in the support panel, and a dedicated `Context drift` section in `MAINTAINER_HANDOFF.md`.
+- Re-verified the frontend production build after the attempt-drift guidance surface was added.
+- Completed Sprint 172 validation-aware context drift contract.
+- Extended `validate-support-issue.ps1` so latest-attempt context snapshots, lifecycle drift fields, and the related markdown sections are part of the packet contract.
+- Completed Sprint 171 lifecycle context drift summary.
+- Extended `summarize-support-issue.ps1` so lifecycle outputs now carry `previousAttempt` and `contextDrift`, and so delta narration now mentions meaningful drift between retries.
+- Completed Sprint 170 release context drift cues across attempts.
+- Extended `SUPPORT_ATTEMPTS.json` entries so each attempt now carries its own release and runtime context snapshot.
+- Re-ran the local package and refresh smoke flow and confirmed successive attempts can now be compared on actual context snapshots.
+- Remaining estimate for a production-usable open-source product after Sprint 174: about 1 to 9 more consistent sprints, assuming we keep prioritizing cross-cutting maturity over local polish-only passes.
+- Completed Sprint 169 attempt-only release context narration hardening.
+- Hardened `summarize-support-issue.ps1` so multi-attempt packets without archives now describe their latest delta accurately instead of reading like a single-attempt packet.
+- Updated support packet docs so release and runtime context are part of triage-first review.
+- Re-ran the packet package and refresh smoke flow to confirm the refined narration and context sections stay coherent.
+- Completed Sprint 168 operator-visible release context guidance.
+- Added `buildSupportPacketReleaseContextGuidance`, a visible `Release context` block in the support panel, and branch/commit/release placeholders in the generated issue draft environment section.
+- Re-verified the frontend production build after the operator release-context guidance surface was added.
+- Completed Sprint 167 validation-aware release context contract.
+- Extended `validate-support-issue.ps1` so release and runtime context blocks plus lifecycle markdown sections are part of the packet contract.
+- Completed Sprint 166 lifecycle and handoff release context surface.
+- Extended `summarize-support-issue.ps1`, `package-support-issue.ps1`, and `refresh-support-issue.ps1` so lifecycle and handoff outputs now expose release and runtime context directly.
+- Completed Sprint 165 release context capture in support packets.
+- Extended the packet manifest contract with repository branch, commit, release hint, dirty-worktree posture, host, shell, and capture-source metadata.
+- Re-ran the local support packet package and refresh smoke flow and confirmed the packet now carries explicit repo and runtime context.
+- Remaining estimate for a production-usable open-source product after Sprint 169: about 2 to 10 more consistent sprints, assuming we keep prioritizing cross-cutting maturity over local polish-only passes.
+- Completed Sprint 164 triage documentation and singleton history hardening.
+- Updated `docs/operations/support-packet-review.md`, `support-handoff-and-reproduction.md`, and `support-packet-lifecycle-summary.md` with triage-first reading guidance.
+- Hardened support packet JSON history normalization so one-attempt packets still preserve `latestAttempt` and meaningful delta narration.
+- Re-ran the local support packet packaging smoke flow and confirmed triage metadata plus latest-attempt narration are preserved.
+- Completed Sprint 163 maintainer handoff triage cues.
+- Extended `package-support-issue.ps1` and `refresh-support-issue.ps1` so `MAINTAINER_HANDOFF.md` now carries packet class, triage lane, next owner, and triage shortcuts.
+- Completed Sprint 162 validation-aware triage consistency.
+- Extended `validate-support-issue.ps1` so triage metadata fields and the lifecycle markdown triage section are part of the packet contract.
+- Re-validated the triage-aware packet flow and confirmed the packet still validates as `Accepted`.
+- Completed Sprint 161 lifecycle triage metadata contract.
+- Extended `summarize-support-issue.ps1` plus `SUPPORT_LIFECYCLE.json` and `SUPPORT_LIFECYCLE.md` so the packet now carries `packetClass`, `triageLane`, `nextOwner`, and `triageChecks`.
+- Completed Sprint 160 support packet classification and triage shortcuts.
+- Added `buildSupportPacketClassification` and `buildSupportPacketTriageShortcut`, plus visible `Packet class` and `Triage shortcut` blocks in the support panel.
+- Re-verified the frontend production build after the triage-first support surface was added.
+- Remaining estimate for a production-usable open-source product after Sprint 164: about 3 to 11 more consistent sprints, assuming we keep prioritizing cross-cutting maturity over local polish-only passes.
+- Completed Sprint 159 operator timeline and delta guidance surface.
+- Added `buildSupportPacketTimelineGuidance` and `buildSupportPacketDeltaGuidance`, plus visible `Timeline story` and `Latest delta` blocks in the support panel.
+- Re-verified the frontend production build after the timeline and delta guidance surface was added.
+- Completed Sprint 158 lifecycle reading-order documentation.
+- Updated `docs/operations/support-packet-lifecycle-summary.md` with clearer timeline, delta, and reading-order guidance.
+- Completed Sprint 157 timeline-aware lifecycle validation.
+- Extended `validate-support-issue.ps1` so it now requires `SUPPORT_LIFECYCLE.md` and checks timeline, delta narration, and canonical handoff file contract fields.
+- Re-validated the timeline fixture flow and confirmed the packet still validates as `Accepted`.
+- Completed Sprint 156 canonical handoff file contract tightening.
+- Extended the lifecycle summary and manifest so the canonical active handoff file set is now explicit.
+- Completed Sprint 155 support packet timeline and delta narration.
+- Extended `summarize-support-issue.ps1` so the lifecycle outputs now carry timeline and delta narration across attempts and archives.
+- Rehearsed the full packet timeline flow through package, archive, refresh, summarize, and validate.
+- Remaining estimate for a production-usable open-source product after Sprint 159: about 4 to 13 more consistent sprints, assuming we keep prioritizing cross-cutting maturity over local polish-only passes.
+- Completed Sprint 154 operator canonical handoff guidance.
+- Added `buildSupportPacketLifecycleGuidance` and a visible `Canonical handoff` block in the support panel so the operator can tell whether the current packet is the main maintainer handoff state.
+- Re-verified the frontend production build after the canonical handoff guidance surface was added.
+- Completed Sprint 153 lifecycle summary documentation.
+- Added `docs/operations/support-packet-lifecycle-summary.md` and linked it from the main support entrypoints.
+- Completed Sprint 152 lifecycle-aware validation.
+- Extended `validate-support-issue.ps1` so it now requires `SUPPORT_LIFECYCLE.json` and verifies lifecycle-manifest consistency.
+- Re-validated the lifecycle fixture flow and confirmed the packet still validates as `Accepted`.
+- Completed Sprint 151 manifest lifecycle tightening.
+- Extended the support packet manifest with `lifecycleSummaryFile` and `canonicalPacketState`, and kept those fields aligned during refresh and summary generation.
+- Completed Sprint 150 support packet lifecycle summary and export manifest tightening.
+- Added `summarize-support-issue.ps1` plus `SUPPORT_LIFECYCLE.json` and `SUPPORT_LIFECYCLE.md`, so the active packet state and archived history are now summarized explicitly.
+- Rehearsed the lifecycle summary flow end to end against a local support packet fixture.
+- Remaining estimate for a production-usable open-source product after Sprint 154: about 5 to 14 more consistent sprints, assuming we keep prioritizing cross-cutting maturity over local polish-only passes.
+- Completed Sprint 149 operator archive guidance surface.
+- Added `buildSupportPacketArchiveGuidance` and a visible `Archive hygiene` block in the support panel so the operator can see when to preserve, keep, or prune older packet states.
+- Re-verified the frontend production build after the archive guidance surface was added.
+- Completed Sprint 148 archive hygiene documentation.
+- Added `docs/operations/support-packet-archive-hygiene.md` and linked it from the main support entrypoints.
+- Completed Sprint 147 archive pruning command.
+- Added `prune-support-issue-archives.ps1` so older packet archives can be reduced to the latest retained set while keeping the manifest and archive index aligned.
+- Rehearsed the prune command in the archive-hygiene fixture flow.
+- Completed Sprint 146 support archive index continuity.
+- Added `SUPPORT_ARCHIVE_INDEX.json` plus archive metadata in the manifest so archived packet states are now tracked explicitly.
+- Completed Sprint 145 support packet artifact pruning and archive hygiene.
+- Added `archive-support-issue.ps1` and extended `refresh-support-issue.ps1` so a packet can archive the current state before a retry overwrites it.
+- Rehearsed the archive-before-refresh flow successfully on a local support packet fixture.
+- Remaining estimate for a production-usable open-source product after Sprint 149: about 6 to 15 more consistent sprints, assuming we keep prioritizing cross-cutting maturity over local polish-only passes.
+- Completed Sprint 144 operator retry guidance surface.
+- Added `buildSupportPacketRetryGuidance` and a visible `After reset or retry` block in the support panel so the operator can see whether to reuse, refresh, or tighten the packet after a retry.
+- Re-verified the frontend production build after the retry guidance surface was added.
+- Completed Sprint 143 support packet refresh-loop documentation.
+- Added `docs/operations/support-packet-refresh-loop.md` and linked it from the main support, checkpoint, and release entrypoints.
+- Completed Sprint 142 validation-driven packet action guidance.
+- Extended `validate-support-issue.ps1` so it now emits `recommendedAction` and handles older packet and PowerShell JSON shapes more robustly.
+- Re-validated the refreshed packet fixture and confirmed the accepted packet now recommends `Reuse`.
+- Completed Sprint 141 packet attempt history continuity.
+- Extended the support packet manifest and added `SUPPORT_ATTEMPTS.json` so repeated retries now preserve attempt history and refresh metadata.
+- Rebuilt the maintainer handoff summary so it now shows the current attempt and the latest refresh reason.
+- Completed Sprint 140 support packet operational reset loop.
+- Added `refresh-support-issue.ps1` so an existing support packet can be refreshed and revalidated after a retry, reset, or rebootstrap flow.
+- Rehearsed the packet refresh flow end to end against a local support packet fixture.
+- Remaining estimate for a production-usable open-source product after Sprint 144: about 7 to 16 more consistent sprints, assuming we keep prioritizing cross-cutting maturity over local polish-only passes.
+- Completed Sprint 139 release posture handshake cues.
+- Added release-handshake guidance in the frontend support panel so packet readiness and escalation target now combine into a concrete handoff recommendation.
+- Re-verified the frontend production build after the release-handshake cues were added.
+- Completed Sprint 138 operator packet readiness cues.
+- Added packet-readiness evaluation logic and visible readiness guidance in the support panel so operators can see whether a packet is ready, missing runtime evidence, or still missing operator detail.
+- Re-verified the frontend production build after the readiness cues were added.
+- Completed Sprint 137 maintainer packet review guide.
+- Added `docs/operations/support-packet-review.md` and linked it from the main support entrypoints.
+- Completed Sprint 136 packaged maintainer handoff.
+- Extended `infrastructure/scripts/package-support-issue.ps1` so it now emits `SUPPORT_VALIDATION.json` and `MAINTAINER_HANDOFF.md`.
+- Rehearsed the packet packaging flow end to end against a local support packet fixture.
+- Completed Sprint 135 support packet release handshake.
+- Added `infrastructure/scripts/validate-support-issue.ps1` to validate support packet completeness and issue contract shape.
+- Rehearsed the validator on a local support packet fixture and confirmed that a complete minimal packet is accepted.
+- Remaining estimate for a production-usable open-source product after Sprint 139: about 8 to 17 more consistent sprints, assuming we keep prioritizing cross-cutting maturity over local polish-only passes.
+- Completed Sprint 134 support artifact naming normalization.
+- Added a reusable support artifact stem builder so frontend support bundle exports and issue draft downloads now produce stable, tenant-aware filenames.
+- Updated the packet packaging script to use the same tenant-aware naming pattern for local support issue folders.
+- Re-verified the frontend production build after the naming flow was added.
+- Completed Sprint 133 local support issue packet packaging.
+- Added `infrastructure/scripts/package-support-issue.ps1` so a self-hoster can package `support-bundle.json`, `ISSUE_DRAFT.md`, and `SUPPORT_MANIFEST.json` in one local folder.
+- Updated the support handoff documentation and README to point at the packet packaging flow.
+- Syntax-validated the new PowerShell packaging script.
+- Completed Sprint 132 operator-facing escalation cues.
+- Exposed the backend escalation target and artifact checklist directly in the support bundle panel.
+- Included the escalation target and artifact checklist in the generated issue draft so UI triage and filed issue evidence now stay aligned.
+- Completed Sprint 131 support artifact packaging and escalation cues.
+- Extended the support bundle API summary with `escalationTarget` and `artifactChecklist`.
+- Added integration coverage for the new support bundle summary fields and re-verified the backend health/support endpoint slice.
+- Remaining estimate for a production-usable open-source product after Sprint 134: about 9 to 19 more consistent sprints, assuming we keep prioritizing cross-cutting maturity over local polish-only passes.
+- Completed Sprint 130 support intake workflow hardening.
+- Added an operator-side support intake editor in the frontend support bundle panel so issue summary, reproduction steps, expected result, actual result, and evidence notes can be captured inside the product.
+- Added a reusable issue-draft generator and one-click copy flow that maps the live tenant, persistence posture, selected scenario, selected route, and support summary into the GitHub bug report shape.
+- Updated the support handoff documentation to include the in-product support intake path.
+- Verified the frontend production build after the intake workflow was added.
+- Remaining estimate for a production-usable open-source product after Sprint 130: about 13 to 23 more consistent sprints, assuming we keep prioritizing cross-cutting maturity over local polish-only passes.
+- Completed Sprint 129 support handoff and issue reproduction flow.
+- Added `docs/operations/support-handoff-and-reproduction.md` as the canonical guide for filing reproducible issues with the right evidence.
+- Added `.github/ISSUE_TEMPLATE/bug_report.md` so bug reports now capture environment, reproduction, and evidence details in a consistent shape.
+- Linked the support handoff guidance from the main project entrypoints so the support intake flow is visible from the README, checkpoint, prompts, and Copilot instructions.
+- Refreshed the project status and roadmap so the support workflow is now part of the tracked product plan.
+- Remaining estimate for a production-usable open-source product after Sprint 129: about 14 to 24 more consistent sprints, assuming we keep prioritizing cross-cutting maturity over local polish-only passes.
+- Completed Sprint 128 open-source production readiness consolidation.
+- Added a dedicated post-release-candidate maturity checkpoint, linked from the main docs entrypoints, so the supported OSS posture and the remaining gap are now documented in one obvious place.
+- Added `infrastructure/scripts/verify-oss-readiness.ps1` and verified the consolidated backend, frontend, and Python readiness pass successfully.
+- Refreshed the remaining estimate beyond the current release-candidate block to about 15 to 25 more consistent sprints, assuming we keep prioritizing cross-cutting maturity work.
+- Completed Sprint 127 observability export and support bundle.
+- Added protected `GET /observability/support-bundle` plus `SupportBundleService`, so the API now aggregates runtime context, metrics, persistence diagnostics, event-backbone telemetry, recent projections, recent workflows, and recent audit entries into one JSON support snapshot.
+- Added `infrastructure/scripts/export-support-bundle.ps1` for self-host maintainers and a visible support-bundle export surface in the frontend operational trace.
+- Added integration coverage for the support bundle endpoint and re-verified backend integration tests, backend domain tests, and frontend production build.
+- Remaining estimate for a production-usable open-source product after Sprint 127: about 16 to 26 more consistent sprints, assuming we keep prioritizing cross-cutting product maturity over local polish-only passes.
+- Created top-level project folders.
+- Moved the constitution files into `constitution/`.
+- Moved brainstorming and blueprint files into `docs/blueprints/`.
+- Moved the master Codex prompt into `prompts/`.
+- Initialized Git repository.
+- Added project control files for long-running Codex sessions.
+- Added `.gitkeep` markers so empty implementation folders are preserved in Git.
+- Completed Sprint 0 project skeleton.
+- Created backend .NET solution with API, Application, Contracts, and Domain projects.
+- Created backend xUnit test project.
+- Created Vue 3 + TypeScript frontend shell.
+- Created Python AI and optimization service skeletons.
+- Added local infrastructure compose file for PostgreSQL, MQTT, and Qdrant.
+- Added architecture and development documentation.
+- Added CI workflow for backend, frontend, and Python skeleton checks.
+- Completed Sprint 1 core domain primitives.
+- Added strong identifier types, immutable value objects, result primitives, entity and aggregate abstractions, and base domain event support.
+- Added backend unit tests for identifier validation, value object invariants, result behavior, and aggregate domain event collection.
+- Completed Sprint 2 warehouse context foundation.
+- Added `Warehouse` aggregate support for zones, racks, slots, docks, and pallets.
+- Added warehouse lifecycle events and invariants for slot occupancy, pallet storage and movement, and dock occupancy.
+- Added the first warehouse read-model contract in `Orkystra.Contracts`.
+- Expanded backend domain tests to 22 passing tests.
+- Completed Sprint 3 transport context foundation.
+- Added `Route` aggregate support for truck, driver, stops, shipments, and deliveries.
+- Added transport lifecycle events and invariants for assignment, loading, departure, delay, arrival, and delivery completion.
+- Added the first transport read-model contract in `Orkystra.Contracts`.
+- Expanded backend domain tests to 30 passing tests.
+- Completed Sprint 4 simulation engine foundation.
+- Added `Scenario` aggregate support for simulation lifecycle, virtual time, seeded determinism, and injected random events.
+- Added deterministic synthetic world generation for warehouses, orders, and trucks.
+- Added the first simulation read-model contract in `Orkystra.Contracts`.
+- Expanded backend domain tests to 37 passing tests.
+- Completed Sprint 5 event backbone foundation.
+- Added shared event envelope contracts, topic naming conventions, outbox/inbox transport records, and MQTT publish skeletons.
+- Added application-level envelope mapping, idempotent projection dispatch, and the first scenario summary projection.
+- Expanded backend domain tests to 41 passing tests.
+- Completed Sprint 6 control tower UI.
+- Replaced the frontend starter shell with a first operator workspace using scenario, warehouse, transport, and alert surfaces.
+- Added read-model-shaped demo data and an interactive Three.js warehouse placeholder.
+- Verified the frontend production build and local dev server startup.
+- Completed Sprint 7 AI Layer 1.
+- Replaced the AI service stub with a grounded FastAPI recommendation service over projection-shaped inputs.
+- Added warehouse and dispatcher specialist logic, a supervisor router, explicit response contracts, and a first RAG ingestion plan.
+- Added 6 Python unit tests for AI routing and fallback behavior.
+- Completed Sprint 8 Optimization Layer.
+- Replaced the optimization service stub with a canonical route optimization service and explainable solution contract.
+- Added an OR-Tools-preferred solver with deterministic fallback, infeasibility handling, and alternative route plans.
+- Added 4 optimization-focused Python unit tests.
+- Completed Sprint 9 Connector Layer.
+- Added provider-neutral connector contracts plus a provider registry for capability-based adapter resolution.
+- Added CSV warehouse, REST transport, and GPS telematics adapter skeletons behind canonical application interfaces.
+- Added 4 connector-focused backend tests.
+- Completed Sprint 10 Production Hardening.
+- Added API-key authentication baseline, tenant-resolution baseline, audit logging scaffold, request metrics, and readiness/liveness endpoints.
+- Added Docker packaging for the API, frontend, AI service, and optimization service plus a stack-level compose file.
+- Added a smoke-test checklist and 4 production-hardening backend tests.
+- Completed Sprint 11 API to UI wiring.
+- Added a control tower overview endpoint in the API and corresponding overview contracts.
+- Connected the frontend control tower to the API with authenticated fetch headers and resilient local fallback mapping.
+- Expanded backend tests to 50 passing tests.
+- Completed Sprint 12 data source observability.
+- Added overview freshness metadata and provider status snapshots to the control tower API payload.
+- Added explicit frontend loading, fallback, and provider-health visibility in the operator workspace.
+- Completed Sprint 13 broader overview coverage.
+- Expanded the demo providers so the overview API now serves multiple warehouses and routes.
+- Derived overview alerts and event-feed entries from the current route, warehouse, and provider state instead of relying only on static seed text.
+- Completed Sprint 14 connector catalog visibility.
+- Added a provider catalog API and a frontend catalog surface for capabilities, schemas, and supported read models.
+- Completed Sprint 15 local audit persistence.
+- Added a local append-only JSONL audit sink and a protected endpoint for reading recent audit entries.
+- Added backend tests for the file audit store and observability defaults.
+- Completed Sprint 16 provider configuration posture.
+- Added provider runtime configuration summaries to the catalog API.
+- Extended the connector catalog UI so operators can see enabled state, environment, configured fields, and missing fields per provider.
+- Completed Sprint 17 editable provider configuration.
+- Added a protected provider-configuration update endpoint for non-secret runtime fields.
+- Added local provider-runtime persistence through ignored `appsettings.Local.json`.
+- Extended the connector catalog UI with inline runtime editors, local-save feedback, and editable configuration field values.
+- Added backend test coverage for the provider runtime store and re-verified the catalog service against editable settings.
+- Completed Sprint 18 browser QA and visual hardening.
+- Hardened frontend API loading with retry behavior and a manual `Refresh data` recovery flow.
+- Fixed backend middleware ordering and preflight handling so the control tower overview can recover cleanly during local browser sessions.
+- Added a connection-posture surface in the UI and removed the noisy control-tower fallback flapping during partial local restarts.
+- Removed the Three.js shadow-map deprecation warning and improved mobile interaction handling for the warehouse twin.
+- Completed Sprint 19 warehouse projection API.
+- Added dedicated warehouse detail contracts plus `GET /api/warehouses` and `GET /api/warehouses/{warehouseId}` in the API.
+- Extended the warehouse demo provider with zone and dock detail projections instead of summary-only shaping.
+- Switched the frontend warehouse twin to load API-backed warehouse detail data per selected site, including dock posture and updated timestamps.
+- Aligned local provider-catalog requests with tenant-aware API security so the editable catalog stays API-backed in secured local runs.
+- Completed Sprint 20 transport projection API.
+- Added dedicated transport route detail contracts plus `GET /api/transport/routes` and `GET /api/transport/routes/{routeId}` in the API.
+- Extended the transport demo provider with stops, shipments, and deliveries so the route board now has a real projection path.
+- Switched the frontend transport board to load API-backed route detail data per selected route, including route metrics, stops, shipments, and deliveries.
+- Exposed `RouteDetailReadModel` through the provider catalog so the transport connector now advertises both summary and detail projections.
+- Completed Sprint 21 AI workflow integration.
+- Added `POST /api/ai/recommendations` in the API so the control tower can ask a bounded recommendation workflow instead of talking to the Python AI service directly.
+- Added AI recommendation contracts, a backend AI workflow client with live-call and local-fallback behavior, and the Python AI service base URL configuration.
+- Added a dedicated AI workflow panel in the frontend that surfaces question input, quick prompts, evidence, assumptions, actions, missing data, confidence, and specialist agents.
+- Completed Sprint 22 optimization workflow integration.
+- Added `POST /api/transport/routes/{routeId}/optimization` in the API so the dispatcher workflow can request route resequencing without calling the Python optimization service directly from the browser.
+- Added optimization workflow contracts, a backend optimization client with live-call and local-fallback behavior, and optimization service base URL wiring for local runs and compose.
+- Added a dedicated optimization review panel in the frontend that compares the current remaining route order, recommended sequence, explanation, and fallback alternatives.
+- Completed Sprint 23 centralized persistence foundations.
+- Added a structured operational persistence store in the API so key projections and workflow runs are written into a durable SQLite database instead of living only in memory or file-local JSON shapes.
+- Added persisted snapshot coverage for control-tower overview, warehouse projections, transport projections, and provider catalog responses.
+- Added persisted workflow-run coverage for AI recommendation and route optimization requests plus protected observability endpoints for reading recent persisted snapshots and runs.
+- Completed Sprint 24 demo-ready operational polish.
+- Added an operator-facing operational trace surface in the frontend so recent workflow runs, persisted projection snapshots, and audit entries are visible directly in the product.
+- Wired the control tower to refresh that operational trace after workspace refreshes, AI recommendation runs, optimization runs, and provider configuration saves.
+- Revalidated the local demo stack by restarting the API on the latest code and confirming the new persistence observability endpoints respond successfully.
+- Completed Sprint 25 live provider integration foundations.
+- Added a runtime-aware `ProviderRegistryFactory` so API services resolve providers from current local connector configuration instead of hardcoded adapter instances.
+- Upgraded the REST transport provider so it can read `/health`, `/routes`, and `/routes/details` from a valid live upstream endpoint while preserving deterministic demo fallback behavior when configuration is incomplete or placeholder-only.
+- Added backend tests for both live transport reads and placeholder-driven fallback behavior.
+- Completed Sprint 26 live provider authentication and supportability.
+- Added `ProviderSecretStore` to hold provider secrets (API keys) separately from regular settings, loading from environment variables first and falling back to an ignored `appsettings.Secrets.local.json` file.
+- Added `PUT /api/providers/catalog/{providerId}/secrets` for operators to supply API keys without editing files manually.
+- Added `AuthMode` and `AuthConfigured` to the provider catalog contract so auth posture is visible without exposing key values.
+- Improved REST transport provider health and sync diagnostics with `auth-key-missing` and `auth-key-configured` signals and a clear resolution path.
+- Extended the connector catalog UI with an auth posture badge and a `Set API key` password form that stores the key locally and clears it from the browser after saving.
+- Backend suite is at 81 passing tests; frontend production build passes.
+- Completed Sprint 27 MQTT event backbone activation.
+- Added an MQTT-backed event publisher, consumer, serializer, and dispatch pipeline in the API so simulation events can flow through the broker instead of stopping at contract-only scaffolding.
+- Added protected simulation event endpoints for publishing demo MQTT traffic and reading scenario projections fed by the broker.
+- Added event-backbone telemetry so operators and developers can inspect publish/consume posture and the latest projection dispatch outcome.
+- Added backend tests for event envelope round-tripping, duplicate-safe dispatch, and scenario event publication sequencing.
+- Completed Sprint 28 GPS telematics stream activation.
+- Added a canonical GPS integration-event envelope factory plus a GPS position projection so connector-originated telemetry can flow through MQTT and come back as an API-backed projection.
+- Added protected GPS endpoints for publishing provider telemetry into the broker and reading the latest projected truck positions.
+- Extended MQTT consumption to subscribe to the configured GPS stream topic in addition to simulation event traffic.
+- Added backend tests for GPS event round-tripping, latest-position projection updates, and provider-driven telemetry publication.
+- Completed Sprint 29 transport live sync snapshot import.
+- Added a dedicated transport sync workflow service plus protected `POST /api/transport/sync` and `GET /api/transport/sync-status` endpoints.
+- Persisted imported route summaries, route details, and transport sync evidence into the operational store for tenant reuse.
+- Updated transport projection reads so they can prefer the latest persisted tenant snapshot instead of always re-pulling the provider.
+- Added backend tests for persisted transport snapshot preference and sync-status persistence.
+- Completed Sprint 30 transport operator visibility and workflow surfacing.
+- Added a frontend transport sync API client plus a transport sync view-model and fallback state.
+- Extended the operator workspace with transport sync visibility, imported route references, route delta summary, and a manual `Import snapshot` action inside the transport board.
+- Re-verified the frontend production build after surfacing the new transport sync workflow.
+- Completed Sprint 31 transport timeline and delta storytelling.
+- Extended operational observability summaries so transport sync workflow runs and sync-status projections read cleanly in the product.
+- Added a selected-route storyline card plus a recent transport sync timeline inside the transport board.
+- Re-verified the frontend production build after the new transport storytelling surface.
+- Completed Sprint 32 browser-driven transport visual QA and interaction polish.
+- Verified the transport surfaces in the in-app browser against the local app.
+- Rebalanced the desktop workspace and simplified transport sync/story/detail layouts so the transport slice reads more clearly under real viewport constraints.
+- Re-verified the frontend production build after the transport polish pass.
+- Completed Sprint 33 transport supportability and operator actions.
+- Added operator-facing transport support shortcuts for snapshot import, sync refresh, route refresh, optimization rerun, and imported-route focus.
+- Added transport recovery cues that recommend the next action when sync posture, route detail, optimization freshness, or route-import alignment needs attention.
+- Re-verified the frontend production build after the transport supportability pass.
+- Completed Sprint 34 transport historical diff drill-down.
+- Added persisted sync-import evidence shaping plus `GET /api/transport/sync-diff` so operators can compare the latest two imported transport snapshots route by route.
+- Added transport historical diff UI coverage in the transport board with latest-vs-previous counts and route-level change summaries.
+- Added backend tests for transport historical diff classification and no-history posture.
+- Re-verified backend build and tests plus frontend production build after the Sprint 34 implementation.
+- Completed Sprint 94 transport follow-up handoff acknowledgements.
+- Added acknowledgement-aware transport follow-up contracts and ledger updates so active deferred handoff items can record explicit acknowledgement without changing resolution state.
+- Added an acknowledgement transition plus visible acknowledgement status and acknowledgement-by posture in the handoff pack and deferred follow-up queue UI.
+- Re-verified backend build, backend tests, and frontend production build after the Sprint 94 acknowledgement workflow changes.
+- Completed Sprint 35 transport diff triage and route focus.
+- Added diff filters plus selected-route diff context so operators can quickly isolate changed, added, removed, or selected-route transport deltas.
+- Added direct `Focus route` actions from diff evidence back into the route board to tighten the operator investigation loop.
+- Re-verified the frontend production build after the Sprint 35 transport diff triage pass.
+- Completed Sprint 36 transport sync freshness and escalation cues.
+- Added a live freshness badge and approximate snapshot age to the transport sync card so the latest import stops looking deceptively timeless.
+- Added escalation cues that warn when the persisted transport snapshot is aging, stale, or expired.
+- Re-verified the frontend production build after the Sprint 36 freshness pass.
+- Completed Sprint 37 transport freshness drill-through.
+- Added a freshness drill-through card that ties the stale or aging snapshot back to the last import, sync posture, selected-route diff evidence, latest comparable diff, and the latest sync note.
+- Added focused support actions so operators can refresh or import transport state, jump to the selected diff, or return to the current route from the freshness warning.
+- Re-verified the frontend production build after the Sprint 37 drill-through pass.
+- Completed Sprint 38 transport freshness lineage and causality.
+- Added a freshness lineage card that explains how the current transport snapshot aged by tracing the source posture, last successful sync, last attempted sync, imported snapshot age, and root-cause wording.
+- Re-verified the frontend production build after the Sprint 38 lineage pass.
+- Completed Sprint 39 transport sync cadence summary.
+- Added a sync cadence card that explains whether the import rhythm is steady, slow, retry-heavy, or still incomplete based on the last successful and attempted sync timestamps.
+- Re-verified the frontend production build after the Sprint 39 cadence pass.
+- Completed Sprint 40 transport freshness trust badge.
+- Added a trust badge card that combines freshness posture, sync health, and cadence posture into a compact confidence signal for the current transport snapshot.
+- Re-verified the frontend production build after the Sprint 40 trust pass.
+- Completed Sprint 41 transport route freshness spotlight.
+- Added a selected-route spotlight card that shows whether the current route is present in the latest imported snapshot and offers direct jump-back actions.
+- Re-verified the frontend production build after the Sprint 41 route spotlight pass.
+- Completed Sprint 42 transport freshness operator checklist.
+- Added an operator checklist card that turns freshness posture into a short next-action guide for fresh, aging, stale, or expired snapshots.
+- Re-verified the frontend production build after the Sprint 42 checklist pass.
+- Completed Sprint 43 transport freshness visual QA and support-doc wrap-up.
+- Verified the freshness cluster in the browser so the drill-through, lineage, cadence, trust, spotlight, and checklist cards remain readable together.
+- Updated transport-facing documentation to reflect the five-card freshness story.
+- Re-verified the frontend production build after the Sprint 43 QA pass.
+- Completed Sprint 44 transport freshness mobile viewport polish.
+- Tightened freshness card spacing and action layout on narrow screens so the cluster stays readable on mobile viewports.
+- Completed Sprint 45 transport freshness help text alignment.
+- Normalized helper text across the freshness cluster so the operator voice stays consistent.
+- Completed Sprint 46 transport freshness action consistency.
+- Made the freshness actions share a consistent height and spacing rhythm.
+- Completed Sprint 47 transport freshness support-note finalization.
+- Aligned the support notes and smoke-test guidance with the current freshness cluster.
+- Re-verified the frontend production build after the Sprint 47 support-note pass.
+- Completed Sprint 48 transport freshness touch-target audit.
+- Verified the freshness action cards on a mobile-width viewport and aligned them to a 48px interaction baseline.
+- Completed Sprint 49 transport freshness keyboard focus polish.
+- Added visible keyboard focus treatment for the freshness action cards and matching support buttons.
+- Completed Sprint 50 transport freshness action labeling.
+- Added explicit accessible labels and titles to the freshness drill-through, spotlight, and checklist actions.
+- Completed Sprint 51 transport freshness card semantics.
+- Added heading associations to the freshness cards plus status semantics for the dynamic cadence and trust labels.
+- Completed Sprint 52 transport freshness accessibility note wrap-up.
+- Updated development and smoke-test notes to reflect the touch-target, focus, and labeling pass.
+- Completed Sprint 53 transport freshness interaction microstates.
+- Added hover, active, and disabled microstates so the freshness shortcuts now feel intentionally interactive instead of visually flat.
+- Completed Sprint 54 transport freshness action availability gating.
+- Added evidence-aware disabled logic for diff and route-focus shortcuts when snapshot history or route context is missing.
+- Completed Sprint 55 transport freshness posture banner.
+- Added a compact posture banner that tells the operator whether the current snapshot is reliable, drifting, fallback-only, or illustrative.
+- Completed Sprint 56 transport freshness action-status messaging.
+- Added cluster-level status messaging so operators can tell whether freshness shortcuts are fully available, partially paused, or updating.
+- Completed Sprint 57 transport freshness interaction QA and doc alignment.
+- Updated development and smoke-test guidance for the new banner and disabled-action behavior, then re-checked the local app in a browser context.
+- Completed Sprint 58 transport freshness timeline compression.
+- Added a compact timeline that summarizes import time, last sync success, last attempt, and selected-route posture in one shared header strip.
+- Completed Sprint 59 transport freshness digest strip.
+- Added a digest row for trust, cadence, source, and route posture so the operator can compare the main freshness signals at a glance.
+- Completed Sprint 60 transport freshness quick navigation.
+- Added quick-link buttons that jump directly to drill-through, lineage, cadence, trust, route, and checklist sections.
+- Completed Sprint 61 transport freshness summary copy tightening.
+- Tightened the drill-through and lineage summaries so the shared header timeline carries the chronology and the lower cards focus on explanation.
+- Completed Sprint 62 transport freshness header QA and doc alignment.
+- Updated development and smoke-test notes for the new freshness header and verified the timeline, digest, and quick links in the local browser.
+- Completed Sprint 63 transport freshness evidence hierarchy polish.
+- Added a primary-concern panel so the main freshness risk is visible before the rest of the transport freshness cluster.
+- Completed Sprint 64 transport freshness primary action rail.
+- Added a recommended action button in the priority layer, wired to the existing transport refresh, import, and focus flows.
+- Completed Sprint 65 transport freshness priority card emphasis.
+- Added card-level emphasis for the currently most relevant freshness section and matching timeline emphasis when route alignment is the main issue.
+- Completed Sprint 66 transport freshness promoted quick link.
+- Promoted the quick link that matches the active priority section so the fastest route into the right evidence card is visible immediately.
+- Completed Sprint 67 transport freshness priority QA and doc alignment.
+- Updated development and smoke-test notes for the priority layer and re-checked the local browser behavior.
+- Completed Sprint 68 transport freshness priority wording refinement.
+- Tightened the primary concern titles so the main freshness risk reads more crisply across fallback, stale, unhealthy, and healthy states.
+- Completed Sprint 69 transport freshness urgency labels.
+- Added short urgency labels so the operator can immediately distinguish setup, repair, investigate, refresh-soon, and monitor states.
+- Completed Sprint 70 transport freshness action rationale.
+- Added a one-line action reason beneath the primary CTA so the recommended move explains itself.
+- Completed Sprint 71 transport freshness priority navigation wording.
+- Normalized the section-jump copy around `Go to ...` so the priority action rail reads more consistently.
+- Consolidated former Sprint 44 through Sprint 72 into one transport freshness UX hardening block so local UI polish is no longer counted as a chain of standalone capability sprints.
+- Added a governance rule: no sprint counts if it only delivers local polish in a single UI file.
+- Completed Sprint 73 structured transport sync history.
+- Added dedicated backend contracts, service logic, and `GET /api/transport/sync-history` for recent import history with route change counts.
+- Added frontend transport sync history loading, fallback handling, and a richer Recent imports card with counts, previews, and timestamps.
+- Completed Sprint 74 transport exception workbench.
+- Added dedicated backend exception workbench contracts, service logic, and `GET /api/transport/exceptions-workbench`.
+- Added frontend exception workbench loading and direct action wiring for route focus, diff review, sync refresh, optimization rerun, and import-history review.
+- Completed Sprint 75 transport exception batch actions.
+- Extended the backend exception workbench contract with grouped summaries for filter-ready exception families.
+- Added grouped filtering plus `Review next exception` and `Reset review queue` actions so operators can move through several transport exceptions in sequence.
+- Completed Sprint 76 transport exception resolution ledger.
+- Added persisted exception resolution entries plus `GET` and `PUT /api/transport/exceptions-workbench/resolutions` for tenant-local auditability.
+- Added frontend controls to save short review notes with `Reviewed` or `Resolved` posture directly from the transport exception workbench.
+- Completed Sprint 77 transport exception resolution filters.
+- Added resolution-state filters for `Open`, `Reviewed`, `Resolved`, `Deferred`, and `All` in the transport exception workbench.
+- Added clearer open-versus-closed exception metrics plus inline `Save review`, `Defer`, and `Resolve` actions with short operator notes.
+- Re-verified the sprint with `dotnet test backend/Orkystra.slnx --configuration Release /p:UseSharedCompilation=false /nodeReuse:false`, `npm run build` in `frontend/web`, and a browser check of the updated workbench controls.
+- Completed Sprint 78 transport exception resolution history.
+- Added append-only persisted exception resolution history plus `GET /api/transport/exceptions-workbench/resolution-history` for tenant-local chronology.
+- Added a frontend resolution-history card that highlights the focused exception's latest posture, previous updates, and recent cross-exception activity.
+- Re-verified the sprint with `dotnet test backend/Orkystra.slnx --configuration Release /p:UseSharedCompilation=false /nodeReuse:false`, `npm run build` in `frontend/web`, and browser verification on `http://127.0.0.1:4174/#`.
+- Completed Sprint 79 transport exception follow-up queue.
+- Added a backend follow-up queue for deferred exception outcomes plus `GET /api/transport/exceptions-workbench/follow-up-queue`.
+- Added a frontend follow-up queue card that separates deferred return work into `Still active` versus `Watchlist` posture with direct jump actions.
+- Re-verified the sprint with `dotnet test backend/Orkystra.slnx --configuration Release /p:UseSharedCompilation=false /nodeReuse:false`, `npm run build` in `frontend/web`, and browser verification on `http://127.0.0.1:4174/#`.
+- Completed Sprint 80 transport exception follow-up commitments.
+- Extended the persisted resolution model so deferred follow-up can carry an owner and a target return window through the existing exception-resolution API.
+- Added frontend owner and return-window inputs in the exception workbench and follow-up queue, with direct commitment saves on deferred items.
+- Re-verified the sprint with `dotnet test backend/Orkystra.slnx --configuration Release /p:UseSharedCompilation=false /nodeReuse:false`, `npm run build` in `frontend/web`, and browser verification on `http://127.0.0.1:4174/#`.
+- Completed Sprint 81 transport exception commitment alerts.
+- Added backend commitment alert posture for overdue and ownerless deferred follow-up items, including queue-level counts and per-item alert summaries.
+- Added frontend alert visibility in the follow-up queue with compact `Overdue`, `Ownerless`, and `Healthy` metrics plus item-level alert wording.
+- Re-verified the sprint with `dotnet test backend/Orkystra.slnx --configuration Release /p:UseSharedCompilation=false /nodeReuse:false`, `npm run build` in `frontend/web`, and browser verification on `http://127.0.0.1:4174/#`.
+- Completed Sprint 82 transport exception commitment sorting and focus.
+- Added backend prioritization so overdue and ownerless commitments now rise above healthy deferred items, plus a queue-level focus target for the next escalation pass.
+- Added frontend focus visibility in the follow-up queue so the next best commitment target is called out directly above the alert metrics.
+- Re-verified the sprint with `dotnet test backend/Orkystra.slnx --configuration Release /p:UseSharedCompilation=false /nodeReuse:false`, `npm run build` in `frontend/web`, and browser verification on `http://127.0.0.1:4174/#`.
+- Completed Sprint 83 transport exception follow-up closure workflow.
+- Added an explicit backend follow-up lifecycle with retire and reopen transitions that preserve history, owner, note, and target return window.
+- Added frontend follow-up lifecycle visibility and `Retire follow-up` / `Reopen follow-up` actions in the follow-up queue.
+- Completed Sprint 84 transport exception follow-up SLA posture.
+- Added backend SLA posture shaping, queue-level at-risk counts, and per-item countdown data for deferred follow-up commitments.
+- Added frontend SLA posture visibility so healthy, at-risk, overdue, and retired follow-up items read cleanly in the queue.
+- Completed Sprint 85 transport follow-up queue lane filters.
+- Added follow-up queue lane filters for `All`, `Active`, `At risk`, `Overdue`, `Ownerless`, `Retired`, and `Watchlist`.
+- Rewired queue rendering so deferred-work actions now operate inside the currently selected lane.
+- Completed Sprint 86 transport follow-up history spotlight.
+- Added a focused follow-up spotlight panel with owner, countdown, note, and latest saved history updates for the selected queue item.
+- Added a `Focus follow-up` action so operators can pin the queue history on the item they are actively handling.
+- Completed Sprint 87 transport follow-up ownership summary.
+- Added backend owner summary shaping plus frontend owner-lane visibility for top owners and the unassigned follow-up pool.
+- Completed Sprint 88 transport follow-up escalation digest.
+- Added backend escalation digest shaping for overdue, at-risk, ownerless, near-due, and retired posture.
+- Added frontend escalation digest summary text so the queue urgency reads clearly before scanning the item list.
+- Completed Sprint 89 transport follow-up handoff pack.
+- Added a backend handoff pack derived from active deferred follow-up items and a dedicated frontend `Shift handoff` card.
+- Completed Sprint 90 transport handoff readiness posture.
+- Added readiness posture and readiness summary for each handoff item so missing owner, note, route, or target context is explicit.
+- Completed Sprint 91 transport handoff shift windows.
+- Added `Immediate`, `This shift`, and `Next shift` handoff timing counts so active deferred work is grouped by operational timing pressure.
+- Completed Sprint 92 transport handoff owner lane headline.
+- Added handoff owner-lane headline visibility so the next shift can see whether active deferred load is concentrated on one owner or stuck unassigned.
+- Completed Sprint 94 transport follow-up handoff acknowledgements.
+- Added acknowledgement-aware transport follow-up contracts and ledger updates so active deferred handoff items can record explicit acknowledgement without changing resolution state.
+- Completed Sprint 95 transport handoff acknowledgement metrics.
+- Added handoff-level acknowledged versus unacknowledged counts in the `Shift handoff` card so receipt posture is readable at a glance.
+- Completed Sprint 96 transport handoff acknowledgement detail.
+- Added acknowledged-by, acknowledged-at, and needs-acknowledgement detail in both the handoff pack and deferred follow-up queue.
+- Completed Sprint 97 transport handoff acknowledgement focus.
+- Added a backend-selected acknowledgement focus target plus a frontend action that jumps the operator into the best next deferred handoff item.
+- Completed Sprint 98 transport handoff acknowledgement lanes.
+- Added handoff lane filters for `All`, `Awaiting ack`, `Acknowledged`, `Immediate`, and `Ready`.
+- Completed Sprint 99 transport acknowledgement chronology visibility.
+- Added follow-up lifecycle, owner, return window, and acknowledgement detail to the resolution-history trail so the acknowledgement audit path stays visible in-product.
+- Completed Sprint 100 GPS fleet board foundation.
+- Added a dedicated GPS fleet board endpoint plus an API-backed GPS operator surface in the transport board.
+- Completed Sprint 101 GPS freshness posture.
+- Added fresh, aging, and stale telemetry posture plus GPS fleet summary metrics.
+- Completed Sprint 102 GPS route-linked telemetry focus.
+- Added route-linked GPS correlation and a selected-route telemetry spotlight.
+- Completed Sprint 103 GPS movement risk posture.
+- Added movement posture, telemetry alert posture, speeding visibility, and a prioritized fleet focus target.
+- Completed Sprint 104 GPS operator filters and publish workflow.
+- Added a `Publish GPS` support action, GPS lane filters, and map overlays that compare route markers with current truck positions.
+- Re-optimized the remaining roadmap around a production-usable open-source target instead of general feature expansion.
+- Defined the next focused delivery track as Sprint 105 to Sprint 116: persistence hardening, event durability, self-host configuration, integration/browser verification, warehouse operational parity, AI/optimization hardening, and OSS release packaging.
+- Keep the new sprint-governance rule in force: no standalone sprint for single-file UI-only polish.
+- The next real capability should follow the production-ready OSS track in order, not jump sideways into isolated feature work.
+- Completed Sprint 105 - Postgres operational persistence. Added `IOperationalPersistenceStore` interface, `SqliteOperationalPersistenceStore` (renamed), `PostgresOperationalPersistenceStore` with Npgsql 9.0.3, configurable provider switch, DI wiring, and documentation.
+- Completed Sprint 106 - Durable outbox, inbox, and replay recovery. Replaced `InMemoryInboxStateStore` with `DurableInboxStateStore` backed by the operational persistence database. Added `EventOutboxStore` for tracking published event lifecycle. Added `OutboxEventPublisher` decorator, outbox inspect endpoint, and replay endpoint. Backend suite expanded to 104 passing tests.
+- Completed Sprint 107 - Self-hosted configuration and secret hardening. Added manual startup validation (fail-fast for missing `Security__ApiKey` and `OperationalPersistence__ConnectionString` with Postgres), startup diagnostic log of effective config, `.env.example` documenting all settings, comprehensive env var docs in `development.md`, and consistently uses `Bind`-based configuration without the `ConfigurationExtensions` dependency. Build: 0 warnings, 104 passing tests, frontend build passes.
+- Completed Sprint 108 - Seeded demo bootstrap and install sanity checks. Added `POST /api/bootstrap/demo` for deterministic one-step seeded demo setup, `GET /health/sanity` for per-component connectivity checks (API, MQTT, persistence, frontend), `BootstrapService`, `SanityCheckService`, Bootstrap contracts in `Orkystra.Contracts.Bootstrap`, Demo Bring-Up section in `docs/development.md`, and 4 new backend tests. Build: 0 warnings, 108 passing tests, frontend build passes.
+- Completed Sprint 109 - Integration test harness for core flows. Added `tests/backend/Orkystra.Integration.Tests` project with xUnit + `WebApplicationFactory<Program>`, `InternalsVisibleTo` in `Orkystra.Api.csproj`, `OrkystraWebApplicationFactory` with SQLite/in-memory config and stubbed MQTT/audit, 12 integration tests covering health endpoints (`/health/live`, `/health/ready`, `/health/sanity`), persistence-backed API flows (`GET /api/control-tower/overview`, `GET /api/warehouses`, `GET /api/transport/routes`, `GET /api/providers/catalog`), transport sync (`POST /api/transport/sync`, `GET /api/transport/sync-status`, `GET /observability/persistence/workflows`), GPS positions (`GET /api/gps/positions`), and bootstrap demo (`POST /api/bootstrap/demo`). Registered direct singletons for `EventBackboneOptions` and `OperationalPersistenceOptions` so DI validation passes. Build: 0 warnings, 120 passing tests (108 existing + 12 new), frontend build passes.
+- Completed Sprint 110 - Browser smoke automation for operator workflows. Playwright installed in `frontend/web`, `playwright.config.ts` created, `e2e/` directory with mock data factory (`mock-data.ts`) and 3 test specs (`control-tower.spec.ts` with 3 tests, `transport.spec.ts` with 2 tests, `provider-config.spec.ts` with 2 tests). Fixed two pre-existing undefined variable bugs (`currentRoute` and `isApiConnected`) in `App.vue` that prevented the production build from rendering. All 7 E2E tests pass with mocked/stubbed API responses. Backend suite: 120 passing tests (108 domain + 12 integration), 0 warnings. Frontend build: passes.
+- Completed Sprint 111 - Warehouse exception and action surface. Added warehouse workbench contracts (`WarehouseWorkbenchReadModel`, `WarehouseWorkbenchItemReadModel`, `WarehouseWorkbenchGroupReadModel`), `WarehouseWorkbenchService` with zone/occupancy/dock/pressure exception derivation, `GET /api/warehouses/workbench` endpoint. Added frontend view types, API service with fallback, App.vue integration (state, apply, refresh, template section with exception cards). Added 11 backend unit tests and 2 E2E smoke tests. Backend suite at 119 passing tests; frontend production build passes.
+- Completed Sprint 112 - Transport longitudinal history and archival navigation. Added `ReadWorkflowRunByIdAsync` to persistence interface (IOperationalPersistenceStore, SQLite, Postgres). Added `TransportSyncImportDetailReadModel` contract. Added `BuildImportDetailAsync` and `BuildDiffBetweenImportsAsync` to `TransportSyncHistoryService`. Added `GET /api/transport/sync-history/{runId}` (import detail) and extended `GET /api/transport/sync-diff` with optional `previousRunId` and `currentRunId` query params. Added frontend `TransportSyncImportDetailView` types, `loadTransportSyncImportDetail` API service, and arbitrary comparison support in `loadTransportSyncDiff`. Updated App.vue with import detail card, comparison selector dropdowns, and click-to-drill-through history entries. Added 4 backend unit tests (import detail positive/not-found, specific-import diff, nonexistent-run diff). Backend suite at 123 passing tests; frontend production build passes.
+- Completed Sprint 113 - AI provider abstraction and grounding hardening. Created `IAiProvider` interface in `Orkystra.Api/AI/IAiProvider.cs` with single `BuildRecommendationAsync` method. Created `HttpAiProvider` (HTTP to Python AI service with local fallback on error), `LocalAiProvider` (fully deterministic, never calls external services), and `DisabledAiProvider` (returns clear disabled message telling operators how to enable AI). Created `AiRecommendationBuilder` shared static utility for deterministic fallback logic. Updated `AiEvidenceReadModel` with `Grounding` field (string: `"projection_data"`, `"assumption"`, `"heuristic"`, `"unknown"`). Updated `AiRecommendationEnvelope` with `ProviderName` field. Updated `AiServiceOptions` with `Provider` config switch (`"http"` default, `"local"`, `"disabled"`). Refactored `AiWorkflowService` to accept `IAiProvider` instead of `HttpClient`. Updated DI registration in `Program.cs` to resolve provider from config via singleton factory. Updated frontend types: `AiEvidenceView.grounding`, `AiRecommendationEnvelopeView.providerName`. Removed frontend-side fallback for backend error responses (network errors only). Updated `App.vue` template to surface `providerName` in route-detail-meta and `grounding` on each evidence item. Updated `.env.example` with `AiService__Provider` documentation. Added 2 new backend tests (local provider, disabled provider) + 2 existing tests refactored for provider pattern. Backend suite at 125 passing tests; frontend production build passes.
+- Completed Sprint 114 - Build hardening and testing support for local/disabled providers. Added 13 backend tests: `AiRecommendationBuilder` unit tests (intent classification, warehouse/dispatcher/unknown responses, empty projections, null question handling), HttpAiProvider edge cases (null response body, malformed JSON), LocalAiProvider edge cases (empty overview, ambiguous question), DisabledAiProvider enhanced assertion (confidence level, config message, specialist agent). Created `AiRecommendationBuilderTests.cs` with 8 unit tests directly testing the static utility class. Added `e2e/ai-recommendation.spec.ts` with 4 E2E tests covering provider name display (local/http), grounding label visibility, and unreachable API fallback. Backend suite at 138 passing tests; frontend production build passes.
+- Completed Sprint 115 - Open-source docs, contribution flow, and deployment guides. Created `INSTALL.md` with prerequisites, quick-start (local dev), self-host deployment (Docker Compose + manual), full configuration reference, verification commands, and troubleshooting. Created `CONTRIBUTING.md` with architecture entrypoints (key concepts, repository layout, context boundaries), development workflow (sprint model, rules), code standards, testing commands, and pull request flow. Created `LICENSE` (MIT). Updated `.env.example` with non-empty Security\_\_ApiKey placeholder and INSTALL.md reference. Updated `README.md` with English intro, quick-start section, and expanded Core Documents links.
+- Completed Sprint 116 - Release candidate hardening and OSS release process. Added a dedicated release-candidate guide with versioning flow, release checklist, known limitations, supported deployment posture, and explicit support boundaries. Linked the guide from the root README and the smoke-test checklist for discoverability.
+- Completed Sprint 117 - Release notes and changelog baseline. Added `CHANGELOG.md` and `docs/operations/releases/v0.1.0-rc.1.md`, linked them from the README, install guide, smoke-test checklist, and release-candidate guide, and re-verified backend tests, frontend build, and Python compile checks while preparing the candidate artifacts.
+- Completed Sprint 118 - Python service packaging and runtime verification. Added editable-package publishing for both nested Python services, runtime endpoint tests with `FastAPI` `TestClient`, CI import/pytest verification, and updated Python install/run docs for the supported `pip install -e ".[dev]"` workflow.
+- Completed Sprint 119 - Universal agent prompt visibility and release preflight. Promoted `prompts/ORKYSTRA_UNIVERSAL_AGENT_PROMPT_FR.md` into the README and `prompts/CODEX_AUTOPILOT.md` autopilot entrypoints, added `infrastructure/scripts/release-preflight.ps1` to validate release-memory files plus clean-tree readiness, and updated the release-candidate guide to include the new preflight command before tagging.
+- Completed Sprint 120 - Clean release publication flow and tag readiness. Added `docs/operations/releases/v0.1.0-rc.1-manifest.json` as the exact candidate artifact manifest, added `docs/operations/releases/v0.1.0-rc.1-publish-checklist.md` as the manual release handoff, extended `release-preflight.ps1` to validate manifest-listed artifacts and version alignment, and updated the README plus release docs so the publication flow is executable and easier to audit.
+- Completed Sprint 121 - Self-host baseline packaging and one-command bring-up. Added `infrastructure/scripts/bring-up-selfhost.ps1` to launch the packaged Docker stack, wait for API health, and seed a deterministic demo; hardened it with a fail-fast Docker-engine check; and linked that helper from the README, install guide, development guide, and smoke-test checklist so evaluators can bring up the supported stack with fewer manual steps.
+- Completed Sprint 122 - Postgres-first persistence hardening for serious self-hosting. Added `PersistenceDiagnosticsService` plus `GET /observability/persistence/provider` so the active persistence provider, self-host posture, safe connection target, and live health can be verified directly; added unit and integration coverage for that path; and updated install/development/smoke-test docs so Postgres-backed self-host runs now have an explicit runtime trust check.
+- Completed Sprint 123 - Demo/bootstrap repeatability and reset workflow. Added `infrastructure/scripts/reset-demo-state.ps1` to reset the default local SQLite demo state, audit output, optional Docker containers/volumes, and optional ignored runtime/secrets files, with an optional direct handoff back into `bring-up-selfhost.ps1`; added `SupportsShouldProcess` so `-WhatIf` previews the reset safely; and linked the reset flow from the README, install guide, development guide, and smoke-test checklist.
+- Completed Sprint 124 - Event backbone recovery automation. Added `OutboxRecoveryService` plus `OutboxRecoveryWorker` so pending and failed outbox entries are retried automatically in bounded background batches when the event backbone is enabled, extended event-backbone telemetry with recovery counters and last-recovery timing, kept the manual replay endpoint as an operator override through the same shared recovery path, and fixed a latent outbox replay bug by persisting the real serialized MQTT envelope shape instead of a replay-incompatible anonymous payload.
+- Completed Sprint 125 - Connector writeback safety and dry-run posture. Extended the provider catalog contracts and runtime logic so connectors now expose `writebackMode`, `writebackReadiness`, and `writebackSummary`; added a safe local `writebackMode` runtime setting for the REST transport adapter with a default `dry-run` posture; surfaced the new writeback posture in the frontend provider catalog; and added backend unit, backend integration, and frontend build verification for the new safety envelope.
+
+## Blocked
+
+None.
+
+## Decisions Made
+
+- Backend starts as a single .NET solution with modular projects.
+- Frontend uses NPM with Vue 3, TypeScript, and Vite.
+- Local development infrastructure starts with Docker Compose.
+- Backend solution uses `.slnx`, generated by the installed .NET SDK.
+- The release-candidate horizon is now complete and documented with explicit support boundaries.
+
+## Latest Verification
+
+- `python -m pytest -v` in `python-services`: Passed with 17 tests on 2026-07-14 during Sprint 199 CI verification.
+- `dotnet test tests/backend/Orkystra.Domain.Tests --configuration Release /p:UseSharedCompilation=false /nodeReuse:false`: Passed with 143 backend unit tests on 2026-07-14 during Sprint 199 CI verification.
+- `dotnet test tests/backend/Orkystra.Integration.Tests --configuration Release /p:UseSharedCompilation=false /nodeReuse:false`: Passed with 15 integration tests on 2026-07-14 during Sprint 199 CI verification.
+- `npm run build` in `frontend/web`: Passed on 2026-07-14 with 39 modules during Sprint 199 CI verification.
+- `powershell -ExecutionPolicy Bypass -File infrastructure/scripts/release-preflight.ps1 -Version v0.1.0-rc.1 -AllowDirtyWorktree`: Passed on 2026-07-14 after renaming prompt files and fixing alignment references.
+- `cd python-services && python -m pip install -e ".[dev]"`: Passed on 2026-07-02 and now exposes both `orkystra_ai_service` and `orkystra_optimization_service`.
+- `python -c "import orkystra_ai_service, orkystra_optimization_service; print('ok')"`: Passed on 2026-07-02.
+- `python -m pytest python-services`: Passed with 17 tests on 2026-07-02 after adding FastAPI runtime endpoint coverage.
+- `dotnet test backend\Orkystra.slnx --configuration Release /p:UseSharedCompilation=false /nodeReuse:false`: Passed with 138 backend tests on 2026-07-02 while preparing the `v0.1.0-rc.1` release artifacts.
+- `npm run build` in `frontend/web`: Passed on 2026-07-02 while preparing the `v0.1.0-rc.1` release artifacts.
+- `python -m compileall python-services`: Passed on 2026-07-02 while preparing the `v0.1.0-rc.1` release artifacts.
+- `powershell -ExecutionPolicy Bypass -File infrastructure/scripts/release-preflight.ps1 -Version v0.1.0-rc.1 -AllowDirtyWorktree`: Passed on 2026-07-03 after adding the release preflight gate and prompt-alignment checks.
+- `powershell -ExecutionPolicy Bypass -File infrastructure/scripts/release-preflight.ps1 -Version v0.1.0-rc.1 -AllowDirtyWorktree`: Passed again on 2026-07-03 after extending the preflight to validate the release manifest and publish checklist.
+- `powershell -ExecutionPolicy Bypass -File infrastructure/scripts/bring-up-selfhost.ps1 -SkipBootstrap -MaxWaitSeconds 10`: Failed fast with the expected Docker-engine guidance on 2026-07-03 because Docker Desktop / the Docker daemon is not running in the current environment; this verified the new guardrail path instead of leaving a misleading API timeout.
+- `dotnet test tests/backend/Orkystra.Domain.Tests/Orkystra.Domain.Tests.csproj --configuration Release /p:UseSharedCompilation=false /nodeReuse:false`: Passed with 140 backend unit tests on 2026-07-03 after adding persistence diagnostics coverage.
+- `dotnet test tests/backend/Orkystra.Integration.Tests/Orkystra.Integration.Tests.csproj --no-build --configuration Release`: Passed with 12 integration tests on 2026-07-03, including the new `/observability/persistence/provider` endpoint check. A full rebuild attempt first hit a local DLL file lock from a running `.NET Host` process, so the verified no-build path was used instead of killing the local process.
+- `powershell -ExecutionPolicy Bypass -File infrastructure/scripts/reset-demo-state.ps1 -Rebootstrap -WhatIf`: Passed on 2026-07-03 after fixing a PowerShell interpolation bug and ensuring the reset helper previews removals and rebootstrap handoff safely without mutating local state.
+- `dotnet test tests/backend/Orkystra.Domain.Tests/Orkystra.Domain.Tests.csproj --configuration Release /p:UseSharedCompilation=false /nodeReuse:false`: Passed with 142 backend unit tests on 2026-07-03 after adding outbox recovery automation coverage and fixing the outbox replay payload format.
+- `dotnet test tests/backend/Orkystra.Integration.Tests/Orkystra.Integration.Tests.csproj --no-build --configuration Release`: Passed with 12 integration tests on 2026-07-03 after the event-backbone recovery changes.
+- `dotnet test tests/backend/Orkystra.Domain.Tests/Orkystra.Domain.Tests.csproj --configuration Release /p:UseSharedCompilation=false /nodeReuse:false`: Passed with 143 backend unit tests on 2026-07-03 after adding provider writeback posture coverage.
+- `dotnet test tests/backend/Orkystra.Integration.Tests/Orkystra.Integration.Tests.csproj --no-build --configuration Release`: Passed with 12 integration tests on 2026-07-03 after extending provider catalog writeback posture coverage.
+- `npm run build` in `frontend/web`: Passed on 2026-07-03 after surfacing connector writeback posture in the provider catalog UI and view mapping.
+- Completed Sprint 126 GPS and map-facing operator maturity.
+- Added protected `GET /api/gps/board` in the API and registered `GpsFleetBoardService` so the backend now serves a dedicated operator-facing GPS board instead of leaving the shaping logic disconnected.
+- Replaced the frontend GPS fallback-only mapping with a real GPS board mapper plus a dedicated telemetry surface showing truck counts, freshness/movement posture, a simple projected truck map, and route-linked focus rows.
+- Updated GPS E2E mock payloads plus development and smoke-test guidance so the GPS board is part of the normal verification flow.
+- Remaining estimate for a production-usable open-source product after Sprint 126: about 17 to 27 more consistent sprints, assuming we keep prioritizing cross-cutting product features over local polish-only passes.
+- `dotnet test tests\backend\Orkystra.Domain.Tests\Orkystra.Domain.Tests.csproj --no-build`: Passed with 138 backend tests after Sprint 115 (OSS documentation sprint — no code changes).
+- `dotnet build tests\backend\Orkystra.Integration.Tests\Orkystra.Integration.Tests.csproj`: Builds successfully after Sprint 112 (requires infrastructure to run).
+- `npm run build` in `frontend/web`: Passed after Sprint 114 (4 new E2E AI recommendation tests, providerName/grounding UI).
+- `npx playwright test` in `frontend/web`: Requires a running dev/preview server (port 4173). E2E test files unchanged from Sprint 111.
+- `npm run build` in `frontend/web`: Passed after Sprint 108.
+- `POST /api/bootstrap/demo` available as protected endpoint for one-step seeded demo setup.
+- `GET /health/sanity` available as anonymous endpoint for component connectivity checks.
+- `docs/development.md` updated with Demo Bring-Up (First-Run) section and new endpoint listings.
+- `BootstrapService` and `SanityCheckService` registered in DI and tested.
+- `dotnet test backend\Orkystra.slnx --configuration Release /p:UseSharedCompilation=false /nodeReuse:false`: Passed with 104 backend tests after Sprint 106 durable outbox/inbox/replay implementation.
+- `npm run build` in `frontend/web`: Passed after Sprint 106 backend changes.
+- Sprint 105 Postgres operational persistence: build passes, 94/94 tests pass, `IOperationalPersistenceStore` DI switchable between SQLite and Postgres.
+- Sprint 106 durable inbox/outbox/inbox recovery: `DurableInboxStateStore` replaces `InMemoryInboxStateStore` with database-backed dedup that survives restarts. `EventOutboxStore` tracks publish lifecycle. `POST /observability/event-backbone/replay` replays pending/failed outbox entries.
+- `dotnet test backend\Orkystra.slnx --configuration Release /p:UseSharedCompilation=false /nodeReuse:false`: Passed with 95 backend tests after closing Sprint 100 to Sprint 104 GPS fleet board, freshness, route correlation, movement risk, and publish workflow support.
+- `npm run build` in `frontend/web`: Passed after wiring the GPS fleet board, GPS map overlays, route-linked telemetry spotlight, and publish/filter actions.
+- `GET /api/gps/board` is now available as a dedicated operator-facing fleet telemetry endpoint.
+- `dotnet test backend\Orkystra.slnx --configuration Release /p:UseSharedCompilation=false /nodeReuse:false`: Passed with 94 backend tests after closing Sprint 95 to Sprint 99 acknowledgement metrics, detail, focus, lane filtering, and chronology visibility.
+- `npm run build` in `frontend/web`: Passed after wiring acknowledgement metrics, focus actions, handoff lane filters, and richer resolution-history acknowledgement detail.
+- `dotnet test backend\Orkystra.slnx --configuration Release /p:UseSharedCompilation=false /nodeReuse:false`: Passed with 94 backend tests after adding the active follow-up handoff pack, readiness posture, shift windows, owner headline, and briefing lines.
+- `npm run build` in `frontend/web`: Passed after wiring the new `Shift handoff` card and handoff briefing surfaces.
+- Browser verification against `http://127.0.0.1:4174/#` confirmed the new `Shift handoff` card renders in the transport column, including the fallback handoff summary and timing metrics.
+- `dotnet test backend\Orkystra.slnx --configuration Release /p:UseSharedCompilation=false /nodeReuse:false`: Passed with 94 backend tests after adding follow-up SLA posture, owner summaries, and escalation digest coverage.
+- `npm run build` in `frontend/web`: Passed after wiring follow-up lane filters, spotlight history, owner summaries, and escalation digest visibility.
+- Browser verification against `http://127.0.0.1:4174/#` confirmed the follow-up queue now renders the new lane filters, at-risk metric, and digest summary even while the page is running on fallback transport data.
+- `dotnet test backend\Orkystra.slnx --configuration Release /p:UseSharedCompilation=false /nodeReuse:false`: Passed with 94 backend tests after adding transport exception resolution ledger coverage.
+- `npm run build` in `frontend/web`: Passed after wiring persisted exception resolution notes and status controls.
+- `GET /api/transport/exceptions-workbench/resolutions` and `PUT /api/transport/exceptions-workbench/resolutions` are now available for tenant-local exception review posture.
+- `dotnet test backend\Orkystra.slnx --configuration Release /p:UseSharedCompilation=false /nodeReuse:false`: Passed with 94 backend tests after adding grouped transport exception workbench summaries.
+- `npm run build` in `frontend/web`: Passed after wiring grouped exception filters and batch review actions.
+- `dotnet test backend\Orkystra.slnx --configuration Release /p:UseSharedCompilation=false /nodeReuse:false`: Passed with 94 backend tests after adding transport exception workbench coverage.
+- `npm run build` in `frontend/web`: Passed after wiring the transport exception workbench surface and actions.
+- `GET /api/transport/exceptions-workbench` is now available as a dedicated projection endpoint for prioritized transport exceptions.
+- `dotnet test backend\Orkystra.slnx --configuration Release /p:UseSharedCompilation=false /nodeReuse:false`: Passed with 93 backend tests after adding structured transport sync history coverage.
+- `npm run build` in `frontend/web`: Passed after wiring the dedicated transport sync history API and recent-imports UI.
+- `GET /api/transport/sync-history` is now available as a dedicated projection endpoint for recent imports.
+
+- `dotnet build backend\Orkystra.slnx --configuration Release /p:UseSharedCompilation=false /nodeReuse:false`: Passed.
+- `dotnet test backend\Orkystra.slnx --configuration Release /p:UseSharedCompilation=false /nodeReuse:false`: Passed with 92 backend tests.
+- `npm run build` in `frontend/web`: Passed.
+- `npm run build` in `frontend/web`: Passed after adding freshness interaction microstates, evidence-aware disabled actions, the posture banner, and cluster-status messaging.
+- Browser verification against `http://127.0.0.1:4173/#` confirmed the new freshness posture banner renders and disabled freshness shortcuts expose the intended paused styling.
+- `npm run build` in `frontend/web`: Passed after adding the shared freshness timeline, digest row, quick-link navigation, and tightened summary copy.
+- Browser verification against `http://127.0.0.1:4173/#` confirmed the freshness header shows 4 timeline tiles, 4 digest chips, and 6 quick-link buttons, and that the quick links jump to the target cards.
+- `npm run build` in `frontend/web`: Passed after adding the primary-concern panel, priority action rail, promoted quick link, and priority card emphasis.
+- Browser verification against `http://127.0.0.1:4173/#` confirmed the primary concern renders, the promoted quick link targets the emphasized card, and the priority card exposes the stronger border treatment.
+- `npm run build` in `frontend/web`: Passed after tightening the priority wording, urgency labels, action rationale, and `Go to ...` navigation copy.
+- Browser verification against `http://127.0.0.1:4173/#` confirmed the priority layer renders the expected urgency label, concern title, action reason, CTA, and normalized navigation text.
+- `GET /api/transport/sync-diff` now returns a latest-vs-previous transport import comparison with route-level added, removed, and changed evidence.
+- The transport historical diff panel now supports delta filters, selected-route diff context, and direct route-focus actions from diff evidence.
+- The transport board now includes a transport sync surface with source posture, health badge, imported route count, imported route references, and a manual `Import snapshot` action wired to the protected transport sync workflow.
+- The transport board now includes operator support shortcuts and recovery cues for transport sync, route refresh, optimization rerun, and imported-route focus.
+- The transport sync card now shows a freshness badge with approximate snapshot age and escalation cues when the latest import is aging, stale, or expired.
+- The transport freshness drill-through card now shows the last import, sync posture, latest comparable diff, selected-route evidence, and the latest sync note behind the freshness warning.
+- The transport freshness lineage card now traces why the current snapshot aged by showing the source posture, last successful sync, last attempted sync, imported snapshot age, and root-cause wording.
+- The transport sync cadence card now tells operators whether the import rhythm is steady, slow, retry-heavy, or still incomplete.
+- The transport trust badge card now combines freshness, sync health, and cadence into a compact confidence signal.
+- The transport route freshness spotlight card now shows whether the selected route is present in the latest imported snapshot and offers direct jump-back actions.
+- The transport freshness operator checklist card now turns freshness posture into a short next-action guide for fresh, aging, stale, or expired snapshots.
+- The transport freshness cluster has now been browser-checked as a five-card story, polished for mobile spacing, aligned on helper text, and reflected in the support documentation.
+- The transport freshness cluster now also has a 48px touch-target baseline, visible keyboard focus, accessible action labels, and clearer card semantics.
+- The transport board now includes a selected-route storyline card and a recent sync timeline fed by persisted `transport-sync-import` workflow runs.
+- In-app browser verification on the local app confirmed the transport sync, storyline, timeline, and route-detail surfaces remain readable after the Sprint 32 layout polish.
+- `npm run build` in `frontend/web`: Passed after adding the Sprint 33 transport support shortcuts and recovery cues.
+- `npm run build` in `frontend/web`: Passed after adding the Sprint 37 freshness drill-through card and support actions.
+- `npm run build` in `frontend/web`: Passed after adding the Sprint 38 freshness lineage card and causality summary.
+- `npm run build` in `frontend/web`: Passed after adding the Sprint 39 sync cadence card and rhythm summary.
+- `npm run build` in `frontend/web`: Passed after adding the Sprint 40 trust badge and confidence summary.
+- `npm run build` in `frontend/web`: Passed after adding the Sprint 41 route freshness spotlight and route jump actions.
+- `npm run build` in `frontend/web`: Passed after adding the Sprint 42 operator checklist and next-action guide.
+- Chrome-driven browser QA confirmed the freshness cluster cards stay readable together at desktop width.
+- `npm run build` in `frontend/web`: Passed after adding the Sprint 44 mobile viewport polish, Sprint 45 helper-text alignment, Sprint 46 action consistency, and Sprint 47 support-note updates.
+- Chrome-driven browser QA confirmed the freshness cluster remains readable at mobile width after the spacing and action-consistency pass.
+- `npm run build` in `frontend/web`: Passed after adding the Sprint 48 touch-target baseline, Sprint 49 focus-visible treatment, Sprint 50 accessible labels, Sprint 51 card semantics, and Sprint 52 accessibility note updates.
+- Chrome-driven browser QA confirmed the checklist actions stay at a consistent mobile touch-target size and expose visible keyboard focus.
+- A Playwright-style browser verification attempt for the new Sprint 33 transport support layer could not run because the local Playwright browser binaries are not installed yet.
+- `PUT /api/providers/catalog/rest-transport-adapter/secrets` validates unknown providers (404), non-secret fields (422), and empty values (422).
+- `GET /api/providers/catalog` returns `authMode: "api-key"` and `authConfigured: false` for the REST transport adapter in a demo-default stack where no API key has been supplied.
+- Provider health report includes `auth-key-missing` signal when `authMode` is `api-key` and no key is present; transitions to `auth-key-configured` after a key is supplied.
+- Browser verification confirmed the catalog card for the REST transport adapter shows `API key: not set` with a `Set API key` form when no key is configured; after saving a key through the form, the card updates to `API key: configured`.
+- `GET /observability/event-backbone` now exposes MQTT publish/consume telemetry and the latest projection dispatch posture.
+- `POST /api/simulation/scenarios/demo-events` now publishes a demo scenario event sequence onto the MQTT backbone and persists that workflow run in the operational store.
+- `GET /api/simulation/scenarios` now returns scenario summaries fed by the MQTT-backed projection pipeline.
+- `POST /api/gps/positions/publish` now publishes provider-originated GPS telemetry to the configured MQTT stream topic and persists that workflow run in the operational store.
+- `GET /api/gps/positions` now returns the latest canonical `GpsPositionSnapshot` projections fed by the MQTT-backed GPS telemetry flow.
+- `POST /api/transport/sync` now imports the current transport route snapshot through the provider registry and persists the resulting sync evidence plus route projections.
+- `GET /api/transport/sync-status` now returns the latest persisted transport sync evidence, including live-vs-fallback source posture and imported route references.
+
+## Remaining Risks
+
+- The OSS release-candidate artifacts are now prepared, but the actual `v0.1.0-rc.1` git tag and publication step still need to be performed from an intentionally reviewed clean tree.
+- The new release preflight script reduces publication ambiguity, but the worktree is still intentionally dirty right now and the final tag must only be cut after reviewing and closing all in-flight local changes.
+- The CI workflow has not yet been validated on a real remote GitHub Actions push; the next step is to push the workflow and confirm all three jobs pass on an actual push.
+- The new manifest and publish checklist make the release-candidate handoff explicit, but they still depend on the maintainer to intentionally collapse the current in-flight worktree into a clean publishable state before tagging.
+- The new self-host bring-up helper shortens first-run evaluation materially, but the full happy-path stack startup could not be validated in this session because the local Docker engine is currently unavailable.
+- The new persistence diagnostics endpoint makes the Postgres-vs-SQLite runtime posture much clearer, but a live PostgreSQL-backed end-to-end verification pass still depends on a running local Docker engine or external Postgres instance in the next session.
+- The new reset helper makes local demo rebuilds far more repeatable, but full destructive reset validation with Docker volume removal and rebootstrap still depends on a running Docker engine in a future session.
+- The new outbox recovery worker reduces manual replay burden materially, but a live broker-backed end-to-end validation of automatic replay timing still depends on a running local Docker engine or equivalent MQTT environment in a future session.
+- The new connector writeback posture makes the risk envelope explicit, but there is still no live upstream writeback workflow yet; the current sprint intentionally governs future mutation rather than enabling broad connector writes today.
+- CI uses .NET `10.0.x` because the local SDK generated a `.slnx` solution file; this should be kept consistent in future environments.
+- The control tower UI now exposes API-vs-fallback state, provider posture, a connector catalog, and dedicated warehouse and transport detail projections, and the transport connector now has a live-read path with auth support, but the overall product is still mostly demo-backed.
+- Python runtime verification is now automated, but optional dependency resolution for `langgraph` and `ortools` still increases local setup time and CI cost compared with the .NET and frontend slices.
+- The new UI was build-verified and the enriched API payload was served locally, but this sprint's new auth posture and secrets surface has not yet been through a tool-driven browser visual regression pass.
+- The event backbone now has durable inbox state and outbox tracking that survive process restarts, but replay is currently a manual endpoint action rather than an automated background recovery loop.
+- The AI layer is currently grounded on request-time projection snapshots and a static RAG plan; no live retrieval, model provider wiring, or frontend chat integration exists yet.
+- The optimization layer is now integrated into the operator workflow, but it still solves only a narrow single-vehicle route-sequencing problem; fleet assignment, pickup-and-delivery, and persisted optimization run history are still future work.
+- The connector layer now includes a live transport read path with runtime-aware registry composition, secret-aware auth handling, and operator-facing diagnostics, but writeback flows, centralized secret management, and production-grade retry/diagnostic handling are still future work.
+- The `appsettings.Secrets.local.json` file is gitignored but file-local; there is no centralized secret manager, rotation policy, or audited access log for secrets yet.
+- The new operational persistence foundation is durable and structured, but it is currently a single-node SQLite store rather than a shared Postgres-backed persistence layer.
+- The new operational trace surface makes persistence visible in-product, but it still depends on the local demo stack and current protected endpoint contract rather than a dedicated support or admin workspace.
+- Local browser verification is now materially better, but startup timing can still briefly show partial fallback before the automatic recovery loop settles the page.
+- The production hardening layer now includes local audit persistence, but there is still no external IdP, centralized audit sink, distributed tracing exporter, or secrets manager.
+- Domain identifiers are still a manually maintained set; additional bounded contexts may introduce more specific IDs in Sprint 3 and beyond.
+- The warehouse slice now has API projections, but persistence is still future work.
+- The transport slice now has API projections plus a bounded optimization workflow, and the latest responses are persisted centrally in the operational store, but durable source-of-truth transport persistence and richer live provider synchronization are still future work.
+- The transport surfaces now include support actions, recovery cues, route-by-route diff evidence, focused diff triage across the latest two imports, and structured recent import history, but longitudinal multi-import navigation and exception triage are still future work.
+- Browser automation for the latest transport support layer is currently limited by missing local Playwright browser binaries.
+- The simulation slice can now be published through MQTT and read back through API-backed projections, but it still relies on demo scenario publication rather than a richer simulation control surface or long-running stream orchestration.
+- The GPS slice now flows through MQTT and back into API projections, but it still uses the current demo provider rather than a real telematics vendor feed or a map-facing operator surface.
+- The AI workflow now has a bounded backend entrypoint, a live browser surface, and persisted run history, but it still uses the current projection snapshot rather than an external model registry or long-term memory.
+
+## Session Rule
+
+Future Codex sessions must not continue from memory. They must read this file, the roadmap, and the constitution before implementing code.

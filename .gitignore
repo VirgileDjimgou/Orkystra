@@ -42,10 +42,6 @@ temp/
 output/
 
 # Private local workflow and authoring artifacts
-prompts/
-constitution/
 docs/blueprints/
 docs/methodology/
 docs/adr/0001-project-execution-model.md
-PROJECT_STATUS.md
-IMPLEMENTATION_ROADMAP.md

@@ -72,4 +72,4 @@ A sprint is complete only when:
 ## Current Focus
 
 The repository is in the post-release-candidate maturity phase.
-The next planned sprint is Sprint 199: release tag preparation or remote CI verification.
+The next planned sprint is Sprint 201: commit release-memory files and confirm the first real remote CI push.

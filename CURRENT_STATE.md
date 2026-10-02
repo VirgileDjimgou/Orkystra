@@ -12,35 +12,36 @@ Optional supervised batch command:
 
 ## Current Sprint
 
-Sprint 198 - CI E2E Playwright coverage
+Sprint 200 - Release reproducibility and verification completeness
 
 Status: Completed
 
 ## Previous Sprint
 
-Sprint 197 - CI workflow for Python services, backend, and frontend
+Sprint 199 - Release tag preparation and CI verification
 
 Status: Completed
 
 ## Current Product Posture
 
-Orkystra is currently a production-usable open-source release candidate for local and self-hosted evaluation, with the maturity work centered on supportability, evidence quality, and repeatable maintainer handoff.
+Orkystra is currently a production-usable open-source release candidate for local and self-hosted evaluation, with the maturity work centered on supportability, evidence quality, and repeatable maintainer handoff. The release preflight now passes cleanly, all CI jobs are verified locally, and the release-required memory files are tracked so the candidate can be reproduced from a clean clone.
 
 ## Recently Completed
 
-- Sprint 198: Extended the CI `frontend` job with Playwright E2E browser tests. Added `npx playwright install --with-deps chromium`, a vite preview server startup/teardown wrapper, and `npx playwright test` for 13 E2E tests across 5 spec files (control-tower, transport, provider-config, ai-recommendation, warehouse-workbench). The Playwright config already had CI-aware settings (retries=2, workers=1). Test reports are uploaded as artifacts on failure via `actions/upload-artifact@v4`.
+- Sprint 200: Fixed release reproducibility by un-ignoring the release-required memory files (`prompts/`, `constitution/`, `PROJECT_STATUS.md`, `IMPLEMENTATION_ROADMAP.md`) in `.gitignore`, keeping the genuinely-private authoring artifacts (`docs/blueprints/`, `docs/methodology/`, `docs/adr/0001-project-execution-model.md`) ignored. Added `Orkystra.Integration.Tests` to `backend/Orkystra.slnx` so the manifest's `dotnet test backend/Orkystra.slnx` command now covers all 158 backend tests (143 domain + 15 integration) instead of only the 143 domain tests. Verified release preflight passes and all three component checks are green.
 
 ## Remaining Risks
 
-- Python service dependencies are declared but not fully exercised in CI on every maturity pass.
-- End-to-end browser validation still depends on a running local dev server.
+- The CI workflow has not yet been validated on a real remote GitHub Actions push.
+- End-to-end browser validation still depends on a running local dev server in CI.
+- `docs/blueprints/`, `docs/methodology/`, and `docs/adr/0001-project-execution-model.md` remain gitignored even though `PROJECT_STATUS.md` references the blueprint as a source of truth; this is a minor dangling-reference risk, not release-blocking.
 
 ## Relevant Files For The Next Sprint
 
-- `.github/workflows/ci.yml` (new — needs monitoring on first real push)
-- `docs/operations/support-packet-review.md`
-- `docs/operations/support-handoff-and-reproduction.md`
-- `docs/operations/support-packet-lifecycle-summary.md`
+- `.github/workflows/ci.yml` (needs monitoring on first real remote push)
+- `docs/operations/release-candidate.md`
+- `docs/operations/releases/v0.1.0-rc.1-publish-checklist.md`
+- `infrastructure/scripts/release-preflight.ps1`
 
 ## Decisions That Still Matter
 
@@ -51,4 +52,4 @@ Orkystra is currently a production-usable open-source release candidate for loca
 
 ## Next Exact Action
 
-Both CI coverage gaps (Python jobs + E2E) are now addressed. The next maturity increment should either push the CI workflow to a remote and confirm all three jobs pass on an actual push, or begin preparing the formal release tag for the next candidate publication.
+The release preflight passes and all CI jobs are verified locally. The release-required files are now tracked. The next step is to commit the release-memory files, push the CI workflow to a remote, and confirm all three jobs pass on an actual GitHub Actions push, then cut the `v0.1.0-rc.1` tag from a clean tree.

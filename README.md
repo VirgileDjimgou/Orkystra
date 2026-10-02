@@ -119,6 +119,13 @@ Continue the Orkystra project.
 
 The repository continuity files for that workflow are `AGENTS.md`, `CURRENT_STATE.md`, `PROJECT_STATUS.md`, and `IMPLEMENTATION_ROADMAP.md`.
 
+## AI Agent Continuation
+
+For AI-assisted development sessions, start with:
+
+- [prompts/ORKYSTRA_UNIVERSAL_AGENT_PROMPT_FR.md](prompts/ORKYSTRA_UNIVERSAL_AGENT_PROMPT_FR.md) - Recommended universal agent prompt
+- [prompts/CODEX_AUTOPILOT.md](prompts/CODEX_AUTOPILOT.md) - Autopilot entrypoint with batch and recovery prompts
+
 ## Status
 
 The current sprint state and remaining work are tracked in [PROJECT_STATUS.md](PROJECT_STATUS.md) and [IMPLEMENTATION_ROADMAP.md](IMPLEMENTATION_ROADMAP.md).
