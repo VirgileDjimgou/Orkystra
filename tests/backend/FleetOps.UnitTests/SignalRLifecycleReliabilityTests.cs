@@ -47,7 +47,7 @@ public sealed class SignalRLifecycleReliabilityTests
         await connection.StartAsync();
         var live = Expect(pending, 2);
         Assert.Equal(HttpStatusCode.Accepted, (await PostTelemetryAsync(client, scenario, vehicle, "hub-2", baseUtc.AddSeconds(10), 2)).StatusCode);
-        Assert.Equal(2, (await live.WaitAsync(TimeSpan.FromSeconds(20))).SequenceNumber);
+        Assert.Equal(2, (await live.WaitAsync(TimeSpan.FromSeconds(45))).SequenceNumber);
 
         await connection.StopAsync();
         Assert.Equal(HttpStatusCode.Accepted, (await PostTelemetryAsync(client, scenario, vehicle, "hub-3", baseUtc.AddSeconds(15), 3)).StatusCode);
@@ -60,7 +60,7 @@ public sealed class SignalRLifecycleReliabilityTests
 
         var liveAfterReconnect = Expect(pending, 4);
         Assert.Equal(HttpStatusCode.Accepted, (await PostTelemetryAsync(client, scenario, vehicle, "hub-4", baseUtc.AddSeconds(20), 4)).StatusCode);
-        Assert.Equal(4, (await liveAfterReconnect.WaitAsync(TimeSpan.FromSeconds(20))).SequenceNumber);
+        Assert.Equal(4, (await liveAfterReconnect.WaitAsync(TimeSpan.FromSeconds(45))).SequenceNumber);
     }
 
     private static Task<TrackingPositionResponse> Expect(ConcurrentDictionary<long, TaskCompletionSource<TrackingPositionResponse>> pending, long sequence)

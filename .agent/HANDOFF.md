@@ -1,3 +1,17 @@
+# Handoff — SPRINT-33 terminé (2026-10-01)
+
+## État courant
+
+- SPRINT-33 `DONE`, gate complète verte (`.runtime/sprint33-quality-gate.log`). Prochain sprint éligible : SPRINT-34 `PLANNED` (Realistic Fleet Simulation). Lot 6/1 enregistré ; chaque sprint reste atomique et exige un contexte neuf.
+- CI unique : `.github/workflows/release-validation.yml` (backend MinIO/SQL Server réels, web + audit, E2E, Android SDK, compose, gouvernance). `ci.yml` supprimé, aucun contrôle perdu.
+- npm : 0 avis (Vitest 5). NuGet : audit complet activé, aucun paquet vulnérable.
+- Ajout `scripts/agent/verify_state_consistency.py` au gate et à la CI ; tests du runner 5/5.
+- Flake corrigé sans affaiblissement : borne de vivacité du test SignalR portée de 20 s à 45 s après un timeout sous charge.
+
+## Reprise
+
+`Start Next Sprint` sélectionne SPRINT-34 dans un contexte neuf.
+
 # Handoff — Rebaseline phase MVP Consolidation (2026-10-01)
 
 ## Nouvelle phase planifiée

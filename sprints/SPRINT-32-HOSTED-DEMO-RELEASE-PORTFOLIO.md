@@ -2,7 +2,7 @@
 
 ## Status
 
-`NOT_STARTED`
+`DONE` — completed 2026-09-30 with gate `.runtime/sprint32-quality-gate.log` and hosted smoke `.runtime/sprint32-demo-smoke.log`.
 
 ## Goal
 

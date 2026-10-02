@@ -1,5 +1,18 @@
 # Rapport de qualité
 
+## Sprint 33 — Repository Truth & Green CI
+
+- Statut : `PASSED — 2026-10-01`; journal `.runtime/sprint33-quality-gate.log`.
+- CI unique : `ci.yml` supprimé, tous ses contrôles déplacés dans `.github/workflows/release-validation.yml` (jobs backend, web, e2e, android, compose, governance). La définition de GREEN est documentée dans `VALIDATION.md`.
+- Backend CI : vrai conteneur MinIO avec création du bucket privé et test `Category=Minio` contre l'infrastructure réelle ; tests `Category=SqlServer` via Testcontainers ; suite rapide et Reliability.
+- Web CI : Node 24, format/lint/32 Vitest/build, `npm audit --audit-level=high` bloquant ; 10 parcours Playwright.
+- Android CI : `android-actions/setup-android` + acceptation des licences, platform 35/build-tools 35.0.0, `lintDebug testDebugUnitTest assembleDebug assembleDebugAndroidTest`.
+- Dépendances : npm 6 avis (3 High) ramenés à 0 par `npm audit fix` puis montée Vitest 5 (`vite.config.ts` référence `vitest/config`) ; NuGet `NuGetAuditMode=all` avec avertissements en erreurs, aucun paquet vulnérable.
+- Gouvernance : `scripts/agent/verify_state_consistency.py` (ROADMAP ↔ PROJECT_STATE ↔ contrats) intégré au gate et à la CI ; tests du runner 5/5.
+- Gate complète verte : format, build, 183 tests rapides, Reliability, MinIO, SQL Server, simulation 33 étapes, harnais de fiabilité, Web (32 Vitest, audit, build, 10 E2E), santé API, Android lint/unit/APK.
+- Stabilité : le test de reconnexion SignalR (Sprint 31) a montré un flake sous charge (20 s) ; la borne de vivacité est passée à 45 s sans modifier aucune assertion.
+- Limites : les jobs CI s'exécutent sur GitHub-hosted runners et n'ont pas pu être exécutés depuis ce poste ; le workflow reprend exactement les commandes validées localement. Le chapitre connecté Android reste optionnel.
+
 ## Sprint 32 — Hosted Demo Release & Portfolio Showcase
 
 - Statut : `PASSED — 2026-09-30`; journal `.runtime/sprint32-quality-gate.log` et smoke hébergé `.runtime/sprint32-demo-smoke.log`.

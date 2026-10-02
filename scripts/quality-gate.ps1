@@ -42,6 +42,8 @@ try {
   Invoke-Step "Pilot Compose Config" { docker compose --env-file .env -f docker-compose.yml -f docker-compose.pilot.yml config --quiet }
   Invoke-Step "Demo Compose Config" { docker compose --env-file .env -f docker-compose.yml -f docker-compose.pilot.yml -f docker-compose.demo.yml config --quiet }
   Invoke-Step "Demo Smoke Config" { powershell -NoProfile -ExecutionPolicy Bypass -File scripts/demo-smoke.ps1 -ConfigOnly }
+  Invoke-Step "Agent State Consistency" { python scripts/agent/verify_state_consistency.py }
+  Invoke-Step "Sprint Orchestrator Tests" { python scripts/agent/test_sprint_orchestrator.py }
   Invoke-Step "Private Object Storage" {
     docker compose --env-file .env up -d --wait minio
     docker compose --env-file .env run --rm --no-deps minio-init
@@ -139,6 +141,10 @@ try {
   Invoke-Step "Web Test" {
     Push-Location apps/web
     try { npm run test } finally { Pop-Location }
+  }
+  Invoke-Step "Web Dependency Audit" {
+    Push-Location apps/web
+    try { npm audit --audit-level=high } finally { Pop-Location }
   }
   Invoke-Step "Web Build" {
     Push-Location apps/web

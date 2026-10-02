@@ -1,3 +1,5 @@
+# Single authoritative pipeline. GREEN means every job below passes.
+# The local equivalent is `scripts/quality-gate.ps1`; CI must never be weaker.
 name: Release validation
 
 on:
@@ -10,15 +12,23 @@ concurrency:
   group: release-validation-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  DOTNET_VERSION: 10.0.x
+  NODE_VERSION: 24
+  MINIO_ROOT_USER: fleetops-ci
+  MINIO_ROOT_PASSWORD: fleetops-ci-root-secret
+  MINIO_ACCESS_KEY: fleetops-media-ci
+  MINIO_SECRET_KEY: fleetops-media-ci-secret-0123456789
+
 jobs:
   backend:
-    name: Backend format, build and tests
+    name: Backend format, build, tests and audit
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 10.0.x
+          dotnet-version: ${{ env.DOTNET_VERSION }}
           dotnet-quality: ga
       - name: Restore tools
         run: dotnet tool restore
@@ -28,11 +38,37 @@ jobs:
         run: dotnet format FleetOps.slnx --verify-no-changes --no-restore
       - name: Build
         run: dotnet build FleetOps.slnx --no-restore -c Release -m:1 /nodeReuse:false
-      - name: Fast tests (SQL Server, MinIO and Reliability suites excluded)
-        run: dotnet test FleetOps.slnx --no-build -c Release --filter "Category!=SqlServer&Category!=Minio&Category!=Reliability"
+      - name: Fast tests (SQL Server and MinIO excluded)
+        run: dotnet test FleetOps.slnx --no-build -c Release --filter "Category!=SqlServer&Category!=Minio"
+      - name: Reliability tests
+        run: dotnet test tests/backend/FleetOps.UnitTests/FleetOps.UnitTests.csproj --no-build -c Release --filter "Category=Reliability&Category!=SqlServer"
+      - name: Start MinIO and create the private bucket
+        run: |
+          docker run -d --name fleetops-minio -p 9010:9000 \
+            -e MINIO_ROOT_USER="$MINIO_ROOT_USER" \
+            -e MINIO_ROOT_PASSWORD="$MINIO_ROOT_PASSWORD" \
+            minio/minio server /data
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:9010/minio/health/live >/dev/null; then break; fi
+            sleep 2
+          done
+          curl -fsS http://127.0.0.1:9010/minio/health/live
+          docker run --rm --network host \
+            -e MC_HOST_local="http://$MINIO_ROOT_USER:$MINIO_ROOT_PASSWORD@127.0.0.1:9010" \
+            minio/mc mb --ignore-existing local/fleetops-private-media
+      - name: MinIO contract test
+        env:
+          FLEETOPS_TEST_MINIO_ENDPOINT: http://127.0.0.1:9010
+          FLEETOPS_TEST_MINIO_ACCESS_KEY: ${{ env.MINIO_ACCESS_KEY }}
+          FLEETOPS_TEST_MINIO_SECRET_KEY: ${{ env.MINIO_SECRET_KEY }}
+        run: dotnet test tests/backend/FleetOps.UnitTests/FleetOps.UnitTests.csproj --no-build -c Release --filter "Category=Minio"
+      - name: SQL Server integration tests (Testcontainers)
+        run: dotnet test tests/backend/FleetOps.UnitTests/FleetOps.UnitTests.csproj --no-build -c Release --filter "Category=SqlServer"
+      - name: NuGet vulnerability audit
+        run: dotnet list FleetOps.slnx package --vulnerable --include-transitive
 
   web:
-    name: Web format, lint, tests and build
+    name: Web format, lint, tests, build and audit
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -41,7 +77,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: ${{ env.NODE_VERSION }}
           cache: npm
           cache-dependency-path: apps/web/package-lock.json
       - run: npm ci
@@ -49,6 +85,8 @@ jobs:
       - run: npm run lint
       - run: npm run test
       - run: npm run build
+      - name: Dependency audit (High and Critical block)
+        run: npm audit --audit-level=high
 
   e2e:
     name: Playwright public and operations journeys
@@ -60,16 +98,39 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 10.0.x
+          dotnet-version: ${{ env.DOTNET_VERSION }}
           dotnet-quality: ga
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: ${{ env.NODE_VERSION }}
           cache: npm
           cache-dependency-path: apps/web/package-lock.json
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: npm run e2e
+
+  android:
+    name: Android lint, unit tests and APK
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/android-driver
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+      - name: Accept licenses and install SDK components
+        run: |
+          yes | sdkmanager --licenses >/dev/null
+          sdkmanager "platforms;android-35" "build-tools;35.0.0" "platform-tools"
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Android build and tests
+        run: |
+          chmod +x ./gradlew
+          ./gradlew lintDebug testDebugUnitTest assembleDebug assembleDebugAndroidTest --stacktrace
 
   compose:
     name: Demo and pilot compose configuration
@@ -82,3 +143,16 @@ jobs:
       - run: docker compose --env-file .env -f docker-compose.yml -f docker-compose.pilot.yml -f docker-compose.demo.yml config --quiet
       - name: Demo smoke configuration
         run: pwsh -NoProfile -File scripts/demo-smoke.ps1 -ConfigOnly
+
+  governance:
+    name: Agent state, contracts and orchestration
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Sprint orchestrator tests
+        run: python scripts/agent/test_sprint_orchestrator.py
+      - name: State consistency
+        run: python scripts/agent/verify_state_consistency.py

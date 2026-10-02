@@ -13,7 +13,7 @@ This phase is **consolidation only**. The operating principle is `Consolidate > 
 
 | Sprint | Outcome | Status | Source of truth |
 |---|---|---|---|
-| 33 | Repository truth and green CI | READY | `sprints/SPRINT-33-REPOSITORY-TRUTH-GREEN-CI.md` |
+| 33 | Repository truth and green CI | DONE — 2026-10-01 | `sprints/SPRINT-33-REPOSITORY-TRUTH-GREEN-CI.md` |
 | 34 | Realistic fleet simulation | PLANNED | `sprints/SPRINT-34-REALISTIC-FLEET-SIMULATION.md` |
 | 35 | Operations Control Tower UX | PLANNED | `sprints/SPRINT-35-OPERATIONS-CONTROL-TOWER-UX.md` |
 | 36 | Contract safety and Android modularization | PLANNED | `sprints/SPRINT-36-CONTRACT-SAFETY-ANDROID-MODULARIZATION.md` |

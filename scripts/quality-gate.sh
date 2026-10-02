@@ -34,6 +34,8 @@ if command -v pwsh >/dev/null 2>&1; then
 else
   SUMMARY+=("SKIPPED :: Demo Smoke Config (pwsh not available)")
 fi
+run_step "Agent State Consistency" python3 scripts/agent/verify_state_consistency.py
+run_step "Sprint Orchestrator Tests" python3 scripts/agent/test_sprint_orchestrator.py
 run_step "Private Object Storage" docker compose --env-file .env up -d --wait minio
 run_step "Private Object Storage Bucket" docker compose --env-file .env run --rm --no-deps minio-init
 MINIO_PORT_VALUE="$(sed -n 's/^MINIO_PORT=//p' .env | tail -1)"
@@ -57,6 +59,7 @@ run_step "Web Install" bash -lc 'cd apps/web && npm ci'
 run_step "Web Format" bash -lc 'cd apps/web && npm run format:check'
 run_step "Web Lint" bash -lc 'cd apps/web && npm run lint'
 run_step "Web Test" bash -lc 'cd apps/web && npm run test'
+run_step "Web Dependency Audit" bash -lc 'cd apps/web && npm audit --audit-level=high'
 run_step "Web Build" bash -lc 'cd apps/web && npm run build'
 run_step "Web E2E Browser" bash -lc 'cd apps/web && npx playwright install chromium'
 run_step "Web E2E" bash -lc 'cd apps/web && PLAYWRIGHT_API_BASE_URL=http://127.0.0.1:5081 PLAYWRIGHT_WEB_BASE_URL=http://127.0.0.1:4176 npm run e2e'

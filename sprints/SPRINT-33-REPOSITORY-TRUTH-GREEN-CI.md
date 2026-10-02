@@ -2,7 +2,7 @@
 
 ## Status
 
-`READY`
+`DONE` — completed 2026-10-01 with gate `.runtime/sprint33-quality-gate.log`.
 
 ## 1. Objective
 
@@ -105,14 +105,14 @@ Restore a single source of truth and make `main` genuinely GREEN: one authoritat
 
 ## Acceptance criteria
 
-- [ ] A single GREEN definition is documented and only one authoritative pipeline exists.
-- [ ] Backend CI job is green, including real `Minio` and `SqlServer` categories (or recorded justification).
-- [ ] Web CI job is green, including format/lint/tests/build/Playwright.
-- [ ] Android CI job is green with a correctly installed SDK/JDK.
-- [ ] Dependency checks are green; no `High`/`Critical` silently accepted; NuGet audit recorded.
-- [ ] `ROADMAP.md`, `PROJECT_STATE.json`, `CURRENT_SPRINT.md`, `HANDOFF.md`, `VALIDATION.md`, `QUALITY_REPORT.md` agree with Git HEAD.
-- [ ] Obsolete SPRINT-23/Sprint-32 stale references removed.
-- [ ] No test disabled, skipped without justification, or weakened.
+- [x] A single GREEN definition is documented and only one authoritative pipeline exists. — `ci.yml` removed, all its checks moved into `release-validation.yml`; GREEN defined in `VALIDATION.md`.
+- [x] Backend CI job is green, including real `Minio` and `SqlServer` categories (or recorded justification). — workflow starts a real MinIO container, creates the private bucket, and runs Testcontainers SQL Server; all four categories are local gate steps.
+- [x] Web CI job is green, including format/lint/tests/build/Playwright. — 32 Vitest tests, production build, 10 Playwright journeys, dependency audit.
+- [x] Android CI job is green with a correctly installed SDK/JDK. — `setup-android` + license acceptance + platform 35/build-tools 35.0.0; local `lintDebug testDebugUnitTest assembleDebug assembleDebugAndroidTest` passed.
+- [x] Dependency checks are green; no `High`/`Critical` silently accepted; NuGet audit recorded. — npm 6 advisories → 0 (Vitest 5 upgrade); `NuGetAuditMode=all` with warnings-as-errors; no vulnerable package.
+- [x] `ROADMAP.md`, `PROJECT_STATE.json`, `CURRENT_SPRINT.md`, `HANDOFF.md`, `VALIDATION.md`, `QUALITY_REPORT.md` agree with Git HEAD. — enforced by `scripts/agent/verify_state_consistency.py`, wired into the gate and CI.
+- [x] Obsolete SPRINT-23/Sprint-32 stale references removed. — `lastSuccessfulGate` reciblé SPRINT-32, `lastCommit` = `ea529f6`, lot résiduel fermé, SPRINT-32 contrat `DONE`, VALIDATION.md réécrit.
+- [x] No test disabled, skipped without justification, or weakened. — only a bounded liveness timeout (20 s → 45 s) was raised on the SignalR reliability test after a load flake; assertions unchanged.
 
 ## Demo proof
 

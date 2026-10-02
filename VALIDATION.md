@@ -1,69 +1,41 @@
-# Validation Status
+# Validation status
 
-Validation replayed locally on `2026-07-17` on Windows.
+Updated 2026-10-01 for phase `MVP Consolidation / Public Autonomous Fleet Demo` (`2026.10-mvp-consolidation`).
 
-## Verified
+## What GREEN means
 
-- `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\quality-gate.ps1`
-- `dotnet build FleetOps.slnx -c Release`
-- `dotnet test FleetOps.slnx -c Release --filter "Category!=SqlServer"`
-- `dotnet test tests/backend/FleetOps.UnitTests/FleetOps.UnitTests.csproj -c Release --filter "Category=SqlServer"`
-- `npm ci`
-- `npm run format:check`
-- `npm run lint`
-- `npm run test`
-- `npm run build`
-- `npm run e2e`
-- EF Core migration `Sprint01IdentityAndTenancy`
-- EF Core migration `Sprint02FleetRegistry`
-- EF Core migration `Sprint03TrackingSimulation`
-- EF Core migration `Sprint04DispatchMissions`
-- EF Core migration `Sprint05DriverMobile`
-- EF Core migration `Sprint06InspectionsProofs`
-- EF Core migration `Sprint07AlertsMaintenance`
-- EF Core migration `Sprint08IntegrationsAudit`
-- EF Core migrations `Sprint12SessionSecurity` and `Sprint12UploadSecurity`
-- Android `lintDebug testDebugUnitTest assembleDebug assembleDebugAndroidTest`
-- protected Web login, HttpOnly cookie restoration, CSRF rejection, session rotation/revocation/global logout, and `/api/v1/auth/me`
-- role enforcement for `Admin` versus `Operator`
-- tenant isolation on user administration and tracking endpoints
-- audit log persistence for login and administrative actions
-- fleet registry CRUD and status lifecycle for vehicles, drivers, and GPS devices
-- idempotent CSV imports for vehicles, drivers, and devices
-- GPS device assignment history with one active assignment per device
-- fleet registry tenant isolation, permission, duplicate-data, stale-update, and invalid-input coverage
-- tracking telemetry ingestion idempotency and out-of-order protection
-- paged tracking history and tracking metrics endpoints
-- three-vehicle simulator dry-run scenario
-- GPS simulator dry-run
-- dispatch mission lifecycle from draft to completion
-- illegal mission transition refusal
-- tenant-safe mission assignment and schedule conflict detection
-- dispatch web board rendering, timeline display, and mission-to-map linkage
-- driver API mission filtering by authenticated driver
-- mobile command idempotency and stale row-version conflict handling
-- Android offline-first login, cache, command queue, inspection/POD ordering, and resumable upload unit coverage
-- mission start blocked without a valid pre-departure inspection
-- private signed media access, signature-validated publication, malformed-upload quarantine, and operator proof visibility
-- deterministic alert scanning for compliance, maintenance, and inactive vehicles
-- worker restart-safe re-scan behavior with deduplicated alert keys
-- alert assignment and acknowledgment permissions plus tenant isolation
-- Vue alert center rendering, notification history, and admin-only setup flows
-- API key issuance and revocation, forged webhook refusal, retry/dead-letter flow, and OpenAPI integration coverage
-- Vue integrations console for credentials, webhooks, contracts, outbox, and CSV exchange
-- administrator MFA enablement, login challenge, tenant lifecycle export, and controlled purge flows
-- pilot compose packaging plus SQL backup and restore scripts
-- Production configuration refusal for known signing keys/demo seed, safe bootstrap options, login rate limiting, and Identity lockout
-- PowerShell recovery-script parsing in the gate, 104 fast backend tests plus 3 Docker-backed SQL tests executed successfully without skips
-- 4 Playwright browser E2E scenarios against the real API and web client, including cross-tenant discovery and mutation refusal
-- Android instrumentation APK compilation for Room persistence, credential separation, and WorkManager scheduling tests
-- Android `connectedDebugAndroidTest` executed on a connected Samsung SM-G975F / Android 12 device with 4 tests passed
+GREEN is defined by one authoritative pipeline: `.github/workflows/release-validation.yml`. It must never be weaker than the local quality gate, and it is the only CI pipeline in this repository.
 
-## Remaining limits
+Both must pass:
 
-- The Android application still does not include native camera capture, biometric signature, or alert workflows; those capabilities remain assigned to later approved sprints.
-- Native camera capture and field-ready photo workflows remain assigned to Sprint 14.
+| Surface | Local (`scripts/quality-gate.ps1`) | CI (`release-validation.yml`) |
+|---|---|---|
+| Repository truth | compose configs, demo smoke config, agent state consistency, orchestrator tests, recovery script parsing | compose config job, governance job |
+| Backend | format, Release build, fast tests, Reliability, MinIO (real infrastructure), SQL Server (Testcontainers) | same steps, MinIO via a real container, SQL Server via Testcontainers |
+| Dependencies | npm audit High/Critical, NuGet audit on restore (`NuGetAuditMode=all`) | npm audit High/Critical, `dotnet list package --vulnerable` |
+| Web | Prettier, ESLint, 32 Vitest tests, production build | same |
+| E2E | Playwright public, operations, isolation journeys | same |
+| Android | lint, unit tests, debug APK and instrumentation APK | same |
+| Simulation / runtime | GPS dry run, 33-step multi-tenant simulation, reliability harness, API health/readiness | covered locally; hosted smoke is a release step |
 
-## Conclusion
+A red gate always blocks completion. No test is disabled, skipped without justification, or weakened to obtain green.
 
-Sprint 00 through Sprint 12 are complete locally. Sprint 12 proves protected Web cookies and CSRF, immediate tenant-bound session revocation, Android Keystore credential separation, explicit role policies, and quarantined media validation. The full quality gate passed without skips on Friday, July 17, 2026; Sprint 13 is selected but not implemented in this checkpoint.
+## Current status
+
+- `SPRINT-00`–`SPRINT-33` are `DONE`; the last recorded full gate is Sprint 33 (`.runtime/sprint33-quality-gate.log`), preceded by the Sprint 32 gate (`.runtime/sprint32-quality-gate.log`) and the hosted Demo smoke `.runtime/sprint32-demo-smoke.log`.
+- `SPRINT-33` (Repository Truth & Green CI) consolidated CI, cleared npm advisories (6 → 0), added the MinIO/SQL Server/Android/audit/governance jobs and the state-consistency check.
+- The post-sprint demo-video pipeline and the Android driver enum fix are committed (`ea529f6`) and covered by the Android unit test suite.
+
+## Verified in this phase so far
+
+- npm advisories: 0 (was 6, including 3 High) after `npm audit fix` and the Vitest 5 upgrade; Web format/lint/32 Vitest/build green.
+- NuGet: no vulnerable direct or transitive package; restore fails on NU1901–NU1904 via `TreatWarningsAsErrors` and `NuGetAuditMode=all`.
+- CI: one workflow (`release-validation.yml`) with backend, web, e2e, android, compose and governance jobs; the contradictory `ci.yml` was removed and all its checks were moved, not dropped.
+
+## Known limits
+
+- CI jobs run on GitHub-hosted runners and cannot be executed from this machine; the workflow mirrors the exact commands verified locally. The first push executes them for real.
+- SQL Server integration tests use Testcontainers and pull a large image; runtime is expected to be several minutes.
+- The MinIO contract test requires a live MinIO container and a pre-created `fleetops-private-media` bucket.
+- Android connected-device tests remain optional (`FLEETOPS_ENABLE_ANDROID_CONNECTED=1`) and are not part of GREEN.
+- Load above 20 vehicles, hosted virtual-driver provisioning and public self-hosting remain future phase work (SPRINT-34 to SPRINT-38).
