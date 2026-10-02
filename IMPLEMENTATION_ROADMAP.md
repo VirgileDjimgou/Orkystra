@@ -3663,7 +3663,7 @@ Implemented notes:
 
 ## Sprint 202 - Resolve remote lineage divergence and confirm CI on the canonical lineage
 
-Status: Blocked on human decision
+Status: Completed
 
 Goal:
 Decide which history is canonical (local Orkystra release-candidate lineage versus remote FleetOps hosted-demo lineage), reconcile the repository accordingly, and confirm CI on the chosen lineage.
@@ -3679,3 +3679,10 @@ Exit criteria:
 
 - One canonical lineage is agreed and CI is green on it.
 - The release-memory work of Sprint 201 is not lost.
+
+Implemented notes:
+
+- Per user decision, the remote FleetOps history was adopted as canonical; the local Orkystra lineage was archived on `archive/orkystra-rc-lineage` and remote `release/rc-preflight-cleanup` without rewriting remote history.
+- Local `main` was reset to `origin/main`; the running FleetOps CI on `main` was red, so Sprint 33's false completion was repaired: the missing `scripts/agent/verify_state_consistency.py` (silently blocked by a `.gitignore` rule) was restored with unit tests, Android setup moved to `android-actions/setup-android@v4`, and the removed MinIO community images were replaced with digest-pinned `bitnamilegacy` images plus SSE-S3 KMS and media identity provisioning (D-024).
+- The canonical pipeline is green on `main`: runs `36993883034` (`bd41472`) and `36994528056` (`f039a81`).
+- The Orkystra `v0.1.0-rc.1` tag is superseded by the lineage decision and must not be cut from the archive.

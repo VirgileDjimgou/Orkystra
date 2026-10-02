@@ -12,48 +12,45 @@ Optional supervised batch command:
 
 ## Current Sprint
 
+Sprint 202 - Resolve remote lineage divergence and confirm CI on the canonical lineage
+
+Status: Completed
+
+## Previous Sprint
+
 Sprint 201 - Commit release-memory files and first real remote CI push
 
 Status: Completed with a documented divergence blocker
 
-## Previous Sprint
-
-Sprint 200 - Release reproducibility and verification completeness
-
-Status: Completed
-
 ## Current Product Posture
 
-Orkystra is a production-usable open-source release candidate for local and self-hosted evaluation, with the maturity work centered on supportability, evidence quality, and repeatable maintainer handoff. The release-memory files are now committed (4453898) and the release preflight passes on a clean tree. The first real remote CI push could not be confirmed on remote `main` because `origin/main` was force-updated to an unrelated lineage (`ea529f6`, the FleetOps hosted-demo history, dated 2026-09-30) with no common ancestor. The Orkystra release-memory commit is preserved on remote branch `release/rc-preflight-cleanup`.
+The lineage question is resolved: the remote FleetOps history is canonical. Local `main` was reset to `origin/main`, and the Orkystra release-candidate lineage is archived locally on `archive/orkystra-rc-lineage` and on remote branch `release/rc-preflight-cleanup` (commit `4453898` plus the Sprint 201 closure commit `e65f4b6`). FleetOps CI is genuinely green on `main` after repairing the false Sprint 33 completion: runs `36993883034` (`bd41472`) and `36994528056` (`f039a81`).
 
 ## Recently Completed
 
-- Sprint 201: Committed the release-required memory files (`.gitignore` un-ignore, `AGENTS.md`, `CURRENT_STATE.md`, `README.md`, `backend/Orkystra.slnx`, `IMPLEMENTATION_ROADMAP.md`, `PROJECT_STATUS.md`, `constitution/`, `prompts/`) as commit `4453898`. Verified the release preflight passes both with `-AllowDirtyWorktree` before the commit and on the clean tree after it. The push to `origin/main` was rejected because the remote main was force-updated to an unrelated FleetOps lineage; per user decision the commit was pushed to the new remote branch `release/rc-preflight-cleanup` instead of rewriting remote history. Remote CI confirmation is deferred until the canonical lineage is decided.
-- Sprint 200: Fixed release reproducibility by un-ignoring the release-required memory files (`prompts/`, `constitution/`, `PROJECT_STATUS.md`, `IMPLEMENTATION_ROADMAP.md`) in `.gitignore`, keeping the genuinely-private authoring artifacts (`docs/blueprints/`, `docs/methodology/`, `docs/adr/0001-project-execution-model.md`) ignored. Added `Orkystra.Integration.Tests` to `backend/Orkystra.slnx` so the manifest's `dotnet test backend/Orkystra.slnx` command now covers all 158 backend tests (143 domain + 15 integration) instead of only the 143 domain tests. Verified release preflight passes and all three component checks are green.
+- Sprint 202: Per user decision, adopted remote FleetOps as the canonical lineage and archived the local Orkystra lineage (no history rewrite). Reset local `main` to `origin/main` and confirmed a green Release validation pipeline after repairing Sprint 33: restored the missing `scripts/agent/verify_state_consistency.py` (blocked by a `.gitignore` rule) with unit tests, upgraded Android setup to `android-actions/setup-android@v4`, and replaced the removed MinIO community images with digest-pinned `bitnamilegacy` images plus SSE-S3 KMS and explicit media identity provisioning (FleetOps decision D-024). Two consecutive green runs on `main`: `36993883034` and `36994528056`.
+- Sprint 201: Committed the release-required memory files (`.gitignore` un-ignore, `AGENTS.md`, `CURRENT_STATE.md`, `README.md`, `backend/Orkystra.slnx`, `IMPLEMENTATION_ROADMAP.md`, `PROJECT_STATUS.md`, `constitution/`, `prompts/`) as commit `4453898`. Verified the release preflight passes both with `-AllowDirtyWorktree` before the commit and on the clean tree after it. The push to `origin/main` was rejected because the remote main was force-updated to an unrelated FleetOps lineage; per user decision the commit was pushed to the remote branch `release/rc-preflight-cleanup` instead of rewriting remote history.
 
 ## Remaining Risks
 
-- `origin/main` is now an unrelated FleetOps lineage (`ea529f6`) with its own failing CI run; the local Orkystra sprint-200/201 lineage has no common ancestor with it. A human decision is required on which lineage is canonical before any further push or tag work.
-- The local Orkystra release-memory work is only preserved on the remote branch `release/rc-preflight-cleanup`, not on `main`.
-- The remote FleetOps `main` CI is currently failing on its latest push (`ea529f6`), independent of the Orkystra lineage.
-- End-to-end browser validation still depends on a running local dev server in CI.
-- `docs/blueprints/`, `docs/methodology/`, and `docs/adr/0001-project-execution-model.md` remain gitignored even though `PROJECT_STATUS.md` references the blueprint as a source of truth; this is a minor dangling-reference risk, not release-blocking.
+- This Orkystra lineage is archived and frozen; future product work continues in the FleetOps lineage with its own state system (`.agent/PROJECT_STATE.json`, `ROADMAP.md`, `sprints/`).
+- The canonical FleetOps lineage temporarily depends on the frozen Bitnami legacy MinIO mirror until the migration recorded in FleetOps decision D-024 is executed.
+- The Orkystra `v0.1.0-rc.1` tag was never cut and is superseded by the lineage decision; it should not be cut from this archive.
 
 ## Relevant Files For The Next Sprint
 
-- `CURRENT_STATE.md` (this restart brief)
-- `docs/decisions.md` (lineage divergence decision recorded)
-- Remote branch `release/rc-preflight-cleanup` (preserved Orkystra commit `4453898`)
-- `docs/operations/releases/v0.1.0-rc.1-publish-checklist.md` (tag flow, blocked on lineage decision)
+- Local branch `archive/orkystra-rc-lineage` (this archived lineage)
+- Remote branch `release/rc-preflight-cleanup` (preserved Orkystra lineage)
+- FleetOps `main` and `.agent/PROJECT_STATE.json` (canonical project state)
+- FleetOps `sprints/SPRINT-34-REALISTIC-FLEET-SIMULATION.md` (next eligible sprint)
 
 ## Decisions That Still Matter
 
 - Continue working in bounded sprints instead of broad autonomous rewrites.
 - Treat `PROJECT_STATUS.md` and `IMPLEMENTATION_ROADMAP.md` as historical memory.
 - Use `CURRENT_STATE.md` as the compact restart brief for new sessions.
-- Keep release-candidate maturity work focused on cross-cutting product value rather than isolated local polish.
-- Do not rewrite remote history; preserve diverged work on a side branch until a human decides the canonical lineage.
+- Do not rewrite shared remote history; diverged work is preserved on an archive branch, not merged.
 
 ## Next Exact Action
 
-A human decision is required: choose whether the canonical lineage is the local Orkystra release-candidate history (restore/repoint `main`, e.g. from `release/rc-preflight-cleanup`) or the remote FleetOps hosted-demo history (adopt it locally and archive the Orkystra commit). After that decision, confirm CI on the chosen lineage and only then cut the `v0.1.0-rc.1` tag from a clean tree.
+No further action in this lineage. In the canonical FleetOps repository, `Start Next Sprint` selects `SPRINT-34` (Realistic Fleet Simulation) in a fresh context.

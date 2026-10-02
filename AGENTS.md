@@ -71,5 +71,5 @@ A sprint is complete only when:
 
 ## Current Focus
 
-The repository is in the post-release-candidate maturity phase.
-The next planned sprint is Sprint 202: resolve the remote lineage divergence and confirm CI on the canonical lineage. It is blocked on a human decision because `origin/main` was force-updated to an unrelated FleetOps history; the Orkystra release-memory commit is preserved on remote branch `release/rc-preflight-cleanup`.
+The Orkystra lineage is archived and frozen; the remote FleetOps history is canonical.
+Sprint 202 is complete: local `main` was reset to `origin/main`, the Orkystra work remains on `archive/orkystra-rc-lineage` and remote `release/rc-preflight-cleanup`, and FleetOps CI is green (runs `36993883034`, `36994528056`). Future work continues in the FleetOps lineage (`.agent/PROJECT_STATE.json`; next sprint `SPRINT-34`).

@@ -4,15 +4,15 @@ Last updated: 2026-10-02
 
 ## Current Sprint
 
-Sprint 201 - Commit release-memory files and first real remote CI push
+Sprint 202 - Resolve remote lineage divergence and confirm CI on the canonical lineage
 
-Status: Completed with a documented divergence blocker
+Status: Completed
 
 ## Previous Sprint
 
-Sprint 200 - Release reproducibility and verification completeness
+Sprint 201 - Commit release-memory files and first real remote CI push
 
-Status: Completed
+Status: Completed with a documented divergence blocker
 
 ## Current Objective
 
@@ -29,6 +29,11 @@ The release-candidate stack now has a post-release-candidate maturity checkpoint
 
 ## Completed
 
+- Completed Sprint 202 lineage resolution and CI confirmation.
+- Per user decision, adopted the remote FleetOps history as canonical and archived the local Orkystra lineage on `archive/orkystra-rc-lineage` and remote branch `release/rc-preflight-cleanup` (no history rewrite).
+- Reset local `main` to `origin/main` and confirmed the canonical pipeline green on `main`: runs `36993883034` (`bd41472`) and `36994528056` (`f039a81`).
+- Repaired the false Sprint 33 completion found on adoption: restored the missing `scripts/agent/verify_state_consistency.py` (silently blocked by a `.gitignore` rule) with unit tests, upgraded Android setup to `android-actions/setup-android@v4`, and replaced the removed MinIO community images with digest-pinned `bitnamilegacy` images plus SSE-S3 KMS and media identity provisioning (FleetOps decision D-024).
+- The Orkystra `v0.1.0-rc.1` tag was not cut and is superseded by the lineage decision.
 - Completed Sprint 201 release-memory commit and remote CI confirmation attempt.
 - Committed the release-required memory files (`.gitignore` un-ignore, `AGENTS.md`, `CURRENT_STATE.md`, `README.md`, `backend/Orkystra.slnx`, `IMPLEMENTATION_ROADMAP.md`, `PROJECT_STATUS.md`, `constitution/`, `prompts/`) as commit `4453898`, after verifying the release preflight with `-AllowDirtyWorktree` and again on the clean tree.
 - The push to `origin/main` was rejected because the remote main had been force-updated to an unrelated FleetOps lineage (`ea529f6`, 2026-09-30) with no common ancestor. Per user decision, the commit was pushed to the new remote branch `release/rc-preflight-cleanup` instead of rewriting remote history.

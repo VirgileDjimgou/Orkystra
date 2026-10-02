@@ -14,6 +14,7 @@
 - The remote `main` was force-updated to an unrelated FleetOps hosted-demo lineage (`ea529f6`, 2026-09-30) with no common ancestor with the local Orkystra release-candidate history; remote history must not be rewritten before a human decides the canonical lineage.
 - The Sprint 201 release-memory commit (`4453898`) is preserved on remote branch `release/rc-preflight-cleanup` until the lineage decision is made.
 - No `v0.1.0-rc.1` tag may be cut until CI is confirmed on the agreed canonical lineage.
+- Resolved 2026-10-02: the remote FleetOps lineage is canonical. Local `main` was reset to `origin/main`; the Orkystra release-candidate lineage is archived on `archive/orkystra-rc-lineage` and remote `release/rc-preflight-cleanup`, frozen and not merged. CI is confirmed green on the canonical lineage (`36993883034`, `36994528056`). The Orkystra `v0.1.0-rc.1` tag is superseded and must not be cut from the archive.
 
 ## Session Continuity Decisions
 
