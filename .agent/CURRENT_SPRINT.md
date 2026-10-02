@@ -3,7 +3,7 @@
 ## État
 
 - Phase : `MVP Consolidation / Public Autonomous Fleet Demo` (`2026.10-mvp-consolidation`).
-- `SPRINT-00` à `SPRINT-33` sont `DONE` ; `SPRINT-33` a clôturé la vérité dépôt et la CI unique (`.runtime/sprint33-quality-gate.log`).
+- `SPRINT-00` à `SPRINT-33` sont `DONE` ; `SPRINT-33` a clôturé la vérité dépôt et la CI unique, confirmée par le run distant `36993883034` (2026-10-02, six jobs verts).
 - `SPRINT-34` est `PLANNED` : prochain sprint sélectionné par `Start Next Sprint`.
 - `SPRINT-35` à `SPRINT-38` restent `PLANNED`.
 - Exécution : `IDLE`, aucun verrou actif. Lot `Start Next Sprints 6` en cours à 1/6 ; chaque sprint exige un contexte neuf.

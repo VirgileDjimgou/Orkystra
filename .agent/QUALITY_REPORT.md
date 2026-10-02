@@ -2,7 +2,8 @@
 
 ## Sprint 33 — Repository Truth & Green CI
 
-- Statut : `PASSED — 2026-10-01`; journal `.runtime/sprint33-quality-gate.log`.
+- Correctif 2026-10-02 : la clôture du 2026-10-01 n'était pas reproductible — `scripts/agent/verify_state_consistency.py` était référencé mais absent (`.gitignore` ignorait `scripts/agent/`), l'action Android `setup-android@v3` échouait, et l'étape MinIO CI ne pouvait pas fonctionner (images `minio/minio` retirées de tous les canaux officiels, utilisateur média non provisionné, KMS SSE-S3 absent). Réparé et vérifié par le run CI `36993883034` : six jobs verts (backend, web, e2e, android, compose, gouvernance), MinIO legacy épinglé par digest avec KMS et identité média (D-024).
+- Statut : `PASSED — 2026-10-02`; preuve distante `.github/workflows/release-validation.yml` run `36993883034` (le journal local `.runtime/sprint33-quality-gate.log` du 2026-10-01 n'est pas reproductible et n'est plus la preuve retenue).
 - CI unique : `ci.yml` supprimé, tous ses contrôles déplacés dans `.github/workflows/release-validation.yml` (jobs backend, web, e2e, android, compose, governance). La définition de GREEN est documentée dans `VALIDATION.md`.
 - Backend CI : vrai conteneur MinIO avec création du bucket privé et test `Category=Minio` contre l'infrastructure réelle ; tests `Category=SqlServer` via Testcontainers ; suite rapide et Reliability.
 - Web CI : Node 24, format/lint/32 Vitest/build, `npm audit --audit-level=high` bloquant ; 10 parcours Playwright.
@@ -11,7 +12,7 @@
 - Gouvernance : `scripts/agent/verify_state_consistency.py` (ROADMAP ↔ PROJECT_STATE ↔ contrats) intégré au gate et à la CI ; tests du runner 5/5.
 - Gate complète verte : format, build, 183 tests rapides, Reliability, MinIO, SQL Server, simulation 33 étapes, harnais de fiabilité, Web (32 Vitest, audit, build, 10 E2E), santé API, Android lint/unit/APK.
 - Stabilité : le test de reconnexion SignalR (Sprint 31) a montré un flake sous charge (20 s) ; la borne de vivacité est passée à 45 s sans modifier aucune assertion.
-- Limites : les jobs CI s'exécutent sur GitHub-hosted runners et n'ont pas pu être exécutés depuis ce poste ; le workflow reprend exactement les commandes validées localement. Le chapitre connecté Android reste optionnel.
+- Limites : la première exécution distante réelle a révélé et corrigé les défauts ci-dessus le 2026-10-02 ; les images MinIO proviennent désormais du miroir legacy épinglé, en attendant la migration prévue par D-024. Le chapitre connecté Android reste optionnel.
 
 ## Sprint 32 — Hosted Demo Release & Portfolio Showcase
 

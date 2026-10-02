@@ -22,8 +22,8 @@ A red gate always blocks completion. No test is disabled, skipped without justif
 
 ## Current status
 
-- `SPRINT-00`–`SPRINT-33` are `DONE`; the last recorded full gate is Sprint 33 (`.runtime/sprint33-quality-gate.log`), preceded by the Sprint 32 gate (`.runtime/sprint32-quality-gate.log`) and the hosted Demo smoke `.runtime/sprint32-demo-smoke.log`.
-- `SPRINT-33` (Repository Truth & Green CI) consolidated CI, cleared npm advisories (6 → 0), added the MinIO/SQL Server/Android/audit/governance jobs and the state-consistency check.
+- `SPRINT-00`–`SPRINT-33` are `DONE`; the authoritative confirmation is the remote CI run `36993883034` (2026-10-02, six green jobs). The Sprint 33 local gate claim (`.runtime/sprint33-quality-gate.log`, 2026-10-01) was not reproducible and was superseded by this remote evidence.
+- `SPRINT-33` (Repository Truth & Green CI) consolidated CI, cleared npm advisories (6 → 0), added the MinIO/SQL Server/Android/audit/governance jobs and the state-consistency check. On 2026-10-02 the missing state-consistency script (blocked by `.gitignore`), the failing Android setup action and the removed MinIO images were repaired and verified remotely (D-024).
 - The post-sprint demo-video pipeline and the Android driver enum fix are committed (`ea529f6`) and covered by the Android unit test suite.
 
 ## Verified in this phase so far
@@ -34,8 +34,8 @@ A red gate always blocks completion. No test is disabled, skipped without justif
 
 ## Known limits
 
-- CI jobs run on GitHub-hosted runners and cannot be executed from this machine; the workflow mirrors the exact commands verified locally. The first push executes them for real.
+- CI jobs run on GitHub-hosted runners; the authoritative green execution is run `36993883034` (2026-10-02).
 - SQL Server integration tests use Testcontainers and pull a large image; runtime is expected to be several minutes.
-- The MinIO contract test requires a live MinIO container and a pre-created `fleetops-private-media` bucket.
+- The MinIO contract test requires the digest-pinned legacy MinIO image, SSE-S3 KMS and the provisioned `fleetops-private-media` bucket plus media identity (D-024); migration to a maintained S3 server is pending.
 - Android connected-device tests remain optional (`FLEETOPS_ENABLE_ANDROID_CONNECTED=1`) and are not part of GREEN.
 - Load above 20 vehicles, hosted virtual-driver provisioning and public self-hosting remain future phase work (SPRINT-34 to SPRINT-38).

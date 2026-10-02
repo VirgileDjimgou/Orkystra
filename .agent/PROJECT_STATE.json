@@ -67,11 +67,12 @@
     },
     "attemptCount": 0,
     "lastSuccessfulGate": {
-      "sprint": "SPRINT-32",
+      "sprint": "SPRINT-33",
       "status": "PASSED",
-      "timestampUtc": "2026-09-30T10:34:02+02:00"
+      "timestampUtc": "2026-10-02T10:14:29Z",
+      "evidence": "https://github.com/VirgileDjimgou/Orkystra/actions/runs/36993883034"
     },
-    "lastCommit": "f21f6ce",
+    "lastCommit": "bd41472",
     "currentBlocker": null,
     "agentTool": "powershell-batch-agent",
     "updatedAtUtc": "2026-10-01T02:00:00+02:00",
@@ -86,16 +87,16 @@
     },
     "lastActivity": {
       "status": "GATE",
-      "timestampUtc": "2026-10-02T00:10:37Z",
-      "summary": "SPRINT-33 full quality gate PASSED (.runtime/sprint33-quality-gate.log): single CI, MinIO/SqlServer/Android jobs, npm 0 advisories, state consistency.",
-      "log": ".runtime/sprint33-progress.log"
+      "timestampUtc": "2026-10-02T10:14:29Z",
+      "summary": "SPRINT-33 truthfully green: release-validation run 36993883034 passed all six jobs after restoring the state-consistency check, fixing .gitignore, upgrading Android setup, and pinning legacy MinIO images with SSE-S3 KMS and media identity provisioning.",
+      "log": "https://github.com/VirgileDjimgou/Orkystra/actions/runs/36993883034"
     }
   },
   "lastQualityGate": {
     "status": "PASSED",
-    "timestampUtc": "2026-10-02T00:11:13+00:00",
+    "timestampUtc": "2026-10-02T10:14:29Z",
     "report": ".agent/QUALITY_REPORT.md",
-    "gate": ".runtime/sprint33-quality-gate.log"
+    "gate": "https://github.com/VirgileDjimgou/Orkystra/actions/runs/36993883034"
   },
   "lastCheckpoint": {
     "timestampUtc": "2026-10-02T00:11:13+00:00",
@@ -109,5 +110,5 @@
     "Approve a public ingress/tunnel provider and HTTPS domain for the Sprint 38 self-hosted Demo.",
     "Decide the npm High-severity remediation policy in Sprint 33 if a breaking major upgrade is required."
   ],
-  "updatedAtUtc": "2026-10-02T00:11:13+00:00"
+  "updatedAtUtc": "2026-10-02T10:14:29Z"
 }

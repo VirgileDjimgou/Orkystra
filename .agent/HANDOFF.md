@@ -1,3 +1,16 @@
+# Handoff — SPRINT-33 réellement vert via CI distante (2026-10-02)
+
+## État courant
+
+- SPRINT-33 est `DONE` avec une preuve distante réelle : run `36993883034`, six jobs verts (backend, web, e2e, android, compose, gouvernance). Prochain sprint éligible : SPRINT-34 `PLANNED` (Realistic Fleet Simulation).
+- Correction de vérité dépôt : la clôture du 2026-10-01 n'était pas reproductible. `scripts/agent/verify_state_consistency.py` était référencé mais absent de Git (`.gitignore` ignorait `scripts/agent/`) ; `setup-android@v3` échouait ; l'étape MinIO CI utilisait des images supprimées et ne provisionnait ni KMS SSE-S3 ni l'identité média.
+- Réparations : script de consistance + tests unitaires, `fetch-depth: 0` et étape de tests de consistance, `setup-android@v4`, images `bitnamilegacy` épinglées par digest avec KMS et provisioning bucket/utilisateur/policy (D-024).
+- Les documents d'état (`PROJECT_STATE.json`, `QUALITY_REPORT.md`, `VALIDATION.md`, `CHANGELOG.md`) ont été corrigés pour refléter la preuve CI.
+
+## Reprise
+
+`Start Next Sprint` sélectionne SPRINT-34 dans un contexte neuf.
+
 # Handoff — SPRINT-33 terminé (2026-10-01)
 
 ## État courant
