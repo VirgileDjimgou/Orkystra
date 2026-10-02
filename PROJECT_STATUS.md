@@ -1,16 +1,16 @@
 # Project Status
 
-Last updated: 2026-07-14
+Last updated: 2026-10-02
 
 ## Current Sprint
 
-Sprint 200 - Release reproducibility and verification completeness
+Sprint 201 - Commit release-memory files and first real remote CI push
 
-Status: Completed
+Status: Completed with a documented divergence blocker
 
 ## Previous Sprint
 
-Sprint 199 - Release tag preparation or remote CI verification
+Sprint 200 - Release reproducibility and verification completeness
 
 Status: Completed
 
@@ -29,6 +29,10 @@ The release-candidate stack now has a post-release-candidate maturity checkpoint
 
 ## Completed
 
+- Completed Sprint 201 release-memory commit and remote CI confirmation attempt.
+- Committed the release-required memory files (`.gitignore` un-ignore, `AGENTS.md`, `CURRENT_STATE.md`, `README.md`, `backend/Orkystra.slnx`, `IMPLEMENTATION_ROADMAP.md`, `PROJECT_STATUS.md`, `constitution/`, `prompts/`) as commit `4453898`, after verifying the release preflight with `-AllowDirtyWorktree` and again on the clean tree.
+- The push to `origin/main` was rejected because the remote main had been force-updated to an unrelated FleetOps lineage (`ea529f6`, 2026-09-30) with no common ancestor. Per user decision, the commit was pushed to the new remote branch `release/rc-preflight-cleanup` instead of rewriting remote history.
+- Remote CI confirmation remains blocked until a human decides which lineage is canonical; the remote FleetOps `main` CI is currently failing on its latest push, independent of the Orkystra lineage.
 - Completed Sprint 200 release reproducibility and verification completeness.
 - Un-ignored the release-required memory files (`prompts/`, `constitution/`, `PROJECT_STATUS.md`, `IMPLEMENTATION_ROADMAP.md`) in `.gitignore`, keeping the genuinely-private authoring artifacts (`docs/blueprints/`, `docs/methodology/`, `docs/adr/0001-project-execution-model.md`) ignored.
 - Added `Orkystra.Integration.Tests` to `backend/Orkystra.slnx` so the manifest's `dotnet test backend/Orkystra.slnx` command now covers all 158 backend tests (143 domain + 15 integration) instead of only the 143 domain tests.

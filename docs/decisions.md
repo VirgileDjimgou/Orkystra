@@ -9,6 +9,12 @@
 - MQTT stays the event backbone for the packaged self-host flow.
 - The next maturity increments should favor reusable operational flows over isolated visual polish.
 
+## Remote Lineage Decisions
+
+- The remote `main` was force-updated to an unrelated FleetOps hosted-demo lineage (`ea529f6`, 2026-09-30) with no common ancestor with the local Orkystra release-candidate history; remote history must not be rewritten before a human decides the canonical lineage.
+- The Sprint 201 release-memory commit (`4453898`) is preserved on remote branch `release/rc-preflight-cleanup` until the lineage decision is made.
+- No `v0.1.0-rc.1` tag may be cut until CI is confirmed on the agreed canonical lineage.
+
 ## Session Continuity Decisions
 
 - `AGENTS.md` defines the repository workflow.

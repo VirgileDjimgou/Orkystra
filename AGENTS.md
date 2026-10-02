@@ -72,4 +72,4 @@ A sprint is complete only when:
 ## Current Focus
 
 The repository is in the post-release-candidate maturity phase.
-The next planned sprint is Sprint 201: commit release-memory files and confirm the first real remote CI push.
+The next planned sprint is Sprint 202: resolve the remote lineage divergence and confirm CI on the canonical lineage. It is blocked on a human decision because `origin/main` was force-updated to an unrelated FleetOps history; the Orkystra release-memory commit is preserved on remote branch `release/rc-preflight-cleanup`.

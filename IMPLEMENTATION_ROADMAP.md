@@ -3634,3 +3634,48 @@ Implemented notes:
 - Added `Orkystra.Integration.Tests` to `backend/Orkystra.slnx` so the manifest's `dotnet test backend/Orkystra.slnx` command now runs 158 tests (143 domain + 15 integration) instead of only 143.
 - Verified release preflight passes with all checks green, including the manifest artifact set.
 - Verified backend (158 tests), frontend (39 modules), and Python (17 tests) all pass.
+
+## Sprint 201 - Commit release-memory files and first real remote CI push
+
+Status: Completed with a documented divergence blocker
+
+Goal:
+Commit the release-required memory files and confirm the CI workflow on a real remote GitHub Actions push.
+
+Deliverables:
+
+- Commit the release-memory files from Sprint 200.
+- Verify the release preflight on a clean tree.
+- Push to the remote and confirm the three CI jobs pass.
+
+Exit criteria:
+
+- The release-memory commit exists on the remote for the canonical lineage.
+- All three remote CI jobs (Python, Backend, Frontend) pass on that push.
+
+Implemented notes:
+
+- Committed the release-required memory files (`.gitignore` un-ignore, `AGENTS.md`, `CURRENT_STATE.md`, `README.md`, `backend/Orkystra.slnx`, `IMPLEMENTATION_ROADMAP.md`, `PROJECT_STATUS.md`, `constitution/`, `prompts/`) as `4453898`.
+- Verified the release preflight passes with `-AllowDirtyWorktree` before the commit and without it on the clean tree after the commit.
+- The push to `origin/main` was rejected: the remote main had been force-updated to an unrelated lineage (`ea529f6`, FleetOps hosted-demo history, 2026-09-30) with no common ancestor with the Orkystra history.
+- Per user decision, the commit was pushed to the new remote branch `release/rc-preflight-cleanup`; remote history was not rewritten.
+- Remote CI confirmation is deferred to Sprint 202 because the canonical lineage is undecided, and the remote FleetOps `main` CI is currently failing on its own latest push.
+
+## Sprint 202 - Resolve remote lineage divergence and confirm CI on the canonical lineage
+
+Status: Blocked on human decision
+
+Goal:
+Decide which history is canonical (local Orkystra release-candidate lineage versus remote FleetOps hosted-demo lineage), reconcile the repository accordingly, and confirm CI on the chosen lineage.
+
+Deliverables:
+
+- Human decision on the canonical lineage.
+- If Orkystra is canonical: restore/repoint `main` from `release/rc-preflight-cleanup` (or equivalent) and confirm CI.
+- If FleetOps is canonical: adopt it locally, archive the Orkystra lineage, and confirm CI.
+- Then cut the `v0.1.0-rc.1` tag from a clean tree.
+
+Exit criteria:
+
+- One canonical lineage is agreed and CI is green on it.
+- The release-memory work of Sprint 201 is not lost.
