@@ -19,6 +19,7 @@ env:
   MINIO_ROOT_PASSWORD: fleetops-ci-root-secret
   MINIO_ACCESS_KEY: fleetops-media-ci
   MINIO_SECRET_KEY: fleetops-media-ci-secret-0123456789
+  MINIO_KMS_KEY: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
 
 jobs:
   backend:
@@ -42,16 +43,21 @@ jobs:
         run: dotnet test FleetOps.slnx --no-build -c Release --filter "Category!=SqlServer&Category!=Minio"
       - name: Reliability tests
         run: dotnet test tests/backend/FleetOps.UnitTests/FleetOps.UnitTests.csproj --no-build -c Release --filter "Category=Reliability&Category!=SqlServer"
-      - name: Start MinIO and create the private bucket
+      - name: Start MinIO and create the private bucket and media identity
         run: |
+          MINIO_IMAGE="bitnamilegacy/minio:2025.7.23-debian-12-r5@sha256:6dabb4a2088c9a79908de3bc05f4586c23ad2182c8908e7e3acbf61c1467fb20"
+          MC_IMAGE="bitnamilegacy/minio-client:2025.7.21-debian-12-r3@sha256:73bd39f7899a0cef12b8dd5df13aa93a3ed1aaa44236542442e9ac76819ac158"
           for attempt in $(seq 1 5); do
-            if docker pull minio/minio; then break; fi
+            if docker pull "$MINIO_IMAGE"; then break; fi
             sleep 10
           done
           docker run -d --name fleetops-minio -p 9010:9000 \
+            --entrypoint /opt/bitnami/minio/bin/minio \
             -e MINIO_ROOT_USER="$MINIO_ROOT_USER" \
             -e MINIO_ROOT_PASSWORD="$MINIO_ROOT_PASSWORD" \
-            minio/minio server /data
+            -e MINIO_KMS_SECRET_KEY="fleetops:$MINIO_KMS_KEY" \
+            -e MINIO_KMS_AUTO_ENCRYPTION=on \
+            "$MINIO_IMAGE" server /bitnami/minio/data --address ":9000" --console-address ":9001"
           healthy=0
           for attempt in $(seq 1 30); do
             if curl -fsS http://127.0.0.1:9010/minio/health/live >/dev/null; then
@@ -66,12 +72,21 @@ jobs:
             exit 1
           fi
           for attempt in $(seq 1 5); do
-            if docker pull minio/mc; then break; fi
+            if docker pull "$MC_IMAGE"; then break; fi
             sleep 10
           done
-          docker run --rm --network host \
-            -e MC_HOST_local="http://$MINIO_ROOT_USER:$MINIO_ROOT_PASSWORD@127.0.0.1:9010" \
-            minio/mc mb --ignore-existing local/fleetops-private-media
+          MC_HOST_LOCAL="http://$MINIO_ROOT_USER:$MINIO_ROOT_PASSWORD@127.0.0.1:9010"
+          docker run --rm --network host -e MC_HOST_local="$MC_HOST_LOCAL" \
+            "$MC_IMAGE" mc mb --ignore-existing local/fleetops-private-media
+          docker run --rm --network host -e MC_HOST_local="$MC_HOST_LOCAL" \
+            "$MC_IMAGE" mc anonymous set none local/fleetops-private-media
+          docker run --rm --network host -e MC_HOST_local="$MC_HOST_LOCAL" \
+            "$MC_IMAGE" mc admin user add local "$MINIO_ACCESS_KEY" "$MINIO_SECRET_KEY"
+          docker run --rm --network host -e MC_HOST_local="$MC_HOST_LOCAL" \
+            -v "$PWD/infrastructure/minio/fleetops-media-policy.json:/policy.json:ro" \
+            "$MC_IMAGE" mc admin policy create local fleetops-media /policy.json
+          docker run --rm --network host -e MC_HOST_local="$MC_HOST_LOCAL" \
+            "$MC_IMAGE" mc admin policy attach local fleetops-media --user "$MINIO_ACCESS_KEY"
       - name: MinIO contract test
         env:
           FLEETOPS_TEST_MINIO_ENDPOINT: http://127.0.0.1:9010
