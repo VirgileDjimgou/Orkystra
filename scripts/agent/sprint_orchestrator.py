@@ -87,11 +87,13 @@ def next_eligible_sprint(state: dict[str, Any], root: pathlib.Path = ROOT) -> st
     return None
 
 
-def git_is_clean(root: pathlib.Path) -> bool:
+def git_is_clean(root: pathlib.Path, allowed_paths: set[str] | None = None) -> bool:
     result = subprocess.run(
         ["git", "status", "--porcelain"], cwd=root, capture_output=True, text=True, check=True
     )
-    return result.stdout.strip() == ""
+    allowed = allowed_paths or set()
+    dirty_paths = [line[3:] for line in result.stdout.splitlines() if line.strip()]
+    return all(path in allowed for path in dirty_paths)
 
 
 def read_lock(root: pathlib.Path = ROOT) -> dict[str, Any] | None:
@@ -120,7 +122,10 @@ def assert_start_allowed(root: pathlib.Path, state: dict[str, Any]) -> None:
         raise SprintGateError(
             f"Sprint lock held by {owner} is stale; use resolve-gate after human review rather than stealing it."
         )
-    if not git_is_clean(root):
+    current_sprint = state.get("activeSprint")
+    is_resuming_partial = current_sprint and state["sprints"].get(current_sprint) == "PARTIAL"
+    allowed_paths = {".agent/PROJECT_STATE.json"} if is_resuming_partial else set()
+    if not git_is_clean(root, allowed_paths):
         raise SprintGateError("Working tree is not clean; inspect, checkpoint, or resolve unrelated changes before starting.")
     execution = state["execution"]
     if execution["status"] in {"RUNNING", "VALIDATING"}:
