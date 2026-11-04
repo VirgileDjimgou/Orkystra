@@ -82,8 +82,10 @@ public sealed class ObservabilityReliabilityTests
         Assert.Contains(collector.Records, record => record.Instrument == "fleetops.tracking.ingest.duration" && record.Value >= 0);
     }
 
-    [Fact]
-    public async Task HostedDemoEngineLoopRecordsTickAndEmissionMetrics()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task HostedDemoEngineLoopRecordsTickAndEmissionMetrics(bool legacySnapshot)
     {
         using var collector = new MetricCollector();
         var organizationId = Guid.NewGuid();
@@ -92,12 +94,14 @@ public sealed class ObservabilityReliabilityTests
             .ToList();
         var emitter = new RecordingEmitter();
         var engine = new DeterministicDemoScenarioEngine(new DeterministicDemoClock(DateTimeOffset.UtcNow));
+        var source = new StubFleetSource(new DemoFleetDefinition(organizationId, bindings));
+        var store = new NullStateStore(legacySnapshot ? new DemoScenarioSnapshot(engine.State, DateTimeOffset.UtcNow) : null);
         var service = new DemoScenarioHostedService(
             engine,
             new DemoScenarioCatalog(),
             emitter,
-            new StubFleetSource(new DemoFleetDefinition(organizationId, bindings)),
-            new NullStateStore(),
+            source,
+            store,
             Options.Create(new DemoEngineOptions
             {
                 Enabled = true,
@@ -134,6 +138,8 @@ public sealed class ObservabilityReliabilityTests
                 && record.Value >= 10);
         Assert.Contains(collector.Records, record => record.Instrument == "fleetops.demo.engine.tick.duration");
         Assert.Contains(collector.Records, record => record.Instrument == "fleetops.demo.engine.state.save.duration");
+        Assert.Equal(legacySnapshot, source.WasReset);
+        Assert.Equal(legacySnapshot, store.WasCleared);
     }
 
     private static bool HasTag(MetricRecord record, string key, string value) =>
@@ -180,14 +186,17 @@ public sealed class ObservabilityReliabilityTests
 
     private sealed class StubFleetSource(DemoFleetDefinition fleet) : IDemoFleetSource
     {
+        public bool WasReset { get; private set; }
+        public Task ResetTrackingAsync(CancellationToken cancellationToken) { WasReset = true; return Task.CompletedTask; }
         public Task<DemoFleetDefinition> LoadAsync(CancellationToken cancellationToken) => Task.FromResult(fleet);
     }
 
-    private sealed class NullStateStore : IDemoScenarioStateStore
+    private sealed class NullStateStore(DemoScenarioSnapshot? snapshot = null) : IDemoScenarioStateStore
     {
-        public Task<DemoScenarioSnapshot?> LoadAsync(CancellationToken cancellationToken) => Task.FromResult<DemoScenarioSnapshot?>(null);
+        public bool WasCleared { get; private set; }
+        public Task<DemoScenarioSnapshot?> LoadAsync(CancellationToken cancellationToken) => Task.FromResult(snapshot);
         public Task SaveAsync(DemoScenarioSnapshot snapshot, CancellationToken cancellationToken) => Task.CompletedTask;
-        public Task ClearAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task ClearAsync(CancellationToken cancellationToken) { WasCleared = true; return Task.CompletedTask; }
     }
 }
 

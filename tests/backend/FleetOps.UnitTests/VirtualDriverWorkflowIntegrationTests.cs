@@ -39,7 +39,21 @@ public sealed class VirtualDriverWorkflowIntegrationTests(FleetOpsApiFactory fac
         var sink = new Sink();
         var agent = new VirtualDriverAgent(identity, new DeterministicAgentDecisionProvider(), tools, sink);
 
-        for (var tick = 1; tick <= 6; tick++)
+        for (var tick = 1; tick <= 2; tick++)
+            await agent.StepAsync(DemoScenarioKind.NormalShift, tick, DateTimeOffset.UtcNow.AddSeconds(tick), default);
+
+        await agent.StepAsync(DemoScenarioKind.NormalShift, 3, DateTimeOffset.UtcNow.AddSeconds(3), default);
+        Assert.Equal(VirtualDriverState.EnRoute, agent.State);
+        Assert.Equal("awaiting-route-anchor", sink.Activities[^1].ResultCode);
+        using var ingestionClient = factory.CreateClient();
+        var fleet = (await ingestionClient.GetFromJsonAsync<FleetOps.Api.Tracking.TrackingScenarioResponse>("/api/internal/v1/tracking/scenarios/northwind?maxVehicles=20"))!;
+        var vehicle = fleet.Vehicles.Single(item => item.VehicleId == mission.VehicleId);
+        var anchor = DemoMissionAnchor.Resolve("demo-route:neckar-logistics:1")!;
+        var telemetry = await ingestionClient.PostAsJsonAsync("/api/internal/v1/tracking/events", new FleetOps.Api.Tracking.IngestTelemetryRequest(
+            mission.OrganizationId, mission.VehicleId, vehicle.DeviceId, "anchor-arrival", DateTimeOffset.UtcNow,
+            anchor.Latitude, anchor.Longitude, 0, 90, 1));
+        telemetry.EnsureSuccessStatusCode();
+        for (var tick = 4; tick <= 7; tick++)
             await agent.StepAsync(DemoScenarioKind.NormalShift, tick, DateTimeOffset.UtcNow.AddSeconds(tick), default);
 
         Assert.True(agent.State == VirtualDriverState.Completed, string.Join(" | ", sink.Activities.Select(activity => $"{activity.Action}:{activity.ResultCode}:{activity.ResultMessage}")));
@@ -54,7 +68,7 @@ public sealed class VirtualDriverWorkflowIntegrationTests(FleetOpsApiFactory fac
         var start = DateTimeOffset.UtcNow.AddHours(1);
         using var create = await client.PostAsJsonAsync("/api/v1/dispatch/missions", new CreateMissionRequest(
             "VIRTUAL-DRIVER-28", "Autonomous synthetic delivery", start, start.AddHours(1),
-            [new MissionStopRequest(1, "Synthetic recipient", "28 Agent Way", start.AddMinutes(30))]));
+            [new MissionStopRequest(1, "Synthetic recipient", "demo-route:neckar-logistics:1", start.AddMinutes(30))]));
         create.EnsureSuccessStatusCode();
         var draft = (await create.Content.ReadFromJsonAsync<MissionDetailResponse>())!;
         using var plannedResponse = await client.PostAsJsonAsync($"/api/v1/dispatch/missions/{draft.Id}/status", new TransitionMissionStatusRequest(MissionStatus.Planned, draft.RowVersion));

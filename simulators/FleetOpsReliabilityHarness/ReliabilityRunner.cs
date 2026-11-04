@@ -212,6 +212,8 @@ public sealed class ReliabilityRunner(ReliabilityOptions options) : IDisposable
         var passed = missing == 0
             && advanced == scenario.Vehicles.Count
             && metricsAfter.AcceptedCount > metricsBefore.AcceptedCount
+            && metricsAfter.RejectedCount == metricsBefore.RejectedCount
+            && metricsAfter.OutOfOrderCount == metricsBefore.OutOfOrderCount
             && _httpErrors == 0
             && (!options.SignalR || (signalRMessages > 0 && signalRCoverage == scenario.Vehicles.Count));
 

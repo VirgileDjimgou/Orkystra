@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using FleetOps.Core.Modules.Demo;
+using FleetOps.Core.Modules.Tracking;
 using Microsoft.Extensions.Options;
 
 namespace FleetOps.Worker.Demo;
@@ -64,6 +65,20 @@ public sealed class HttpVirtualDriverTools(IHttpClientFactory clients, IOptions<
         var client = DriverClient(command.Identity.DriverId);
         var mission = await client.GetFromJsonAsync<MissionDetail>($"/api/v1/driver/missions/{command.Identity.MissionId}", cancellationToken)
             ?? throw new HttpRequestException("Mission returned no content.");
+        if (action == 2)
+        {
+            var stop = mission.Stops?.FirstOrDefault(item => item.Id == command.Identity.StopId);
+            if (stop?.Address.StartsWith("demo-route:", StringComparison.Ordinal) == true)
+            {
+                var anchor = DemoMissionAnchor.Resolve(stop.Address);
+                if (anchor is null) return new(false, false, "invalid-anchor", "Synthetic stop has an invalid route anchor.");
+                var positions = await OperatorClient().GetFromJsonAsync<List<Position>>("/api/v1/tracking/positions", cancellationToken);
+                var position = positions?.FirstOrDefault(item => item.VehicleId == command.Identity.VehicleId);
+                if (position is null || position.SpeedKph > 1 || TrackingGeometry.DistanceKm(position.Latitude, position.Longitude, anchor.Latitude, anchor.Longitude) > 0.025
+                    || Math.Abs((position.RecordedAtUtc - command.OccurredAtUtc).TotalSeconds) > 60)
+                    return new(false, true, "awaiting-route-anchor", "Vehicle is travelling to the synthetic mission stop.");
+            }
+        }
         using var response = await client.PostAsJsonAsync($"/api/v1/driver/missions/{command.Identity.MissionId}/commands", new
         {
             CommandId = command.IdempotencyKey,
@@ -127,7 +142,9 @@ public sealed class HttpVirtualDriverTools(IHttpClientFactory clients, IOptions<
 
     private sealed record ChecklistItem(int Sequence, string Code, string Label);
     private sealed record InspectionWorkflow(IReadOnlyList<ChecklistItem> ChecklistItems);
-    private sealed record MissionDetail(long RowVersion);
+    private sealed record MissionDetail(long RowVersion, IReadOnlyList<Stop>? Stops = null);
+    private sealed record Stop(Guid Id, string Address);
+    private sealed record Position(Guid VehicleId, double Latitude, double Longitude, double SpeedKph, DateTimeOffset RecordedAtUtc);
     private sealed record UploadSession(Guid UploadSessionId);
     private sealed record CompletedUpload(Guid AssetId);
 }

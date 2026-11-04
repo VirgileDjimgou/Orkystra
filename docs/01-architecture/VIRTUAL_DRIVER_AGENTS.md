@@ -14,6 +14,8 @@ Tools are typed capabilities such as assignment lookup, inspection submission, m
 
 The activity trace contains structured observed state, policy trigger, selected tool/action, and result. It must never store hidden reasoning or sensitive media payloads. Tenant-scoped activity may be presented through the existing realtime pattern in the cockpit dock.
 
+The deterministic Demo fleet follows three out-and-back routes and one closed loop, with 20 logical seconds of dwell at each vertex. Synthetic stops may use `demo-route:<route-id>:<vertex-index>` addresses resolved from the same Core geometry as tracking. The arrival tool returns a retryable `awaiting-route-anchor` until the vehicle has a recent, stopped position within 25 m of that stop; an invalid tagged anchor is a terminal configuration error. This preserves the pending idempotency key while travelling. Inspection, arrival, proof and completion use the existing tenant-authorized application workflows. Hosted identity provisioning remains Sprint 37 scope.
+
 ## Sprint 28 implementation
 
 The default `DeterministicAgentDecisionProvider` maps the explicit lifecycle to typed actions and injects repeatable delay, vehicle-issue, and connectivity-loss branches from the Demo scenario and logical tick. `VirtualDriverAgentCoordinator` advances agents concurrently; a retryable failure preserves state and reuses the same idempotency key, while a non-retryable failure enters `BLOCKED`.

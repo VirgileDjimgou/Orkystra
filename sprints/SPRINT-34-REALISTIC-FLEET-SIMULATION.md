@@ -2,7 +2,7 @@
 
 ## Status
 
-`PLANNED`
+`DONE`
 
 ## 1. Objective
 
@@ -97,11 +97,13 @@ Make the synthetic fleet physically credible and permanently watchable: no telep
 
 ## Acceptance criteria
 
-- [ ] Closed/continuous routes remove every end-of-route teleportation.
-- [ ] Interpolated positions, heading, and speed are physically coherent in normal operation.
-- [ ] Mission stops align with route geometry and arrival events.
-- [ ] The five scenarios remain deterministic and replayable.
-- [ ] A >= 20-vehicle scenario runs without false impossible-displacement rejections.
-- [ ] Worker restart resumes coherently with no teleportation.
-- [ ] SignalR, current positions, and history remain consistent.
-- [ ] Unit/integration tests and the full quality gate pass.
+- [x] Closed/continuous routes remove every end-of-route teleportation.
+- [x] Interpolated positions, heading, and speed are physically coherent in normal operation.
+- [x] Mission stops align with route geometry and arrival events.
+- [x] The five scenarios remain deterministic and replayable.
+- [x] A >= 20-vehicle scenario runs without false impossible-displacement rejections.
+- [x] Worker restart resumes coherently with no teleportation.
+- [x] SignalR, current positions, and history remain consistent.
+- [x] Unit/integration tests and the full quality gate pass.
+
+Measured evidence, captured wrap trace, replay and canonical API tests: `docs/02-engineering/SPRINT34_SIMULATION_EVIDENCE.md`.

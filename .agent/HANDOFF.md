@@ -1,4 +1,16 @@
-# Handoff — SPRINT-33 réellement vert via CI distante (2026-10-02)
+# Handoff — Sprint 34 terminé (2026-11-04)
+
+Sprint 34 est DONE après la gate locale complète `.runtime/sprint34-quality-gate.log`. Toutes les acceptations sont cochées. Prochain sprint : Sprint 35 Operations Control Tower UX, PLANNED ; quatre sprints restent (35–38). Aucune implémentation Sprint 35 n'est incluse et aucun worker d'implémentation ne tourne en arrière-plan.
+
+Livré : routes fermées ; cinématique analytique par temps et distance ; vitesse dérivée, dwell 20 secondes, cap stable ; ancrages de missions synthétiques et attente d'arrivée ; snapshots v2 avec reset canonique explicite des anciens états ; harnais exigeant zéro nouveau rejet qualité en observation.
+
+Preuves : 193 tests backend, 12 Reliability, MinIO et six SQL Server ; simulation 33 étapes ; Web 32 tests et dix E2E ; santé API et Android. Deux essais observateurs avec vingt véhicules et restart réel ont zéro rejet. Le rapport versionné est `docs/02-engineering/SPRINT34_SIMULATION_EVIDENCE.md`.
+
+Réparations intermédiaires : permissions MinIO du bind existant (aucune suppression) et mises à jour npm correctives. Aucun High restant ; seize Moderate dans l'outillage. Au premier redémarrage d'un ancien snapshot, D-025 réinitialise seulement le tracking du tenant synthétique via son contrat interne ; conserver les preuves historiques avant mise à niveau.
+
+Reprise : `Start Next Sprint` sélectionne uniquement Sprint 35, dans un nouveau contexte, avec verrou et journal visibles.
+
+# Historique — SPRINT-33 réellement vert via CI distante (2026-10-02)
 
 ## État courant
 

@@ -19,7 +19,8 @@ public sealed record DemoScenarioState(
     int Seed,
     DateTimeOffset LogicalUtc,
     double SpeedMultiplier,
-    long Tick = 0);
+    long Tick = 0,
+    double MotionSeconds = 0);
 
 public sealed record DemoVehicleBinding(Guid VehicleId, string DeviceId);
 public sealed record DemoFleetDefinition(Guid OrganizationId, IReadOnlyList<DemoVehicleBinding> Vehicles);
@@ -31,7 +32,7 @@ public sealed record DemoScenarioDefinition(
     double NominalSpeedKph,
     int ConnectivityDropEveryTicks = 0);
 
-public sealed record DemoScenarioSnapshot(DemoScenarioState State, DateTimeOffset InitialUtc);
+public sealed record DemoScenarioSnapshot(DemoScenarioState State, DateTimeOffset InitialUtc, int MotionVersion = 1);
 
 public interface IDemoClock
 {
@@ -80,6 +81,7 @@ public interface IDemoTelemetryEmitter
 public interface IDemoFleetSource
 {
     Task<DemoFleetDefinition> LoadAsync(CancellationToken cancellationToken);
+    Task ResetTrackingAsync(CancellationToken cancellationToken) => throw new NotSupportedException("This fleet source cannot reset legacy tracking.");
 }
 
 public sealed record DemoMissionAction(Guid MissionId, MissionStatus TargetStatus, long RowVersion);

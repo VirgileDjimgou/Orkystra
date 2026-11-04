@@ -90,6 +90,22 @@ public sealed class DemoScenarioEngineTests
     }
 
     [Fact]
+    public async Task SpeedProfileIncludesDeterministicDwellAndMovement()
+    {
+        var engine = new DeterministicDemoScenarioEngine(new DeterministicDemoClock(DateTimeOffset.UnixEpoch));
+        var emitter = new RecordingEmitter();
+        var simulator = new DemoFleetSimulator(engine, new DemoScenarioCatalog(), emitter);
+        engine.Start(DemoScenarioKind.NormalShift, 7);
+
+        for (var tick = 0; tick < 240; tick++)
+            await simulator.TickAsync(Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"), CreateVehicles(1), TimeSpan.FromSeconds(5), default);
+
+        Assert.Contains(emitter.Events, item => item.SpeedKph == 0);
+        Assert.Contains(emitter.Events, item => item.SpeedKph is >= 5 and <= 45);
+        Assert.All(emitter.Events, item => Assert.InRange(item.HeadingDegrees, 0, 360));
+    }
+
+    [Fact]
     public async Task RestoredSnapshotContinuesAtTheNextDeterministicTick()
     {
         var initial = new DateTimeOffset(2026, 9, 27, 8, 0, 0, TimeSpan.Zero);

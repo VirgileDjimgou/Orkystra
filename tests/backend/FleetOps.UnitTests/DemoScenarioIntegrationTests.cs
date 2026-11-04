@@ -16,6 +16,39 @@ namespace FleetOps.UnitTests;
 public sealed class DemoScenarioIntegrationTests(FleetOpsApiFactory factory) : IClassFixture<FleetOpsApiFactory>
 {
     [Fact]
+    public async Task TwentyVehiclesRemainReliableThroughThreeHoursAndSnapshotRestart()
+    {
+        await ResetDatabaseAsync();
+        using var client = factory.CreateClient();
+        var fleet = await LoadScenarioAsync(client, "northwind", 20);
+        var engine = new DeterministicDemoScenarioEngine(new DeterministicDemoClock(DateTimeOffset.UtcNow.AddHours(-4)));
+        engine.Start(DemoScenarioKind.NormalShift, 3401);
+        var simulator = new DemoFleetSimulator(engine, new DemoScenarioCatalog(), new ApiTelemetryEmitter(client));
+        var vehicles = fleet.Vehicles.Select(item => new DemoVehicleBinding(item.VehicleId, item.DeviceId)).ToList();
+        for (var tick = 0; tick < 180; tick++)
+        {
+            if (tick == 90)
+            {
+                var restored = new DeterministicDemoScenarioEngine(new DeterministicDemoClock(DateTimeOffset.UtcNow));
+                restored.Restore(engine.Capture());
+                engine = restored;
+                simulator = new(engine, new DemoScenarioCatalog(), new ApiTelemetryEmitter(client));
+            }
+            Assert.Equal(20, await simulator.TickAsync(fleet.OrganizationId, vehicles, TimeSpan.FromSeconds(60), default));
+        }
+        var login = await client.LoginAsync("operator@northwind.local", "Operator123!");
+        client.SetBearer(login.AccessToken);
+        var metrics = (await client.GetFromJsonAsync<TrackingMetricsResponse>("/api/v1/tracking/metrics"))!;
+        Assert.Equal(3600, metrics.AcceptedCount);
+        Assert.Equal(0, metrics.RejectedCount);
+        Assert.Equal(0, metrics.OutOfOrderCount);
+        Assert.Equal(3600, metrics.HistoryPointCount);
+        var positions = (await client.GetFromJsonAsync<List<TrackingPositionResponse>>("/api/v1/tracking/positions"))!;
+        Assert.Equal(20, positions.Count);
+        Assert.All(positions, position => { Assert.Equal(100, position.QualityScore); Assert.Equal(180, position.SequenceNumber); });
+    }
+
+    [Fact]
     public async Task DemoTelemetryTraversesCanonicalIngestionAndRemainsTenantScoped()
     {
         await ResetDatabaseAsync();

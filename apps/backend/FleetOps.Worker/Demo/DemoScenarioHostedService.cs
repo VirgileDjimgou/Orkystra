@@ -32,6 +32,13 @@ public sealed partial class DemoScenarioHostedService(
         DemoFleetSimulator.ValidateBindings(fleet.OrganizationId, vehicles);
         var simulator = new DemoFleetSimulator(engine, scenarios, telemetryEmitter);
         var snapshot = await stateStore.LoadAsync(stoppingToken);
+        if (snapshot is not null && snapshot.MotionVersion != 2)
+        {
+            await fleetSource.ResetTrackingAsync(stoppingToken);
+            await stateStore.ClearAsync(stoppingToken);
+            Log.LegacyMotionReset(logger);
+            snapshot = null;
+        }
         if (snapshot is null)
         {
             engine.Start(ParseScenario(settings.Scenario), settings.Seed, settings.SpeedMultiplier);
@@ -84,6 +91,8 @@ public sealed partial class DemoScenarioHostedService(
 
     private static partial class Log
     {
+        [LoggerMessage(EventId = 2705, Level = LogLevel.Information, Message = "Legacy Demo motion snapshot invalidated after canonical synthetic tracking reset; starting motion version 2.")]
+        public static partial void LegacyMotionReset(ILogger logger);
         [LoggerMessage(EventId = 2701, Level = LogLevel.Information, Message = "Demo scenario engine is disabled.")]
         public static partial void EngineDisabled(ILogger logger);
 

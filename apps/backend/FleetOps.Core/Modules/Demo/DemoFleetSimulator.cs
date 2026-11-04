@@ -1,6 +1,3 @@
-using System.Security.Cryptography;
-using System.Text;
-
 namespace FleetOps.Core.Modules.Demo;
 
 public sealed class DemoFleetSimulator(
@@ -35,12 +32,9 @@ public sealed class DemoFleetSimulator(
 
             var binding = vehicles[index];
             var route = scenario.Routes[index % scenario.Routes.Count];
-            var seedOffset = PositiveModulo(state.Seed * 31L + index * 97L, 10_000) / 10_000d;
-            var movement = CalculateMovement(seedOffset, index, state.Tick);
-            var point = route.InterpolateContinuous(movement.Progress);
-            var heading = CalculateHeading(
-                route.InterpolateContinuous(movement.IsDwelling ? movement.Progress - 0.001 : movement.Progress),
-                route.InterpolateContinuous(movement.IsDwelling ? movement.Progress : movement.Progress + 0.001));
+            var variation = 0.9 + ((state.Seed + (long)index) % 10 + 10) % 10 / 100d;
+            var movement = DemoRouteMotion.Sample(route, state.MotionSeconds, scenario.NominalSpeedKph * variation);
+            var point = movement.Position;
             var eventId = $"demo-{state.Seed}-{index:D2}-{state.Tick:D10}";
             await telemetryEmitter.EmitAsync(new(
                 organizationId,
@@ -50,8 +44,8 @@ public sealed class DemoFleetSimulator(
                 state.LogicalUtc,
                 point.Latitude,
                 point.Longitude,
-                movement.IsDwelling ? 0 : CalculateSpeed(scenario.NominalSpeedKph, movement.SegmentProgress, state.Seed, index, state.Tick),
-                heading,
+                movement.SpeedKph,
+                movement.HeadingDegrees,
                 state.Tick), cancellationToken);
             emitted++;
         }
@@ -70,44 +64,4 @@ public sealed class DemoFleetSimulator(
             throw new ArgumentException("Demo vehicle and device identifiers must be unique.", nameof(vehicles));
     }
 
-    private static int PositiveModulo(long value, int divisor) => (int)((value % divisor + divisor) % divisor);
-
-    private static Movement CalculateMovement(double seedOffset, int vehicleIndex, long tick)
-    {
-        const int halfCycleTicks = 120;
-        const int dwellTicks = 4;
-        var phase = PositiveModulo(tick + vehicleIndex * 13L, halfCycleTicks * 2);
-        if (phase < dwellTicks) return new(seedOffset, 0, true);
-        if (phase < halfCycleTicks)
-        {
-            var progress = (phase - dwellTicks) / (double)(halfCycleTicks - dwellTicks);
-            return new(seedOffset + progress * 0.5, progress, false);
-        }
-        if (phase < halfCycleTicks + dwellTicks) return new(seedOffset + 0.5, 1, true);
-        var returnProgress = (phase - halfCycleTicks - dwellTicks) / (double)(halfCycleTicks - dwellTicks);
-        return new(seedOffset + 0.5 + returnProgress * 0.5, returnProgress, false);
-    }
-
-    private static double CalculateSpeed(double nominalSpeedKph, double segmentProgress, int seed, int vehicleIndex, long tick) =>
-        Math.Round(Math.Max(5, nominalSpeedKph * (0.25 + 0.75 * Math.Sin(Math.PI * Math.Clamp(segmentProgress, 0, 1))) + DeterministicJitter(seed, vehicleIndex, tick)), 2);
-
-    private static double DeterministicJitter(int seed, int vehicleIndex, long tick)
-    {
-        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes($"{seed}:{vehicleIndex}:{tick}"));
-        return (bytes[0] / 255d - 0.5d) * 4d;
-    }
-
-    private static double CalculateHeading(DemoRoutePoint from, DemoRoutePoint to)
-    {
-        var latitude1 = DegreesToRadians(from.Latitude);
-        var latitude2 = DegreesToRadians(to.Latitude);
-        var longitudeDelta = DegreesToRadians(to.Longitude - from.Longitude);
-        var y = Math.Sin(longitudeDelta) * Math.Cos(latitude2);
-        var x = Math.Cos(latitude1) * Math.Sin(latitude2) - Math.Sin(latitude1) * Math.Cos(latitude2) * Math.Cos(longitudeDelta);
-        return (RadiansToDegrees(Math.Atan2(y, x)) + 360d) % 360d;
-    }
-
-    private static double DegreesToRadians(double value) => value * Math.PI / 180d;
-    private static double RadiansToDegrees(double value) => value * 180d / Math.PI;
-    private sealed record Movement(double Progress, double SegmentProgress, bool IsDwelling);
 }

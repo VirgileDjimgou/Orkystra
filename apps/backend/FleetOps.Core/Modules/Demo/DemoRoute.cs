@@ -18,7 +18,7 @@ public sealed record DemoRoute(string Id, IReadOnlyList<DemoRoutePoint> Points)
 
     public DemoRoutePoint InterpolateContinuous(double progress)
     {
-        if (Points.Count < 3) throw new InvalidOperationException("A continuous demo route requires at least three points.");
+        if (Points.Count < 3 || Points[0] != Points[^1]) throw new InvalidOperationException("A continuous demo route must be closed with at least three points.");
         var normalized = progress - Math.Floor(progress);
         var segmentCount = Points.Count - 1;
         var scaled = normalized * segmentCount;

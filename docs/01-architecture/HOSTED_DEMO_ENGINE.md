@@ -18,7 +18,19 @@ The engine must use real application/domain contracts for missions, inspections,
 
 `FleetOps.Worker` hosts the engine, which is disabled by default. Activation fails closed unless `DemoEngine:RuntimeMode` is `Demo`, side effects are sandboxed, the API URL is absolute, and fleet discovery returns 10–20 active vehicle/device assignments. Northwind's development seed contains 20 synthetic assignments (Sprint 31 extended it from 12 so the engine can run at its 20-vehicle maximum). The internal scenario endpoint keeps its historical three-vehicle default and accepts a bounded `maxVehicles=3..20` query for the hosted engine.
 
-Each tick advances one shared logical clock, interpolates the local Stuttgart-area polylines, and posts telemetry to `/api/internal/v1/tracking/events`. Mission transitions use `IDemoMissionEmitter` and the authenticated `/api/v1/dispatch/missions/{id}/status` workflow; the access token must be short-lived configuration and is never stored in source or logs. State is written atomically to `.runtime/demo-engine-state.json`, so a Worker restart resumes at the next deterministic tick.
+Each tick advances one shared logical clock and posts telemetry to `/api/internal/v1/tracking/events`. Sprint 34 uses the analytical route model below. Mission transitions use `IDemoMissionEmitter` and the authenticated `/api/v1/dispatch/missions/{id}/status` workflow. State is written atomically to `.runtime/demo-engine-state.json`, so a Worker restart resumes at the next deterministic tick.
+
+## Sprint 34 route and restart model
+
+Neckar, airport, and west-industrial routes return over their outbound vertices; Fellbach retains its closed loop. All five scenarios use these fixtures. No external road service is involved; connecting lines are synthetic corridors, not turn-by-turn road routing.
+
+`DemoRouteMotion` samples accumulated logical seconds rather than tick count. For a segment of length L and seeded target speed V, travel duration is `π L / (2 V)` (with consistent units), position progress is `(1-cos(πt/T))/2`, and speed is `V sin(πt/T)`. Thus the reported speed is the derivative of distance travelled, starts/ends at zero, and never exceeds the scenario target. The seed and vehicle index choose 90–99% of nominal speed. Each vertex has a 20-logical-second dwell, retaining incoming bearing; the outgoing bearing is selected on departure. Geometry, timestamps, motion phase and identifiers replay deterministically, including variable tick intervals.
+
+Synthetic mission addresses `demo-route:<route-id>:<vertex-index>` identify fixture anchors without changing the business stop or telemetry schema. Fresh public-demo missions use Neckar vertices 0 (depot) and 1 (customer). The virtual-driver arrival tool waits for a tenant-filtered position within 25 m, speed at most 1 km/h, and time difference at most 60 seconds. Unknown synthetic anchors fail explicitly. Ordinary mission addresses retain the existing workflow. Arrival, proof and completion still go through real application contracts.
+
+Snapshot v2 persists `MotionSeconds`. A v1 snapshot cannot faithfully resume the former discontinuous geometry. Before invalidating it, the hosted Worker calls the existing bounded tracking reset for its configured synthetic tenant; failure leaves the snapshot intact and startup fails. It then starts v2 and logs event 2705. Normal v2 restarts preserve the phase without reset. This rollout deliberately removes legacy synthetic tracking history through the canonical reset, not business missions or media (decision D-025). Back up legacy evidence before upgrading; rollback to the old motion requires another isolated tracking reset.
+
+Evidence and captured wrap trace: `docs/02-engineering/SPRINT34_SIMULATION_EVIDENCE.md`.
 
 Minimal local configuration (environment variables):
 

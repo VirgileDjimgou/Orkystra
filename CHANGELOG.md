@@ -4,6 +4,9 @@ Toutes les modifications fonctionnelles significatives sont documentées ici.
 
 ## Unreleased
 
+- Sprint 34: physically coherent deterministic Demo motion with distance-based interpolation, seeded bounded speed, 20-second vertex dwell, stable stopping heading, closed routes, and versioned restart state. Synthetic mission stops share route anchors; virtual-driver arrival waits for recent stopped telemetry at the declared stop. Legacy motion snapshots trigger an explicit canonical synthetic tracking reset before migration.
+- Patched compatible Web dependencies (including Vue 3.5.44 and Vite 7.3.7) to resolve newly reported High-severity advisories found by the mandatory Sprint 34 dependency gate.
+
 - Consolidated CI into a single authoritative `release-validation.yml` (backend with real MinIO and SQL Server containers, web, e2e, Android SDK build, compose, agent governance); removed the contradictory `ci.yml`.
 - Cleared all npm advisories (6 → 0) via compatible fixes and a Vitest 5 upgrade; enabled full NuGet vulnerability auditing (`NuGetAuditMode=all`) with warnings as errors.
 - Added `scripts/agent/verify_state_consistency.py` to the quality gate and CI so ROADMAP, machine state and sprint contracts cannot drift.

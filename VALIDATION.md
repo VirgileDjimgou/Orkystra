@@ -22,7 +22,7 @@ A red gate always blocks completion. No test is disabled, skipped without justif
 
 ## Current status
 
-- `SPRINT-00`–`SPRINT-33` are `DONE`; the authoritative confirmation is the remote CI run `36993883034` (2026-10-02, six green jobs). The Sprint 33 local gate claim (`.runtime/sprint33-quality-gate.log`, 2026-10-01) was not reproducible and was superseded by this remote evidence.
+- `SPRINT-00`–`SPRINT-34` are `DONE`. Sprint 34 has a complete local gate (`.runtime/sprint34-quality-gate.log`, 2026-11-04), 20-vehicle restart/quality evidence and the captured route trace in `docs/02-engineering/SPRINT34_SIMULATION_EVIDENCE.md`. No remote CI run is claimed for Sprint 34. The Sprint 33 reference remains remote run `36993883034` (2026-10-02, six green jobs), superseding its non-reproducible 2026-10-01 local claim.
 - `SPRINT-33` (Repository Truth & Green CI) consolidated CI, cleared npm advisories (6 → 0), added the MinIO/SQL Server/Android/audit/governance jobs and the state-consistency check. On 2026-10-02 the missing state-consistency script (blocked by `.gitignore`), the failing Android setup action and the removed MinIO images were repaired and verified remotely (D-024).
 - The post-sprint demo-video pipeline and the Android driver enum fix are committed (`ea529f6`) and covered by the Android unit test suite.
 
@@ -38,4 +38,4 @@ A red gate always blocks completion. No test is disabled, skipped without justif
 - SQL Server integration tests use Testcontainers and pull a large image; runtime is expected to be several minutes.
 - The MinIO contract test requires the digest-pinned legacy MinIO image, SSE-S3 KMS and the provisioned `fleetops-private-media` bucket plus media identity (D-024); migration to a maintained S3 server is pending.
 - Android connected-device tests remain optional (`FLEETOPS_ENABLE_ANDROID_CONNECTED=1`) and are not part of GREEN.
-- Load above 20 vehicles, hosted virtual-driver provisioning and public self-hosting remain future phase work (SPRINT-34 to SPRINT-38).
+- Load above 20 vehicles is not claimed. Control Tower UX, contract/Android consolidation, hosted virtual-driver provisioning and public self-hosting remain SPRINT-35 to SPRINT-38 work. The 2026-11-04 dependency gate has zero High findings and sixteen Moderate development-tooling findings after compatible patches.

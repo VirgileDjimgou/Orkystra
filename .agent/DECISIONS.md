@@ -1,6 +1,7 @@
 # Journal des décisions
 
 | ID | Date | Décision | Statut |
+| D-025 | 2026-11-04 | Sprint 34 versionne le mouvement analytique et les snapshots en v2. Les anciens snapshots v1 ne peuvent préserver une trajectoire physiquement incorrecte : le Worker appelle le reset tracking canonique du seul tenant synthétique configuré, puis invalide le snapshot et recommence en v2 avec un journal explicite. Aucun changement de schéma ni SQL direct. Les stops synthétiques utilisent des adresses internes `demo-route:<route>:<vertex>` résolues dans Core ; les arrivées pilotes attendent un véhicule arrêté à moins de 25 m avec une position récente. | Décision d'implémentation dans le périmètre Sprint 34 |
 |---|---|---|---|
 | D-001 | 2026-07-15 | Monolithe modulaire au lieu de microservices | Acceptée |
 | D-002 | 2026-07-15 | Une seule application Web pour Admin et Opérateur | Acceptée |

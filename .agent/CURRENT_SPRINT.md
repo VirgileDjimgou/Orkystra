@@ -1,33 +1,24 @@
-# Sprint actif — SPRINT-34 Realistic Fleet Simulation
+# Sprint suivant — SPRINT-35 Operations Control Tower UX
 
 ## État
 
-- Phase : `MVP Consolidation / Public Autonomous Fleet Demo` (`2026.10-mvp-consolidation`).
-- `SPRINT-00` à `SPRINT-33` sont `DONE` ; `SPRINT-33` a clôturé la vérité dépôt et la CI unique, confirmée par le run distant `36993883034` (2026-10-02, six jobs verts).
-- `SPRINT-34` est `PLANNED` : prochain sprint sélectionné par `Start Next Sprint`.
-- `SPRINT-35` à `SPRINT-38` restent `PLANNED`.
-- Exécution : `IDLE`, aucun verrou actif. Lot `Start Next Sprints 6` en cours à 1/6 ; chaque sprint exige un contexte neuf.
+- Sprint 34 est `DONE` après la quality gate locale complète verte du 2026-11-04.
+- Le prochain sprint éligible est `SPRINT-35`, `PLANNED` ; 35 à 38 restent à faire (quatre sprints).
+- Exécution `IDLE` après clôture, verrou libéré. Le lot enregistré avance à 2/6 ; il ne constitue pas un worker en arrière-plan.
+- Aucune implémentation Sprint 35 n'a commencé dans le contexte Sprint 34.
 
-## Contrat à lire
+## Source de vérité
 
-`sprints/SPRINT-34-REALISTIC-FLEET-SIMULATION.md` — objectif, périmètre, contraintes, tâches, tests, sécurité, Definition of Done, preuves, conditions d'arrêt et dépendances.
+`sprints/SPRINT-35-OPERATIONS-CONTROL-TOWER-UX.md`
 
-Contexte immédiat : le moteur Demo produit encore des téléportations en fin de trajectoire (bouclage des polylignes) et des profils de vitesse/cap peu crédibles, ce qui peut déclencher de faux diagnostics de qualité. SPRINT-34 rend la simulation physiquement cohérente, déterministe et compatible avec le moteur de qualité de tracking.
+## Preuves Sprint 34
 
-## Démarrage
+`.runtime/sprint34-quality-gate.log` et `docs/02-engineering/SPRINT34_SIMULATION_EVIDENCE.md` : cinématique réaliste, arrêts mission, vingt véhicules sans rejet qualité, redémarrage réel Worker, gate complète backend/Web/Android verte.
 
-`Start Next Sprint` exécute le runner atomique, acquiert le verrou et sélectionne SPRINT-34. Ne pas démarrer SPRINT-35 dans le même contexte.
+## Reprise
 
-## Limites actives de la phase
+`Start Next Sprint` sélectionne Sprint 35 dans un contexte neuf, avec le runner atomique et `.runtime/sprint35-progress.log`. Ne pas sauter les sprints 35 ou 36 pour lancer 37.
 
-- pilotes virtuels hébergés non provisionnés tant que SPRINT-37 n'est pas terminé ;
-- cockpit non publiable comme Control Tower tant que SPRINT-35 n'est pas terminé ;
-- contrat C#/TypeScript/Kotlin non couvert tant que SPRINT-36 n'est pas terminé ;
-- auto-hébergement public non validé tant que SPRINT-38 n'est pas terminé.
+## Limites et décisions restantes
 
-## Human gates ouverts
-
-- nom commercial final ;
-- positionnement commercial principal ;
-- fournisseur de tuiles cartographiques ;
-- fournisseur d'ingress/tunnel public et domaine HTTPS (SPRINT-38).
+Les seize avis npm Moderate d'outillage restent documentés ; aucun High. Les anciens snapshots de mouvement sont migrés par reset canonique du tracking synthétique uniquement (D-025). Nom commercial, positionnement, fournisseur de tuiles, ingress/domaine HTTPS restent les décisions déjà enregistrées ; aucun déploiement public n'est effectué.

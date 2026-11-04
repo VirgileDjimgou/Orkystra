@@ -35,6 +35,7 @@ pwsh -File scripts/demo-down.ps1
 - dispatch, missions, assignments, offline Android execution, inspections, photo/signature proof, and private media;
 - exception operations, maintenance work orders, compliance campaigns, integrations/webhooks, onboarding, and recipient-status links;
 - deterministic virtual fleet and autonomous virtual-driver agents in a safe Demo runtime;
+- continuous synthetic routes with distance-based speed, stop anchors and deterministic restart; measured [simulation evidence](docs/02-engineering/SPRINT34_SIMULATION_EVIDENCE.md);
 - SQL migrations, Docker pilot/Demo packaging, CI release validation, and Web/Android/backend tests.
 
 ## Architecture

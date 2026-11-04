@@ -1,5 +1,15 @@
 # Rapport de qualité
 
+## Sprint 34 — Realistic Fleet Simulation
+
+- Statut : `PASSED — 2026-11-04`, gate locale complète `.runtime/sprint34-quality-gate.log` terminée par `Quality gate passed.`. Aucun nouveau run CI distant ni déploiement n'est revendiqué.
+- Format/analyse : 329 fichiers backend vérifiés sans modification ; build Release sans avertissement ni erreur ; 193 tests rapides, 12 tests Reliability, 1 contrat MinIO et 6 tests SQL Server passants.
+- Preuves spécifiques : 24 heures logiques échantillonnées chaque seconde sur les cinq scénarios et quatre routes ; 3 600 événements API réels sur vingt véhicules, trois heures logiques, reprise à mi-parcours et zéro rejet/hors ordre ; reprise fichier avec vingt véhicules et égalité complète des événements ; migration v1 vers v2 contrôlée et testée ; arrivée refusée jusqu'à l'ancrage puis workflow inspection/mission/preuve/fin réellement exécuté.
+- Harnais observateur : 90,8 s avec restart Worker à 30 s, vingt positions et zéro rejet qualité ; confirmation finale 60,6 s avec restart à 20 s, 1 140 messages SignalR, zéro erreur HTTP/rejet/hors ordre. Trace de boucle et limites dans `docs/02-engineering/SPRINT34_SIMULATION_EVIDENCE.md`.
+- Gate runtime : GPS et simulation multi-tenant 33 étapes verts ; harnais de charge 620 requêtes/620 messages SignalR, aucune position manquante. Web : format/lint, 32 Vitest, audit High, build et 10 E2E verts. Santé API/readiness et Android lint/unit/APK application/instrumentation verts. Android connecté non configuré, aucun changement Android.
+- Problèmes intermédiaires résolus : droits MinIO UID 1001 restaurés sans supprimer de données ; nouveaux avis npm High corrigés par patches compatibles Vue 3.5.44/Vite 7.3.7 et transitifs. Seize avis Moderate d'outillage restent documentés, seuil de gate inchangé et aucune suppression d'assertion.
+- Sécurité : aucune nouvelle API, aucun SQL direct du simulateur, tenant toujours issu des contrats existants ; contrôles serveur et tests de refus croisé maintenus. Les anciens snapshots déclenchent un reset canonique du tracking synthétique avant migration (D-025), sans toucher missions ni médias.
+
 ## Sprint 33 — Repository Truth & Green CI
 
 - Correctif 2026-10-02 : la clôture du 2026-10-01 n'était pas reproductible — `scripts/agent/verify_state_consistency.py` était référencé mais absent (`.gitignore` ignorait `scripts/agent/`), l'action Android `setup-android@v3` échouait, et l'étape MinIO CI ne pouvait pas fonctionner (images `minio/minio` retirées de tous les canaux officiels, utilisateur média non provisionné, KMS SSE-S3 absent). Réparé et vérifié par le run CI `36993883034` : six jobs verts (backend, web, e2e, android, compose, gouvernance), MinIO legacy épinglé par digest avec KMS et identité média (D-024).

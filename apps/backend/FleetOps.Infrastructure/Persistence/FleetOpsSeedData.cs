@@ -186,8 +186,8 @@ public static class FleetOpsSeedData
             missionStartUtc.AddHours(2));
         mission.ReplaceStops(
         [
-            new MissionStop(organization.Id, mission.Id, 1, "Synthetic depot", "1 Simulation Way", missionStartUtc.AddMinutes(30)),
-            new MissionStop(organization.Id, mission.Id, 2, "Synthetic customer", "2 Simulation Way", missionStartUtc.AddMinutes(90)),
+            new MissionStop(organization.Id, mission.Id, 1, "Synthetic depot", FleetOps.Core.Modules.Demo.DemoMissionAnchor.Address(new FleetOps.Core.Modules.Demo.DemoScenarioCatalog().List()[0].Routes[0], 0), missionStartUtc.AddMinutes(30)),
+            new MissionStop(organization.Id, mission.Id, 2, "Synthetic customer", FleetOps.Core.Modules.Demo.DemoMissionAnchor.Address(new FleetOps.Core.Modules.Demo.DemoScenarioCatalog().List()[0].Routes[0], 1), missionStartUtc.AddMinutes(90)),
         ]);
         mission.SetAssignment(driver.Id, vehicles[0].Id);
         mission.TransitionTo(MissionStatus.Planned, assignedAtUtc);

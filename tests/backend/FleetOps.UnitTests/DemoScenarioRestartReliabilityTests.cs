@@ -25,7 +25,7 @@ public sealed class DemoScenarioRestartReliabilityTests
             var options = Options.Create(new DemoEngineOptions { StatePath = "demo-state.json", Enabled = true, RuntimeMode = "Demo" });
             var store = new FileDemoScenarioStateStore(options, new StubHostEnvironment(directory));
             var organizationId = Guid.NewGuid();
-            var bindings = Enumerable.Range(0, 12)
+            var bindings = Enumerable.Range(0, 20)
                 .Select(index => new DemoVehicleBinding(Guid.NewGuid(), $"DEV-{index:D2}"))
                 .ToList();
             var catalog = new DemoScenarioCatalog();
@@ -64,6 +64,13 @@ public sealed class DemoScenarioRestartReliabilityTests
             var replaySimulator = new DemoFleetSimulator(replayEngine, catalog, replayEmitter);
             await replaySimulator.TickAsync(organizationId, bindings, TimeSpan.FromSeconds(5), CancellationToken.None);
             Assert.Equal(restartedEmitter.Events.Select(x => x.EventId), replayEmitter.Events.Select(x => x.EventId));
+            Assert.Equal(restartedEmitter.Events, replayEmitter.Events);
+            foreach (var next in restartedEmitter.Events)
+            {
+                var previous = firstEmitter.Events.Last(item => item.VehicleId == next.VehicleId);
+                var distance = FleetOps.Core.Modules.Tracking.TrackingGeometry.DistanceKm(previous.Latitude, previous.Longitude, next.Latitude, next.Longitude);
+                Assert.InRange(distance, 0, 42 * 5 / 3600d + 0.001);
+            }
         }
         finally
         {

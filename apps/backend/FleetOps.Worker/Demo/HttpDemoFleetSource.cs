@@ -8,6 +8,16 @@ public sealed class HttpDemoFleetSource(
     IHttpClientFactory httpClientFactory,
     IOptions<DemoEngineOptions> options) : IDemoFleetSource
 {
+    public async Task ResetTrackingAsync(CancellationToken cancellationToken)
+    {
+        var settings = options.Value;
+        var client = httpClientFactory.CreateClient(nameof(HttpDemoFleetSource));
+        client.BaseAddress = new Uri(settings.ApiBaseUrl ?? throw new InvalidOperationException("Demo API URL is required."), UriKind.Absolute);
+        InternalApiHeader.Apply(client, settings.InternalApiKey);
+        using var response = await client.PostAsync($"/api/internal/v1/tracking/scenarios/{Uri.EscapeDataString(settings.OrganizationSlug.Trim())}/reset", null, cancellationToken);
+        response.EnsureSuccessStatusCode();
+    }
+
     public async Task<DemoFleetDefinition> LoadAsync(CancellationToken cancellationToken)
     {
         var settings = options.Value;
