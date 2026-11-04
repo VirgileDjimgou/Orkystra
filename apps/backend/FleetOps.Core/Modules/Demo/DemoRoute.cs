@@ -15,4 +15,17 @@ public sealed record DemoRoute(string Id, IReadOnlyList<DemoRoutePoint> Points)
         var end = Points[index + 1];
         return new(start.Latitude + (end.Latitude - start.Latitude) * fraction, start.Longitude + (end.Longitude - start.Longitude) * fraction);
     }
+
+    public DemoRoutePoint InterpolateContinuous(double progress)
+    {
+        if (Points.Count < 3) throw new InvalidOperationException("A continuous demo route requires at least three points.");
+        var normalized = progress - Math.Floor(progress);
+        var segmentCount = Points.Count - 1;
+        var scaled = normalized * segmentCount;
+        var index = Math.Min((int)scaled, segmentCount - 1);
+        var fraction = scaled - index;
+        var start = Points[index];
+        var end = Points[index + 1];
+        return new(start.Latitude + (end.Latitude - start.Latitude) * fraction, start.Longitude + (end.Longitude - start.Longitude) * fraction);
+    }
 }

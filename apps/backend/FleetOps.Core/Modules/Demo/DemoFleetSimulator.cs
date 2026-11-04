@@ -37,8 +37,8 @@ public sealed class DemoFleetSimulator(
             var route = scenario.Routes[index % scenario.Routes.Count];
             var seedOffset = PositiveModulo(state.Seed * 31L + index * 97L, 10_000) / 10_000d;
             var progress = (seedOffset + state.Tick * (0.004 + index * 0.0001)) % 1d;
-            var point = route.Interpolate(progress);
-            var next = route.Interpolate(Math.Min(1, progress + 0.001));
+            var point = route.InterpolateContinuous(progress);
+            var next = route.InterpolateContinuous(progress + 0.001);
             var heading = CalculateHeading(point, next);
             var eventId = $"demo-{state.Seed}-{index:D2}-{state.Tick:D10}";
             await telemetryEmitter.EmitAsync(new(

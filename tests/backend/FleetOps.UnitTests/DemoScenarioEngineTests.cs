@@ -46,6 +46,18 @@ public sealed class DemoScenarioEngineTests
     }
 
     [Fact]
+    public void ContinuousRouteInterpolationDoesNotWrapAcrossAJump()
+    {
+        var route = new DemoRoute("out-and-back", [new(48.49, 9.18), new(48.50, 9.20), new(48.49, 9.18)]);
+
+        var beforeWrap = route.InterpolateContinuous(0.999);
+        var afterWrap = route.InterpolateContinuous(1.001);
+
+        Assert.InRange(Math.Abs(beforeWrap.Latitude - afterWrap.Latitude), 0, 0.001);
+        Assert.InRange(Math.Abs(beforeWrap.Longitude - afterWrap.Longitude), 0, 0.001);
+    }
+
+    [Fact]
     public void CatalogContainsAllNamedScenariosAndCredibleRoutes()
     {
         var catalog = new DemoScenarioCatalog();
