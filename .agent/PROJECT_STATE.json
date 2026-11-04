@@ -94,13 +94,13 @@
   },
   "lastQualityGate": {
     "status": "PASSED",
-    "timestampUtc": "2026-11-04T00:56:32+00:00",
+    "timestampUtc": "2026-11-04T22:33:10+00:00",
     "report": ".agent/QUALITY_REPORT.md",
-    "gate": ".runtime/sprint34-quality-gate.log"
+    "gate": ".runtime/readme-quality-gate.log"
   },
   "lastCheckpoint": {
-    "timestampUtc": "2026-11-04T00:56:32+00:00",
-    "summary": ".agent/checkpoints/20261104T005601Z.md"
+    "timestampUtc": "2026-11-04T22:33:10+00:00",
+    "summary": ".agent/checkpoints/20261104T223310Z.md"
   },
   "knownBlockers": [],
   "openDecisions": [
@@ -110,5 +110,5 @@
     "Approve a public ingress/tunnel provider and HTTPS domain for the Sprint 38 self-hosted Demo.",
     "Decide the npm High-severity remediation policy in Sprint 33 if a breaking major upgrade is required."
   ],
-  "updatedAtUtc": "2026-11-04T00:56:32+00:00"
+  "updatedAtUtc": "2026-11-04T22:33:10+00:00"
 }

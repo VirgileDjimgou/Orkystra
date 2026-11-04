@@ -6,6 +6,7 @@
 - Le prochain sprint éligible est `SPRINT-35`, `PLANNED` ; 35 à 38 restent à faire (quatre sprints).
 - Exécution `IDLE` après clôture, verrou libéré. Le lot enregistré avance à 2/6 ; il ne constitue pas un worker en arrière-plan.
 - Aucune implémentation Sprint 35 n'a commencé dans le contexte Sprint 34.
+- Maintenance documentaire hors sprint : `README.md` réorganisé et gate locale complète verte (`.runtime/readme-quality-gate.log`) ; Sprint 35 reste `PLANNED`.
 
 ## Source de vérité
 
@@ -21,4 +22,4 @@
 
 ## Limites et décisions restantes
 
-Les seize avis npm Moderate d'outillage restent documentés ; aucun High. Les anciens snapshots de mouvement sont migrés par reset canonique du tracking synthétique uniquement (D-025). Nom commercial, positionnement, fournisseur de tuiles, ingress/domaine HTTPS restent les décisions déjà enregistrées ; aucun déploiement public n'est effectué.
+Le dernier audit local relève onze avis npm Moderate d'outillage, aucun High. Les anciens snapshots de mouvement sont migrés par reset canonique du tracking synthétique uniquement (D-025). Nom commercial, positionnement, fournisseur de tuiles, ingress/domaine HTTPS restent les décisions déjà enregistrées ; aucun déploiement public n'est effectué.

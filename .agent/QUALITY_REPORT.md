@@ -1,5 +1,12 @@
 # Rapport de qualité
 
+## Maintenance documentaire README — 2026-11-04
+
+- Statut : `PASSED`, gate locale complète `.runtime/readme-quality-gate.log`. Premier essai bloqué par le port MinIO 9010 occupé ; reprise sur ports temporaires 9012/9013, sans arrêter l'autre service, puis restauration de `.env`.
+- Vérification README : 27 liens et chemins d'images valides ; `git diff --check` vert. Les captures existantes sont identifiées comme données synthétiques et le profil Demo hébergé n'est pas présenté comme un hébergement public ni comme une exécution autonome des conducteurs virtuels.
+- Gate : 193 tests backend rapides, 12 Reliability, 1 MinIO, 6 SQL Server ; simulation multi-tenant 33 étapes ; charge 600 événements/notifications, zéro erreur HTTP et zéro position manquante ; Web 32 Vitest et 10 Playwright ; santé API et Android lint/unit/APK verts. Audit npm : aucun High, onze Moderate d'outillage. Aucun code produit modifié.
+- Sprint 35 reste `PLANNED/IDLE` ; cette gate valide uniquement la maintenance documentaire, sans clôture de sprint.
+
 ## Sprint 34 — Realistic Fleet Simulation
 
 - Statut : `PASSED — 2026-11-04`, gate locale complète `.runtime/sprint34-quality-gate.log` terminée par `Quality gate passed.`. Aucun nouveau run CI distant ni déploiement n'est revendiqué.

@@ -1,84 +1,97 @@
-# Orkystra FleetOps
+# FleetOps
 
-FleetOps is a portfolio SaaS project for small delivery and field-service fleets: a complete operational chain, not GPS alone.
+**Fleet operations MVP for small delivery and field-service teams.** FleetOps connects dispatch, live vehicle tracking, driver execution, delivery evidence, and exception handling in one tenant-aware system. It is a portfolio implementation and a reproducible synthetic demonstration, not a live commercial service.
 
-```text
-Mission → offline driver workflow → inspection/proof → exception → operator action
-```
+> **Project status (November 2026):** Sprints 00–34 are complete. Four consolidation sprints remain (35–38): Control Tower UX, contract and Android consolidation, hosted virtual drivers, and public self-hosting. [Roadmap](ROADMAP.md) · [Current sprint](.agent/CURRENT_SPRINT.md)
 
-Administrators and operators use a Vue 3 console; drivers use a native Android app. The backend is an ASP.NET Core modular monolith with SQL Server/EF Core, SignalR, private object media, auditability, and a Worker that runs background jobs and the deterministic Demo engine.
+## The operational path
 
-![Public Demo cockpit with a simulated fleet](docs/assets/screenshots/demo-cockpit-fleet.png)
-
-*SIMULATED DEVELOPMENT EVIDENCE — NOT PILOT OR COMMERCIAL PROOF.*
-
-## Try the Demo path
-
-1. Launch the public Demo (`/demo`) into a short-lived, read-only synthetic workspace.
-2. Watch the deterministic fleet move on the map-first cockpit.
-3. Select a vehicle to inspect driver, mission, tracking quality, and exceptions.
-4. Observe virtual-driver activity recorded through real application contracts.
-5. Follow the deeper evidence: reliability, security, architecture, release checklist.
-
-Full scenario and captures: [Demo walkthrough](docs/00-product/DEMO_WALKTHROUGH.md).
-
-```powershell
-pwsh -File scripts/demo-up.ps1      # hosted Demo profile (API, Worker engine, Web, SQL Server, MinIO)
-pwsh -File scripts/demo-smoke.ps1   # readiness, launch, sandbox, reset, animated fleet
-pwsh -File scripts/demo-down.ps1
-```
-
-## What is implemented
-
-- multi-tenant identity, roles, fleet registry, devices, and audited administration;
-- live tracking with history, quality diagnostics, replay/out-of-order protection, Leaflet map, and SignalR;
-- dispatch, missions, assignments, offline Android execution, inspections, photo/signature proof, and private media;
-- exception operations, maintenance work orders, compliance campaigns, integrations/webhooks, onboarding, and recipient-status links;
-- deterministic virtual fleet and autonomous virtual-driver agents in a safe Demo runtime;
-- continuous synthetic routes with distance-based speed, stop anchors and deterministic restart; measured [simulation evidence](docs/02-engineering/SPRINT34_SIMULATION_EVIDENCE.md);
-- SQL migrations, Docker pilot/Demo packaging, CI release validation, and Web/Android/backend tests.
-
-## Architecture
+An operator assigns a mission to a vehicle and driver. The driver can work offline, record an inspection and delivery proof, and sync when connected. GPS events update the fleet view; delays and defects become exceptions for the operator. The Demo exercises this chain with synthetic tenants, routes, vehicles, and workflows.
 
 ```mermaid
 flowchart LR
-  Web[Vue Admin / Operator] --> API[ASP.NET Core API]
-  Android[Android Driver] --> API
-  Demo[Demo engine in Worker] --> API
-  API --> SQL[SQL Server]
-  API --> Realtime[SignalR]
-  API --> Media[Private object storage]
-  Worker[Background Worker] --> SQL
-  Realtime --> Web
+  F[Fleet and devices] --> T[Tracking and quality checks]
+  F --> D[Dispatch and assignment]
+  D --> W[Android driver workflow]
+  W --> P[Inspection and delivery proof]
+  T --> O[Operations and exceptions]
+  D --> O
+  P --> O
+  O --> C[Web operations cockpit]
+  T --> C
 ```
 
-FleetOps intentionally stays a modular monolith: no microservices, distributed event bus, second database, proprietary routing, or LLM dependency.
-
-## Engineering evidence
-
-| Area | Document |
+| Surface | Delivered capability |
 |---|---|
-| Architecture | [Architecture](docs/01-architecture/ARCHITECTURE.md) · [Deployment topology](docs/01-architecture/DEPLOYMENT_TOPOLOGY.md) · [Domain model](docs/01-architecture/DOMAIN_MODEL.md) |
-| Demo | [Demo readiness](docs/01-architecture/DEMO_READINESS.md) · [Hosted engine](docs/01-architecture/HOSTED_DEMO_ENGINE.md) · [Demo security](docs/01-architecture/DEMO_MODE_SECURITY.md) · [Virtual drivers](docs/01-architecture/VIRTUAL_DRIVER_AGENTS.md) |
-| Reliability | [Reliability report](docs/02-engineering/RELIABILITY_REPORT.md) · [Tracking load baseline](docs/02-engineering/TRACKING_LOAD_BASELINE.md) · [Observability](docs/02-engineering/OBSERVABILITY.md) |
-| Release | [Release checklist](docs/02-engineering/RELEASE_CHECKLIST.md) · [Sprint autopilot](docs/02-engineering/SPRINT_AUTOPILOT.md) |
-| Product | [Vision](docs/00-product/PRODUCT_VISION.md) · [Personas and journeys](docs/00-product/PERSONAS_AND_JOURNEYS.md) · [MVP scope](docs/00-product/MVP_SCOPE.md) |
+| Web · Admin / Operator | Fleet registry, map-first cockpit, dispatch, exception queue, maintenance, compliance, integrations, and audited administration. |
+| Android · Driver | Assigned missions, offline-first execution and sync, inspections, photo/signature proof, and mission status. |
+| API / Worker | Tenant-scoped workflows, telemetry ingestion/history, SignalR updates, private media, audit/outbox jobs, and deterministic Demo scenarios. |
 
-## Local validation
+The implementation progressed from identity and fleet data, through dispatch and driver workflows, to live tracking and a safe Demo runtime. The current phase consolidates those capabilities into a clearer, publicly demonstrable Control Tower. [Product scope](docs/00-product/MVP_SCOPE.md) · [Architecture decision](docs/01-architecture/ADR/0001-modular-monolith.md)
 
-Copy `.env.example` to `.env` with local-only values, then:
+## See the Demo
+
+The public Demo launches a short-lived, read-only Operator session for a labelled synthetic tenant. Its Worker animates a repeatable fleet through the normal tracking API. Select a vehicle to inspect its mission and tracking quality, then follow an exception in the activity dock. The local development simulation also demonstrates virtual-driver actions through the real mission, inspection, and proof contracts.
+
+| Launch a synthetic session | Inspect the moving fleet |
+|---|---|
+| <a href="docs/assets/screenshots/demo-launch.png"><img src="docs/assets/screenshots/demo-launch.png" alt="SIMULATED DEMO launch screen" width="430"></a> | <a href="docs/assets/screenshots/demo-cockpit-fleet.png"><img src="docs/assets/screenshots/demo-cockpit-fleet.png" alt="Operations cockpit with a synthetic fleet and selected mission" width="430"></a> |
+| **Investigate a delayed mission** | **Review a virtual-driver action** |
+| <a href="docs/assets/screenshots/demo-vehicle-exception.png"><img src="docs/assets/screenshots/demo-vehicle-exception.png" alt="Selected vehicle, mission and delay exception" width="430"></a> | <a href="docs/assets/screenshots/demo-agent-activity.png"><img src="docs/assets/screenshots/demo-agent-activity.png" alt="Virtual-driver delay activity in a development workspace" width="430"></a> |
+
+The [Android mission screen](docs/assets/screenshots/android-driver-mission-detail.png) shows stops and the driver's mission timeline. These captures are **simulated development evidence**, not customer, pilot, or production evidence. The virtual-driver capture uses a development workspace; hosted Demo identity provisioning is planned for Sprint 37. [Full walkthrough and scenario catalogue](docs/00-product/DEMO_WALKTHROUGH.md)
+
+### Run locally
+
+**Requirements:** Docker with Compose, PowerShell 7 (`pwsh`), and free ports for the Web/API and backing services. Copy `.env.example` to `.env` and replace its placeholder secrets, including the Base64-encoded 32-byte MinIO KMS key. Keep `.env` local.
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts/quality-gate.ps1
-powershell -ExecutionPolicy Bypass -File scripts/run-full-simulation.ps1
+Copy-Item .env.example .env
+# Edit .env: replace the example secrets and KMS key.
+pwsh -File scripts/demo-up.ps1
+# Open http://localhost:8081/demo (or FLEETOPS_WEB_PORT from .env).
+pwsh -File scripts/demo-down.ps1
 ```
 
-CI mirrors a bounded subset on every push and pull request: [release validation](.github/workflows/release-validation.yml) runs backend format/build/tests, Web format/lint/tests/build, the Playwright public and operations journeys, and all compose configuration checks. It never deploys or pushes.
+For an automated readiness, session-sandbox, reset, and animated-fleet check, run `pwsh -File scripts/demo-smoke.ps1 -SkipBuild` **after stopping the interactive stack**: the smoke script uses its own Compose project and the same host ports. It stops its containers when finished. [Deployment profiles](docs/01-architecture/DEPLOYMENT_TOPOLOGY.md) · [Demo security](docs/01-architecture/DEMO_MODE_SECURITY.md)
 
-## Sprint execution
+## Architecture and module boundaries
 
-`Start Next Sprint` runs exactly one eligible sprint through the documented lock/state workflow. `Start Next Sprints N` is limited to `1..10`, and every sprint still runs in its own context. See [Sprint autopilot](docs/02-engineering/SPRINT_AUTOPILOT.md) and the [roadmap](ROADMAP.md).
+FleetOps is one ASP.NET Core modular monolith (`Api`, `Core`, `Infrastructure`) plus a Worker. Vue 3/Pinia/Leaflet serves administrators and operators; the native Android app serves drivers. SQL Server is the transaction source, EF Core migrations manage its schema, and private S3-compatible storage holds media. REST carries commands and history; SignalR carries current positions, states, and alerts. MQTT is limited to device/simulator integration.
 
-## Important limits
+```mermaid
+flowchart LR
+  Web[Vue Web<br/>Admin / Operator] -->|REST| API[ASP.NET Core API]
+  Web <-->|SignalR live updates| API
+  Android[Native Android<br/>offline sync] -->|REST| API
+  GPS[Devices / GPS simulator] -->|HTTP or MQTT adapter| API
+  Worker[Worker<br/>jobs + Demo engine] -->|scoped internal Demo API| API
+  API --> Core[Core modules<br/>Identity · Fleet · Tracking · Dispatch<br/>Operations · Demo · Integrations]
+  Core --> Infra[EF Core + infrastructure adapters]
+  Infra --> SQL[(SQL Server)]
+  Infra --> Media[(Private object storage)]
+  Worker -->|outbox and background jobs| SQL
+```
 
-FleetOps is a portfolio project, not a deployed commercial service. The commercial name, public map-tile policy, legal documentation, external hosting, and hosted virtual-driver provisioning remain explicit human decisions. No real customer data, credentials, or production deployment are introduced by the Demo roadmap.
+Identity supplies the authenticated organization; tenant-aware records carry `OrganizationId`, and sensitive actions are authorized on the server. Tracking links device events to vehicles and exposes current positions/history; Dispatch links vehicles, drivers, missions, and stops; Operations consumes those read models for exceptions and the cockpit. The Worker runs deferred jobs and synthetic scenarios through application contracts, never by directly editing business tables. [Backend architecture](docs/01-architecture/ARCHITECTURE.md) · [Domain model](docs/01-architecture/DOMAIN_MODEL.md) · [Demo engine](docs/01-architecture/HOSTED_DEMO_ENGINE.md)
+
+## What is proven, and what remains
+
+- **Validated locally:** the Sprint 34 full gate passed across backend, SQL Server/MinIO integration, multi-tenant simulation, Web unit/E2E, API health, and Android lint/unit/APK build. Its 20-vehicle restart exercise recorded no tracking-quality rejection. [Quality report](.agent/QUALITY_REPORT.md) · [Simulation measurements](docs/02-engineering/SPRINT34_SIMULATION_EVIDENCE.md)
+- **Demo boundary:** synthetic data, expiring least-privilege sessions, rate limits, server-side tenant checks, sandboxed side effects, and a visible `SIMULATED DEMO` label. There is no real customer data in the Demo profile. [Security design](docs/01-architecture/DEMO_MODE_SECURITY.md)
+- **Remaining work:** the cockpit's complete timeline/selection UX (35), contract and Android consolidation (36), hosted virtual-driver credentials (37), and a public self-hosted release with final proof (38). The current Demo runs locally; it is not a public deployment. [Roadmap](ROADMAP.md)
+- **Explicit limits:** Demo load evidence covers up to 20 vehicles, not production scale. Public hosting, a map-tile provider/policy, commercial name/positioning, and legal readiness still require decisions. No proprietary route optimization, iOS app, WMS, billing, or general-purpose AI is part of this MVP. [Release checklist](docs/02-engineering/RELEASE_CHECKLIST.md)
+
+## Work on the repository
+
+| Area | Location | Main entry point |
+|---|---|---|
+| Backend and Worker | `apps/backend/` | `FleetOps.slnx` |
+| Web | `apps/web/` | `package.json` |
+| Native Android | `apps/android-driver/` | `gradlew` / `gradlew.bat` |
+| Infrastructure and scripts | `docker-compose*.yml`, `scripts/` | `scripts/demo-up.ps1` |
+| Contracts and evidence | `sprints/`, `docs/`, `.agent/` | `ROADMAP.md` |
+
+After configuring `.env`, run `pwsh -File scripts/quality-gate.ps1` for the required format, static analysis, builds, tests, integration checks, simulation, Web journeys, and Android checks. This needs .NET 10, Node.js 24, a JDK/Android SDK, Docker, and PowerShell; it can take several minutes. [Validation policy](VALIDATION.md) · [CI workflow](.github/workflows/release-validation.yml)
+
+Sprint work follows the [atomic sprint runner](docs/02-engineering/SPRINT_AUTOPILOT.md): `Start Next Sprint` selects one eligible sprint, logs visible progress under `.runtime/`, validates it, and stops. `Start Next Sprints N` is bounded to `1..10` and still requires a separate context for each sprint.

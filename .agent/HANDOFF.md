@@ -1,3 +1,7 @@
+# Handoff — Maintenance README (2026-11-04)
+
+`README.md` présente maintenant le but, le parcours métier, les fonctions livrées, deux schémas, les captures Demo, les commandes locales et les limites vérifiées. Les liens et images (27 références) existent. Gate locale complète verte : `.runtime/readme-quality-gate.log` ; premier essai interrompu par un port MinIO 9010 déjà utilisé par un autre projet, second essai passé sur ports temporaires 9012/9013 et `.env` restauré. Aucun code produit ni contrat de sprint modifié. Sprint 35 reste PLANNED/IDLE, quatre sprints à faire.
+
 # Handoff — Sprint 34 terminé (2026-11-04)
 
 Sprint 34 est DONE après la gate locale complète `.runtime/sprint34-quality-gate.log`. Toutes les acceptations sont cochées. Prochain sprint : Sprint 35 Operations Control Tower UX, PLANNED ; quatre sprints restent (35–38). Aucune implémentation Sprint 35 n'est incluse et aucun worker d'implémentation ne tourne en arrière-plan.
